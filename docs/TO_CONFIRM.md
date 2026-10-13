@@ -26,6 +26,13 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | `eb-white-08` | `pricePerMeter` | `TO_CONFIRM` | | Local supplier price per meter. |
 | `eb-oak-20` | `pricePerMeter` | `TO_CONFIRM` | | Local supplier price per meter. |
 
+### Nesting and Cutting (Phase 1 Task 5)
+
+| Parameter | Current Default | Confirmed Value | Notes |
+|---|---|---|---|
+| Saw kerf (`sawKerfMm`) | `3.2 mm (TO_CONFIRM)` | | Blade cut thickness of panel saw. |
+| Trim margin (`trimMarginMm`) | `10.0 mm (TO_CONFIRM)` | | Perimeter waste margin on raw sheet. |
+
 ## 2. General Shop Values (from Plan Section 12)
 
 1. **Sheet sizes and thicknesses.** Confirm actual board dimensions in local shop stock.
