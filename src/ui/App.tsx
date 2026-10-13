@@ -97,7 +97,7 @@ export function App(): ReactElement {
             className="layout-grid layout-grid--two-col"
             data-mobile-view={vm.activeTab === 'form' ? 'form' : 'workspace'}
           >
-            <aside aria-label="Module Parameters">
+            <aside aria-label="Module Parameters" className="layout-aside">
               <ModuleForm
                 width={vm.width}
                 height={vm.height}
@@ -121,7 +121,7 @@ export function App(): ReactElement {
               />
             </aside>
 
-            <section aria-label="Module Visualization">
+            <section aria-label="Module Visualization" className="layout-main">
               {vm.activeTab === '3d' && (
                 <Viewport3D
                   boxes={vm.spatialBoxes}
