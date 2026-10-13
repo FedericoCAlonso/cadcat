@@ -1,6 +1,14 @@
 import type { ReactElement, ChangeEvent } from 'react';
 import type { Material, EdgeBand } from '../model';
-import type { TemplateDefinition } from '../resolver';
+import type {
+  TemplateDefinition,
+  RoofType,
+  JointPriority,
+  BayContent,
+  DrawerSlideType,
+  DrawerFrontMount,
+  DoorMountType,
+} from '../resolver';
 import { translateTemplateName, translateEdgeBandKind } from './localization';
 
 export interface ModuleFormProps {
@@ -23,11 +31,46 @@ export interface ModuleFormProps {
   onSave: () => void;
   onExportCsv?: () => void;
   onExportPdf?: () => void;
+  // Modular builder state & actions
+  isCustomModular?: boolean;
+  roofType?: RoofType;
+  jointPriority?: JointPriority;
+  hasBacking?: boolean;
+  gridType?: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
+  bays?: BayContent[];
+  activeBayIndex?: number;
+  frontsMaterialId?: string;
+  drawerBoxesMaterialId?: string;
+  backingsMaterialId?: string;
+  onRoofTypeChange?: (roof: RoofType) => void;
+  onJointPriorityChange?: (priority: JointPriority) => void;
+  onHasBackingChange?: (hasBacking: boolean) => void;
+  onGridTypeChange?: (gridType: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal') => void;
+  onActiveBayIndexChange?: (idx: number) => void;
+  onBayContentTypeChange?: (
+    bayIndex: number,
+    type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure',
+  ) => void;
+  onAddShelf?: (bayIndex: number) => void;
+  onRemoveShelf?: (bayIndex: number) => void;
+  onShelfTypeChange?: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
+  onShelfAntiSagChange?: (bayIndex: number, hasAntiSag: boolean) => void;
+  onAddDrawer?: (bayIndex: number) => void;
+  onRemoveDrawer?: (bayIndex: number) => void;
+  onDrawerFrontMountChange?: (bayIndex: number, mount: DrawerFrontMount) => void;
+  onDrawerSlideTypeChange?: (bayIndex: number, slide: DrawerSlideType) => void;
+  onDoorCountChange?: (bayIndex: number, count: 1 | 2) => void;
+  onDoorMountTypeChange?: (bayIndex: number, mount: DoorMountType) => void;
+  onBifoldDirectionChange?: (bayIndex: number, dir: 'vertical-lift' | 'horizontal-book') => void;
+  onFrontsMaterialChange?: (id: string) => void;
+  onDrawerBoxesMaterialChange?: (id: string) => void;
+  onBackingsMaterialChange?: (id: string) => void;
+  onView3dClick?: () => void;
 }
 
 /**
  * Module configuration form component with Argentine Spanish localization and M3 styles.
- * Supports quick numeric touch steppers and full accessibility.
+ * Supports interactive builder controls: drawers, shelves, covers, doors, partitions, and roofs.
  */
 export function ModuleForm(props: ModuleFormProps): ReactElement {
   const {
@@ -50,6 +93,34 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onSave,
     onExportCsv,
     onExportPdf,
+    roofType = 'front-back-rails',
+    jointPriority = 'lateral-over-bottom',
+    hasBacking = true,
+    gridType = '1-bay',
+    bays = [{ type: 'shelves', count: 1, shelfType: 'adjustable', setbackMm: 20 }],
+    activeBayIndex = 0,
+    frontsMaterialId = '',
+    drawerBoxesMaterialId = '',
+    onRoofTypeChange,
+    onJointPriorityChange,
+    onHasBackingChange,
+    onGridTypeChange,
+    onActiveBayIndexChange,
+    onBayContentTypeChange,
+    onAddShelf,
+    onRemoveShelf,
+    onShelfTypeChange,
+    onShelfAntiSagChange,
+    onAddDrawer,
+    onRemoveDrawer,
+    onDrawerFrontMountChange,
+    onDrawerSlideTypeChange,
+    onDoorCountChange,
+    onDoorMountTypeChange,
+    onBifoldDirectionChange,
+    onFrontsMaterialChange,
+    onDrawerBoxesMaterialChange,
+    onView3dClick,
   } = props;
 
   const handleNumberInput = (setter: (val: number) => void) => (e: ChangeEvent<HTMLInputElement>) => {
@@ -63,22 +134,26 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     setter(Math.max(min, Math.min(max, current + delta)));
   };
 
+  const currentBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '1-bay' ? 1 : 2;
+  const currentActiveIndex = Math.min(activeBayIndex, currentBayCount - 1);
+  const activeBay = bays[currentActiveIndex] ?? { type: 'empty' };
+
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
       <div className="m3-card__header">
         <h2 id="form-heading" className="m3-card__title">
-          📐 Medidas y Módulo
-          <span className="visually-hidden">Module Parameters</span>
+          📐 Medidas y Armado del Módulo
+          <span className="visually-hidden">Module Parameters and Builder</span>
         </h2>
         <p className="m3-card__subtitle">
-          Configurá las dimensiones del mueble, placa y tapacantos.
+          Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
         </p>
       </div>
 
       {templates && templates.length > 0 && onTemplateChange && (
         <div className="form-group">
           <label htmlFor="select-template">
-            Plantilla de mueble:
+            Plantilla base:
             <span className="visually-hidden">Module Template:</span>
           </label>
           <select
@@ -93,21 +168,13 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </option>
             ))}
           </select>
-          {selectedTemplateId?.startsWith('modular-') && (
-            <div className="m3-alert m3-alert--info" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-              <span className="m3-alert__icon" aria-hidden="true">✨</span>
-              <div style={{ fontSize: '0.85rem' }}>
-                <strong>Composición Paramétrica Modular:</strong> Distribución de vanos y cajones en unidades <code>fr</code> y <code>mm</code> con anclajes estructurales automáticos.
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {/* Ancho */}
       <div className="form-group">
         <label htmlFor="input-width">
-          Ancho (mm):
+          Ancho exterior (mm):
           <span className="visually-hidden">Width (mm):</span>
         </label>
         <div className="m3-stepper-field">
@@ -142,7 +209,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {/* Alto */}
       <div className="form-group">
         <label htmlFor="input-height">
-          Alto (mm):
+          Alto exterior (mm):
           <span className="visually-hidden">Height (mm):</span>
         </label>
         <div className="m3-stepper-field">
@@ -177,7 +244,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {/* Profundidad */}
       <div className="form-group">
         <label htmlFor="input-depth">
-          Profundidad (mm):
+          Profundidad exterior (mm):
           <span className="visually-hidden">Depth (mm):</span>
         </label>
         <div className="m3-stepper-field">
@@ -209,49 +276,532 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </div>
       </div>
 
-      {/* Material */}
-      <div className="form-group">
-        <label htmlFor="select-material">
-          Placa de melamina:
-          <span className="visually-hidden">Sheet Material:</span>
-        </label>
-        <select
-          id="select-material"
-          value={selectedMaterialId}
-          onChange={(e) => onMaterialChange(e.target.value)}
-          className="m3-select"
-        >
-          {materials.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name} ({m.thicknessMm} mm)
-            </option>
-          ))}
-        </select>
+      {/* =========================================================================
+          SECCIÓN 1: Casco y Tapa Superior
+          ========================================================================= */}
+      <div className="builder-section">
+        <h3 className="builder-section-title">
+          <span>🏗️ Estructura del Casco y Tapa</span>
+        </h3>
+
+        {/* Tapa Superior / Techo */}
+        <div className="form-group">
+          <label>Tapa superior / Techo:</label>
+          <div className="builder-segmented-group" role="group" aria-label="Tipo de tapa superior">
+            <button
+              type="button"
+              className={`builder-segmented-btn ${roofType === 'front-back-rails' ? 'selected' : ''}`}
+              onClick={() => onRoofTypeChange?.('front-back-rails')}
+            >
+              2 Fajas (80mm)
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${roofType === 'solid-panel' ? 'selected' : ''}`}
+              onClick={() => onRoofTypeChange?.('solid-panel')}
+            >
+              Tapa entera
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${roofType === 'none' ? 'selected' : ''}`}
+              onClick={() => onRoofTypeChange?.('none')}
+            >
+              Sin tapa
+            </button>
+          </div>
+        </div>
+
+        {/* Unión de Esquinas */}
+        <div className="form-group">
+          <label>Unión de esquinas:</label>
+          <div className="builder-segmented-group" role="group" aria-label="Prioridad de unión de esquinas">
+            <button
+              type="button"
+              className={`builder-segmented-btn ${jointPriority === 'lateral-over-bottom' ? 'selected' : ''}`}
+              onClick={() => onJointPriorityChange?.('lateral-over-bottom')}
+            >
+              Laterales pasan
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${jointPriority === 'bottom-over-lateral' ? 'selected' : ''}`}
+              onClick={() => onJointPriorityChange?.('bottom-over-lateral')}
+            >
+              Piso pasa
+            </button>
+          </div>
+        </div>
+
+        {/* Fondo */}
+        <div className="form-group">
+          <label>Fondo posterior:</label>
+          <div className="builder-segmented-group" role="group" aria-label="Fondo posterior del módulo">
+            <button
+              type="button"
+              className={`builder-segmented-btn ${hasBacking ? 'selected' : ''}`}
+              onClick={() => onHasBackingChange?.(true)}
+            >
+              Con fondo (ranurado 3mm)
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${!hasBacking ? 'selected' : ''}`}
+              onClick={() => onHasBackingChange?.(false)}
+            >
+              Sin fondo
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Tapacantos */}
-      <div className="form-group">
-        <label htmlFor="select-edgeband">
-          Tapacantos:
-          <span className="visually-hidden">Edge Band:</span>
-        </label>
-        <select
-          id="select-edgeband"
-          value={selectedEdgeBandId}
-          onChange={(e) => onEdgeBandChange(e.target.value)}
-          className="m3-select"
-        >
-          <option value="">Sin tapacanto / Ninguno</option>
-          {edgeBands.map((eb) => (
-            <option key={eb.id} value={eb.id}>
-              {eb.id} ({translateEdgeBandKind(eb.kind)}, {eb.thicknessMm} mm)
-            </option>
-          ))}
-        </select>
+      {/* =========================================================================
+          SECCIÓN 2: Distribución de Vanos
+          ========================================================================= */}
+      <div className="builder-section">
+        <h3 className="builder-section-title">
+          <span>🔲 Distribución de Vanos</span>
+        </h3>
+        <div className="form-group">
+          <label>Divisiones del mueble:</label>
+          <div className="builder-segmented-group" role="group" aria-label="Distribución de vanos">
+            <button
+              type="button"
+              className={`builder-segmented-btn ${gridType === '1-bay' ? 'selected' : ''}`}
+              onClick={() => onGridTypeChange?.('1-bay')}
+            >
+              1 Vano único
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${gridType === '2-bays-vertical' ? 'selected' : ''}`}
+              onClick={() => onGridTypeChange?.('2-bays-vertical')}
+            >
+              2 Vanos (Parante)
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${gridType === '3-bays-vertical' ? 'selected' : ''}`}
+              onClick={() => onGridTypeChange?.('3-bays-vertical')}
+            >
+              3 Vanos
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${gridType === '2-bays-horizontal' ? 'selected' : ''}`}
+              onClick={() => onGridTypeChange?.('2-bays-horizontal')}
+            >
+              2 Niveles
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          SECCIÓN 3: Equipamiento Interior (Cajones, Estantes, Puertas, Tapas)
+          ========================================================================= */}
+      <div className="builder-section">
+        <h3 className="builder-section-title">
+          <span>🚪 Equipamiento Interior</span>
+        </h3>
+
+        {/* Pestañas si hay más de 1 vano */}
+        {currentBayCount > 1 && (
+          <div className="builder-bay-tab-row" role="tablist" aria-label="Seleccionar vano para equipar">
+            {Array.from({ length: currentBayCount }, (_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`m3-chip ${currentActiveIndex === idx ? 'm3-chip--selected' : ''}`}
+                onClick={() => onActiveBayIndexChange?.(idx)}
+                role="tab"
+                aria-selected={currentActiveIndex === idx}
+              >
+                Vano {idx + 1} {idx === 0 ? '(Izq)' : idx === 1 ? '(Der)' : `(${idx + 1})`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tipo de componente en el vano activo */}
+        <div className="form-group">
+          <label>¿Qué querés armar en este vano?</label>
+          <div className="builder-chip-selector" role="group" aria-label="Componente interior">
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'drawer-stack' ? 'selected' : ''}`}
+              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'drawer-stack')}
+            >
+              🗄️ Cajones
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'shelves' ? 'selected' : ''}`}
+              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'shelves')}
+            >
+              📚 Estantes
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'doors' ? 'selected' : ''}`}
+              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'doors')}
+            >
+              🚪 Puertas
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'pull-out-tray' ? 'selected' : ''}`}
+              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'pull-out-tray')}
+            >
+              📥 Bandeja
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'bi-fold-closure' ? 'selected' : ''}`}
+              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'bi-fold-closure')}
+            >
+              🔼 Bi-Fold
+            </button>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'empty' ? 'selected' : ''}`}
+              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'empty')}
+            >
+              ⬜ Libre
+            </button>
+          </div>
+        </div>
+
+        {/* Controles para Cajones */}
+        {activeBay.type === 'drawer-stack' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="form-group">
+              <label>Cantidad de cajones:</label>
+              <div className="m3-stepper-field">
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Quitar un cajón"
+                  onClick={() => onRemoveDrawer?.(currentActiveIndex)}
+                >
+                  −
+                </button>
+                <div className="builder-stepper-display">
+                  {`${activeBay.drawerTracks.length} Cajones`}
+                </div>
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Agregar un cajón"
+                  onClick={() => onAddDrawer?.(currentActiveIndex)}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Montaje de frentes:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.frontMount === 'applied' ? 'selected' : ''}`}
+                  onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'applied')}
+                >
+                  Aplicado (Solapado)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.frontMount === 'inset' ? 'selected' : ''}`}
+                  onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'inset')}
+                >
+                  Embutido
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Tipo de correderas:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.slideType === 'telescopic' ? 'selected' : ''}`}
+                  onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'telescopic')}
+                >
+                  Telescópicas (25.4mm)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.slideType === 'undermount' ? 'selected' : ''}`}
+                  onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'undermount')}
+                >
+                  Ocultas (Bajo Fondo)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Controles para Estantes */}
+        {activeBay.type === 'shelves' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="form-group">
+              <label>Cantidad de estantes:</label>
+              <div className="m3-stepper-field">
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Quitar un estante"
+                  onClick={() => onRemoveShelf?.(currentActiveIndex)}
+                >
+                  −
+                </button>
+                <div className="builder-stepper-display">
+                  {`${activeBay.count} ${activeBay.count === 1 ? 'Estante' : 'Estantes'}`}
+                </div>
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Agregar un estante"
+                  onClick={() => onAddShelf?.(currentActiveIndex)}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Tipo de fijación:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.shelfType === 'adjustable' ? 'selected' : ''}`}
+                  onClick={() => onShelfTypeChange?.(currentActiveIndex, 'adjustable')}
+                >
+                  Regulables (Pitagones 5mm)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.shelfType === 'fixed' ? 'selected' : ''}`}
+                  onClick={() => onShelfTypeChange?.(currentActiveIndex, 'fixed')}
+                >
+                  Fijos (Confirmats)
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Refuerzo antialabeo:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.hasAntiSagBrace ? 'selected' : ''}`}
+                  onClick={() => onShelfAntiSagChange?.(currentActiveIndex, true)}
+                >
+                  Con faja de refuerzo
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${!activeBay.hasAntiSagBrace ? 'selected' : ''}`}
+                  onClick={() => onShelfAntiSagChange?.(currentActiveIndex, false)}
+                >
+                  Sin refuerzo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Controles para Puertas */}
+        {activeBay.type === 'doors' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="form-group">
+              <label>Cantidad de hojas:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.count === 1 ? 'selected' : ''}`}
+                  onClick={() => onDoorCountChange?.(currentActiveIndex, 1)}
+                >
+                  1 Puerta batiente
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.count === 2 ? 'selected' : ''}`}
+                  onClick={() => onDoorCountChange?.(currentActiveIndex, 2)}
+                >
+                  2 Puertas batientes
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Montaje de puerta:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.mountType === 'full-overlay' ? 'selected' : ''}`}
+                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'full-overlay')}
+                >
+                  Solapada (Full Overlay)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.mountType === 'inset' ? 'selected' : ''}`}
+                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'inset')}
+                >
+                  Embutida (Inset)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Controles para Bandeja Extraíble */}
+        {activeBay.type === 'pull-out-tray' && (
+          <div className="m3-alert m3-alert--info">
+            <span className="m3-alert__icon" aria-hidden="true">📥</span>
+            <div>
+              <strong>Bandeja deslizable reforzada:</strong> Corredera telescópica con barandas laterales de retención de 45mm.
+            </div>
+          </div>
+        )}
+
+        {/* Controles para Bi-Fold */}
+        {activeBay.type === 'bi-fold-closure' && (
+          <div className="form-group">
+            <label>Dirección de apertura:</label>
+            <div className="builder-segmented-group">
+              <button
+                type="button"
+                className={`builder-segmented-btn ${activeBay.openingDirection === 'vertical-lift' ? 'selected' : ''}`}
+                onClick={() => onBifoldDirectionChange?.(currentActiveIndex, 'vertical-lift')}
+              >
+                Elevable Vertical (Aventos)
+              </button>
+              <button
+                type="button"
+                className={`builder-segmented-btn ${activeBay.openingDirection === 'horizontal-book' ? 'selected' : ''}`}
+                onClick={() => onBifoldDirectionChange?.(currentActiveIndex, 'horizontal-book')}
+              >
+                Libro Horizontal
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Controles para Hueco Libre */}
+        {activeBay.type === 'empty' && (
+          <p style={{ fontStyle: 'italic', color: 'var(--md-sys-color-on-surface-variant)', margin: '0.25rem 0' }}>
+            Vano libre sin equipamiento interior. Seleccioná una opción arriba para agregar cajones, estantes o puertas.
+          </p>
+        )}
+      </div>
+
+      {/* =========================================================================
+          SECCIÓN 4: Materiales por Rol (Multi-Material)
+          ========================================================================= */}
+      <div className="builder-section">
+        <h3 className="builder-section-title">
+          <span>🎨 Materiales y Tapacantos</span>
+        </h3>
+
+        {/* Material Casco */}
+        <div className="form-group">
+          <label htmlFor="select-material">
+            Placa para Casco (Laterales, piso, techo):
+            <span className="visually-hidden">Sheet Material:</span>
+          </label>
+          <select
+            id="select-material"
+            value={selectedMaterialId}
+            onChange={(e) => onMaterialChange(e.target.value)}
+            className="m3-select"
+          >
+            {materials.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name} ({m.thicknessMm} mm)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Material Frentes / Puertas */}
+        {onFrontsMaterialChange && (
+          <div className="form-group">
+            <label htmlFor="select-fronts-material">
+              Placa para Frentes / Puertas / Tapas:
+            </label>
+            <select
+              id="select-fronts-material"
+              value={frontsMaterialId || selectedMaterialId}
+              onChange={(e) => onFrontsMaterialChange(e.target.value)}
+              className="m3-select"
+            >
+              {materials.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.thicknessMm} mm)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Material Cajones */}
+        {onDrawerBoxesMaterialChange && (
+          <div className="form-group">
+            <label htmlFor="select-drawer-material">
+              Placa para Cajas de Cajones interiores:
+            </label>
+            <select
+              id="select-drawer-material"
+              value={drawerBoxesMaterialId || selectedMaterialId}
+              onChange={(e) => onDrawerBoxesMaterialChange(e.target.value)}
+              className="m3-select"
+            >
+              {materials.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.thicknessMm} mm)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Tapacantos */}
+        <div className="form-group">
+          <label htmlFor="select-edgeband">
+            Tapacantos:
+            <span className="visually-hidden">Edge Band:</span>
+          </label>
+          <select
+            id="select-edgeband"
+            value={selectedEdgeBandId}
+            onChange={(e) => onEdgeBandChange(e.target.value)}
+            className="m3-select"
+          >
+            <option value="">Sin tapacanto / Ninguno</option>
+            {edgeBands.map((eb) => (
+              <option key={eb.id} value={eb.id}>
+                {eb.id} ({translateEdgeBandKind(eb.kind)}, {eb.thicknessMm} mm)
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Botones de acción */}
       <div className="form-actions m3-button-row">
+        {onView3dClick && (
+          <button
+            type="button"
+            onClick={onView3dClick}
+            className="m3-btn m3-btn--filled"
+            style={{ width: '100%', marginBottom: '0.5rem' }}
+          >
+            🧊 Ver Resultado en 3D
+          </button>
+        )}
         <button
           type="button"
           onClick={onSave}

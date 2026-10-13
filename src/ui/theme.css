@@ -1258,3 +1258,115 @@ body {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* ==========================================================================
+   Modular Interactive Cabinet Builder (Touch-First & M3 Design)
+   ========================================================================== */
+.builder-section {
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.builder-section-title {
+  font: var(--md-sys-typescale-title-small);
+  font-weight: 600;
+  color: var(--md-sys-color-primary);
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.builder-segmented-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.builder-segmented-btn {
+  flex: 1 1 auto;
+  min-height: 42px;
+  padding: 0.5rem 0.65rem;
+  font: var(--md-sys-typescale-label-medium);
+  font-weight: 500;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-sm);
+  background-color: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-align: center;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.builder-segmented-btn:hover {
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.builder-segmented-btn.selected {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-color: var(--md-sys-color-primary);
+  font-weight: 600;
+}
+
+.builder-stepper-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--md-sys-typescale-title-medium);
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+  flex: 1;
+  background-color: var(--md-sys-color-surface-container-lowest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-sm);
+  min-height: 44px;
+}
+
+.builder-bay-tab-row {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.builder-chip-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.builder-floating-action {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .builder-floating-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: fixed;
+    bottom: calc(76px + env(safe-area-inset-bottom, 16px) + 0.75rem);
+    right: 1rem;
+    z-index: 90;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--md-sys-shape-corner-full);
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font: var(--md-sys-typescale-label-large);
+    font-weight: 600;
+    border: none;
+    box-shadow: var(--md-sys-elevation-2);
+    cursor: pointer;
+  }
+}
+

@@ -68,7 +68,7 @@ export interface BayBoundingBox {
 
 export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
 export type DrawerFrontMount = 'applied' | 'inset';
-export type DoorMountType = 'full-overlay' | 'half-overlay' | 'inset';
+export type DoorMountType = 'full-overlay' | 'half-overlay' | 'inset' | 'overlay';
 
 export type BayContent =
   | { type: 'empty' }

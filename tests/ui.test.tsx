@@ -62,6 +62,106 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('Egger White 18mm');
     expect(html).toContain('Save Module to Database');
   });
+
+  it('renders interactive builder controls for roof, vanos, drawers, and shelves', () => {
+    const html = renderToString(
+      <ModuleForm
+        width={600}
+        height={800}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        selectedMaterialId="mat-1"
+        selectedEdgeBandId="eb-1"
+        isSaving={false}
+        roofType="front-back-rails"
+        jointPriority="lateral-over-bottom"
+        hasBacking={true}
+        gridType="1-bay"
+        bays={[
+          {
+            type: 'drawer-stack',
+            drawerTracks: [
+              { type: 'fixed', valueMm: 140 },
+              { type: 'fractional', valueFr: 1 },
+              { type: 'fractional', valueFr: 1 },
+            ],
+            frontMount: 'applied',
+            slideType: 'telescopic',
+          },
+        ]}
+        activeBayIndex={0}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        onMaterialChange={vi.fn()}
+        onEdgeBandChange={vi.fn()}
+        onSave={vi.fn()}
+        onRoofTypeChange={vi.fn()}
+        onJointPriorityChange={vi.fn()}
+        onHasBackingChange={vi.fn()}
+        onGridTypeChange={vi.fn()}
+        onAddDrawer={vi.fn()}
+        onRemoveDrawer={vi.fn()}
+      />,
+    );
+
+    // Roof controls (answers user request: tapa superio)
+    expect(html).toContain('2 Fajas (80mm)');
+    expect(html).toContain('Tapa entera');
+    expect(html).toContain('Sin tapa');
+
+    // Joint controls
+    expect(html).toContain('Laterales pasan');
+    expect(html).toContain('Piso pasa');
+
+    // Vanos controls
+    expect(html).toContain('1 Vano único');
+    expect(html).toContain('2 Vanos (Parante)');
+
+    // Drawer controls (answers user request: cajones)
+    expect(html).toContain('3 Cajones');
+    expect(html).toContain('Aplicado (Solapado)');
+    expect(html).toContain('Embutido');
+    expect(html).toContain('Telescópicas (25.4mm)');
+  });
+
+  it('renders interactive shelf and door controls when equipped', () => {
+    const html = renderToString(
+      <ModuleForm
+        width={800}
+        height={900}
+        depth={400}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        selectedMaterialId="mat-1"
+        selectedEdgeBandId="eb-1"
+        isSaving={false}
+        roofType="solid-panel"
+        gridType="1-bay"
+        bays={[
+          {
+            type: 'shelves',
+            count: 3,
+            shelfType: 'adjustable',
+            hasAntiSagBrace: true,
+          },
+        ]}
+        activeBayIndex={0}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        onMaterialChange={vi.fn()}
+        onEdgeBandChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    // Shelves controls (answers user request: estantes)
+    expect(html).toContain('3 Estantes');
+    expect(html).toContain('Regulables (Pitagones 5mm)');
+    expect(html).toContain('Con faja de refuerzo');
+  });
 });
 
 describe('PieceListView Component', () => {

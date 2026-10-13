@@ -75,9 +75,9 @@ export function App(): ReactElement {
             className={`m3-tab-button ${vm.activeTab === 'form' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('form')}
           >
-            <span aria-hidden="true">📐 </span>
-            <span>Medidas</span>
-            <span className="visually-hidden"> Parameters</span>
+            <span aria-hidden="true">🛠️ </span>
+            <span>Armar</span>
+            <span className="visually-hidden"> Parameters and Modular Builder</span>
           </button>
         </nav>
       </header>
@@ -118,21 +118,62 @@ export function App(): ReactElement {
                 onSave={() => void vm.saveModule()}
                 onExportCsv={vm.exportCsv}
                 onExportPdf={vm.exportPdf}
+                isCustomModular={vm.isCustomModular}
+                roofType={vm.roofType}
+                jointPriority={vm.jointPriority}
+                hasBacking={vm.hasBacking}
+                gridType={vm.gridType}
+                bays={vm.bays}
+                activeBayIndex={vm.activeBayIndex}
+                frontsMaterialId={vm.frontsMaterialId}
+                drawerBoxesMaterialId={vm.drawerBoxesMaterialId}
+                backingsMaterialId={vm.backingsMaterialId}
+                onRoofTypeChange={vm.setRoofType}
+                onJointPriorityChange={vm.setJointPriority}
+                onHasBackingChange={vm.setHasBacking}
+                onGridTypeChange={vm.setGridType}
+                onActiveBayIndexChange={vm.setActiveBayIndex}
+                onBayContentTypeChange={vm.setBayContentType}
+                onAddShelf={vm.addShelf}
+                onRemoveShelf={vm.removeShelf}
+                onShelfTypeChange={vm.setShelfType}
+                onShelfAntiSagChange={vm.setShelfAntiSag}
+                onAddDrawer={vm.addDrawer}
+                onRemoveDrawer={vm.removeDrawer}
+                onDrawerFrontMountChange={vm.setDrawerFrontMount}
+                onDrawerSlideTypeChange={vm.setDrawerSlideType}
+                onDoorCountChange={vm.setDoorCount}
+                onDoorMountTypeChange={vm.setDoorMountType}
+                onBifoldDirectionChange={vm.setBifoldDirection}
+                onFrontsMaterialChange={vm.setFrontsMaterialId}
+                onDrawerBoxesMaterialChange={vm.setDrawerBoxesMaterialId}
+                onBackingsMaterialChange={vm.setBackingsMaterialId}
+                onView3dClick={() => vm.setActiveTab('3d')}
               />
             </aside>
 
             <section aria-label="Module Visualization" className="layout-main">
               {vm.activeTab === '3d' && (
-                <Viewport3D
-                  boxes={vm.spatialBoxes}
-                  bounds={vm.spatialBounds}
-                  pieces={vm.resolvedPieces}
-                  explodedRatio={vm.explodedRatio}
-                  onExplodedRatioChange={vm.setExplodedRatio}
-                  selectedPieceId={vm.selectedPieceId}
-                  onSelectPiece={vm.setSelectedPieceId}
-                  shelfDeflections={vm.shelfDeflections}
-                />
+                <>
+                  <Viewport3D
+                    boxes={vm.spatialBoxes}
+                    bounds={vm.spatialBounds}
+                    pieces={vm.resolvedPieces}
+                    explodedRatio={vm.explodedRatio}
+                    onExplodedRatioChange={vm.setExplodedRatio}
+                    selectedPieceId={vm.selectedPieceId}
+                    onSelectPiece={vm.setSelectedPieceId}
+                    shelfDeflections={vm.shelfDeflections}
+                  />
+                  <button
+                    type="button"
+                    className="builder-floating-action"
+                    onClick={() => vm.setActiveTab('form')}
+                    aria-label="Modificar o armar mueble"
+                  >
+                    🛠️ Armar Módulo
+                  </button>
+                </>
               )}
 
               {vm.activeTab === 'machining' && (
@@ -199,9 +240,9 @@ export function App(): ReactElement {
           onClick={() => vm.setActiveTab('form')}
         >
           <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">📐</span>
+            <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
           </div>
-          <span className="m3-bottom-nav__label">Medidas</span>
+          <span className="m3-bottom-nav__label">Armar</span>
         </button>
         <button
           type="button"
