@@ -22,6 +22,13 @@ export const ES_AR_PIECE_ROLES: Record<string, string> = {
   'door-right': 'Puerta derecha',
   'door-single': 'Puerta batiente',
   'assembly-gauge': 'Calibre de armado (Auxiliar)',
+  'transom': 'Travesaño divisor',
+  'tray-bottom': 'Piso de bandeja extraíble',
+  'tray-lip-side': 'Faja lateral de bandeja',
+  'tray-lip-front': 'Faja frontal de bandeja',
+  'tray-lip-back': 'Faja trasera de bandeja',
+  'shelf-brace': 'Refuerzo vertical anti-flexión',
+  'bifold-leaf': 'Hoja articulada (Bi-Fold)',
 };
 
 export const ES_AR_TEMPLATE_NAMES: Record<string, string> = {
@@ -29,6 +36,12 @@ export const ES_AR_TEMPLATE_NAMES: Record<string, string> = {
   'door-cabinet': 'Mueble con puertas batientes y estante',
   'drawer-unit': 'Cajonera (3 cajones)',
   'partition-cabinet': 'Mueble 2 vanos con división',
+  'modular-empty': 'Modular: Hueco libre / Casco',
+  'modular-drawer-unit-3': 'Modular: Cajonera 3 cajones (fr + mm)',
+  'modular-door-cabinet': 'Modular: Alacena 2 puertas',
+  'modular-partition-combo': 'Modular: 2 vanos (Estantes + Cajones)',
+  'modular-pullout-tray': 'Modular: Bandeja extraíble telescópica',
+  'modular-bifold-closure': 'Modular: Puerta plegable bi-fold',
 };
 
 export const ES_AR_EDGEBAND_KINDS: Record<string, string> = {

@@ -24,6 +24,9 @@ export interface DrawerConfig {
   baseYMm: number;
   carcaseThicknessMm: number;
   materialId: string;
+  frontMaterialId?: string;
+  boxMaterialId?: string;
+  boxThicknessMm?: number;
   slideType: DrawerSlideType;
   frontMount?: DrawerFrontMount;
   customSlideClearanceMm?: number;
@@ -59,6 +62,9 @@ export function buildDrawerSubAssembly(
     baseYMm,
     carcaseThicknessMm: T,
     materialId,
+    frontMaterialId,
+    boxMaterialId,
+    boxThicknessMm,
     slideType,
     frontMount = 'applied',
     customSlideClearanceMm,
@@ -67,6 +73,10 @@ export function buildDrawerSubAssembly(
     boxFrontOffsetMm = 10,
     boxBottomClearanceMm = 15,
   } = config;
+
+  const actualFrontMaterialId = frontMaterialId ?? materialId;
+  const actualBoxMaterialId = boxMaterialId ?? materialId;
+  const actualBoxT = boxThicknessMm ?? T;
 
   const slideClearance = customSlideClearanceMm ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? 25.4;
   const innerWidth = openingWidthMm;
@@ -93,7 +103,7 @@ export function buildDrawerSubAssembly(
   const front = createPiece({
     id: `${idPrefix}-front-${index}`,
     role: 'drawer-front',
-    materialId,
+    materialId: actualFrontMaterialId,
     contour: createRectangularContour(frontWidth, frontHeight),
     thicknessMm: T,
     structural: false,
@@ -120,16 +130,16 @@ export function buildDrawerSubAssembly(
   const boxSideL = createPiece({
     id: `${idPrefix}-box-side-l-${index}`,
     role: 'drawer-side',
-    materialId,
+    materialId: actualBoxMaterialId,
     contour: createRectangularContour(boxDepth, boxHeightMm),
-    thicknessMm: T,
+    thicknessMm: actualBoxT,
   });
   const boxSideR = createPiece({
     id: `${idPrefix}-box-side-r-${index}`,
     role: 'drawer-side',
-    materialId,
+    materialId: actualBoxMaterialId,
     contour: createRectangularContour(boxDepth, boxHeightMm),
-    thicknessMm: T,
+    thicknessMm: actualBoxT,
   });
   pieces.push(boxSideL, boxSideR);
   subPieceIds.push(boxSideL.id, boxSideR.id);
@@ -143,23 +153,23 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: boxSideR.id,
     parentPieceId,
-    relativeOffset: { x: boxX + drawerBoxWidth - T, y: boxY, z: boxOffsetZ },
+    relativeOffset: { x: boxX + drawerBoxWidth - actualBoxT, y: boxY, z: boxOffsetZ },
   });
 
   // 3. Drawer Box Front & Back
   const boxFront = createPiece({
     id: `${idPrefix}-box-front-${index}`,
     role: 'drawer-box-front',
-    materialId,
-    contour: createRectangularContour(drawerBoxWidth - 2 * T, boxHeightMm),
-    thicknessMm: T,
+    materialId: actualBoxMaterialId,
+    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxHeightMm),
+    thicknessMm: actualBoxT,
   });
   const boxBack = createPiece({
     id: `${idPrefix}-box-back-${index}`,
     role: 'drawer-box-back',
-    materialId,
-    contour: createRectangularContour(drawerBoxWidth - 2 * T, boxHeightMm),
-    thicknessMm: T,
+    materialId: actualBoxMaterialId,
+    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxHeightMm),
+    thicknessMm: actualBoxT,
   });
   pieces.push(boxFront, boxBack);
   subPieceIds.push(boxFront.id, boxBack.id);
@@ -167,21 +177,21 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: boxFront.id,
     parentPieceId,
-    relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
+    relativeOffset: { x: boxX + actualBoxT, y: boxY, z: boxOffsetZ },
   });
   placementNodes.push({
     pieceId: boxBack.id,
     parentPieceId,
-    relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ + boxDepth - T },
+    relativeOffset: { x: boxX + actualBoxT, y: boxY, z: boxOffsetZ + boxDepth - actualBoxT },
   });
 
   // 4. Drawer Bottom
   const boxBottom = createPiece({
     id: `${idPrefix}-box-bottom-${index}`,
     role: 'drawer-bottom',
-    materialId,
-    contour: createRectangularContour(drawerBoxWidth - 2 * T, boxDepth),
-    thicknessMm: T,
+    materialId: actualBoxMaterialId,
+    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxDepth),
+    thicknessMm: actualBoxT,
     structural: false,
   });
   pieces.push(boxBottom);

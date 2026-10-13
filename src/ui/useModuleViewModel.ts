@@ -33,7 +33,7 @@ import {
   type BillOfMaterials,
   type ModuleCostSummary,
   type TemplateDefinition,
-  TEMPLATES,
+  ALL_TEMPLATES,
   getTemplateById,
   resolveModuleSpatialBoxes,
   type SpatialPieceBox,
@@ -49,7 +49,7 @@ import {
   exportAssemblyGuidePdf,
   type AssemblySheet,
 } from '../resolver';
-import { runGuillotineNesting } from '../workers';
+import { runMultiMaterialGuillotineNesting } from '../workers';
 
 export interface ModuleViewModelState {
   width: number;
@@ -309,21 +309,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         ...gaugePieces,
       ];
 
-      const sheetLength = typeof activeMaterial.sheetSizeMm.length === 'number'
-        ? activeMaterial.sheetSizeMm.length
-        : 2800;
-      const sheetWidth = typeof activeMaterial.sheetSizeMm.width === 'number'
-        ? activeMaterial.sheetSizeMm.width
-        : 2070;
-
-      const nesting = runGuillotineNesting({
+      const nesting = runMultiMaterialGuillotineNesting({
         items: nestingItems,
-        sheet: {
-          materialId: activeMaterial.id,
-          lengthMm: sheetLength,
-          widthMm: sheetWidth,
-          sawKerfMm: projectConfig?.nesting.sawKerfMm,
-          trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
+        sheetLookup: (matId) => {
+          const mat = materials.find((m) => m.id === matId) ?? activeMaterial;
+          const sLen = typeof mat.sheetSizeMm.length === 'number' ? mat.sheetSizeMm.length : 2800;
+          const sWid = typeof mat.sheetSizeMm.width === 'number' ? mat.sheetSizeMm.width : 2070;
+          return {
+            materialId: mat.id,
+            lengthMm: sLen,
+            widthMm: sWid,
+            sawKerfMm: projectConfig?.nesting.sawKerfMm,
+            trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
+          };
         },
         optimizationGoal: projectConfig?.nesting.optimizationGoal,
       });
@@ -423,21 +421,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       ...gaugePieces,
     ];
 
-    const sheetLength = typeof activeMaterial.sheetSizeMm.length === 'number'
-      ? activeMaterial.sheetSizeMm.length
-      : 2800;
-    const sheetWidth = typeof activeMaterial.sheetSizeMm.width === 'number'
-      ? activeMaterial.sheetSizeMm.width
-      : 2070;
-
-    const nesting = runGuillotineNesting({
+    const nesting = runMultiMaterialGuillotineNesting({
       items: nestingItems,
-      sheet: {
-        materialId: activeMaterial.id,
-        lengthMm: sheetLength,
-        widthMm: sheetWidth,
-        sawKerfMm: projectConfig?.nesting.sawKerfMm,
-        trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
+      sheetLookup: (matId) => {
+        const mat = materials.find((m) => m.id === matId) ?? activeMaterial;
+        const sLen = typeof mat.sheetSizeMm.length === 'number' ? mat.sheetSizeMm.length : 2800;
+        const sWid = typeof mat.sheetSizeMm.width === 'number' ? mat.sheetSizeMm.width : 2070;
+        return {
+          materialId: mat.id,
+          lengthMm: sLen,
+          widthMm: sWid,
+          sawKerfMm: projectConfig?.nesting.sawKerfMm,
+          trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
+        };
       },
       optimizationGoal: projectConfig?.nesting.optimizationGoal,
     });
@@ -544,7 +540,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     height,
     depth,
     selectedTemplateId,
-    templates: TEMPLATES,
+    templates: ALL_TEMPLATES,
     selectedMaterialId,
     selectedEdgeBandId,
     materials,

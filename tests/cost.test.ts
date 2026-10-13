@@ -266,4 +266,92 @@ describe('Module Cost Calculator', () => {
     const cutItem = cost.items.find((it) => it.id === 'cut-passes');
     expect(cutItem?.subtotal).toBe('TO_CONFIRM');
   });
+
+  it('calculates costs correctly with multi-material sheets', () => {
+    const multiMatNesting: NestingResult = {
+      sheets: [
+        {
+          sheetIndex: 0,
+          materialId: 'mat-egger-white-18',
+          sheetLengthMm: 2800,
+          sheetWidthMm: 2070,
+          placedPieces: [{ pieceId: 'p1', x: 10, y: 10, width: 500, height: 700, rotated: false }],
+          utilizationPercentage: 30,
+          usedAreaM2: 0.35,
+          wasteAreaM2: 5.44,
+          cutPasses: 4,
+        },
+        {
+          sheetIndex: 1,
+          materialId: 'mat-egger-oak-18',
+          sheetLengthMm: 2800,
+          sheetWidthMm: 2070,
+          placedPieces: [{ pieceId: 'p2', x: 10, y: 10, width: 400, height: 200, rotated: false }],
+          utilizationPercentage: 15,
+          usedAreaM2: 0.08,
+          wasteAreaM2: 5.71,
+          cutPasses: 4,
+        },
+      ],
+      unplacedPieces: [],
+      totalSheets: 2,
+      overallUtilizationPercentage: 22.5,
+      totalCutPasses: 8,
+    };
+
+    const multiMaterials: Material[] = [
+      {
+        schemaVersion: 1,
+        id: 'mat-egger-white-18',
+        name: 'Egger White 18mm',
+        thicknessMm: 18,
+        sheetSizeMm: { length: 2800, width: 2070 },
+        hasGrain: false,
+        milling: { hidden: 'yes', visible: 'no', onStructuralPiece: 'limited' },
+        pricePerSheet: 65.0,
+      },
+      {
+        schemaVersion: 1,
+        id: 'mat-egger-oak-18',
+        name: 'Egger Oak 18mm',
+        thicknessMm: 18,
+        sheetSizeMm: { length: 2800, width: 2070 },
+        hasGrain: true,
+        milling: { hidden: 'yes', visible: 'no', onStructuralPiece: 'limited' },
+        pricePerSheet: 95.0,
+      },
+    ];
+
+    const cost = calculateModuleCost({
+      bom: {
+        moduleId: 'multi-mat-mod',
+        pieces: [],
+        totalPieceCount: 2,
+        totalCutAreaM2: 0.43,
+        edgeBands: [],
+        totalEdgeBandMeters: 0,
+        hardware: [],
+        totalHardwareCount: 0,
+      },
+      nestingResult: multiMatNesting,
+      materials: multiMaterials,
+      edgeBands: [],
+      hardware: [],
+    });
+
+    const matItems = cost.items.filter((it) => it.category === 'material');
+    expect(matItems).toHaveLength(2);
+
+    const whiteItem = matItems.find((it) => it.id === 'mat-egger-white-18');
+    const oakItem = matItems.find((it) => it.id === 'mat-egger-oak-18');
+
+    expect(whiteItem?.quantity).toBe(1);
+    expect(whiteItem?.subtotal).toBe(65.0);
+
+    expect(oakItem?.quantity).toBe(1);
+    expect(oakItem?.subtotal).toBe(95.0);
+
+    expect(cost.materialTotal).toBe(160.0);
+    expect(cost.isFullyConfirmed).toBe(true);
+  });
 });

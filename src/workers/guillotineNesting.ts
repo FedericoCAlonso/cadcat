@@ -71,6 +71,17 @@ export interface NestingResult {
   totalCutPasses: number;
 }
 
+export interface MultiMaterialNestingInput {
+  items: NestingItem[];
+  defaultSheet?: SheetDefinition;
+  sheetLookup?: (materialId: string) => SheetDefinition | undefined;
+  optimizationGoal?: 'min-waste' | 'min-passes';
+}
+
+export interface MultiMaterialNestingResult extends NestingResult {
+  resultsByMaterial: Record<string, NestingResult>;
+}
+
 interface CutSegment {
   orientation: 'H' | 'V';
   coord: number;
@@ -477,3 +488,82 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     totalCutPasses,
   };
 }
+
+/**
+ * Executes independent guillotine nesting runs for each unique material present in items.
+ */
+export function runMultiMaterialGuillotineNesting(
+  input: MultiMaterialNestingInput,
+): MultiMaterialNestingResult {
+  const { items, defaultSheet, sheetLookup, optimizationGoal } = input;
+
+  // Group items by materialId
+  const itemsByMaterial = new Map<string, NestingItem[]>();
+  for (const item of items) {
+    const list = itemsByMaterial.get(item.materialId);
+    if (list) {
+      list.push(item);
+    } else {
+      itemsByMaterial.set(item.materialId, [item]);
+    }
+  }
+
+  const resultsByMaterial: Record<string, NestingResult> = {};
+  const allSheets: NestingSheetResult[] = [];
+  const allUnplaced: NestingItem[] = [];
+  let sheetIndexOffset = 1;
+
+  for (const [materialId, matItems] of itemsByMaterial.entries()) {
+    const sheetDef =
+      sheetLookup?.(materialId) ??
+      (defaultSheet
+        ? { ...defaultSheet, materialId }
+        : {
+            materialId,
+            lengthMm: 2800,
+            widthMm: 2070,
+            trimMarginMm: DEFAULT_TRIM_MARGIN_MM,
+            sawKerfMm: DEFAULT_SAW_KERF_MM,
+          });
+
+    const singleResult = runGuillotineNesting({
+      items: matItems,
+      sheet: sheetDef,
+      optimizationGoal,
+    });
+
+    resultsByMaterial[materialId] = singleResult;
+
+    for (const sheet of singleResult.sheets) {
+      allSheets.push({
+        ...sheet,
+        sheetIndex: sheetIndexOffset++,
+      });
+    }
+
+    allUnplaced.push(...singleResult.unplacedPieces);
+  }
+
+  const totalSheets = allSheets.length;
+  const overallUtilizationPercentage =
+    totalSheets > 0
+      ? Number(
+          (
+            allSheets.reduce((sum, s) => sum + s.utilizationPercentage, 0) /
+            totalSheets
+          ).toFixed(2),
+        )
+      : 0;
+
+  const totalCutPasses = allSheets.reduce((sum, s) => sum + s.cutPasses, 0);
+
+  return {
+    sheets: allSheets,
+    unplacedPieces: allUnplaced,
+    totalSheets,
+    overallUtilizationPercentage,
+    totalCutPasses,
+    resultsByMaterial,
+  };
+}
+

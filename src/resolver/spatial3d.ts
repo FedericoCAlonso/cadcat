@@ -35,23 +35,33 @@ export function determinePieceSpatialSize(piece: Piece): Position3D {
   const role = piece.role.toLowerCase();
 
   // Vertical side & partition panels standing in YZ plane
-  if ((role.includes('side') || role.includes('partition')) && !role.includes('rail')) {
+  if (
+    (role.includes('side') || role.includes('partition') || role === 'tray-lip-side') &&
+    !role.includes('rail') &&
+    !role.includes('drawer-box-front') &&
+    !role.includes('drawer-box-back')
+  ) {
     // Width along X is thickness. Height along Y is contour height. Depth along Z is contour width.
     return { x: t, y: h, z: w };
   }
 
-  // Horizontal rails / stretchers in XZ plane
-  if (role.includes('rail')) {
+  // Horizontal rails / stretchers / transoms in XZ plane
+  if (role.includes('rail') || role.includes('transom')) {
     return { x: w, y: t, z: h };
   }
 
-  // Horizontal panels in XZ plane (bottom, shelf, top)
-  if (role.includes('bottom') || role.includes('shelf') || role.includes('top')) {
+  // Horizontal panels in XZ plane (bottom, shelf, top, tray-bottom)
+  if (
+    role.includes('bottom') ||
+    role.includes('shelf') ||
+    role.includes('top') ||
+    role === 'tray-bottom'
+  ) {
     // Width along X is contour width. Thickness along Y is t. Depth along Z is contour height.
     return { x: w, y: t, z: h };
   }
 
-  // Panels in XY plane (back, front, drawer-front, doors)
+  // Panels in XY plane (back, front, drawer-front, doors, bifold-leaf, shelf-brace, tray-lip-front, tray-lip-back)
   return { x: w, y: h, z: t };
 }
 

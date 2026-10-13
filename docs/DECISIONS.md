@@ -78,3 +78,19 @@ Document language: ASD-STE100 (Simplified Technical English).
   3. In `src/resolver/templates/door.ts` and `src/resolver/templates/doorCabinet.ts`, support `mountType: 'full-overlay' | 'half-overlay' | 'inset'`. Compute door width and positions from carcase thickness and project configuration reveals. Derive hinge vertical margins from `hardware.doorHingeMarginMm` and cup setbacks from `machining.hingeCupEdgeSetbackMm`.
   4. Expose hardware and clearance adjustments in `src/ui/ProjectSettingsView.tsx` under Material Design 3 inputs.
 - **Consequence:** Modules dynamically adapt to different door and drawer hardware standards without hardcoded assumptions. The system is ready for the Phase 3 visual Template Editor.
+
+## ADR-010: Modular Parametric Composition Engine (Bays, Anchors, and Multi-Material)
+
+- **Status:** Accepted.
+- **Context:** Hardcoded monolithic cabinet templates limit workshop flexibility. Real-world cabinetry requires combining drawers, shelves, trays, and hinged/bifold doors in asymmetric bays, with distinct joint priorities (carcase sides over bottom or bottom over sides), open stretcher rails, and multi-material assignment (e.g. 18mm white melamine carcass, 18mm oak MDF fronts, 15mm drawer boxes, and 3mm grooved backings).
+- **Decision:**
+  1. Implement a 3-layer composition architecture:
+     - `AnchorSolver` (`src/resolver/composition/anchorSolver.ts`): Resolves structural carcass panels, corner anchor priorities (`lateral-over-bottom`, `bottom-over-lateral`), roof construction (`solid-panel`, `front-back-rails`, or `none`), grooved backings, and calculates the exact interior bounding cavity.
+     - `GridSolver` (`src/resolver/composition/gridSolver.ts`): Subdivides interior bays horizontally or vertically using fixed millimeter (`mm`) and fractional proportional (`fr`) units. Employs cumulative remainder distribution to ensure exact integer arithmetic across panel dividers.
+     - `ComponentSolver` (`src/resolver/composition/componentSolver.ts`): Equips bays with equipment: adjustable/fixed shelves with anti-sag braces, drawer stacks with fixed transom dividers and slide clearances, pull-out trays with slide clearance deductions and perimeter retention lips, single/double doors, and bi-fold folding closures with intermediate hinges.
+  2. Implement multi-material guillotine nesting (`runMultiMaterialGuillotineNesting`) in `src/workers/guillotineNesting.ts`. Pieces are grouped by material to run independent sheet optimizations, correctly separating carcass sheets from front and box sheets.
+  3. In `src/resolver/bom.ts`, group cut list pieces by `materialId` and compute per-material area and piece counts. In `src/resolver/cost.ts`, calculate material sheet purchases and saw passes per material.
+  4. In `src/ui/PieceListView.tsx`, add interactive material filtering chips and a dedicated material column.
+  5. Register modular presets in `MODULAR_PRESETS` and `TEMPLATES` for instant workshop composition.
+- **Consequence:** Mobilius supports arbitrary modular combinations and multi-material cabinetry, maintaining strict parametric recalculation when changing overall dimensions and delivering workshop-ready cut lists, nesting diagrams, and machining sheets.
+

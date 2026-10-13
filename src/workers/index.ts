@@ -8,7 +8,10 @@ export {
   type NestingSheetResult,
   type NestingInput,
   type NestingResult,
+  type MultiMaterialNestingInput,
+  type MultiMaterialNestingResult,
   runGuillotineNesting,
+  runMultiMaterialGuillotineNesting,
 } from './guillotineNesting';
 
 export { executeNesting } from './nestingClient';

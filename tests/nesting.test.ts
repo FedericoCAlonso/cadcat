@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   runGuillotineNesting,
+  runMultiMaterialGuillotineNesting,
   executeNesting,
   type NestingItem,
   type SheetDefinition,
@@ -203,5 +204,32 @@ describe('Guillotine Nesting', () => {
     expect(minPassesResult.unplacedPieces).toHaveLength(0);
     expect(minWasteResult.unplacedPieces).toHaveLength(0);
     expect(minPassesResult.totalCutPasses).toBeLessThanOrEqual(minWasteResult.totalCutPasses);
+  });
+
+  it('runs multi-material nesting with independent runs per material', () => {
+    const multiItems: NestingItem[] = [
+      { id: '1', pieceId: 'side-l', materialId: 'mat-egger-white-18', cutWidthMm: 560, cutHeightMm: 720, canRotate: false },
+      { id: '2', pieceId: 'side-r', materialId: 'mat-egger-white-18', cutWidthMm: 560, cutHeightMm: 720, canRotate: false },
+      { id: '3', pieceId: 'front-1', materialId: 'mat-egger-oak-18', cutWidthMm: 496, cutHeightMm: 220, canRotate: false },
+      { id: '4', pieceId: 'front-2', materialId: 'mat-egger-oak-18', cutWidthMm: 496, cutHeightMm: 220, canRotate: false },
+      { id: '5', pieceId: 'box-side-1', materialId: 'mat-mdf-white-15', cutWidthMm: 500, cutHeightMm: 140, canRotate: false },
+      { id: '6', pieceId: 'box-side-2', materialId: 'mat-mdf-white-15', cutWidthMm: 500, cutHeightMm: 140, canRotate: false },
+    ];
+
+    const result = runMultiMaterialGuillotineNesting({
+      items: multiItems,
+    });
+
+    expect(result.unplacedPieces).toHaveLength(0);
+    expect(Object.keys(result.resultsByMaterial)).toHaveLength(3);
+    expect(result.resultsByMaterial['mat-egger-white-18']).toBeDefined();
+    expect(result.resultsByMaterial['mat-egger-oak-18']).toBeDefined();
+    expect(result.resultsByMaterial['mat-mdf-white-15']).toBeDefined();
+
+    // Check sheets have the correct materials
+    const materialsFound = result.sheets.map((s) => s.materialId);
+    expect(materialsFound).toContain('mat-egger-white-18');
+    expect(materialsFound).toContain('mat-egger-oak-18');
+    expect(materialsFound).toContain('mat-mdf-white-15');
   });
 });

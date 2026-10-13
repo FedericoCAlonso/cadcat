@@ -93,6 +93,14 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </option>
             ))}
           </select>
+          {selectedTemplateId?.startsWith('modular-') && (
+            <div className="m3-alert m3-alert--info" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+              <span className="m3-alert__icon" aria-hidden="true">✨</span>
+              <div style={{ fontSize: '0.85rem' }}>
+                <strong>Composición Paramétrica Modular:</strong> Distribución de vanos y cajones en unidades <code>fr</code> y <code>mm</code> con anclajes estructurales automáticos.
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -35,11 +35,19 @@ export interface BOMHardwareItem {
   count: number;
 }
 
+export interface BOMMaterialGroup {
+  materialId: string;
+  pieces: BOMPieceItem[];
+  totalPieces: number;
+  totalCutAreaM2: number;
+}
+
 export interface BillOfMaterials {
   moduleId: string;
   pieces: BOMPieceItem[];
   totalPieceCount: number;
   totalCutAreaM2: number;
+  materialGroups?: BOMMaterialGroup[];
   edgeBands: BOMEdgeBandItem[];
   totalEdgeBandMeters: number;
   hardware: BOMHardwareItem[];
@@ -197,6 +205,36 @@ export function generateBOMHardware(resolvedModule: ResolvedModule): BOMHardware
 }
 
 /**
+ * Groups BOM piece items by their material ID.
+ */
+export function groupBOMPiecesByMaterial(pieces: BOMPieceItem[]): BOMMaterialGroup[] {
+  const map = new Map<string, BOMPieceItem[]>();
+  for (const piece of pieces) {
+    const list = map.get(piece.materialId);
+    if (list) {
+      list.push(piece);
+    } else {
+      map.set(piece.materialId, [piece]);
+    }
+  }
+
+  const groups: BOMMaterialGroup[] = [];
+  for (const [materialId, groupPieces] of map.entries()) {
+    const totalCutAreaM2 = Number(
+      groupPieces.reduce((acc, p) => acc + p.areaM2, 0).toFixed(4),
+    );
+    groups.push({
+      materialId,
+      pieces: groupPieces,
+      totalPieces: groupPieces.length,
+      totalCutAreaM2,
+    });
+  }
+
+  return groups;
+}
+
+/**
  * Make a complete Bill of Materials (BOM) for a resolved module.
  */
 export function generateBillOfMaterials(
@@ -206,6 +244,7 @@ export function generateBillOfMaterials(
   const pieces = generateBOMPieces(resolvedModule.pieces, edgeBands);
   const edgeBandsSummary = generateBOMEdgeBands(resolvedModule.pieces, edgeBands);
   const hardware = generateBOMHardware(resolvedModule);
+  const materialGroups = groupBOMPiecesByMaterial(pieces);
 
   const totalCutAreaM2 = Number(
     pieces.reduce((sum, p) => sum + p.areaM2, 0).toFixed(4),
@@ -222,6 +261,7 @@ export function generateBillOfMaterials(
     pieces,
     totalPieceCount: pieces.length,
     totalCutAreaM2,
+    materialGroups,
     edgeBands: edgeBandsSummary,
     totalEdgeBandMeters,
     hardware,

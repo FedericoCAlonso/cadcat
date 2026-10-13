@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import type { ResolvedPieceWithCutSize, ShelfDeflectionResult } from '../resolver';
 import { translatePieceRole } from './localization';
 
@@ -9,10 +9,11 @@ export interface PieceListViewProps {
 
 /**
  * List view of resolved pieces with Argentine Spanish terminology and responsive M3 table.
- * Shows finished dimensions, cut dimensions, edge banding, and deflection checks for each piece.
+ * Shows finished dimensions, cut dimensions, material filter, edge banding, and deflection checks.
  */
 export function PieceListView(props: PieceListViewProps): ReactElement {
   const { pieces, shelfDeflections } = props;
+  const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
 
   if (pieces.length === 0) {
     return (
@@ -29,12 +30,20 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     );
   }
 
+  // Extract unique materials
+  const uniqueMaterials = Array.from(new Set(pieces.map((p) => p.materialId)));
+
+  const filteredPieces =
+    selectedMaterial === 'all'
+      ? pieces
+      : pieces.filter((p) => p.materialId === selectedMaterial);
+
   // Check if any shelf has an active deflection warning
-  const warningList = pieces
+  const warningList = filteredPieces
     .map((p) => shelfDeflections?.get(p.id))
     .filter((d): d is ShelfDeflectionResult => d !== undefined && d.hasWarning);
 
-  const totalEdgeBandMeters = pieces.reduce((acc, p) => {
+  const totalEdgeBandMeters = filteredPieces.reduce((acc, p) => {
     return acc + p.bandedEdges.reduce((bAcc, b) => bAcc + b.lengthMm / 1000, 0);
   }, 0);
 
@@ -44,8 +53,8 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
         <div className="piece-list-header-row">
           <div>
             <h2 id="pieces-heading" className="m3-card__title">
-              📋 Despiece de Taller ({pieces.length} piezas)
-              <span className="visually-hidden">{`Pieces Cut List (${pieces.length})`}</span>
+              📋 Despiece de Taller ({filteredPieces.length} piezas)
+              <span className="visually-hidden">{`Pieces Cut List (${filteredPieces.length})`}</span>
             </h2>
             <p className="m3-card__subtitle">
               Planilla de corte con medidas finales terminadas y descuento de tapacantos para escuadradora.
@@ -53,13 +62,39 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
           </div>
           <div className="piece-summary-badges">
             <span className="m3-badge m3-badge--neutral">
-              Total: <strong>{pieces.length} piezas</strong>
+              Total: <strong>{filteredPieces.length} piezas</strong>
             </span>
             <span className="m3-badge m3-badge--neutral">
               Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
             </span>
           </div>
         </div>
+
+        {uniqueMaterials.length > 1 && (
+          <div className="material-filter-bar" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.85rem', alignSelf: 'center', fontWeight: 600 }}>Filtrar por material:</span>
+            <button
+              type="button"
+              className={`m3-btn m3-btn--small ${selectedMaterial === 'all' ? 'm3-btn--primary' : 'm3-btn--text'}`}
+              onClick={() => setSelectedMaterial('all')}
+            >
+              Todos ({pieces.length})
+            </button>
+            {uniqueMaterials.map((matId) => {
+              const count = pieces.filter((p) => p.materialId === matId).length;
+              return (
+                <button
+                  key={matId}
+                  type="button"
+                  className={`m3-btn m3-btn--small ${selectedMaterial === matId ? 'm3-btn--primary' : 'm3-btn--text'}`}
+                  onClick={() => setSelectedMaterial(matId)}
+                >
+                  {matId} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {warningList.length > 0 && (
@@ -76,6 +111,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
           <thead>
             <tr>
               <th>Rol / Pieza</th>
+              <th>Material</th>
               <th>Medida Final</th>
               <th>Corte en Sierra</th>
               <th>Espesor</th>
@@ -85,7 +121,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             </tr>
           </thead>
           <tbody>
-            {pieces.map((piece) => {
+            {filteredPieces.map((piece) => {
               const finishedStr = `${piece.dimensionsMm.width} x ${piece.dimensionsMm.height} mm`;
               const cutStr = `${piece.cutDimensionsMm.width} x ${piece.cutDimensionsMm.height} mm`;
               const bandedStr = piece.bandedEdges.length > 0
@@ -100,6 +136,9 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                     <strong>{translatePieceRole(piece.role)}</strong>
                     <br />
                     <code className="piece-tag">{piece.id}</code>
+                  </td>
+                  <td>
+                    <span className="m3-badge m3-badge--neutral">{piece.materialId}</span>
                   </td>
                   <td>{finishedStr}</td>
                   <td>
