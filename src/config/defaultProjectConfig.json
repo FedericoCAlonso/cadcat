@@ -51,5 +51,17 @@
     "maxDeflectionRatio": 200,
     "maxAbsoluteDeflectionMm": 3.0,
     "designUniformLoadKgM2": 30.0
+  },
+  "hardware": {
+    "slideClearanceTelescopicMm": 25.4,
+    "slideClearanceUndermountMm": 10.0,
+    "slideClearanceMetalBoxMm": 31.0,
+    "drawerFrontGapMm": 3.0,
+    "drawerBoxFrontOffsetMm": 10.0,
+    "drawerBoxBottomClearanceMm": 15.0,
+    "doorOverlayRevealMm": 1.5,
+    "doorHalfOverlayRevealMm": 1.5,
+    "doorInsetGapMm": 2.0,
+    "doorHingeMarginMm": 100.0
   }
 }

@@ -4,28 +4,32 @@ import {
   type Module,
   type Piece,
   type Joint,
+  type ProjectConfig,
 } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { PlacementTree } from '../tree';
 import { resolveModule } from '../resolver';
 import { applyEdgeBandRule, type ResolvedPieceWithCutSize } from '../edgeBand';
-import { buildDoorSubAssembly } from './door';
+import { buildDoorSubAssembly, type DoorMountType } from './door';
 import { buildShelf } from './shelf';
 
 export interface DoorCabinetParams {
   width: number;
   height: number;
   depth: number;
-  doorMountType?: 'overlay' | 'inset';
+  doorMountType?: DoorMountType;
   shelfOffset?: number;
+  doorGapMm?: number;
+  doorRevealMm?: number;
+  hingeSetbackFromEndMm?: number;
 }
 
 export const DEFAULT_DOOR_CABINET_PARAMS: DoorCabinetParams = {
   width: 600,
   height: 800,
   depth: 560,
-  doorMountType: 'overlay',
+  doorMountType: 'full-overlay',
 };
 
 export interface DoorCabinetResult {
@@ -36,19 +40,31 @@ export interface DoorCabinetResult {
 
 /**
  * Builds a Base Cabinet with Hinged Door(s) and an adjustable shelf.
+ * Supports full-overlay, half-overlay, and inset door mount variants.
  */
 export function buildDoorCabinet(
   params: DoorCabinetParams,
   material: Material,
   edgeBands: EdgeBand[] = [],
   edgeBandId?: string,
+  projectConfig?: ProjectConfig,
 ): DoorCabinetResult {
   const widthMm = params.width;
   const heightMm = params.height;
   const depthMm = params.depth;
-  const mountType = params.doorMountType ?? 'overlay';
+  const mountType: DoorMountType = params.doorMountType ?? 'full-overlay';
   const T = typeof material.thicknessMm === 'number' ? material.thicknessMm : 18;
   const materialId = material.id;
+
+  const hw = projectConfig?.hardware;
+  const mach = projectConfig?.machining;
+  const gapMm = params.doorGapMm ?? hw?.doorInsetGapMm ?? 2.0;
+  const revealMm =
+    params.doorRevealMm ??
+    (mountType === 'half-overlay' ? hw?.doorHalfOverlayRevealMm : hw?.doorOverlayRevealMm) ??
+    1.5;
+  const hingeSetbackFromEndMm = params.hingeSetbackFromEndMm ?? hw?.doorHingeMarginMm ?? 100.0;
+  const hingeCupEdgeSetbackMm = mach?.hingeCupEdgeSetbackMm ?? 21.5;
 
   const innerWidth = widthMm - 2 * T;
   const innerHeight = heightMm - 2 * T;
@@ -213,6 +229,10 @@ export function buildDoorCabinet(
         carcaseThicknessMm: T,
         materialId,
         edgeBandId,
+        gapMm,
+        revealMm,
+        hingeSetbackFromEndMm,
+        hingeCupEdgeSetbackMm,
       },
       'door-cab-side-left',
     );
@@ -220,7 +240,11 @@ export function buildDoorCabinet(
     joints.push(...doorRes.joints);
     placementTree.setNode(doorRes.placementNode);
   } else {
-    const singleOpeningWidth = Math.round((innerWidth - 2) / 2);
+    const isInsetMount = mountType === 'inset';
+    const singleOpeningWidth = isInsetMount
+      ? Math.round((innerWidth - 3 * gapMm) / 2)
+      : Math.round((innerWidth - 2) / 2);
+
     const doorLeftRes = buildDoorSubAssembly(
       {
         id: 'door-left',
@@ -231,6 +255,10 @@ export function buildDoorCabinet(
         carcaseThicknessMm: T,
         materialId,
         edgeBandId,
+        gapMm,
+        revealMm,
+        hingeSetbackFromEndMm,
+        hingeCupEdgeSetbackMm,
       },
       'door-cab-side-left',
     );
@@ -244,10 +272,24 @@ export function buildDoorCabinet(
         carcaseThicknessMm: T,
         materialId,
         edgeBandId,
+        gapMm,
+        revealMm,
+        hingeSetbackFromEndMm,
+        hingeCupEdgeSetbackMm,
       },
       'door-cab-side-right',
     );
-    doorRightRes.placementNode.relativeOffset.x = widthMm - doorRightRes.doorPiece.contour.points[1]!.x - 1.5;
+
+    if (isInsetMount) {
+      doorRightRes.placementNode.relativeOffset.x =
+        widthMm - T - gapMm - doorRightRes.doorPiece.contour.points[1]!.x;
+    } else if (mountType === 'half-overlay') {
+      doorRightRes.placementNode.relativeOffset.x =
+        widthMm - doorRightRes.doorPiece.contour.points[1]!.x - (T / 2 + revealMm);
+    } else {
+      doorRightRes.placementNode.relativeOffset.x =
+        widthMm - doorRightRes.doorPiece.contour.points[1]!.x - revealMm;
+    }
 
     pieces.push(doorLeftRes.doorPiece, doorRightRes.doorPiece);
     joints.push(...doorLeftRes.joints, ...doorRightRes.joints);

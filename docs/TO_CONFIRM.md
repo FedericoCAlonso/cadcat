@@ -49,12 +49,18 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 
 | Parameter | Current Default | Confirmed Value | Notes |
 |---|---|---|---|
-| Telescopic slide clearance | `25.4 mm (TO_CONFIRM)` | | 12.7 mm per side for ball bearing slides. |
-| Undermount slide clearance | `10.0 mm (TO_CONFIRM)` | | 5.0 mm per side for concealed undermount slides. |
+| Telescopic slide clearance (`slideClearanceTelescopicMm`) | `25.4 mm (TO_CONFIRM)` | | 12.7 mm per side for ball bearing slides. |
+| Undermount slide clearance (`slideClearanceUndermountMm`) | `10.0 mm (TO_CONFIRM)` | | 5.0 mm per side for concealed undermount slides. |
+| Metal box slide clearance (`slideClearanceMetalBoxMm`) | `31.0 mm (TO_CONFIRM)` | | 15.5 mm per side for metal drawer box profiles. |
 | Roller slide clearance | `25.0 mm (TO_CONFIRM)` | | 12.5 mm per side for bottom metal roller slides. |
-| Drawer reveal gap (`gapMm`) | `3.0 mm (TO_CONFIRM)` | | Vertical and horizontal gap between fronts. |
+| Drawer reveal gap (`drawerFrontGapMm`) | `3.0 mm (TO_CONFIRM)` | | Vertical and horizontal gap between drawer fronts. |
+| Drawer box front offset (`drawerBoxFrontOffsetMm`) | `10.0 mm (TO_CONFIRM)` | | Inset setback of drawer box behind carcase or inset front. |
+| Drawer box bottom clearance (`drawerBoxBottomClearanceMm`) | `15.0 mm (TO_CONFIRM)` | | Vertical clearance below drawer box for runner. |
+| Door full-overlay reveal (`doorOverlayRevealMm`) | `1.5 mm (TO_CONFIRM)` | | Perimeter reveal for full-overlay door. |
+| Door half-overlay reveal (`doorHalfOverlayRevealMm`) | `1.5 mm (TO_CONFIRM)` | | Perimeter reveal for half-overlay door on shared side. |
+| Door inset gap (`doorInsetGapMm`) | `2.0 mm (TO_CONFIRM)` | | Perimeter clearance gap between inset door and carcase. |
 | Adjustable shelf lateral gap | `2.0 mm (TO_CONFIRM)` | | 1.0 mm per side for smooth insertion onto shelf pins. |
-| Hinge end setback distance | `100.0 mm (TO_CONFIRM)` | | Distance from top/bottom door edge to hinge center. |
+| Hinge end setback distance (`doorHingeMarginMm`) | `100.0 mm (TO_CONFIRM)` | | Distance from top/bottom door edge to hinge center. |
 
 ### Machining and Assembly Gauges (Phase 2 Work Package 2)
 

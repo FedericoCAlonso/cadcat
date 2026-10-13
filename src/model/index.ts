@@ -98,6 +98,8 @@ export {
   type CostConfig,
   deflectionConfigSchema,
   type DeflectionConfig,
+  hardwareConfigSchema,
+  type HardwareConfig,
   projectConfigSchema,
   type ProjectConfig,
   validateProjectConfig,

@@ -3,11 +3,13 @@ import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
 
-export type DrawerSlideType = 'telescopic' | 'undermount' | 'roller';
+export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
+export type DrawerFrontMount = 'applied' | 'inset';
 
 export const DRAWER_SLIDE_CLEARANCES_MM: Record<DrawerSlideType, number> = {
   telescopic: 25.4, // 12.7 mm per side
   undermount: 10.0, // 5.0 mm per side
+  'metal-box': 31.0, // 15.5 mm per side
   roller: 25.0,     // 12.5 mm per side
 };
 
@@ -23,9 +25,12 @@ export interface DrawerConfig {
   carcaseThicknessMm: number;
   materialId: string;
   slideType: DrawerSlideType;
+  frontMount?: DrawerFrontMount;
   customSlideClearanceMm?: number;
   edgeBandId?: string;
   gapMm?: number;
+  boxFrontOffsetMm?: number;
+  boxBottomClearanceMm?: number;
 }
 
 export interface DrawerSubAssemblyResult {
@@ -38,6 +43,7 @@ export interface DrawerSubAssemblyResult {
 
 /**
  * Builds a drawer sub-assembly with 6 pieces and slide joints.
+ * Supports applied (overlay) and inset front mounts, and slide clearance variants.
  */
 export function buildDrawerSubAssembly(
   config: DrawerConfig,
@@ -54,12 +60,15 @@ export function buildDrawerSubAssembly(
     carcaseThicknessMm: T,
     materialId,
     slideType,
+    frontMount = 'applied',
     customSlideClearanceMm,
     edgeBandId,
     gapMm = 2.0,
+    boxFrontOffsetMm = 10,
+    boxBottomClearanceMm = 15,
   } = config;
 
-  const slideClearance = customSlideClearanceMm ?? DRAWER_SLIDE_CLEARANCES_MM[slideType];
+  const slideClearance = customSlideClearanceMm ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? 25.4;
   const innerWidth = openingWidthMm;
   const drawerBoxWidth = Math.round(innerWidth - slideClearance);
   const boxDepth = config.boxDepthMm ?? Math.max(300, depthMm - 50);
@@ -70,11 +79,22 @@ export function buildDrawerSubAssembly(
   const joints: Joint[] = [];
 
   // 1. Drawer Front
+  const isInset = frontMount === 'inset';
+  const frontWidth = isInset
+    ? Math.round(openingWidthMm - 2 * gapMm)
+    : Math.round(openingWidthMm + 2 * T - 2 * gapMm);
+  const frontHeight = isInset
+    ? Math.round(frontHeightMm - 2 * gapMm)
+    : frontHeightMm;
+  const frontOffsetX = isInset ? T + gapMm : gapMm;
+  const frontOffsetY = isInset ? baseYMm + gapMm : baseYMm;
+  const frontOffsetZ = isInset ? 0 : -T;
+
   const front = createPiece({
     id: `${idPrefix}-front-${index}`,
     role: 'drawer-front',
     materialId,
-    contour: createRectangularContour(openingWidthMm + 2 * T - 2 * gapMm, frontHeightMm),
+    contour: createRectangularContour(frontWidth, frontHeight),
     thicknessMm: T,
     structural: false,
   });
@@ -89,8 +109,12 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: front.id,
     parentPieceId,
-    relativeOffset: { x: gapMm, y: baseYMm, z: -T },
+    relativeOffset: { x: frontOffsetX, y: frontOffsetY, z: frontOffsetZ },
   });
+
+  // Box offset in Z: behind carcase face if applied, behind inset front if inset
+  const boxOffsetZ = isInset ? T + boxFrontOffsetMm : boxFrontOffsetMm;
+  const boxY = baseYMm + boxBottomClearanceMm;
 
   // 2. Drawer Box Sides
   const boxSideL = createPiece({
@@ -114,12 +138,12 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: boxSideL.id,
     parentPieceId,
-    relativeOffset: { x: boxX, y: baseYMm + 15, z: 10 },
+    relativeOffset: { x: boxX, y: boxY, z: boxOffsetZ },
   });
   placementNodes.push({
     pieceId: boxSideR.id,
     parentPieceId,
-    relativeOffset: { x: boxX + drawerBoxWidth - T, y: baseYMm + 15, z: 10 },
+    relativeOffset: { x: boxX + drawerBoxWidth - T, y: boxY, z: boxOffsetZ },
   });
 
   // 3. Drawer Box Front & Back
@@ -143,12 +167,12 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: boxFront.id,
     parentPieceId,
-    relativeOffset: { x: boxX + T, y: baseYMm + 15, z: 10 },
+    relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
   });
   placementNodes.push({
     pieceId: boxBack.id,
     parentPieceId,
-    relativeOffset: { x: boxX + T, y: baseYMm + 15, z: 10 + boxDepth - T },
+    relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ + boxDepth - T },
   });
 
   // 4. Drawer Bottom
@@ -166,7 +190,7 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: boxBottom.id,
     parentPieceId,
-    relativeOffset: { x: boxX + T, y: baseYMm + 15, z: 10 },
+    relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
   });
 
   // Box joints

@@ -1,4 +1,4 @@
-import { type Material, type EdgeBand, type Module } from '../../model';
+import { type Material, type EdgeBand, type Module, type ProjectConfig } from '../../model';
 import { type ResolvedPieceWithCutSize } from '../edgeBand';
 import { type PlacementTree } from '../tree';
 import {
@@ -39,6 +39,7 @@ export interface TemplateDefinition {
     material: Material,
     edgeBands?: EdgeBand[],
     edgeBandId?: string,
+    projectConfig?: ProjectConfig,
   ) => TemplateBuildResult;
 }
 
@@ -53,13 +54,13 @@ export const TEMPLATES: TemplateDefinition[] = [
     id: 'door-cabinet',
     name: 'Door Cabinet (Hinged Doors & Shelf)',
     description: 'Carcase with single or double hinged doors and adjustable shelf.',
-    build: (params, mat, bands, ebId) => buildDoorCabinet(params, mat, bands, ebId),
+    build: (params, mat, bands, ebId, conf) => buildDoorCabinet(params, mat, bands, ebId, conf),
   },
   {
     id: 'drawer-unit',
     name: 'Drawer Unit (3 Drawers)',
     description: 'Base carcase with three drawer sub-assemblies and slide clearances.',
-    build: (params, mat, bands, ebId) => buildDrawerUnit(params, mat, bands, ebId),
+    build: (params, mat, bands, ebId, conf) => buildDrawerUnit(params, mat, bands, ebId, conf),
   },
   {
     id: 'partition-cabinet',
@@ -104,6 +105,7 @@ export {
   buildDrawerSubAssembly,
   DRAWER_SLIDE_CLEARANCES_MM,
   type DrawerSlideType,
+  type DrawerFrontMount,
   type DrawerConfig,
   type DrawerSubAssemblyResult,
 } from './drawer';

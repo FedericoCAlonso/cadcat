@@ -91,6 +91,16 @@ export function ProjectSettingsView({
     });
   };
 
+  const updateHardware = (field: keyof NonNullable<ProjectConfig['hardware']>, value: number) => {
+    onUpdateConfig({
+      ...config,
+      hardware: {
+        ...(config.hardware ?? {}),
+        [field]: value,
+      },
+    });
+  };
+
   return (
     <section aria-labelledby="settings-heading" className="m3-card settings-card">
       {/* Top Header & Actions */}
@@ -371,6 +381,81 @@ export function ProjectSettingsView({
                   step="50"
                   value={config.machining.maxSpanWithoutCenterDrillMm}
                   onChange={(e) => updateMachining('maxSpanWithoutCenterDrillMm', parseFloat(e.target.value) || 600.0)}
+                />
+              </div>
+            </div>
+
+            {/* Hardware Clearances & Mounting Gaps */}
+            <div className="settings-group-card">
+              <h4 className="group-title">Herrajes & Holguras de Montaje</h4>
+              <div className="input-field">
+                <label htmlFor="slideTelescopic">Corredera Telescópica (mm):</label>
+                <input
+                  id="slideTelescopic"
+                  type="number"
+                  step="0.1"
+                  value={config.hardware?.slideClearanceTelescopicMm ?? 25.4}
+                  onChange={(e) => updateHardware('slideClearanceTelescopicMm', parseFloat(e.target.value) || 25.4)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="slideUndermount">Corredera Oculta / Undermount (mm):</label>
+                <input
+                  id="slideUndermount"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.slideClearanceUndermountMm ?? 10.0}
+                  onChange={(e) => updateHardware('slideClearanceUndermountMm', parseFloat(e.target.value) || 10.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="slideMetalBox">Cajón Metálico / Metal-box (mm):</label>
+                <input
+                  id="slideMetalBox"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.slideClearanceMetalBoxMm ?? 31.0}
+                  onChange={(e) => updateHardware('slideClearanceMetalBoxMm', parseFloat(e.target.value) || 31.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="drawerGap">Luz entre Frentes de Cajón (mm):</label>
+                <input
+                  id="drawerGap"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.drawerFrontGapMm ?? 3.0}
+                  onChange={(e) => updateHardware('drawerFrontGapMm', parseFloat(e.target.value) || 3.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="doorOverlayReveal">Luz Puerta Solapada (mm):</label>
+                <input
+                  id="doorOverlayReveal"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.doorOverlayRevealMm ?? 1.5}
+                  onChange={(e) => updateHardware('doorOverlayRevealMm', parseFloat(e.target.value) || 1.5)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="doorInsetGap">Luz Puerta Embutida / Inset (mm):</label>
+                <input
+                  id="doorInsetGap"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.doorInsetGapMm ?? 2.0}
+                  onChange={(e) => updateHardware('doorInsetGapMm', parseFloat(e.target.value) || 2.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="doorHingeMargin">Margen Extremo Bisagra (mm):</label>
+                <input
+                  id="doorHingeMargin"
+                  type="number"
+                  step="5"
+                  value={config.hardware?.doorHingeMarginMm ?? 100.0}
+                  onChange={(e) => updateHardware('doorHingeMarginMm', parseFloat(e.target.value) || 100.0)}
                 />
               </div>
             </div>

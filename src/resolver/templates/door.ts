@@ -3,7 +3,7 @@ import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
 
-export type DoorMountType = 'overlay' | 'inset';
+export type DoorMountType = 'full-overlay' | 'half-overlay' | 'inset' | 'overlay';
 
 export interface DoorConfig {
   id: string;
@@ -17,6 +17,8 @@ export interface DoorConfig {
   edgeBandId?: string;
   gapMm?: number;
   revealMm?: number;
+  hingeSetbackFromEndMm?: number;
+  hingeCupEdgeSetbackMm?: number;
 }
 
 export interface DoorSubAssemblyResult {
@@ -69,6 +71,7 @@ export function calculateHingePositions(
 
 /**
  * Builds a door piece with its hinge joints and placement node.
+ * Supports full-overlay, half-overlay, and inset mount types.
  */
 export function buildDoorSubAssembly(
   config: DoorConfig,
@@ -86,6 +89,7 @@ export function buildDoorSubAssembly(
     edgeBandId,
     gapMm = 2.0,
     revealMm = 1.5,
+    hingeSetbackFromEndMm = 100,
   } = config;
 
   const doorT = doorThicknessMm ?? T;
@@ -96,11 +100,18 @@ export function buildDoorSubAssembly(
   let posY: number;
   let posZ: number;
 
-  if (mountType === 'overlay') {
-    // Sits in front of carcase with small perimeter reveal
+  if (mountType === 'full-overlay' || mountType === 'overlay') {
+    // Sits in front of carcase covering side edges with small perimeter reveal
     doorWidthMm = Math.round(openingWidthMm + 2 * T - 2 * revealMm);
     doorHeightMm = Math.round(openingHeightMm + 2 * T - 2 * revealMm);
     posX = revealMm;
+    posY = revealMm;
+    posZ = -doorT;
+  } else if (mountType === 'half-overlay') {
+    // Overlays half carcase thickness on side panels (typical on shared center partition)
+    doorWidthMm = Math.round(openingWidthMm + T - 2 * revealMm);
+    doorHeightMm = Math.round(openingHeightMm + 2 * T - 2 * revealMm);
+    posX = T / 2 + revealMm;
     posY = revealMm;
     posZ = -doorT;
   } else {
@@ -131,7 +142,7 @@ export function buildDoorSubAssembly(
   }
 
   const hingeCount = calculateHingeCount(doorHeightMm);
-  const hingePositionsMm = calculateHingePositions(doorHeightMm, hingeCount);
+  const hingePositionsMm = calculateHingePositions(doorHeightMm, hingeCount, hingeSetbackFromEndMm);
 
   // Generate hinge joints connecting door inner face to cabinet side inner face
   const joints: Joint[] = hingePositionsMm.map((pos) =>

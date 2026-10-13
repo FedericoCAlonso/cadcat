@@ -67,3 +67,14 @@ Document language: ASD-STE100 (Simplified Technical English).
   5. In `src/resolver/cost.ts`, charge zero sheet material cost for boards that contain only offcut pieces (`fitsInOffcut: true`). Include only the saw pass cost for auxiliary pieces.
   6. In `src/resolver/assemblySheet.ts` and `src/ui/AssemblySheetView.tsx`, generate sequential numbered assembly instructions referencing gauges, provide an SVG diagram, and support PDF workshop guide export.
 - **Consequence:** Assembly accuracy improves and tape measure errors are eliminated. Auxiliary gauges reuse scrap offcuts without increasing board purchase costs, and workshop operators receive step-by-step assembly guides.
+
+## ADR-009: Parametric Template Variants and Workshop Hardware Integration
+
+- **Status:** Accepted.
+- **Context:** Furniture modules require different hardware mounting configurations, such as applied versus inset drawer fronts, and full-overlay, half-overlay, or inset hinged doors. Hardcoding clearances in templates prevents workshop customization. Different slide systems (telescopic ball-bearing, concealed undermount, and metal box sides) demand different lateral clearances and vertical box offsets.
+- **Decision:**
+  1. Add `hardwareConfigSchema` to `ProjectConfig` with customizable clearances for slides (`telescopic`, `undermount`, `metal-box`), reveals, and door gaps. Store defaults in `src/config/defaultProjectConfig.json`.
+  2. In `src/resolver/templates/drawer.ts` and `src/resolver/templates/drawerUnit.ts`, support `frontMount: 'applied' | 'inset'` and `slideType: 'telescopic' | 'undermount' | 'metal-box' | 'roller'`. Inset fronts position the drawer box recessed behind the inset front with configurable offset.
+  3. In `src/resolver/templates/door.ts` and `src/resolver/templates/doorCabinet.ts`, support `mountType: 'full-overlay' | 'half-overlay' | 'inset'`. Compute door width and positions from carcase thickness and project configuration reveals. Derive hinge vertical margins from `hardware.doorHingeMarginMm` and cup setbacks from `machining.hingeCupEdgeSetbackMm`.
+  4. Expose hardware and clearance adjustments in `src/ui/ProjectSettingsView.tsx` under Material Design 3 inputs.
+- **Consequence:** Modules dynamically adapt to different door and drawer hardware standards without hardcoded assumptions. The system is ready for the Phase 3 visual Template Editor.

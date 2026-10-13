@@ -191,6 +191,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         activeMaterial,
         edgeBands,
         selectedEdgeBandId || undefined,
+        projectConfig ?? undefined,
       );
       return {
         currentModule: built.module,
@@ -200,7 +201,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     } catch {
       return { currentModule: null, resolvedPieces: [], placementTree: null };
     }
-  }, [width, height, depth, selectedTemplateId, activeMaterial, selectedEdgeBandId, edgeBands]);
+  }, [width, height, depth, selectedTemplateId, activeMaterial, selectedEdgeBandId, edgeBands, projectConfig]);
 
   // Resolves 3D spatial boxes and bounding box
   const spatialData = useMemo(() => {

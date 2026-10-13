@@ -59,6 +59,33 @@ export const deflectionConfigSchema = z.object({
 });
 export type DeflectionConfig = z.infer<typeof deflectionConfigSchema>;
 
+export const hardwareConfigSchema = z.object({
+  slideClearanceTelescopicMm: z.number().positive().default(25.4),
+  slideClearanceUndermountMm: z.number().positive().default(10.0),
+  slideClearanceMetalBoxMm: z.number().positive().default(31.0),
+  drawerFrontGapMm: z.number().min(0).default(3.0),
+  drawerBoxFrontOffsetMm: z.number().min(0).default(10.0),
+  drawerBoxBottomClearanceMm: z.number().min(0).default(15.0),
+  doorOverlayRevealMm: z.number().min(0).default(1.5),
+  doorHalfOverlayRevealMm: z.number().min(0).default(1.5),
+  doorInsetGapMm: z.number().min(0).default(2.0),
+  doorHingeMarginMm: z.number().positive().default(100.0),
+});
+export type HardwareConfig = z.infer<typeof hardwareConfigSchema>;
+
+export const DEFAULT_HARDWARE_CONFIG: HardwareConfig = {
+  slideClearanceTelescopicMm: 25.4,
+  slideClearanceUndermountMm: 10.0,
+  slideClearanceMetalBoxMm: 31.0,
+  drawerFrontGapMm: 3.0,
+  drawerBoxFrontOffsetMm: 10.0,
+  drawerBoxBottomClearanceMm: 15.0,
+  doorOverlayRevealMm: 1.5,
+  doorHalfOverlayRevealMm: 1.5,
+  doorInsetGapMm: 2.0,
+  doorHingeMarginMm: 100.0,
+};
+
 export const projectConfigSchema = z.object({
   schemaVersion: z.literal(1),
   projectId: z.string().min(1),
@@ -70,6 +97,7 @@ export const projectConfigSchema = z.object({
   nesting: nestingConfigSchema,
   cost: costConfigSchema,
   deflection: deflectionConfigSchema,
+  hardware: hardwareConfigSchema.default(DEFAULT_HARDWARE_CONFIG),
 });
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 

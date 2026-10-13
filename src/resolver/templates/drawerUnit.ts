@@ -5,6 +5,7 @@ import {
   type Material,
   type EdgeBand,
   type SubAssembly,
+  type ProjectConfig,
 } from '../../model';
 import {
   createPiece,
@@ -15,6 +16,11 @@ import {
   applyEdgeBandRule,
   type ResolvedPieceWithCutSize,
 } from '../index';
+import {
+  DRAWER_SLIDE_CLEARANCES_MM,
+  type DrawerSlideType,
+  type DrawerFrontMount,
+} from './drawer';
 
 /**
  * Slide clearance total in millimeters (both sides).
@@ -33,8 +39,12 @@ export interface DrawerUnitParams {
   height: number;
   depth: number;
   drawerCount?: number;
+  slideType?: DrawerSlideType;
+  frontMount?: DrawerFrontMount;
   slideClearanceMm?: number;
   gapMm?: number;
+  boxFrontOffsetMm?: number;
+  boxBottomClearanceMm?: number;
 }
 
 export const DEFAULT_DRAWER_UNIT_PARAMS: DrawerUnitParams = {
@@ -54,6 +64,7 @@ export function buildDrawerUnit(
   material: Material,
   edgeBands: EdgeBand[] = [],
   edgeBandId?: string,
+  projectConfig?: ProjectConfig,
 ): {
   module: Module;
   placementTree: PlacementTree;
@@ -63,8 +74,24 @@ export function buildDrawerUnit(
   const heightMm = params.height;
   const depthMm = params.depth;
   const drawerCount = params.drawerCount ?? 3;
-  const slideClearance = params.slideClearanceMm ?? DEFAULT_DRAWER_SLIDE_CLEARANCE_MM;
-  const gap = params.gapMm ?? DEFAULT_DRAWER_GAP_MM;
+  const slideType: DrawerSlideType = params.slideType ?? 'telescopic';
+  const frontMount: DrawerFrontMount = params.frontMount ?? 'applied';
+
+  const hw = projectConfig?.hardware;
+  const configClearance =
+    slideType === 'telescopic'
+      ? hw?.slideClearanceTelescopicMm
+      : slideType === 'undermount'
+      ? hw?.slideClearanceUndermountMm
+      : slideType === 'metal-box'
+      ? hw?.slideClearanceMetalBoxMm
+      : undefined;
+
+  const slideClearance =
+    params.slideClearanceMm ?? configClearance ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? DEFAULT_DRAWER_SLIDE_CLEARANCE_MM;
+  const gap = params.gapMm ?? hw?.drawerFrontGapMm ?? DEFAULT_DRAWER_GAP_MM;
+  const boxFrontOffset = params.boxFrontOffsetMm ?? hw?.drawerBoxFrontOffsetMm ?? 10;
+  const boxBottomClearance = params.boxBottomClearanceMm ?? hw?.drawerBoxBottomClearanceMm ?? 15;
   const T = typeof material.thicknessMm === 'number' ? material.thicknessMm : 18;
   const materialId = material.id;
 
@@ -207,17 +234,25 @@ export function buildDrawerUnit(
   const subAssemblies: SubAssembly[] = [];
   const drawerPieces: Piece[] = [];
 
+  const isInset = frontMount === 'inset';
+  const boxOffsetZ = isInset ? T + boxFrontOffset : boxFrontOffset;
+
   for (let i = 0; i < drawerCount; i++) {
     const drawerIndex = i + 1;
     const subPieceIds: string[] = [];
     const frontY = T + gap + i * (drawerFrontHeight + gap);
 
     // Drawer Front
+    const frontWidth = isInset ? Math.round(innerWidth - 2 * gap) : Math.round(widthMm - 2 * gap);
+    const frontOffsetX = isInset ? T + gap : gap;
+    const frontOffsetY = frontY;
+    const frontOffsetZ = isInset ? 0 : -T;
+
     const front = createPiece({
       id: `drawer-front-${drawerIndex}`,
       role: 'drawer-front',
       materialId,
-      contour: createRectangularContour(widthMm - 2 * gap, drawerFrontHeight),
+      contour: createRectangularContour(frontWidth, drawerFrontHeight),
       thicknessMm: T,
     });
     if (edgeBandId) {
@@ -231,7 +266,7 @@ export function buildDrawerUnit(
     placementTree.setNode({
       pieceId: front.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: gap, y: frontY, z: -T },
+      relativeOffset: { x: frontOffsetX, y: frontOffsetY, z: frontOffsetZ },
     });
 
     // Drawer Box Sides (Left & Right)
@@ -253,15 +288,17 @@ export function buildDrawerUnit(
     subPieceIds.push(boxSideL.id, boxSideR.id);
 
     const boxX = T + Math.round(slideClearance / 2);
+    const boxY = frontY + boxBottomClearance;
+
     placementTree.setNode({
       pieceId: boxSideL.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: boxX, y: frontY + 15, z: 10 },
+      relativeOffset: { x: boxX, y: boxY, z: boxOffsetZ },
     });
     placementTree.setNode({
       pieceId: boxSideR.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: boxX + drawerBoxWidth - T, y: frontY + 15, z: 10 },
+      relativeOffset: { x: boxX + drawerBoxWidth - T, y: boxY, z: boxOffsetZ },
     });
 
     // Drawer Box Front & Back
@@ -285,12 +322,12 @@ export function buildDrawerUnit(
     placementTree.setNode({
       pieceId: boxFront.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: boxX + T, y: frontY + 15, z: 10 },
+      relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
     });
     placementTree.setNode({
       pieceId: boxBack.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: boxX + T, y: frontY + 15, z: 10 + drawerBoxDepth - T },
+      relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ + drawerBoxDepth - T },
     });
 
     // Drawer Bottom
@@ -307,7 +344,7 @@ export function buildDrawerUnit(
     placementTree.setNode({
       pieceId: boxBottom.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: boxX + T, y: frontY + 15, z: 10 },
+      relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
     });
 
     // Sub-Assembly registration
@@ -319,6 +356,7 @@ export function buildDrawerUnit(
         boxWidth: drawerBoxWidth,
         boxDepth: drawerBoxDepth,
         boxHeight,
+        slideClearance,
       },
       pieceIds: subPieceIds,
     });
