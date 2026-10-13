@@ -30,3 +30,14 @@ export {
   sortDependencies,
   resolveModule,
 } from './resolver';
+
+export {
+  type BandedEdgeInfo,
+  type PieceCutSize,
+  type ResolvedPieceWithCutSize,
+  createEdgeBandMap,
+  getEdgeBandThickness,
+  calculatePieceCutSize,
+  applyEdgeBandRule,
+  calculateEdgeBandLengths,
+} from './edgeBand';
