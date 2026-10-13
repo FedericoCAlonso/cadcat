@@ -38,6 +38,8 @@ export function App(): ReactElement {
             onMaterialChange={vm.setSelectedMaterialId}
             onEdgeBandChange={vm.setSelectedEdgeBandId}
             onSave={() => void vm.saveModule()}
+            onExportCsv={vm.exportCsv}
+            onExportPdf={vm.exportPdf}
           />
 
           <PieceListView pieces={vm.resolvedPieces} />

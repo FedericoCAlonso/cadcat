@@ -16,6 +16,8 @@ export interface ModuleFormProps {
   onMaterialChange: (id: string) => void;
   onEdgeBandChange: (id: string) => void;
   onSave: () => void;
+  onExportCsv?: () => void;
+  onExportPdf?: () => void;
 }
 
 /**
@@ -38,6 +40,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onMaterialChange,
     onEdgeBandChange,
     onSave,
+    onExportCsv,
+    onExportPdf,
   } = props;
 
   const handleNumberInput = (setter: (val: number) => void) => (e: ChangeEvent<HTMLInputElement>) => {
@@ -122,6 +126,16 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         <button type="button" onClick={onSave} disabled={isSaving}>
           {isSaving ? 'Saving...' : 'Save Module to Database'}
         </button>
+        {onExportCsv && (
+          <button type="button" onClick={onExportCsv} className="export-btn">
+            Export Cut List (CSV)
+          </button>
+        )}
+        {onExportPdf && (
+          <button type="button" onClick={onExportPdf} className="export-btn">
+            Export Cut Plan (PDF)
+          </button>
+        )}
       </div>
     </section>
   );

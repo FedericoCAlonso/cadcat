@@ -18,6 +18,9 @@ import {
   calculateModuleCost,
   PlacementTree,
   JointGraph,
+  exportCutListCsv,
+  exportCutPlanPdf,
+  triggerBrowserDownload,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
   type ModuleCostSummary,
@@ -48,6 +51,8 @@ export interface ModuleViewModelState {
   setSelectedEdgeBandId: (id: string) => void;
   saveModule: () => Promise<void>;
   loadModule: (id: string) => Promise<void>;
+  exportCsv: () => void;
+  exportPdf: () => void;
 }
 
 /**
@@ -232,6 +237,47 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [initialDb]);
 
+  const exportCsv = useCallback(() => {
+    if (resolvedPieces.length === 0) return;
+    const csvContent = exportCutListCsv(resolvedPieces);
+    const fileName = `cut-list-${currentModule?.id ?? 'module'}.csv`;
+    triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
+    setStatusMessage(`Exported cut list to ${fileName}.`);
+  }, [resolvedPieces, currentModule]);
+
+  const exportPdf = useCallback(() => {
+    if (resolvedPieces.length === 0 || !activeMaterial) return;
+    const nestingItems = resolvedPieces.map((p) => ({
+      id: p.id,
+      pieceId: p.id,
+      materialId: p.materialId,
+      cutWidthMm: p.cutDimensionsMm.width,
+      cutHeightMm: p.cutDimensionsMm.height,
+      canRotate: !activeMaterial.hasGrain,
+    }));
+    const sheetLength = typeof activeMaterial.sheetSizeMm.length === 'number'
+      ? activeMaterial.sheetSizeMm.length
+      : 2800;
+    const sheetWidth = typeof activeMaterial.sheetSizeMm.width === 'number'
+      ? activeMaterial.sheetSizeMm.width
+      : 2070;
+
+    const nesting = runGuillotineNesting({
+      items: nestingItems,
+      sheet: {
+        materialId: activeMaterial.id,
+        lengthMm: sheetLength,
+        widthMm: sheetWidth,
+      },
+    });
+
+    const doc = exportCutPlanPdf(nesting, `Cut Plan - ${currentModule?.id ?? 'Module'}`);
+    const pdfBlob = doc.output('blob');
+    const fileName = `cut-plan-${currentModule?.id ?? 'module'}.pdf`;
+    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+    setStatusMessage(`Exported cut plan to ${fileName}.`);
+  }, [resolvedPieces, activeMaterial, currentModule]);
+
   return {
     width,
     height,
@@ -256,5 +302,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSelectedEdgeBandId,
     saveModule,
     loadModule,
+    exportCsv,
+    exportPdf,
   };
 }
