@@ -7,7 +7,7 @@ import { MachiningSheetView } from '../src/ui/MachiningSheetView';
 import { ProjectSettingsView } from '../src/ui/ProjectSettingsView';
 import { App } from '../src/ui/App';
 import type { Material, EdgeBand } from '../src/model';
-import type { ResolvedPieceWithCutSize, PieceMachiningSheet } from '../src/resolver';
+import type { ResolvedPieceWithCutSize, PieceMachiningSheet, ShelfDeflectionResult } from '../src/resolver';
 import { getDefaultProjectConfig } from '../src/storage';
 
 const mockMaterials: Material[] = [
@@ -112,6 +112,95 @@ describe('PieceListView Component', () => {
   it('renders empty placeholder when pieces array is empty', () => {
     const html = renderToString(<PieceListView pieces={[]} />);
     expect(html).toContain('No pieces resolved. Adjust module parameters.');
+  });
+
+  it('renders shelf deflection badge when shelfDeflections is provided', () => {
+    const contour = { points: [{ x: 0, y: 0 }, { x: 600, y: 0 }, { x: 600, y: 300 }, { x: 0, y: 300 }] };
+    const shelfPiece: ResolvedPieceWithCutSize = {
+      id: 'shelf-1',
+      role: 'shelf',
+      materialId: 'mat-1',
+      thicknessMm: 18,
+      positionMm: { x: 0, y: 0, z: 0 },
+      dimensionsMm: { width: 600, height: 300 },
+      cutDimensionsMm: { width: 600, height: 300 },
+      structural: false,
+      referenceFace: 'A',
+      faces: [],
+      contour,
+      cutContour: contour,
+      bandedEdges: [],
+    };
+
+    const deflMap = new Map<string, ShelfDeflectionResult>();
+    deflMap.set('shelf-1', {
+      spanMm: 600,
+      depthMm: 300,
+      thicknessMm: 18,
+      elasticModulusMPa: 3000,
+      isElasticModulusConfirmed: true,
+      totalLoadKg: 5.4,
+      totalLoadN: 52.95,
+      inertiaMm4: 145800,
+      calculatedDeflectionMm: 0.34,
+      allowableDeflectionMm: 3.0,
+      deflectionRatio: 1764,
+      exceedsRatio: false,
+      exceedsAbsolute: false,
+      hasWarning: false,
+    });
+
+    const html = renderToString(
+      <PieceListView pieces={[shelfPiece]} shelfDeflections={deflMap} />,
+    );
+
+    expect(html).toContain('0.34 mm (ok)');
+    expect(html).not.toContain('Aviso de flexión en estante');
+  });
+
+  it('renders deflection warning banner when a shelf exceeds allowable limit', () => {
+    const contour = { points: [{ x: 0, y: 0 }, { x: 1200, y: 0 }, { x: 1200, y: 400 }, { x: 0, y: 400 }] };
+    const shelfPiece: ResolvedPieceWithCutSize = {
+      id: 'shelf-oversized',
+      role: 'shelf',
+      materialId: 'mat-1',
+      thicknessMm: 15,
+      positionMm: { x: 0, y: 0, z: 0 },
+      dimensionsMm: { width: 1200, height: 400 },
+      cutDimensionsMm: { width: 1200, height: 400 },
+      structural: false,
+      referenceFace: 'A',
+      faces: [],
+      contour,
+      cutContour: contour,
+      bandedEdges: [],
+    };
+
+    const deflMap = new Map<string, ShelfDeflectionResult>();
+    deflMap.set('shelf-oversized', {
+      spanMm: 1200,
+      depthMm: 400,
+      thicknessMm: 15,
+      elasticModulusMPa: 2500,
+      isElasticModulusConfirmed: false,
+      totalLoadKg: 24,
+      totalLoadN: 235.4,
+      inertiaMm4: 112500,
+      calculatedDeflectionMm: 5.24,
+      allowableDeflectionMm: 3.0,
+      deflectionRatio: 229,
+      exceedsRatio: false,
+      exceedsAbsolute: true,
+      hasWarning: true,
+      warningMessage: 'Deflection exceeds limit',
+    });
+
+    const html = renderToString(
+      <PieceListView pieces={[shelfPiece]} shelfDeflections={deflMap} />,
+    );
+
+    expect(html).toContain('Aviso de flexión en estante');
+    expect(html).toContain('5.24 mm (máx 3.00 mm)');
   });
 });
 

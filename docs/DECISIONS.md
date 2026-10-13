@@ -36,3 +36,10 @@ Document language: ASD-STE100 (Simplified Technical English).
 - **Context:** Shop values such as prices, clearances, and tolerances must not be invented.
 - **Decision:** Define `shopValueSchema` as `number | 'TO_CONFIRM'`. Allow this union on unconfirmed parameters in catalogs.
 - **Consequence:** Seed catalogs remain valid while explicitly marking values that the domain expert must verify.
+
+## ADR-006: Shelf Deflection Verification
+
+- **Status:** Accepted.
+- **Context:** Long or thin shelves bend excessively under storage load. The user needs design feedback without blocking production.
+- **Decision:** Implement Euler-Bernoulli beam theory deflection check in `src/resolver/deflection.ts`. Use simply supported uniform load formula $\delta = \frac{5 \cdot W \cdot L^3}{384 \cdot E \cdot I}$. Evaluate against limits $\min(L / \text{maxDeflectionRatio}, \text{maxAbsoluteDeflectionMm})$. Show warnings only (never block generation) in Piece List and 3D Viewport inspector. Mark limits as `TO_CONFIRM`.
+- **Consequence:** Designers receive immediate feedback when shelf spans or thicknesses risk excessive sag.

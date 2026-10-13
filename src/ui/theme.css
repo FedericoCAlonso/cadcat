@@ -782,3 +782,52 @@ body {
   color: var(--md-sys-color-outline);
   font-size: 0.75rem;
 }
+
+/* Badges & Alerts (Material 3) */
+.m3-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--md-sys-shape-corner-xs);
+  font: var(--md-sys-typescale-label-medium);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.m3-badge--success {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #c8e6c9;
+}
+
+.m3-badge--warning {
+  background-color: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+  border: 1px solid #ffcdd2;
+}
+
+.m3-badge--neutral {
+  background-color: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface-variant);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.m3-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--md-sys-shape-corner-sm);
+  font: var(--md-sys-typescale-body-medium);
+}
+
+.m3-alert--warning {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffe0b2;
+}
+
+.m3-alert__icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}

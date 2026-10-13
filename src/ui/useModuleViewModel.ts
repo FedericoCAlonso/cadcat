@@ -43,6 +43,8 @@ import {
   buildModuleMachiningSheets,
   exportMachiningSheetPdf,
   type PieceMachiningSheet,
+  checkModuleShelvesDeflection,
+  type ShelfDeflectionResult,
 } from '../resolver';
 import { runGuillotineNesting } from '../workers';
 
@@ -74,6 +76,8 @@ export interface ModuleViewModelState {
   pieceMachiningList: PieceMachining[];
   machiningSheets: PieceMachiningSheet[];
   selectedMachiningPieceId: string | null;
+  shelfDeflections: Map<string, ShelfDeflectionResult>;
+  shelfDeflectionWarnings: ShelfDeflectionResult[];
   projectConfig: ProjectConfig | null;
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
@@ -224,6 +228,20 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (resolvedPieces.length === 0) return [];
     return buildModuleMachiningSheets(resolvedPieces, machiningOperations);
   }, [resolvedPieces, machiningOperations]);
+
+  // Checks deflection for shelves using project configuration
+  const shelfDeflections = useMemo(() => {
+    if (resolvedPieces.length === 0) return new Map<string, ShelfDeflectionResult>();
+    return checkModuleShelvesDeflection(
+      resolvedPieces,
+      materials,
+      projectConfig?.deflection,
+    );
+  }, [resolvedPieces, materials, projectConfig]);
+
+  const shelfDeflectionWarnings = useMemo(() => {
+    return Array.from(shelfDeflections.values()).filter((d) => d.hasWarning);
+  }, [shelfDeflections]);
 
   // Generates Bill of Materials
   const bom = useMemo(() => {
@@ -467,6 +485,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     pieceMachiningList,
     machiningSheets,
     selectedMachiningPieceId,
+    shelfDeflections,
+    shelfDeflectionWarnings,
     projectConfig,
     setWidth,
     setHeight,

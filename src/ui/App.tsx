@@ -102,6 +102,7 @@ export function App(): ReactElement {
                   onExplodedRatioChange={vm.setExplodedRatio}
                   selectedPieceId={vm.selectedPieceId}
                   onSelectPiece={vm.setSelectedPieceId}
+                  shelfDeflections={vm.shelfDeflections}
                 />
               )}
 
@@ -115,7 +116,10 @@ export function App(): ReactElement {
               )}
 
               {vm.activeTab === 'pieces' && (
-                <PieceListView pieces={vm.resolvedPieces} />
+                <PieceListView
+                  pieces={vm.resolvedPieces}
+                  shelfDeflections={vm.shelfDeflections}
+                />
               )}
 
               {vm.activeTab === 'settings' && (
@@ -137,7 +141,10 @@ export function App(): ReactElement {
                     Pieces resolved: {vm.resolvedPieces.length} | Edge bands:{' '}
                     {vm.bom?.totalEdgeBandMeters.toFixed(2) ?? '0.00'} m
                   </p>
-                  <PieceListView pieces={vm.resolvedPieces} />
+                  <PieceListView
+                    pieces={vm.resolvedPieces}
+                    shelfDeflections={vm.shelfDeflections}
+                  />
                 </div>
               )}
             </section>

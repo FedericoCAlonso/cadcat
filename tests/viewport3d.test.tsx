@@ -110,6 +110,63 @@ describe('Viewport3D Component', () => {
     expect(html).toContain('558 × 800 mm');
     expect(html).toContain('Clear Selection');
   });
+
+  it('renders shelf deflection details in inspector when a shelf piece is selected', () => {
+    const shelfPiece: ResolvedPieceWithCutSize = {
+      ...mockPieces[0]!,
+      id: 'base-shelf-1',
+      role: 'shelf',
+      dimensionsMm: { width: 564, height: 540 },
+      cutDimensionsMm: { width: 564, height: 540 },
+    };
+
+    const shelfBox: SpatialPieceBox = {
+      pieceId: 'base-shelf-1',
+      role: 'shelf',
+      materialId: 'mat-1',
+      thicknessMm: 18,
+      positionMm: { x: 18, y: 400, z: 0 },
+      sizeMm: { x: 564, y: 18, z: 540 },
+      centerMm: { x: 300, y: 409, z: 270 },
+    };
+
+    const deflMap = new Map();
+    deflMap.set('base-shelf-1', {
+      spanMm: 564,
+      depthMm: 540,
+      thicknessMm: 18,
+      elasticModulusMPa: 3000,
+      isElasticModulusConfirmed: false,
+      totalLoadKg: 9.14,
+      totalLoadN: 89.6,
+      inertiaMm4: 262440,
+      calculatedDeflectionMm: 0.20,
+      allowableDeflectionMm: 2.82,
+      deflectionRatio: 2820,
+      exceedsRatio: false,
+      exceedsAbsolute: false,
+      hasWarning: false,
+    });
+
+    const html = renderToString(
+      <Viewport3D
+        boxes={[...mockBoxes, shelfBox]}
+        bounds={mockBounds}
+        pieces={[shelfPiece]}
+        explodedRatio={0}
+        onExplodedRatioChange={vi.fn()}
+        selectedPieceId="base-shelf-1"
+        onSelectPiece={vi.fn()}
+        shelfDeflections={deflMap}
+      />,
+    );
+
+    expect(html).toContain('Selected Piece: base-shelf-1');
+    expect(html).toContain('Deflexión en Estante');
+    expect(html).toContain('0.20 mm');
+    expect(html).toContain('2.82 mm');
+    expect(html).toContain('(TO_CONFIRM)');
+  });
 });
 
 describe('App Component M3 Navigation Tabs', () => {

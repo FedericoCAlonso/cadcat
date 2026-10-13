@@ -5,6 +5,7 @@ import {
   type ModuleSpatialBounds,
   calculateExplodedBoxes,
   type ResolvedPieceWithCutSize,
+  type ShelfDeflectionResult,
 } from '../resolver';
 
 export interface Viewport3DProps {
@@ -15,6 +16,7 @@ export interface Viewport3DProps {
   onExplodedRatioChange: (val: number) => void;
   selectedPieceId: string | null;
   onSelectPiece: (pieceId: string | null) => void;
+  shelfDeflections?: Map<string, ShelfDeflectionResult>;
 }
 
 export function Viewport3D(props: Viewport3DProps): ReactElement {
@@ -26,6 +28,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     onExplodedRatioChange,
     selectedPieceId,
     onSelectPiece,
+    shelfDeflections,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -385,10 +388,48 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             <strong>3D Position (mm):</strong>{' '}
             {`X: ${selectedBox.positionMm.x}, Y: ${selectedBox.positionMm.y}, Z: ${selectedBox.positionMm.z}`}
           </p>
+
+          {shelfDeflections?.get(selectedPiece.id) && (() => {
+            const defl = shelfDeflections.get(selectedPiece.id)!;
+            return (
+              <div
+                className={`inspector-deflection-card ${defl.hasWarning ? 'warning' : 'ok'}`}
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  backgroundColor: defl.hasWarning ? '#ffebee' : '#e8f5e9',
+                  border: `1px solid ${defl.hasWarning ? '#ef9a9a' : '#a5d6a7'}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <span>{defl.hasWarning ? '⚠️ Deflexión en Estante' : '✓ Deflexión en Estante'}</span>
+                </div>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>
+                  <strong>Flecha estimada: </strong>
+                  {`${defl.calculatedDeflectionMm.toFixed(2)} mm | `}
+                  <strong>Máx admisible: </strong>
+                  {`${defl.allowableDeflectionMm.toFixed(2)} mm`}
+                </p>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.82rem', color: '#444746' }}>
+                  <strong>Carga: </strong>
+                  {`${defl.totalLoadKg.toFixed(1)} kg (${defl.totalLoadN.toFixed(0)} N) | `}
+                  <strong>Módulo E: </strong>
+                  {`${defl.elasticModulusMPa} MPa ${defl.isElasticModulusConfirmed ? '' : '(TO_CONFIRM)'}`}
+                </p>
+                {defl.hasWarning && (
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: '#b71c1c', fontWeight: 500 }}>
+                    {defl.warningMessage}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           <button
             type="button"
             className="m3-btn m3-btn--outlined"
-            style={{ marginTop: '0.5rem' }}
+            style={{ marginTop: '0.75rem' }}
             onClick={() => onSelectPiece(null)}
           >
             Clear Selection

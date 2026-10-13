@@ -136,3 +136,14 @@ export {
   renderPieceMachiningSvg,
   exportMachiningSheetPdf,
 } from './machiningSheet';
+
+export {
+  GRAVITY_ACCELERATION_M_S2,
+  DEFAULT_ELASTIC_MODULUS_MPA,
+  DEFAULT_DEFLECTION_CONFIG,
+  type ShelfDeflectionInput,
+  type ShelfDeflectionResult,
+  calculateShelfDeflection,
+  checkPieceDeflection,
+  checkModuleShelvesDeflection,
+} from './deflection';

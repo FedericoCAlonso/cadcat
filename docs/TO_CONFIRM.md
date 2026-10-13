@@ -55,6 +55,15 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | Adjustable shelf lateral gap | `2.0 mm (TO_CONFIRM)` | | 1.0 mm per side for smooth insertion onto shelf pins. |
 | Hinge end setback distance | `100.0 mm (TO_CONFIRM)` | | Distance from top/bottom door edge to hinge center. |
 
+### Shelf Deflection Limits (Phase 2 Task 5)
+
+| Parameter | Current Default | Confirmed Value | Notes |
+|---|---|---|---|
+| Elastic modulus default (`DEFAULT_ELASTIC_MODULUS_MPA`) | `3000 MPa (TO_CONFIRM)` | | Default modulus of elasticity for wood panel boards (PB/MDF). |
+| Maximum deflection ratio (`maxDeflectionRatio`) | `200 (TO_CONFIRM)` | | Span ratio limit L / 200 for shelf sag under load. |
+| Maximum absolute deflection (`maxAbsoluteDeflectionMm`) | `3.0 mm (TO_CONFIRM)` | | Maximum absolute sag limit in millimeters. |
+| Design uniform load (`designUniformLoadKgM2`) | `30.0 kg/m² (TO_CONFIRM)` | | Standard storage load per square meter for kitchen cabinets. |
+
 ## 2. General Shop Values (from Plan Section 12)
 
 1. **Sheet sizes and thicknesses.** Confirm actual board dimensions in local shop stock.
