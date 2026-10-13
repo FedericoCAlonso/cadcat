@@ -41,3 +41,15 @@ export {
   applyEdgeBandRule,
   calculateEdgeBandLengths,
 } from './edgeBand';
+
+export {
+  type BOMPieceItem,
+  type BOMEdgeBandItem,
+  type BOMHardwareItem,
+  type BillOfMaterials,
+  getHardwareCountForJoint,
+  generateBOMPieces,
+  generateBOMEdgeBands,
+  generateBOMHardware,
+  generateBillOfMaterials,
+} from './bom';
