@@ -33,20 +33,27 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | Saw kerf (`sawKerfMm`) | `3.2 mm (TO_CONFIRM)` | | Blade cut thickness of panel saw. |
 | Trim margin (`trimMarginMm`) | `10.0 mm (TO_CONFIRM)` | | Perimeter waste margin on raw sheet. |
 
-### Hardware (Phase 1 Task 6)
+### Hardware (Phase 1 Task 6 & Phase 2 Task 2)
 
 | Hardware ID | Field | Current Value | Confirmed Value | Notes |
 |---|---|---|---|---|
 | `hw-confirmat-7x50` | `pricePerUnit` | `TO_CONFIRM` | | Confirmat screw unit price. |
 | `hw-cam-dowel-15` | `pricePerUnit` | `TO_CONFIRM` | | Cam lock and dowel set price. |
 | `hw-dowel-8x35` | `pricePerUnit` | `TO_CONFIRM` | | Wooden dowel unit price. |
+| `hw-hinge-cup-35` | `pricePerUnit` | `TO_CONFIRM` | | Concealed Euro cup hinge 35mm. |
+| `hw-slide-telescopic` | `pricePerUnit` | `TO_CONFIRM` | | Ball bearing telescopic slide pair. |
+| `hw-shelf-pin-5` | `pricePerUnit` | `TO_CONFIRM` | | Shelf support pin 5mm unit price. |
 
-### Drawer Clearances (Phase 1 Task 9)
+### Drawer & Slide Clearances (Phase 1 Task 9 & Phase 2 Task 2)
 
 | Parameter | Current Default | Confirmed Value | Notes |
 |---|---|---|---|
-| Drawer slide clearance (`slideClearanceMm`) | `25.4 mm (TO_CONFIRM)` | | 12.7 mm per side for standard ball bearing slides. |
-| Drawer reveal gap (`gapMm`) | `3.0 mm (TO_CONFIRM)` | | Vertical and horizontal gap between drawer fronts. |
+| Telescopic slide clearance | `25.4 mm (TO_CONFIRM)` | | 12.7 mm per side for ball bearing slides. |
+| Undermount slide clearance | `10.0 mm (TO_CONFIRM)` | | 5.0 mm per side for concealed undermount slides. |
+| Roller slide clearance | `25.0 mm (TO_CONFIRM)` | | 12.5 mm per side for bottom metal roller slides. |
+| Drawer reveal gap (`gapMm`) | `3.0 mm (TO_CONFIRM)` | | Vertical and horizontal gap between fronts. |
+| Adjustable shelf lateral gap | `2.0 mm (TO_CONFIRM)` | | 1.0 mm per side for smooth insertion onto shelf pins. |
+| Hinge end setback distance | `100.0 mm (TO_CONFIRM)` | | Distance from top/bottom door edge to hinge center. |
 
 ## 2. General Shop Values (from Plan Section 12)
 

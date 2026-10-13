@@ -58,6 +58,12 @@ export function getHardwareCountForJoint(jointKind: string, contactLengthMm?: nu
         return 3;
       }
       return 2;
+    case 'hinge':
+      return 1;
+    case 'slide':
+      return 2;
+    case 'shelf-pin':
+      return 4;
     case 'butt':
     case 'rebate':
     case 'groove':
@@ -78,6 +84,12 @@ function getHardwareMetadata(jointKind: string): { hardwareId: string; name: str
       return { hardwareId: 'hw-cam-dowel-15', name: 'Cam Lock & Connecting Dowel 15mm' };
     case 'dowel':
       return { hardwareId: 'hw-dowel-8x35', name: 'Wooden Dowel 8x35mm' };
+    case 'hinge':
+      return { hardwareId: 'hw-hinge-cup-35', name: 'Concealed Euro Cup Hinge 35mm' };
+    case 'slide':
+      return { hardwareId: 'hw-slide-telescopic', name: 'Ball Bearing Telescopic Drawer Slide' };
+    case 'shelf-pin':
+      return { hardwareId: 'hw-shelf-pin-5', name: 'Shelf Support Pin 5mm' };
     default:
       return null;
   }

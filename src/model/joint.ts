@@ -12,6 +12,9 @@ export const jointKindSchema = z.enum([
   'groove',
   'glue',
   'butt',
+  'hinge',
+  'slide',
+  'shelf-pin',
 ]);
 export type JointKind = z.infer<typeof jointKindSchema>;
 

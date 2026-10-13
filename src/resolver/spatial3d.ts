@@ -34,8 +34,8 @@ export function determinePieceSpatialSize(piece: Piece): Position3D {
 
   const role = piece.role.toLowerCase();
 
-  // Vertical side panels standing in YZ plane
-  if (role.includes('side') && !role.includes('rail')) {
+  // Vertical side & partition panels standing in YZ plane
+  if ((role.includes('side') || role.includes('partition')) && !role.includes('rail')) {
     // Width along X is thickness. Height along Y is contour height. Depth along Z is contour width.
     return { x: t, y: h, z: w };
   }
@@ -178,6 +178,12 @@ export function calculateExplodedBoxes(
       dz = -dist * 1.4;
     } else if (role.includes('drawer-front')) {
       dz = dist * 2.0;
+    } else if (role.includes('door')) {
+      dz = dist * 1.8;
+      if (role.includes('left')) dx = -dist * 0.4;
+      if (role.includes('right')) dx = dist * 0.4;
+    } else if (role.includes('partition')) {
+      dx = 0;
     } else if (role.startsWith('drawer-') || role.includes('box-')) {
       // Internal drawer box elements slide forward together
       dz = dist * 1.5;

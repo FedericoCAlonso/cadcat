@@ -130,14 +130,25 @@ describe('Template 2: Drawer Unit (Section 9 Task 9)', () => {
 });
 
 describe('Template Registry', () => {
-  it('registers both Base Cabinet and Drawer Unit templates', () => {
-    expect(TEMPLATES).toHaveLength(2);
-    expect(TEMPLATES.map((t) => t.id)).toEqual(['base-cabinet', 'drawer-unit']);
+  it('registers Base Cabinet, Door Cabinet, Drawer Unit, and Partition Cabinet templates', () => {
+    expect(TEMPLATES).toHaveLength(4);
+    expect(TEMPLATES.map((t) => t.id)).toEqual([
+      'base-cabinet',
+      'door-cabinet',
+      'drawer-unit',
+      'partition-cabinet',
+    ]);
 
     const baseTpl = getTemplateById('base-cabinet');
     expect(baseTpl.name).toContain('Base Cabinet');
 
     const drawerTpl = getTemplateById('drawer-unit');
     expect(drawerTpl.name).toContain('Drawer Unit');
+
+    const doorTpl = getTemplateById('door-cabinet');
+    expect(doorTpl.name).toContain('Door Cabinet');
+
+    const partTpl = getTemplateById('partition-cabinet');
+    expect(partTpl.name).toContain('Partition');
   });
 });

@@ -21,6 +21,27 @@
       "name": "Wooden Dowel 8x35mm",
       "jointKind": "dowel",
       "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-hinge-cup-35",
+      "name": "Concealed Euro Cup Hinge 35mm",
+      "jointKind": "hinge",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-slide-telescopic",
+      "name": "Ball Bearing Telescopic Drawer Slide",
+      "jointKind": "slide",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-shelf-pin-5",
+      "name": "Shelf Support Pin 5mm",
+      "jointKind": "shelf-pin",
+      "pricePerUnit": "TO_CONFIRM"
     }
   ]
 }
