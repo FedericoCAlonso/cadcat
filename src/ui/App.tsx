@@ -6,6 +6,7 @@ import { PieceListView } from './PieceListView';
 import { Viewport3D } from './Viewport3D';
 import { MachiningSheetView } from './MachiningSheetView';
 import { ProjectSettingsView } from './ProjectSettingsView';
+import { AssemblySheetView } from './AssemblySheetView';
 
 /**
  * Main application View component.
@@ -43,6 +44,13 @@ export function App(): ReactElement {
             onClick={() => vm.setActiveTab('pieces')}
           >
             📋 Piece List
+          </button>
+          <button
+            type="button"
+            className={`m3-tab-button ${vm.activeTab === 'assembly' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('assembly')}
+          >
+            📖 Assembly Guide
           </button>
           <button
             type="button"
@@ -119,6 +127,13 @@ export function App(): ReactElement {
                 <PieceListView
                   pieces={vm.resolvedPieces}
                   shelfDeflections={vm.shelfDeflections}
+                />
+              )}
+
+              {vm.activeTab === 'assembly' && (
+                <AssemblySheetView
+                  assemblySheet={vm.assemblySheet}
+                  onExportPdf={vm.exportAssemblyPdf}
                 />
               )}
 

@@ -147,3 +147,19 @@ export {
   checkPieceDeflection,
   checkModuleShelvesDeflection,
 } from './deflection';
+
+export {
+  type SpanOccurrence,
+  type AssemblyGauge,
+  type DeriveGaugesInput,
+  deriveAssemblyGauges,
+  deriveAuxiliaryGaugePieces,
+} from './gauges';
+
+export {
+  type AssemblyStep,
+  type AssemblySheet,
+  type GenerateAssemblySheetInput,
+  generateAssemblySheet,
+  exportAssemblyGuidePdf,
+} from './assemblySheet';

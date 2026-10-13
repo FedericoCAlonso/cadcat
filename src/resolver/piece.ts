@@ -23,6 +23,7 @@ export interface CreatePieceInput {
   structural?: boolean;
   referenceFace?: 'A' | 'B';
   edgeFaceIds?: string[];
+  isAuxiliary?: boolean;
 }
 
 /**
@@ -153,6 +154,7 @@ export function createPiece(input: CreatePieceInput): Piece {
     faces,
     structural: input.structural ?? isDefaultStructuralRole(input.role),
     referenceFace: input.referenceFace ?? 'A',
+    isAuxiliary: input.isAuxiliary,
   };
 
   return validatePiece(piece);

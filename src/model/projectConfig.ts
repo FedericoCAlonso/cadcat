@@ -32,6 +32,7 @@ export const machiningConfigSchema = z.object({
   system32FrontSetbackMm: z.number().positive(),
   jointDrillMarginMm: z.number().positive(),
   maxSpanWithoutCenterDrillMm: z.number().positive(),
+  defaultGaugeWidthMm: shopValueSchema.default(50),
 });
 export type MachiningConfig = z.infer<typeof machiningConfigSchema>;
 

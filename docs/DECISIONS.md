@@ -54,3 +54,16 @@ Document language: ASD-STE100 (Simplified Technical English).
   3. When `optimizationGoal` is `'min-passes'`, sort pieces by cut height to produce continuous horizontal rip strips, minimizing blade repositioning. When `'min-waste'`, use First-Fit-Decreasing by piece area.
   4. In `src/resolver/cost.ts`, calculate `cutPassCost = totalCutPasses * pricePerCutPass` when `pricePerCutPass` is confirmed, and include it in `ModuleCostSummary` and `grandTotal`.
 - **Consequence:** Workshop operators can choose between material savings and saw cycle time reduction, and cost estimates accurately reflect physical saw labor.
+
+## ADR-008: Automatic Assembly Gauge Derivation and Two-Pass Offcut Nesting
+
+- **Status:** Accepted.
+- **Context:** Manual assembly in the workshop requires measuring distances repeatedly with tape measures, which introduces human error and slows assembly. Auxiliary gauge strips cut to exact clear spans eliminate manual measuring. Additionally, cutting gauges from primary full sheets increases waste, while unused board offcuts can supply these narrow strips at zero additional sheet material cost.
+- **Decision:**
+  1. Add `isAuxiliary?: boolean` to the `Piece` schema and interface.
+  2. Implement automatic gauge derivation in `src/resolver/gauges.ts`. Analyze the resolved `JointGraph` and piece coordinates to identify clear spans between facing parallel panels. Group identical spans under unique gauge identifiers (`G1`, `G2`, etc.). Generate auxiliary gauge pieces with `role: 'assembly-gauge'` and width defined by `MachiningConfig.defaultGaugeWidthMm`.
+  3. Filter auxiliary pieces out of customer Bill of Materials (`src/resolver/bom.ts`), but keep them in the workshop cut list and cut layout.
+  4. In `src/workers/guillotineNesting.ts`, implement two-pass nesting: pack primary customer pieces first, then nest auxiliary pieces into unused offcut rectangles.
+  5. In `src/resolver/cost.ts`, charge zero sheet material cost for boards that contain only offcut pieces (`fitsInOffcut: true`). Include only the saw pass cost for auxiliary pieces.
+  6. In `src/resolver/assemblySheet.ts` and `src/ui/AssemblySheetView.tsx`, generate sequential numbered assembly instructions referencing gauges, provide an SVG diagram, and support PDF workshop guide export.
+- **Consequence:** Assembly accuracy improves and tape measure errors are eliminated. Auxiliary gauges reuse scrap offcuts without increasing board purchase costs, and workshop operators receive step-by-step assembly guides.

@@ -23,6 +23,7 @@ export const pieceSchema = z.object({
   faces: z.array(faceSchema),
   structural: z.boolean(),
   referenceFace: z.enum(['A', 'B']),
+  isAuxiliary: z.boolean().optional(),
 });
 export type Piece = z.infer<typeof pieceSchema>;
 

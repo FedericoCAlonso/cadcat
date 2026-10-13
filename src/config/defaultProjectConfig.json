@@ -32,7 +32,8 @@
     "shelfPinDepthMm": 12.0,
     "system32FrontSetbackMm": 37.0,
     "jointDrillMarginMm": 50.0,
-    "maxSpanWithoutCenterDrillMm": 600.0
+    "maxSpanWithoutCenterDrillMm": 600.0,
+    "defaultGaugeWidthMm": 50.0
   },
   "nesting": {
     "sawKerfMm": 4.4,

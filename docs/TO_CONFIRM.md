@@ -56,6 +56,12 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | Adjustable shelf lateral gap | `2.0 mm (TO_CONFIRM)` | | 1.0 mm per side for smooth insertion onto shelf pins. |
 | Hinge end setback distance | `100.0 mm (TO_CONFIRM)` | | Distance from top/bottom door edge to hinge center. |
 
+### Machining and Assembly Gauges (Phase 2 Work Package 2)
+
+| Parameter | Current Default | Confirmed Value | Notes |
+|---|---|---|---|
+| Default assembly gauge width (`defaultGaugeWidthMm`) | `50.0 mm (TO_CONFIRM)` | | Standard width for auxiliary gauge strips cut from offcuts. |
+
 ### Shelf Deflection Limits (Phase 2 Task 5)
 
 | Parameter | Current Default | Confirmed Value | Notes |

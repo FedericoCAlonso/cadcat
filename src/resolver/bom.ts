@@ -102,7 +102,9 @@ export function generateBOMPieces(
   pieces: ResolvedPiece[],
   edgeBands: Map<string, EdgeBand> | EdgeBand[] | { edgeBands: EdgeBand[] },
 ): BOMPieceItem[] {
-  return pieces.map((piece) => {
+  return pieces
+    .filter((piece) => !piece.isAuxiliary)
+    .map((piece) => {
     const cutSize = calculatePieceCutSize(piece, edgeBands);
     const areaM2 = (cutSize.cutDimensionsMm.width * cutSize.cutDimensionsMm.height) / 1_000_000;
 
@@ -133,8 +135,9 @@ export function generateBOMEdgeBands(
   pieces: ResolvedPiece[],
   edgeBands: Map<string, EdgeBand> | EdgeBand[] | { edgeBands: EdgeBand[] },
 ): BOMEdgeBandItem[] {
+  const nonAuxPieces = pieces.filter((piece) => !piece.isAuxiliary);
   const edgeBandMap = createEdgeBandMap(edgeBands);
-  const lengths = calculateEdgeBandLengths(pieces, edgeBands);
+  const lengths = calculateEdgeBandLengths(nonAuxPieces, edgeBands);
   const items: BOMEdgeBandItem[] = [];
 
   for (const [id, lengthMm] of lengths.entries()) {

@@ -67,10 +67,16 @@ export function calculateModuleCost(input: CostCalculationInput): ModuleCostSumm
   const items: CostItem[] = [];
 
   // 1. Material cost (per sheet used in nesting)
+  // If an auxiliary piece fits into an offcut, its material cost is zero.
   const sheetsByMaterial = new Map<string, number>();
   for (const sheet of nestingResult.sheets) {
-    const current = sheetsByMaterial.get(sheet.materialId) ?? 0;
-    sheetsByMaterial.set(sheet.materialId, current + 1);
+    const requiresNewSheet =
+      sheet.placedPieces.length === 0 ||
+      sheet.placedPieces.some((p) => !p.fitsInOffcut);
+    if (requiresNewSheet) {
+      const current = sheetsByMaterial.get(sheet.materialId) ?? 0;
+      sheetsByMaterial.set(sheet.materialId, current + 1);
+    }
   }
 
   for (const [materialId, sheetCount] of sheetsByMaterial.entries()) {

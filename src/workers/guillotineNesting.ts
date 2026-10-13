@@ -16,6 +16,7 @@ export interface NestingItem {
   cutWidthMm: number;
   cutHeightMm: number;
   canRotate: boolean;
+  isAuxiliary?: boolean;
 }
 
 export interface SheetDefinition {
@@ -33,6 +34,8 @@ export interface PlacedPiece {
   width: number;
   height: number;
   rotated: boolean;
+  isAuxiliary?: boolean;
+  fitsInOffcut?: boolean;
 }
 
 export interface FreeRectangle {
@@ -123,8 +126,156 @@ function countSheetCutPasses(
   return passes;
 }
 
+function sortNestingItems(
+  items: NestingItem[],
+  optimizationGoal: 'min-waste' | 'min-passes',
+): NestingItem[] {
+  return [...items].sort((a, b) => {
+    if (optimizationGoal === 'min-passes') {
+      const heightDiff = b.cutHeightMm - a.cutHeightMm;
+      if (Math.abs(heightDiff) > 0.001) return heightDiff;
+      return b.cutWidthMm - a.cutWidthMm;
+    }
+    const areaA = a.cutWidthMm * a.cutHeightMm;
+    const areaB = b.cutWidthMm * b.cutHeightMm;
+    if (areaB !== areaA) return areaB - areaA;
+    return Math.max(b.cutWidthMm, b.cutHeightMm) - Math.max(a.cutWidthMm, a.cutHeightMm);
+  });
+}
+
+function tryPlaceItem(
+  item: NestingItem,
+  freeRectangles: FreeRectangle[],
+  sawKerf: number,
+  optimizationGoal: 'min-waste' | 'min-passes',
+  rawCutSegments: CutSegment[],
+  isOffcut: boolean,
+): PlacedPiece | null {
+  let bestRectIndex = -1;
+  let bestRotated = false;
+  let bestShortSideFit = Number.POSITIVE_INFINITY;
+
+  for (let r = 0; r < freeRectangles.length; r++) {
+    const freeRect = freeRectangles[r]!;
+
+    if (item.cutWidthMm <= freeRect.width && item.cutHeightMm <= freeRect.height) {
+      const shortSideFit = Math.min(
+        freeRect.width - item.cutWidthMm,
+        freeRect.height - item.cutHeightMm,
+      );
+      if (shortSideFit < bestShortSideFit) {
+        bestShortSideFit = shortSideFit;
+        bestRectIndex = r;
+        bestRotated = false;
+      }
+    }
+
+    if (
+      item.canRotate &&
+      item.cutHeightMm <= freeRect.width &&
+      item.cutWidthMm <= freeRect.height
+    ) {
+      const shortSideFit = Math.min(
+        freeRect.width - item.cutHeightMm,
+        freeRect.height - item.cutWidthMm,
+      );
+      if (shortSideFit < bestShortSideFit) {
+        bestShortSideFit = shortSideFit;
+        bestRectIndex = r;
+        bestRotated = true;
+      }
+    }
+  }
+
+  if (bestRectIndex === -1) return null;
+
+  const freeRect = freeRectangles[bestRectIndex]!;
+  const pieceW = bestRotated ? item.cutHeightMm : item.cutWidthMm;
+  const pieceH = bestRotated ? item.cutWidthMm : item.cutHeightMm;
+
+  freeRectangles.splice(bestRectIndex, 1);
+
+  const remainW = freeRect.width - pieceW - sawKerf;
+  const remainH = freeRect.height - pieceH - sawKerf;
+
+  const splitHorizontally =
+    optimizationGoal === 'min-passes' ? true : remainW >= remainH;
+
+  if (splitHorizontally) {
+    if (remainH > 0) {
+      freeRectangles.push({
+        x: freeRect.x,
+        y: freeRect.y + pieceH + sawKerf,
+        width: freeRect.width,
+        height: remainH,
+      });
+      rawCutSegments.push({
+        orientation: 'H',
+        coord: freeRect.y + pieceH,
+        start: freeRect.x,
+        end: freeRect.x + freeRect.width,
+      });
+    }
+    if (remainW > 0) {
+      freeRectangles.push({
+        x: freeRect.x + pieceW + sawKerf,
+        y: freeRect.y,
+        width: remainW,
+        height: pieceH,
+      });
+      rawCutSegments.push({
+        orientation: 'V',
+        coord: freeRect.x + pieceW,
+        start: freeRect.y,
+        end: freeRect.y + pieceH,
+      });
+    }
+  } else {
+    if (remainW > 0) {
+      freeRectangles.push({
+        x: freeRect.x + pieceW + sawKerf,
+        y: freeRect.y,
+        width: remainW,
+        height: freeRect.height,
+      });
+      rawCutSegments.push({
+        orientation: 'V',
+        coord: freeRect.x + pieceW,
+        start: freeRect.y,
+        end: freeRect.y + freeRect.height,
+      });
+    }
+    if (remainH > 0) {
+      freeRectangles.push({
+        x: freeRect.x,
+        y: freeRect.y + pieceH + sawKerf,
+        width: pieceW,
+        height: remainH,
+      });
+      rawCutSegments.push({
+        orientation: 'H',
+        coord: freeRect.y + pieceH,
+        start: freeRect.y,
+        end: freeRect.x + pieceW,
+      });
+    }
+  }
+
+  return {
+    pieceId: item.pieceId,
+    x: freeRect.x,
+    y: freeRect.y,
+    width: pieceW,
+    height: pieceH,
+    rotated: bestRotated,
+    isAuxiliary: item.isAuxiliary,
+    fitsInOffcut: isOffcut,
+  };
+}
+
 /**
  * Run guillotine 2D bin packing algorithm.
+ * Implements two-step nesting: primary pieces first, then auxiliary gauge pieces into unused offcuts.
  */
 export function runGuillotineNesting(input: NestingInput): NestingResult {
   const { sheet } = input;
@@ -140,26 +291,28 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     throw new Error('Sheet trim margin exceeds sheet dimensions');
   }
 
-  // Sort items according to optimizationGoal
-  const remainingItems: NestingItem[] = [...input.items].sort((a, b) => {
-    if (optimizationGoal === 'min-passes') {
-      // Group by cut height first to create continuous straight rip lines
-      const heightDiff = b.cutHeightMm - a.cutHeightMm;
-      if (Math.abs(heightDiff) > 0.001) return heightDiff;
-      return b.cutWidthMm - a.cutWidthMm;
-    }
+  // Split into primary and auxiliary items
+  const primaryItems = sortNestingItems(
+    input.items.filter((it) => !it.isAuxiliary),
+    optimizationGoal,
+  );
+  const auxiliaryItems = sortNestingItems(
+    input.items.filter((it) => it.isAuxiliary),
+    optimizationGoal,
+  );
 
-    // Default min-waste: First Fit Decreasing by area, then max dimension
-    const areaA = a.cutWidthMm * a.cutHeightMm;
-    const areaB = b.cutWidthMm * b.cutHeightMm;
-    if (areaB !== areaA) return areaB - areaA;
-    return Math.max(b.cutWidthMm, b.cutHeightMm) - Math.max(a.cutWidthMm, a.cutHeightMm);
-  });
+  interface SheetState {
+    sheetIndex: number;
+    placedPieces: PlacedPiece[];
+    rawCutSegments: CutSegment[];
+    freeRectangles: FreeRectangle[];
+  }
 
-  const sheetsResult: NestingSheetResult[] = [];
+  const sheetStates: SheetState[] = [];
   let sheetIndex = 0;
 
-  while (remainingItems.length > 0) {
+  // Step 1: Pack primary items
+  while (primaryItems.length > 0) {
     const placedOnCurrentSheet: PlacedPiece[] = [];
     const rawCutSegments: CutSegment[] = [];
     const freeRectangles: FreeRectangle[] = [
@@ -173,151 +326,114 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
 
     let itemsPlacedThisSheet = 0;
 
-    for (let i = 0; i < remainingItems.length; ) {
-      const item = remainingItems[i]!;
+    for (let i = 0; i < primaryItems.length; ) {
+      const item = primaryItems[i]!;
+      const placed = tryPlaceItem(
+        item,
+        freeRectangles,
+        sawKerf,
+        optimizationGoal,
+        rawCutSegments,
+        false,
+      );
 
-      // Find best free rectangle that can fit the item
-      let bestRectIndex = -1;
-      let bestRotated = false;
-      let bestShortSideFit = Number.POSITIVE_INFINITY;
-
-      for (let r = 0; r < freeRectangles.length; r++) {
-        const freeRect = freeRectangles[r]!;
-
-        // Test normal orientation
-        if (item.cutWidthMm <= freeRect.width && item.cutHeightMm <= freeRect.height) {
-          const shortSideFit = Math.min(
-            freeRect.width - item.cutWidthMm,
-            freeRect.height - item.cutHeightMm,
-          );
-          if (shortSideFit < bestShortSideFit) {
-            bestShortSideFit = shortSideFit;
-            bestRectIndex = r;
-            bestRotated = false;
-          }
-        }
-
-        // Test rotated orientation if allowed by grain
-        if (
-          item.canRotate &&
-          item.cutHeightMm <= freeRect.width &&
-          item.cutWidthMm <= freeRect.height
-        ) {
-          const shortSideFit = Math.min(
-            freeRect.width - item.cutHeightMm,
-            freeRect.height - item.cutWidthMm,
-          );
-          if (shortSideFit < bestShortSideFit) {
-            bestShortSideFit = shortSideFit;
-            bestRectIndex = r;
-            bestRotated = true;
-          }
-        }
-      }
-
-      if (bestRectIndex !== -1) {
-        const freeRect = freeRectangles[bestRectIndex]!;
-        const pieceW = bestRotated ? item.cutHeightMm : item.cutWidthMm;
-        const pieceH = bestRotated ? item.cutWidthMm : item.cutHeightMm;
-
-        // Place the piece
-        placedOnCurrentSheet.push({
-          pieceId: item.pieceId,
-          x: freeRect.x,
-          y: freeRect.y,
-          width: pieceW,
-          height: pieceH,
-          rotated: bestRotated,
-        });
-
-        // Remove the used free rectangle
-        freeRectangles.splice(bestRectIndex, 1);
-
-        // Split remainder using guillotine cut
-        const remainW = freeRect.width - pieceW - sawKerf;
-        const remainH = freeRect.height - pieceH - sawKerf;
-
-        // Choose guillotine split orientation based on optimization goal
-        const splitHorizontally =
-          optimizationGoal === 'min-passes' ? true : remainW >= remainH;
-
-        if (splitHorizontally) {
-          if (remainH > 0) {
-            freeRectangles.push({
-              x: freeRect.x,
-              y: freeRect.y + pieceH + sawKerf,
-              width: freeRect.width,
-              height: remainH,
-            });
-            rawCutSegments.push({
-              orientation: 'H',
-              coord: freeRect.y + pieceH,
-              start: freeRect.x,
-              end: freeRect.x + freeRect.width,
-            });
-          }
-          if (remainW > 0) {
-            freeRectangles.push({
-              x: freeRect.x + pieceW + sawKerf,
-              y: freeRect.y,
-              width: remainW,
-              height: pieceH,
-            });
-            rawCutSegments.push({
-              orientation: 'V',
-              coord: freeRect.x + pieceW,
-              start: freeRect.y,
-              end: freeRect.y + pieceH,
-            });
-          }
-        } else {
-          if (remainW > 0) {
-            freeRectangles.push({
-              x: freeRect.x + pieceW + sawKerf,
-              y: freeRect.y,
-              width: remainW,
-              height: freeRect.height,
-            });
-            rawCutSegments.push({
-              orientation: 'V',
-              coord: freeRect.x + pieceW,
-              start: freeRect.y,
-              end: freeRect.y + freeRect.height,
-            });
-          }
-          if (remainH > 0) {
-            freeRectangles.push({
-              x: freeRect.x,
-              y: freeRect.y + pieceH + sawKerf,
-              width: pieceW,
-              height: remainH,
-            });
-            rawCutSegments.push({
-              orientation: 'H',
-              coord: freeRect.y + pieceH,
-              start: freeRect.x,
-              end: freeRect.x + pieceW,
-            });
-          }
-        }
-
-        // Remove item from remaining list
-        remainingItems.splice(i, 1);
+      if (placed) {
+        placedOnCurrentSheet.push(placed);
+        primaryItems.splice(i, 1);
         itemsPlacedThisSheet++;
       } else {
-        // Try next item
         i++;
       }
     }
 
     if (itemsPlacedThisSheet === 0) {
-      // Remaining items cannot fit in any sheet of this size
       break;
     }
 
-    // Compute sheet utilization
-    const sheetTotalAreaM2 = (sheet.lengthMm * sheet.widthMm) / 1_000_000;
-    const usedAreaM2 = placedOnCurrentSheet.reduce(
+    sheetStates.push({
+      sheetIndex,
+      placedPieces: placedOnCurrentSheet,
+      rawCutSegments,
+      freeRectangles,
+    });
+    sheetIndex++;
+  }
+
+  // Step 2: Pack auxiliary pieces into unused offcut areas of existing boards
+  for (const sheetState of sheetStates) {
+    for (let i = 0; i < auxiliaryItems.length; ) {
+      const auxItem = auxiliaryItems[i]!;
+      const placed = tryPlaceItem(
+        auxItem,
+        sheetState.freeRectangles,
+        sawKerf,
+        optimizationGoal,
+        sheetState.rawCutSegments,
+        true, // fits in offcut!
+      );
+
+      if (placed) {
+        sheetState.placedPieces.push(placed);
+        auxiliaryItems.splice(i, 1);
+      } else {
+        i++;
+      }
+    }
+  }
+
+  // If auxiliary items remain (e.g. no primary sheets or offcuts full), pack into new sheets
+  const unplacedPrimary = [...primaryItems];
+  while (auxiliaryItems.length > 0) {
+    const placedOnCurrentSheet: PlacedPiece[] = [];
+    const rawCutSegments: CutSegment[] = [];
+    const freeRectangles: FreeRectangle[] = [
+      {
+        x: trimMargin,
+        y: trimMargin,
+        width: usableLength,
+        height: usableWidth,
+      },
+    ];
+
+    let itemsPlacedThisSheet = 0;
+
+    for (let i = 0; i < auxiliaryItems.length; ) {
+      const auxItem = auxiliaryItems[i]!;
+      const placed = tryPlaceItem(
+        auxItem,
+        freeRectangles,
+        sawKerf,
+        optimizationGoal,
+        rawCutSegments,
+        false,
+      );
+
+      if (placed) {
+        placedOnCurrentSheet.push(placed);
+        auxiliaryItems.splice(i, 1);
+        itemsPlacedThisSheet++;
+      } else {
+        i++;
+      }
+    }
+
+    if (itemsPlacedThisSheet === 0) {
+      break;
+    }
+
+    sheetStates.push({
+      sheetIndex,
+      placedPieces: placedOnCurrentSheet,
+      rawCutSegments,
+      freeRectangles,
+    });
+    sheetIndex++;
+  }
+
+  // Build sheetsResult
+  const sheetTotalAreaM2 = (sheet.lengthMm * sheet.widthMm) / 1_000_000;
+  const sheetsResult: NestingSheetResult[] = sheetStates.map((s) => {
+    const usedAreaM2 = s.placedPieces.reduce(
       (sum, p) => sum + (p.width * p.height) / 1_000_000,
       0,
     );
@@ -325,23 +441,20 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     const utilizationPercentage = Number(
       ((usedAreaM2 / sheetTotalAreaM2) * 100).toFixed(2),
     );
+    const cutPasses = countSheetCutPasses(s.rawCutSegments, trimMargin, sawKerf);
 
-    const cutPasses = countSheetCutPasses(rawCutSegments, trimMargin, sawKerf);
-
-    sheetsResult.push({
-      sheetIndex,
+    return {
+      sheetIndex: s.sheetIndex,
       materialId: sheet.materialId,
       sheetLengthMm: sheet.lengthMm,
       sheetWidthMm: sheet.widthMm,
-      placedPieces: placedOnCurrentSheet,
+      placedPieces: s.placedPieces,
       utilizationPercentage,
       usedAreaM2: Number(usedAreaM2.toFixed(4)),
       wasteAreaM2: Number(wasteAreaM2.toFixed(4)),
       cutPasses,
-    });
-
-    sheetIndex++;
-  }
+    };
+  });
 
   const totalSheets = sheetsResult.length;
   const overallUtilizationPercentage = totalSheets > 0
@@ -354,10 +467,11 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     : 0;
 
   const totalCutPasses = sheetsResult.reduce((sum, s) => sum + s.cutPasses, 0);
+  const unplacedPieces = [...unplacedPrimary, ...auxiliaryItems];
 
   return {
     sheets: sheetsResult,
-    unplacedPieces: remainingItems,
+    unplacedPieces,
     totalSheets,
     overallUtilizationPercentage,
     totalCutPasses,

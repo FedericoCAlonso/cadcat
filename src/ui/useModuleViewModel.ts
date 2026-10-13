@@ -45,6 +45,9 @@ import {
   type PieceMachiningSheet,
   checkModuleShelvesDeflection,
   type ShelfDeflectionResult,
+  generateAssemblySheet,
+  exportAssemblyGuidePdf,
+  type AssemblySheet,
 } from '../resolver';
 import { runGuillotineNesting } from '../workers';
 
@@ -67,7 +70,7 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
-  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings';
+  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly';
   selectedPieceId: string | null;
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
@@ -76,6 +79,7 @@ export interface ModuleViewModelState {
   pieceMachiningList: PieceMachining[];
   machiningSheets: PieceMachiningSheet[];
   selectedMachiningPieceId: string | null;
+  assemblySheet: AssemblySheet | null;
   shelfDeflections: Map<string, ShelfDeflectionResult>;
   shelfDeflectionWarnings: ShelfDeflectionResult[];
   projectConfig: ProjectConfig | null;
@@ -85,7 +89,7 @@ export interface ModuleViewModelState {
   setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
-  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings') => void;
+  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly') => void;
   setSelectedPieceId: (id: string | null) => void;
   setSelectedMachiningPieceId: (id: string | null) => void;
   setExplodedRatio: (ratio: number) => void;
@@ -94,6 +98,7 @@ export interface ModuleViewModelState {
   exportCsv: () => void;
   exportPdf: () => void;
   exportMachiningPdf: (pieceId?: string) => void;
+  exportAssemblyPdf: () => void;
   updateProjectConfig: (config: ProjectConfig) => void;
   saveProjectConfig: () => Promise<void>;
   importProjectConfigFile: (file: File) => Promise<void>;
@@ -112,7 +117,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('base-cabinet');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [selectedEdgeBandId, setSelectedEdgeBandId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining' | 'settings'>('3d');
+  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly'>('3d');
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [selectedMachiningPieceId, setSelectedMachiningPieceId] = useState<string | null>(null);
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
@@ -259,18 +264,49 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     );
   }, [currentModule, resolvedPieces, edgeBands]);
 
+  // Generates Assembly Sheet
+  const assemblySheet = useMemo<AssemblySheet | null>(() => {
+    if (!currentModule || resolvedPieces.length === 0) return null;
+    try {
+      return generateAssemblySheet({
+        module: {
+          moduleId: currentModule.id,
+          pieces: resolvedPieces,
+          joints: currentModule.joints,
+        },
+        machiningConfig: projectConfig?.machining,
+      });
+    } catch {
+      return null;
+    }
+  }, [currentModule, resolvedPieces, projectConfig]);
+
   // Generates Costs
   const cost = useMemo(() => {
     if (!bom || !activeMaterial) return null;
     try {
-      const nestingItems = resolvedPieces.map((p) => ({
-        id: p.id,
-        pieceId: p.id,
-        materialId: p.materialId,
-        cutWidthMm: p.cutDimensionsMm.width,
-        cutHeightMm: p.cutDimensionsMm.height,
-        canRotate: !activeMaterial.hasGrain,
+      const gaugePieces = (assemblySheet?.gauges ?? []).map((g) => ({
+        id: g.piece.id,
+        pieceId: g.piece.id,
+        materialId: activeMaterial.id,
+        cutWidthMm: g.clearSpanMm,
+        cutHeightMm: g.widthMm,
+        canRotate: true,
+        isAuxiliary: true,
       }));
+
+      const nestingItems = [
+        ...resolvedPieces.map((p) => ({
+          id: p.id,
+          pieceId: p.id,
+          materialId: p.materialId,
+          cutWidthMm: p.cutDimensionsMm.width,
+          cutHeightMm: p.cutDimensionsMm.height,
+          canRotate: !activeMaterial.hasGrain,
+          isAuxiliary: p.isAuxiliary,
+        })),
+        ...gaugePieces,
+      ];
 
       const sheetLength = typeof activeMaterial.sheetSizeMm.length === 'number'
         ? activeMaterial.sheetSizeMm.length
@@ -302,7 +338,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     } catch {
       return null;
     }
-  }, [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig]);
+  }, [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig, assemblySheet]);
 
   // Save module to IndexedDB
   const saveModule = useCallback(async () => {
@@ -338,22 +374,54 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   const exportCsv = useCallback(() => {
     if (resolvedPieces.length === 0) return;
-    const csvContent = exportCutListCsv(resolvedPieces);
+    const auxPieces: ResolvedPieceWithCutSize[] = (assemblySheet?.gauges ?? []).map((g) => ({
+      id: g.piece.id,
+      role: g.piece.role,
+      materialId: g.piece.materialId,
+      contour: g.piece.contour,
+      thicknessMm: g.piece.thicknessMm,
+      faces: g.piece.faces,
+      structural: g.piece.structural,
+      referenceFace: g.piece.referenceFace,
+      isAuxiliary: true,
+      positionMm: { x: 0, y: 0, z: 0 },
+      dimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
+      cutDimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
+      cutContour: g.piece.contour,
+      bandedEdges: [],
+    }));
+    const allPieces = [...resolvedPieces, ...auxPieces];
+    const csvContent = exportCutListCsv(allPieces);
     const fileName = `cut-list-${currentModule?.id ?? 'module'}.csv`;
     triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
     setStatusMessage(`Exported cut list to ${fileName}.`);
-  }, [resolvedPieces, currentModule]);
+  }, [resolvedPieces, currentModule, assemblySheet]);
 
   const exportPdf = useCallback(() => {
     if (resolvedPieces.length === 0 || !activeMaterial) return;
-    const nestingItems = resolvedPieces.map((p) => ({
-      id: p.id,
-      pieceId: p.id,
-      materialId: p.materialId,
-      cutWidthMm: p.cutDimensionsMm.width,
-      cutHeightMm: p.cutDimensionsMm.height,
-      canRotate: !activeMaterial.hasGrain,
+    const gaugePieces = (assemblySheet?.gauges ?? []).map((g) => ({
+      id: g.piece.id,
+      pieceId: g.piece.id,
+      materialId: activeMaterial.id,
+      cutWidthMm: g.clearSpanMm,
+      cutHeightMm: g.widthMm,
+      canRotate: true,
+      isAuxiliary: true,
     }));
+
+    const nestingItems = [
+      ...resolvedPieces.map((p) => ({
+        id: p.id,
+        pieceId: p.id,
+        materialId: p.materialId,
+        cutWidthMm: p.cutDimensionsMm.width,
+        cutHeightMm: p.cutDimensionsMm.height,
+        canRotate: !activeMaterial.hasGrain,
+        isAuxiliary: p.isAuxiliary,
+      })),
+      ...gaugePieces,
+    ];
+
     const sheetLength = typeof activeMaterial.sheetSizeMm.length === 'number'
       ? activeMaterial.sheetSizeMm.length
       : 2800;
@@ -370,6 +438,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         sawKerfMm: projectConfig?.nesting.sawKerfMm,
         trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
       },
+      optimizationGoal: projectConfig?.nesting.optimizationGoal,
     });
 
     const doc = exportCutPlanPdf(nesting, `Cut Plan - ${currentModule?.id ?? 'Module'}`);
@@ -377,7 +446,17 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const fileName = `cut-plan-${currentModule?.id ?? 'module'}.pdf`;
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
     setStatusMessage(`Exported cut plan to ${fileName}.`);
-  }, [resolvedPieces, activeMaterial, currentModule, projectConfig]);
+  }, [resolvedPieces, activeMaterial, currentModule, projectConfig, assemblySheet]);
+
+  // Export sequential assembly guide as PDF
+  const exportAssemblyPdf = useCallback(() => {
+    if (!assemblySheet) return;
+    const doc = exportAssemblyGuidePdf(assemblySheet, `Assembly Guide - ${currentModule?.id ?? 'Module'}`);
+    const pdfBlob = doc.output('blob');
+    const fileName = `assembly-guide-${currentModule?.id ?? 'module'}.pdf`;
+    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+    setStatusMessage(`Exported assembly guide to ${fileName}.`);
+  }, [assemblySheet, currentModule]);
 
   // Export workshop machining sheets as PDF (single piece or full module)
   const exportMachiningPdf = useCallback(
@@ -487,6 +566,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     pieceMachiningList,
     machiningSheets,
     selectedMachiningPieceId,
+    assemblySheet,
     shelfDeflections,
     shelfDeflectionWarnings,
     projectConfig,
@@ -505,6 +585,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     exportCsv,
     exportPdf,
     exportMachiningPdf,
+    exportAssemblyPdf,
     updateProjectConfig,
     saveProjectConfig,
     importProjectConfigFile,
