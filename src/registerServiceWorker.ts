@@ -8,8 +8,10 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
+    const baseUrl = import.meta.env?.BASE_URL || '/';
+    const swUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}sw.js`.replace(/\/{2,}/g, '/');
+    const registration = await navigator.serviceWorker.register(swUrl, {
+      scope: baseUrl,
     });
     return registration;
   } catch (error) {

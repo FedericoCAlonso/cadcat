@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { pwaManifest } from './src/pwaConfig';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === 'production' ? '/mobilius/' : '/',
   plugins: [
     react(),
     VitePWA({
@@ -20,4 +21,4 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
   },
-});
+}));
