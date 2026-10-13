@@ -43,3 +43,14 @@ Document language: ASD-STE100 (Simplified Technical English).
 - **Context:** Long or thin shelves bend excessively under storage load. The user needs design feedback without blocking production.
 - **Decision:** Implement Euler-Bernoulli beam theory deflection check in `src/resolver/deflection.ts`. Use simply supported uniform load formula $\delta = \frac{5 \cdot W \cdot L^3}{384 \cdot E \cdot I}$. Evaluate against limits $\min(L / \text{maxDeflectionRatio}, \text{maxAbsoluteDeflectionMm})$. Show warnings only (never block generation) in Piece List and 3D Viewport inspector. Mark limits as `TO_CONFIRM`.
 - **Consequence:** Designers receive immediate feedback when shelf spans or thicknesses risk excessive sag.
+
+## ADR-007: Guillotine Cut Pass Counting and Pass Optimization Architecture
+
+- **Status:** Accepted.
+- **Context:** Workshop costing requires cutting operations to be priced per saw pass or per cut length. Cutting time on panel saws depends on the number of continuous straight cuts across sheets rather than area alone.
+- **Decision:**
+  1. Add `optimizationGoal` (`'min-waste' | 'min-passes'`) to `NestingConfig`.
+  2. Implement guillotine cut pass counting in `src/workers/guillotineNesting.ts`. Merge collinear cut lines within saw kerf tolerance across strips. Add 4 perimeter passes for sheet squaring trims.
+  3. When `optimizationGoal` is `'min-passes'`, sort pieces by cut height to produce continuous horizontal rip strips, minimizing blade repositioning. When `'min-waste'`, use First-Fit-Decreasing by piece area.
+  4. In `src/resolver/cost.ts`, calculate `cutPassCost = totalCutPasses * pricePerCutPass` when `pricePerCutPass` is confirmed, and include it in `ModuleCostSummary` and `grandTotal`.
+- **Consequence:** Workshop operators can choose between material savings and saw cycle time reduction, and cost estimates accurately reflect physical saw labor.
