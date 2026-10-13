@@ -57,8 +57,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       return;
     }
 
-    const width = containerRef.current.clientWidth || 800;
-    const height = containerRef.current.clientHeight || 540;
+    const getWidth = () => containerRef.current?.clientWidth || 360;
+    const getHeight = () => containerRef.current?.clientHeight || (window.innerWidth < 1024 ? 360 : 520);
+
+    const width = getWidth();
+    const height = getHeight();
 
     const scene = new THREE.Scene();
     sceneRef.current = scene;
@@ -80,8 +83,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2));
+      renderer.setSize(width, height, false); // false avoids overriding CSS responsive dimensions
       containerRef.current.appendChild(renderer.domElement);
       rendererRef.current = renderer;
     } catch {
@@ -111,21 +114,15 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     scene.add(pieceGroup);
     pieceGroupRef.current = pieceGroup;
 
-    // Interactive mouse drag orbit controls
+    // Interactive mouse & touch orbit controls
     let isDragging = false;
-    let prevMouseX = 0;
-    let prevMouseY = 0;
+    let prevX = 0;
+    let prevY = 0;
+    let initialPinchDist = 0;
 
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      prevMouseX = e.clientX;
-      prevMouseY = e.clientY;
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      const deltaX = (e.clientX - prevMouseX) * 0.005;
-      const deltaY = (e.clientY - prevMouseY) * 0.005;
+    const onRotate = (clientX: number, clientY: number) => {
+      const deltaX = (clientX - prevX) * 0.005;
+      const deltaY = (clientY - prevY) * 0.005;
 
       const offset = new THREE.Vector3().subVectors(camera.position, bounds.center);
       const radius = offset.length();
@@ -138,12 +135,62 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       camera.position.z = bounds.center.z + radius * Math.sin(phi) * Math.cos(theta);
       camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
 
-      prevMouseX = e.clientX;
-      prevMouseY = e.clientY;
+      prevX = clientX;
+      prevY = clientY;
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDragging = true;
+      prevX = e.clientX;
+      prevY = e.clientY;
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      onRotate(e.clientX, e.clientY);
     };
 
     const onMouseUp = () => {
       isDragging = false;
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1 && e.touches[0]) {
+        isDragging = true;
+        prevX = e.touches[0].clientX;
+        prevY = e.touches[0].clientY;
+      } else if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
+        isDragging = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        initialPinchDist = Math.hypot(dx, dy);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && isDragging && e.touches[0]) {
+        if (e.cancelable) e.preventDefault();
+        onRotate(e.touches[0].clientX, e.touches[0].clientY);
+      } else if (e.touches.length === 2 && e.touches[0] && e.touches[1]) {
+        if (e.cancelable) e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        if (initialPinchDist > 0) {
+          const ratio = initialPinchDist / dist;
+          const factor = ratio > 1 ? 1.03 : 0.97;
+          const offset = new THREE.Vector3().subVectors(camera.position, bounds.center);
+          offset.multiplyScalar(factor);
+          camera.position.addVectors(bounds.center, offset);
+          camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+        }
+        initialPinchDist = dist;
+      }
+    };
+
+    const onTouchEnd = () => {
+      isDragging = false;
+      initialPinchDist = 0;
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -185,6 +232,26 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     window.addEventListener('mouseup', onMouseUp);
     domElement.addEventListener('wheel', onWheel, { passive: false });
     domElement.addEventListener('click', onClick);
+    domElement.addEventListener('touchstart', onTouchStart, { passive: true });
+    domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+    domElement.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    // Dynamic resize observer
+    const handleResize = () => {
+      if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
+      const w = containerRef.current.clientWidth || 360;
+      const h = containerRef.current.clientHeight || (window.innerWidth < 1024 ? 360 : 520);
+      cameraRef.current.aspect = w / h;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w, h, false);
+    };
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      observer = new ResizeObserver(() => handleResize());
+      observer.observe(containerRef.current);
+    }
+    window.addEventListener('resize', handleResize);
 
     // Animation Loop
     let animId: number;
@@ -196,11 +263,16 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
     return () => {
       cancelAnimationFrame(animId);
+      if (observer) observer.disconnect();
+      window.removeEventListener('resize', handleResize);
       domElement.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       domElement.removeEventListener('wheel', onWheel);
       domElement.removeEventListener('click', onClick);
+      domElement.removeEventListener('touchstart', onTouchStart);
+      domElement.removeEventListener('touchmove', onTouchMove);
+      domElement.removeEventListener('touchend', onTouchEnd);
 
       if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);

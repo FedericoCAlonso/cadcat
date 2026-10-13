@@ -93,7 +93,15 @@
 }
 
 /* Base Document Styling */
-* {
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -105,6 +113,20 @@ body {
   color: var(--md-sys-color-on-surface);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#root,
+.app-wrapper {
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* App Header & Top App Bar */
@@ -118,6 +140,9 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
 }
 
 .m3-top-app-bar__title {
@@ -132,6 +157,8 @@ body {
 .m3-top-app-bar__subtitle {
   font: var(--md-sys-typescale-body-medium);
   color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* M3 Navigation Tabs */
@@ -173,15 +200,28 @@ body {
 
 /* Main Layout Grid */
 .m3-container {
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: 1.5rem;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .layout-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.layout-grid > aside,
+.layout-grid > section {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1023px) {
@@ -189,14 +229,32 @@ body {
     display: none; /* Mobile uses M3 Bottom Navigation Bar */
   }
 
+  .m3-top-app-bar {
+    padding: 0.75rem 1rem;
+  }
+
+  .m3-top-app-bar__title {
+    font-size: 1.35rem;
+  }
+
+  .m3-top-app-bar__subtitle {
+    font-size: 0.8rem;
+  }
+
   .m3-container {
-    padding: 1rem;
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px));
+    padding: 0.75rem;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 16px));
+  }
+
+  .layout-grid {
+    gap: 1rem;
   }
 
   /* Responsive screen switching on mobile devices */
   .layout-grid[data-mobile-view="form"] aside {
     display: block;
+    width: 100%;
+    min-width: 0;
   }
   .layout-grid[data-mobile-view="form"] section {
     display: none;
@@ -206,6 +264,19 @@ body {
   }
   .layout-grid[data-mobile-view="workspace"] section {
     display: block;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .m3-container {
+    padding: 0.5rem;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 16px));
+  }
+
+  .m3-card {
+    padding: 0.85rem 0.65rem;
   }
 }
 
@@ -235,6 +306,12 @@ body {
   border: 1px solid var(--md-sys-color-outline-variant);
   padding: 1.5rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .m3-card__header {
@@ -289,6 +366,20 @@ body {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .m3-button-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .m3-button-row .m3-btn {
+    width: 100%;
+    min-height: 48px;
+  }
 }
 
 .m3-btn {
@@ -303,6 +394,8 @@ body {
   cursor: pointer;
   border: none;
   transition: all 0.2s ease-in-out;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .m3-btn--filled {
@@ -369,16 +462,29 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .viewport-3d-canvas-wrapper {
   position: relative;
-  width: 100%;
-  height: 540px;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 520px;
   background: radial-gradient(circle at 50% 50%, #ffffff 0%, #e6ebf2 100%);
   border-radius: var(--md-sys-shape-corner-lg);
   overflow: hidden;
   border: 1px solid var(--md-sys-color-outline-variant);
+  box-sizing: border-box;
+}
+
+@media (max-width: 1023px) {
+  .viewport-3d-canvas-wrapper {
+    height: 48vh;
+    min-height: 280px;
+    max-height: 420px;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -388,10 +494,13 @@ body {
 }
 
 .viewport-3d-canvas-wrapper canvas {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
   display: block;
   cursor: grab;
+  touch-action: none;
 }
 
 .viewport-3d-canvas-wrapper canvas:active {
@@ -400,21 +509,40 @@ body {
 
 .viewport-3d-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.75rem;
   background-color: var(--md-sys-color-surface-container);
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem;
   border-radius: var(--md-sys-shape-corner-md);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .viewport-3d-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+  }
 }
 
 .viewport-3d-slider-group {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-  min-width: 240px;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .viewport-3d-slider-group {
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+    min-width: 240px;
+  }
 }
 
 .viewport-3d-slider-group label {
@@ -425,8 +553,33 @@ body {
 
 .viewport-3d-slider {
   flex: 1;
+  width: 100%;
   accent-color: var(--md-sys-color-primary);
   cursor: pointer;
+}
+
+.viewport-camera-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+  margin-top: 0 !important;
+}
+
+.viewport-camera-row .m3-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.viewport-touch-hint {
+  font-size: 0.78rem;
+  color: var(--md-sys-color-on-surface-variant);
+  text-align: center;
+  margin-top: -0.25rem;
+  overflow-wrap: break-word;
 }
 
 .viewport-3d-inspector {
@@ -435,6 +588,9 @@ body {
   border-radius: var(--md-sys-shape-corner-md);
   background-color: var(--md-sys-color-surface-container-low);
   border: 1px solid var(--md-sys-color-outline-variant);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 
 .viewport-3d-inspector h4 {
@@ -606,16 +762,23 @@ body {
   background-color: #ffffff;
   overflow: hidden;
   box-shadow: var(--md-sys-elevation-1);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .machining-svg-wrapper {
   width: 100%;
-  max-width: 680px;
-  height: 440px;
+  max-width: 100%;
+  height: auto;
+  min-height: 220px;
+  max-height: 440px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0.5rem;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .machining-legend {
@@ -670,6 +833,27 @@ body {
   font: var(--md-sys-typescale-title-medium);
   color: var(--md-sys-color-primary);
   margin-bottom: 0.75rem;
+}
+
+.piece-list-header-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .piece-list-header-row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.piece-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .empty-notice {
@@ -934,34 +1118,72 @@ body {
    ========================================================================== */
 .m3-table-responsive {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   margin-top: 1rem;
   border-radius: var(--md-sys-shape-corner-md);
   border: 1px solid var(--md-sys-color-outline-variant);
   background-color: var(--md-sys-color-surface);
+  box-sizing: border-box;
+  display: block;
 }
 
 .m3-table-responsive table {
-  min-width: 680px;
+  min-width: 580px;
+  width: 100%;
   margin-top: 0;
   border: none;
+  border-collapse: collapse;
+}
+
+.m3-table th,
+.m3-table td {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  font: var(--md-sys-typescale-body-medium);
+  white-space: nowrap;
+}
+
+.m3-table th {
+  background-color: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+  font: var(--md-sys-typescale-label-large);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Technical SVGs & Visualizations
+   ========================================================================== */
+.machining-svg-wrapper svg,
+.assembly-svg {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
    Material Design 3 Bottom Navigation Bar
    Specification:
-   - Container height: 80dp (72px + safe-area)
-   - Pill indicator: 32px height x 56px width in Primary Container
-   - Min touch targets: >= 48px
-   - Elevation & surface container
+   - Container height: 64px + safe-area
+   - Fluid 6 destinations (flex: 1 1 0; min-width: 0;)
+   - Pill indicator: 44px width x 26px height
+   - Label: 0.65rem with ellipsis
+   - Touch targets: >= 48px
    ========================================================================== */
 .m3-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: calc(72px + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding: 0 2px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background-color: var(--md-sys-color-surface-container);
   border-top: 1px solid var(--md-sys-color-outline-variant);
@@ -970,48 +1192,57 @@ body {
   justify-content: space-around;
   z-index: 1000;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  overflow-x: hidden;
 }
 
 .m3-bottom-nav__item {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: calc(100% / 6);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 4px 6px;
-  min-width: 52px;
+  padding: 4px 1px;
   min-height: 48px;
   color: var(--md-sys-color-on-surface-variant);
   transition: all 0.2s ease-in-out;
   touch-action: manipulation;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
 .m3-bottom-nav__indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 30px;
+  width: 44px;
+  height: 26px;
+  max-width: 100%;
   border-radius: var(--md-sys-shape-corner-full);
   transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.15s ease;
 }
 
 .m3-bottom-nav__icon {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1;
 }
 
 .m3-bottom-nav__label {
   font: var(--md-sys-typescale-label-medium);
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 500;
   transition: color 0.2s ease, font-weight 0.2s ease;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
 }
 
 .m3-bottom-nav__item.active .m3-bottom-nav__indicator {
