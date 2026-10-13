@@ -4,6 +4,7 @@ import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
 import { PieceListView } from './PieceListView';
 import { Viewport3D } from './Viewport3D';
+import { MachiningSheetView } from './MachiningSheetView';
 
 /**
  * Main application View component.
@@ -27,6 +28,13 @@ export function App(): ReactElement {
             onClick={() => vm.setActiveTab('3d')}
           >
             🧊 3D Viewport
+          </button>
+          <button
+            type="button"
+            className={`m3-tab-button ${vm.activeTab === 'machining' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('machining')}
+          >
+            🛠️ Mecanizado
           </button>
           <button
             type="button"
@@ -86,6 +94,15 @@ export function App(): ReactElement {
                   onExplodedRatioChange={vm.setExplodedRatio}
                   selectedPieceId={vm.selectedPieceId}
                   onSelectPiece={vm.setSelectedPieceId}
+                />
+              )}
+
+              {vm.activeTab === 'machining' && (
+                <MachiningSheetView
+                  sheets={vm.machiningSheets}
+                  selectedPieceId={vm.selectedMachiningPieceId}
+                  onSelectPiece={vm.setSelectedMachiningPieceId}
+                  onExportPdf={vm.exportMachiningPdf}
                 />
               )}
 

@@ -3,9 +3,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { ModuleForm } from '../src/ui/ModuleForm';
 import { PieceListView } from '../src/ui/PieceListView';
+import { MachiningSheetView } from '../src/ui/MachiningSheetView';
 import { App } from '../src/ui/App';
 import type { Material, EdgeBand } from '../src/model';
-import type { ResolvedPieceWithCutSize } from '../src/resolver';
+import type { ResolvedPieceWithCutSize, PieceMachiningSheet } from '../src/resolver';
 
 const mockMaterials: Material[] = [
   {
@@ -112,10 +113,96 @@ describe('PieceListView Component', () => {
   });
 });
 
+describe('MachiningSheetView Component', () => {
+  const sampleSheets: PieceMachiningSheet[] = [
+    {
+      pieceId: 'base-side-left',
+      role: 'side-left',
+      materialId: 'mat-1',
+      dimensionsMm: { width: 560, height: 800, thickness: 18 },
+      cutDimensionsMm: { width: 558, height: 800 },
+      bandedEdges: { top: false, bottom: false, left: false, right: true },
+      faceAOperations: [
+        {
+          id: 'op-1',
+          faceType: 'face-A',
+          faceId: 'inner',
+          diameterMm: 7.0,
+          depthMm: 18.0,
+          isThrough: true,
+          xMm: 50,
+          yMm: 9,
+          distFromLeftMm: 50,
+          distFromBottomMm: 9,
+          distFromRightMm: 510,
+          distFromTopMm: 791,
+          description: 'Confirmat hole',
+          sourceJointKind: 'confirmat',
+        },
+      ],
+      faceBOperations: [
+        {
+          id: 'op-b1',
+          faceType: 'face-B',
+          faceId: 'outer',
+          diameterMm: 5.0,
+          depthMm: 12.0,
+          isThrough: false,
+          xMm: 37,
+          yMm: 400,
+          distFromLeftMm: 37,
+          distFromBottomMm: 400,
+          distFromRightMm: 523,
+          distFromTopMm: 400,
+          description: 'Outer shelf pin',
+          sourceJointKind: 'shelf-pin',
+        },
+      ],
+      edgeOperations: [],
+      totalOperations: 2,
+      requiresTurn: true,
+      turnInstructions: 'GIRAR LA PIEZA: Contiene operaciones en Cara B.',
+    },
+  ];
+
+  it('renders piece chips, info bar, turn warning banner, and operations table', () => {
+    const html = renderToString(
+      <MachiningSheetView
+        sheets={sampleSheets}
+        selectedPieceId="base-side-left"
+        onSelectPiece={vi.fn()}
+        onExportPdf={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Planos de Mecanizado');
+    expect(html).toContain('base-side-left');
+    expect(html).toContain('560 x 800 x 18 mm');
+    expect(html).toContain('ATENCIÓN: GIRAR LA PIEZA');
+    expect(html).toContain('Cara A (Frente)');
+    expect(html).toContain('Cara B (Reverso)');
+    expect(html).toContain('Confirmat hole');
+  });
+
+  it('renders empty notice when sheets array is empty', () => {
+    const html = renderToString(
+      <MachiningSheetView
+        sheets={[]}
+        selectedPieceId={null}
+        onSelectPiece={vi.fn()}
+        onExportPdf={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('No hay piezas disponibles en el módulo actual');
+  });
+});
+
 describe('App MVVM Integration', () => {
-  it('renders application header and main container', () => {
+  it('renders application header, tabs (including Mecanizado), and main container', () => {
     const html = renderToString(<App />);
     expect(html).toContain('Mobilius');
     expect(html).toContain('Furniture design progressive web application.');
+    expect(html).toContain('Mecanizado');
   });
 });

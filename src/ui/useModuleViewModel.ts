@@ -31,6 +31,9 @@ import {
   type ModuleSpatialBounds,
   deriveModuleDrillOperations,
   groupOperationsByPiece,
+  buildModuleMachiningSheets,
+  exportMachiningSheetPdf,
+  type PieceMachiningSheet,
 } from '../resolver';
 import { type DrillOperation, type PieceMachining } from '../model';
 import { runGuillotineNesting } from '../workers';
@@ -54,26 +57,30 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
-  activeTab: 'form' | 'pieces' | '3d';
+  activeTab: 'form' | 'pieces' | '3d' | 'machining';
   selectedPieceId: string | null;
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
   spatialBounds: ModuleSpatialBounds;
   machiningOperations: DrillOperation[];
   pieceMachiningList: PieceMachining[];
+  machiningSheets: PieceMachiningSheet[];
+  selectedMachiningPieceId: string | null;
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setDepth: (depth: number) => void;
   setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
-  setActiveTab: (tab: 'form' | 'pieces' | '3d') => void;
+  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining') => void;
   setSelectedPieceId: (id: string | null) => void;
+  setSelectedMachiningPieceId: (id: string | null) => void;
   setExplodedRatio: (ratio: number) => void;
   saveModule: () => Promise<void>;
   loadModule: (id: string) => Promise<void>;
   exportCsv: () => void;
   exportPdf: () => void;
+  exportMachiningPdf: (pieceId?: string) => void;
 }
 
 /**
@@ -87,8 +94,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('base-cabinet');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [selectedEdgeBandId, setSelectedEdgeBandId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d'>('3d');
+  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining'>('3d');
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
+  const [selectedMachiningPieceId, setSelectedMachiningPieceId] = useState<string | null>(null);
   const [explodedRatio, setExplodedRatio] = useState<number>(0);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [edgeBands, setEdgeBands] = useState<EdgeBand[]>([]);
@@ -189,6 +197,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const list = groupOperationsByPiece(currentModule.pieces, ops);
     return { machiningOperations: ops, pieceMachiningList: list };
   }, [currentModule]);
+
+  // Builds machining sheets for workshop manual machines
+  const machiningSheets = useMemo(() => {
+    if (resolvedPieces.length === 0) return [];
+    return buildModuleMachiningSheets(resolvedPieces, machiningOperations);
+  }, [resolvedPieces, machiningOperations]);
 
   // Generates Bill of Materials
   const bom = useMemo(() => {
@@ -320,6 +334,31 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setStatusMessage(`Exported cut plan to ${fileName}.`);
   }, [resolvedPieces, activeMaterial, currentModule]);
 
+  // Export workshop machining sheets as PDF (single piece or full module)
+  const exportMachiningPdf = useCallback(
+    (pieceId?: string) => {
+      if (machiningSheets.length === 0) return;
+      const targetSheets = pieceId
+        ? machiningSheets.filter((s) => s.pieceId === pieceId)
+        : machiningSheets;
+      if (targetSheets.length === 0) return;
+
+      const doc = exportMachiningSheetPdf(
+        targetSheets,
+        pieceId
+          ? `Plano de Mecanizado - ${pieceId}`
+          : `Planos de Mecanizado - ${currentModule?.id ?? 'Módulo'}`,
+      );
+      const pdfBlob = doc.output('blob');
+      const fileName = pieceId
+        ? `mecanizado-${pieceId}.pdf`
+        : `mecanizado-${currentModule?.id ?? 'modulo'}.pdf`;
+      triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+      setStatusMessage(`Exported machining sheets to ${fileName}.`);
+    },
+    [machiningSheets, currentModule],
+  );
+
   return {
     width,
     height,
@@ -346,6 +385,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     spatialBounds: spatialData.bounds,
     machiningOperations,
     pieceMachiningList,
+    machiningSheets,
+    selectedMachiningPieceId,
     setWidth,
     setHeight,
     setDepth,
@@ -354,10 +395,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSelectedEdgeBandId,
     setActiveTab,
     setSelectedPieceId,
+    setSelectedMachiningPieceId,
     setExplodedRatio,
     saveModule,
     loadModule,
     exportCsv,
     exportPdf,
+    exportMachiningPdf,
   };
 }

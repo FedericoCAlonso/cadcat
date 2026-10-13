@@ -68,6 +68,27 @@ export function calculateJointDrillSpacings(contactLengthMm: number, endSetbackM
 }
 
 /**
+ * Determines whether a given face identifier maps to Face A, Face B, or an Edge.
+ */
+export function deriveFaceType(faceId: string): 'face-A' | 'face-B' | 'edge' {
+  const lower = faceId.toLowerCase();
+  if (lower.includes('edge')) {
+    return 'edge';
+  }
+  if (
+    lower === 'face-b' ||
+    lower === 'outer' ||
+    lower === 'bottom' ||
+    lower === 'bottom-face' ||
+    lower === 'rear-face' ||
+    lower === 'back'
+  ) {
+    return 'face-B';
+  }
+  return 'face-A';
+}
+
+/**
  * Derives drill operations for all pieces in a module from its joints.
  */
 export function deriveModuleDrillOperations(
@@ -105,7 +126,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceA.id,
           faceId: joint.a.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.a.faceId),
           diameterMm: shopDefaults.confirmatThroughDiameterMm,
           depthMm: pieceA.thicknessMm,
           isThrough: true,
@@ -143,7 +164,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceA.id,
           faceId: joint.a.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.a.faceId),
           diameterMm: shopDefaults.minifixDowelDiameterMm,
           depthMm: shopDefaults.minifixDowelDepthMm,
           isThrough: false,
@@ -159,7 +180,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceB.id,
           faceId: 'inner',
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.b.faceId === 'outer' ? 'face-B' : 'inner'),
           diameterMm: shopDefaults.minifixPocketDiameterMm,
           depthMm: shopDefaults.minifixPocketDepthMm,
           isThrough: false,
@@ -196,7 +217,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceA.id,
           faceId: joint.a.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.a.faceId),
           diameterMm: shopDefaults.dowelFaceDiameterMm,
           depthMm: shopDefaults.dowelFaceDepthMm,
           isThrough: false,
@@ -231,7 +252,7 @@ export function deriveModuleDrillOperations(
         id: `op-drill-${opIndex++}`,
         pieceId: pieceA.id,
         faceId: joint.a.faceId,
-        faceType: 'face-A',
+        faceType: deriveFaceType(joint.a.faceId),
         diameterMm: shopDefaults.hingeCupDiameterMm,
         depthMm: shopDefaults.hingeCupDepthMm,
         isThrough: false,
@@ -248,7 +269,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceB.id,
           faceId: joint.b.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.b.faceId),
           diameterMm: shopDefaults.hingePlateDiameterMm,
           depthMm: shopDefaults.hingePlateDepthMm,
           isThrough: false,
@@ -262,7 +283,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceB.id,
           faceId: joint.b.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.b.faceId),
           diameterMm: shopDefaults.hingePlateDiameterMm,
           depthMm: shopDefaults.hingePlateDepthMm,
           isThrough: false,
@@ -285,7 +306,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceA.id,
           faceId: joint.a.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.a.faceId),
           diameterMm: shopDefaults.shelfPinDiameterMm,
           depthMm: shopDefaults.shelfPinDepthMm,
           isThrough: false,
@@ -299,7 +320,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceA.id,
           faceId: joint.a.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.a.faceId),
           diameterMm: shopDefaults.shelfPinDiameterMm,
           depthMm: shopDefaults.shelfPinDepthMm,
           isThrough: false,
@@ -320,7 +341,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceB.id,
           faceId: joint.b.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.b.faceId),
           diameterMm: 5.0,
           depthMm: 12.0,
           isThrough: false,
@@ -334,7 +355,7 @@ export function deriveModuleDrillOperations(
           id: `op-drill-${opIndex++}`,
           pieceId: pieceB.id,
           faceId: joint.b.faceId,
-          faceType: 'face-A',
+          faceType: deriveFaceType(joint.b.faceId),
           diameterMm: 5.0,
           depthMm: 12.0,
           isThrough: false,

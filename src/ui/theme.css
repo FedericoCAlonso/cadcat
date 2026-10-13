@@ -410,3 +410,233 @@ body {
   font: var(--md-sys-typescale-body-medium);
   color: var(--md-sys-color-on-surface-variant);
 }
+
+/* Machining Sheet View (Material 3) */
+.machining-sheet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.machining-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.machining-chips-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+}
+
+.m3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 36px;
+  padding: 0 1rem;
+  border-radius: var(--md-sys-shape-corner-sm);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background-color: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  font: var(--md-sys-typescale-label-large);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease-in-out;
+}
+
+.m3-chip:hover {
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.m3-chip--selected {
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  border-color: var(--md-sys-color-secondary);
+  font-weight: 600;
+}
+
+.m3-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: var(--md-sys-shape-corner-xs);
+}
+
+.m3-badge--warning {
+  background-color: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffe69c;
+}
+
+.machining-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--md-sys-shape-corner-md);
+  background-color: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  font: var(--md-sys-typescale-body-medium);
+}
+
+.info-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.info-label {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.m3-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--md-sys-shape-corner-md);
+}
+
+.m3-banner--warning {
+  background-color: #fff8e1;
+  border: 1.5px solid #ffb300;
+  color: #5d4037;
+}
+
+.m3-banner__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.m3-banner__text strong {
+  display: block;
+  font: var(--md-sys-typescale-title-medium);
+  color: #bf360c;
+  margin-bottom: 0.15rem;
+}
+
+.m3-banner__text p {
+  font: var(--md-sys-typescale-body-medium);
+}
+
+.machining-face-selector {
+  display: flex;
+  justify-content: center;
+}
+
+.m3-segmented-button {
+  display: inline-flex;
+  border-radius: var(--md-sys-shape-corner-full);
+  border: 1px solid var(--md-sys-color-outline);
+  overflow: hidden;
+}
+
+.m3-segmented-button__item {
+  background: transparent;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  font: var(--md-sys-typescale-label-large);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.m3-segmented-button__item:not(:last-child) {
+  border-right: 1px solid var(--md-sys-color-outline);
+}
+
+.m3-segmented-button__item:hover {
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.m3-segmented-button__item.selected {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-weight: 600;
+}
+
+.machining-drawing-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: var(--md-sys-shape-corner-lg);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background-color: #ffffff;
+  overflow: hidden;
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.machining-svg-wrapper {
+  width: 100%;
+  max-width: 680px;
+  height: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.machining-legend {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--md-sys-color-surface-container);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  font: var(--md-sys-typescale-label-medium);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot--datum {
+  background-color: #ba1a1a;
+}
+
+.legend-dot--cota {
+  background-color: #00639b;
+}
+
+.legend-dot--band {
+  background-color: #0b57d0;
+}
+
+.cota-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--md-sys-shape-corner-xs);
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.table-heading {
+  font: var(--md-sys-typescale-title-medium);
+  color: var(--md-sys-color-primary);
+  margin-bottom: 0.75rem;
+}
+
+.empty-notice {
+  font: var(--md-sys-typescale-body-medium);
+  color: var(--md-sys-color-outline);
+  padding: 1rem 0;
+}

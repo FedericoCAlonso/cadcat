@@ -122,6 +122,17 @@ export {
   type MachiningShopDefaults,
   DEFAULT_MACHINING_SHOP_VALUES,
   calculateJointDrillSpacings,
+  deriveFaceType,
   deriveModuleDrillOperations,
   groupOperationsByPiece,
 } from './machining';
+
+export {
+  type SheetOperationItem,
+  type PieceBandedEdges,
+  type PieceMachiningSheet,
+  buildPieceMachiningSheet,
+  buildModuleMachiningSheets,
+  renderPieceMachiningSvg,
+  exportMachiningSheetPdf,
+} from './machiningSheet';
