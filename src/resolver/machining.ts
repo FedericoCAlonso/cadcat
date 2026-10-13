@@ -1,63 +1,22 @@
-import { type Piece, type Joint } from '../model';
+import { type Piece, type Joint, type MachiningConfig } from '../model';
 import { type DrillOperation, type PieceMachining } from '../model/operation';
+import defaultProjectConfigJson from '../config/defaultProjectConfig.json';
 
-export interface MachiningShopDefaults {
-  confirmatThroughDiameterMm: number; // 7.0 mm
-  confirmatCoreDiameterMm: number;    // 5.0 mm
-  confirmatCoreDepthMm: number;       // 50.0 mm
-  minifixPocketDiameterMm: number;    // 15.0 mm
-  minifixPocketDepthMm: number;       // 13.5 mm
-  minifixPocketSetbackMm: number;     // 34.0 mm
-  minifixBoltDiameterMm: number;      // 8.0 mm
-  minifixDowelDiameterMm: number;     // 5.0 mm
-  minifixDowelDepthMm: number;        // 11.0 mm
-  dowelFaceDiameterMm: number;        // 8.0 mm
-  dowelFaceDepthMm: number;           // 12.0 mm
-  dowelEdgeDiameterMm: number;        // 8.0 mm
-  dowelEdgeDepthMm: number;           // 25.0 mm
-  hingeCupDiameterMm: number;         // 35.0 mm
-  hingeCupDepthMm: number;            // 12.0 mm
-  hingeCupEdgeSetbackMm: number;      // 21.5 mm
-  hingePlateSetbackMm: number;        // 37.0 mm (System 32)
-  hingePlateDiameterMm: number;       // 5.0 mm
-  hingePlateDepthMm: number;          // 12.0 mm
-  shelfPinDiameterMm: number;         // 5.0 mm
-  shelfPinDepthMm: number;            // 12.0 mm
-  system32FrontSetbackMm: number;     // 37.0 mm
-}
+export type MachiningShopDefaults = MachiningConfig;
 
-export const DEFAULT_MACHINING_SHOP_VALUES: MachiningShopDefaults = {
-  confirmatThroughDiameterMm: 7.0,
-  confirmatCoreDiameterMm: 5.0,
-  confirmatCoreDepthMm: 50.0,
-  minifixPocketDiameterMm: 15.0,
-  minifixPocketDepthMm: 13.5,
-  minifixPocketSetbackMm: 34.0,
-  minifixBoltDiameterMm: 8.0,
-  minifixDowelDiameterMm: 5.0,
-  minifixDowelDepthMm: 11.0,
-  dowelFaceDiameterMm: 8.0,
-  dowelFaceDepthMm: 12.0,
-  dowelEdgeDiameterMm: 8.0,
-  dowelEdgeDepthMm: 25.0,
-  hingeCupDiameterMm: 35.0,
-  hingeCupDepthMm: 12.0,
-  hingeCupEdgeSetbackMm: 21.5,
-  hingePlateSetbackMm: 37.0,
-  hingePlateDiameterMm: 5.0,
-  hingePlateDepthMm: 12.0,
-  shelfPinDiameterMm: 5.0,
-  shelfPinDepthMm: 12.0,
-  system32FrontSetbackMm: 37.0,
-};
+export const DEFAULT_MACHINING_SHOP_VALUES: MachiningConfig = defaultProjectConfigJson.machining;
 
 /**
  * Derives spacing intervals along a joint of length L.
- * 2 points for <= 600mm, 3 points for > 600mm.
+ * 2 points for <= maxSpanWithoutCenterMm (default 600mm), 3 points for > maxSpanWithoutCenterMm.
  */
-export function calculateJointDrillSpacings(contactLengthMm: number, endSetbackMm = 50): number[] {
+export function calculateJointDrillSpacings(
+  contactLengthMm: number,
+  endSetbackMm = 50,
+  maxSpanWithoutCenterMm = 600,
+): number[] {
   const safeLength = Math.max(contactLengthMm, 120);
-  if (safeLength <= 600) {
+  if (safeLength <= maxSpanWithoutCenterMm) {
     return [endSetbackMm, safeLength - endSetbackMm];
   }
   return [
@@ -94,7 +53,7 @@ export function deriveFaceType(faceId: string): 'face-A' | 'face-B' | 'edge' {
 export function deriveModuleDrillOperations(
   pieces: Piece[],
   joints: Joint[],
-  shopDefaults: MachiningShopDefaults = DEFAULT_MACHINING_SHOP_VALUES,
+  shopDefaults: MachiningConfig = DEFAULT_MACHINING_SHOP_VALUES,
 ): DrillOperation[] {
   const pieceMap = new Map<string, Piece>();
   for (const p of pieces) {
@@ -103,6 +62,8 @@ export function deriveModuleDrillOperations(
 
   const operations: DrillOperation[] = [];
   let opIndex = 1;
+  const marginMm = shopDefaults.jointDrillMarginMm ?? 50;
+  const maxSpanMm = shopDefaults.maxSpanWithoutCenterDrillMm ?? 600;
 
   for (const joint of joints) {
     const pieceA = pieceMap.get(joint.a.pieceId);
@@ -117,7 +78,7 @@ export function deriveModuleDrillOperations(
       const bWidth = Math.abs(bPoints[1]?.x ?? 500);
       const bHeight = Math.abs(bPoints[2]?.y ?? 500);
       const contactLen = joint.b.faceId.includes('edge') ? bHeight : bWidth;
-      const offsets = calculateJointDrillSpacings(contactLen, 50);
+      const offsets = calculateJointDrillSpacings(contactLen, marginMm, maxSpanMm);
 
       for (const off of offsets) {
         // Operation on Piece A (Face A through hole)
@@ -155,7 +116,7 @@ export function deriveModuleDrillOperations(
     } else if (kind === 'cam-dowel') {
       const bPoints = pieceB.contour.points;
       const bHeight = Math.abs(bPoints[2]?.y ?? 500);
-      const offsets = calculateJointDrillSpacings(bHeight, 50);
+      const offsets = calculateJointDrillSpacings(bHeight, marginMm, maxSpanMm);
 
       for (const off of offsets) {
         // On Piece A: dowel anchor hole
@@ -209,7 +170,7 @@ export function deriveModuleDrillOperations(
     } else if (kind === 'dowel') {
       const bPoints = pieceB.contour.points;
       const bHeight = Math.abs(bPoints[2]?.y ?? 500);
-      const offsets = calculateJointDrillSpacings(bHeight, 60);
+      const offsets = calculateJointDrillSpacings(bHeight, marginMm, maxSpanMm);
 
       for (const off of offsets) {
         operations.push({

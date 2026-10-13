@@ -24,3 +24,14 @@ export {
   loadEdgeBandsFromDb,
   loadHardwareFromDb,
 } from './catalogStore';
+
+export {
+  type StoredProjectConfig,
+  CONFIG_STORE,
+  DEFAULT_PROJECT_ID,
+  getDefaultProjectConfig,
+  loadProjectConfigFromDb,
+  saveProjectConfigToDb,
+  exportProjectConfigJson,
+  importProjectConfigJson,
+} from './projectConfigStore';

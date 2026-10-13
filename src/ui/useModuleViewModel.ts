@@ -4,6 +4,9 @@ import {
   type EdgeBand,
   type Hardware,
   type Module,
+  type DrillOperation,
+  type PieceMachining,
+  type ProjectConfig,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -11,6 +14,12 @@ import {
   loadHardwareFromDb,
   saveItem,
   loadItem,
+  loadProjectConfigFromDb,
+  saveProjectConfigToDb,
+  getDefaultProjectConfig,
+  exportProjectConfigJson,
+  importProjectConfigJson,
+  DEFAULT_PROJECT_ID,
 } from '../storage';
 import {
   generateBillOfMaterials,
@@ -35,7 +44,6 @@ import {
   exportMachiningSheetPdf,
   type PieceMachiningSheet,
 } from '../resolver';
-import { type DrillOperation, type PieceMachining } from '../model';
 import { runGuillotineNesting } from '../workers';
 
 export interface ModuleViewModelState {
@@ -57,7 +65,7 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
-  activeTab: 'form' | 'pieces' | '3d' | 'machining';
+  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings';
   selectedPieceId: string | null;
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
@@ -66,13 +74,14 @@ export interface ModuleViewModelState {
   pieceMachiningList: PieceMachining[];
   machiningSheets: PieceMachiningSheet[];
   selectedMachiningPieceId: string | null;
+  projectConfig: ProjectConfig | null;
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setDepth: (depth: number) => void;
   setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
-  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining') => void;
+  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings') => void;
   setSelectedPieceId: (id: string | null) => void;
   setSelectedMachiningPieceId: (id: string | null) => void;
   setExplodedRatio: (ratio: number) => void;
@@ -81,6 +90,11 @@ export interface ModuleViewModelState {
   exportCsv: () => void;
   exportPdf: () => void;
   exportMachiningPdf: (pieceId?: string) => void;
+  updateProjectConfig: (config: ProjectConfig) => void;
+  saveProjectConfig: () => Promise<void>;
+  importProjectConfigFile: (file: File) => Promise<void>;
+  exportProjectConfigFile: () => void;
+  resetProjectConfigToDefaults: () => Promise<void>;
 }
 
 /**
@@ -94,9 +108,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('base-cabinet');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [selectedEdgeBandId, setSelectedEdgeBandId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining'>('3d');
+  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining' | 'settings'>('3d');
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [selectedMachiningPieceId, setSelectedMachiningPieceId] = useState<string | null>(null);
+  const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
   const [explodedRatio, setExplodedRatio] = useState<number>(0);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [edgeBands, setEdgeBands] = useState<EdgeBand[]>([]);
@@ -106,17 +121,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load catalogs from IndexedDB on startup
+  // Load catalogs and project config from IndexedDB on startup
   useEffect(() => {
     let isMounted = true;
 
     async function loadData(): Promise<void> {
       try {
         setIsLoading(true);
-        const [loadedMats, loadedBands, loadedHw] = await Promise.all([
+        const [loadedMats, loadedBands, loadedHw, loadedConfig] = await Promise.all([
           loadMaterialsFromDb(initialDb),
           loadEdgeBandsFromDb(initialDb),
           loadHardwareFromDb(initialDb),
+          loadProjectConfigFromDb(DEFAULT_PROJECT_ID, initialDb),
         ]);
 
         if (!isMounted) return;
@@ -124,6 +140,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         setMaterials(loadedMats);
         setEdgeBands(loadedBands);
         setHardware(loadedHw);
+        setProjectConfig(loadedConfig);
 
         if (loadedMats[0]) {
           setSelectedMaterialId(loadedMats[0].id);
@@ -193,10 +210,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (!currentModule) {
       return { machiningOperations: [], pieceMachiningList: [] };
     }
-    const ops = deriveModuleDrillOperations(currentModule.pieces, currentModule.joints);
+    const ops = deriveModuleDrillOperations(
+      currentModule.pieces,
+      currentModule.joints,
+      projectConfig?.machining,
+    );
     const list = groupOperationsByPiece(currentModule.pieces, ops);
     return { machiningOperations: ops, pieceMachiningList: list };
-  }, [currentModule]);
+  }, [currentModule, projectConfig]);
 
   // Builds machining sheets for workshop manual machines
   const machiningSheets = useMemo(() => {
@@ -246,6 +267,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           materialId: activeMaterial.id,
           lengthMm: sheetLength,
           widthMm: sheetWidth,
+          sawKerfMm: projectConfig?.nesting.sawKerfMm,
+          trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
         },
       });
 
@@ -259,7 +282,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     } catch {
       return null;
     }
-  }, [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware]);
+  }, [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig]);
 
   // Save module to IndexedDB
   const saveModule = useCallback(async () => {
@@ -324,6 +347,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         materialId: activeMaterial.id,
         lengthMm: sheetLength,
         widthMm: sheetWidth,
+        sawKerfMm: projectConfig?.nesting.sawKerfMm,
+        trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
       },
     });
 
@@ -332,7 +357,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const fileName = `cut-plan-${currentModule?.id ?? 'module'}.pdf`;
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
     setStatusMessage(`Exported cut plan to ${fileName}.`);
-  }, [resolvedPieces, activeMaterial, currentModule]);
+  }, [resolvedPieces, activeMaterial, currentModule, projectConfig]);
 
   // Export workshop machining sheets as PDF (single piece or full module)
   const exportMachiningPdf = useCallback(
@@ -358,6 +383,61 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     },
     [machiningSheets, currentModule],
   );
+
+  // Update in-memory project configuration
+  const updateProjectConfig = useCallback((newConfig: ProjectConfig) => {
+    setProjectConfig(newConfig);
+  }, []);
+
+  // Save project configuration to IndexedDB
+  const saveProjectConfig = useCallback(async () => {
+    if (!projectConfig) return;
+    try {
+      setIsSaving(true);
+      await saveProjectConfigToDb(projectConfig);
+      setStatusMessage(`Configuración del proyecto "${projectConfig.projectName}" guardada.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar la configuración');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [projectConfig]);
+
+  // Import configuration JSON file
+  const importProjectConfigFile = useCallback(async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = importProjectConfigJson(text);
+      setProjectConfig(parsed);
+      await saveProjectConfigToDb(parsed);
+      setStatusMessage(`Configuración importada exitosamente desde ${file.name}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al importar archivo de configuración');
+    }
+  }, []);
+
+  // Export configuration as JSON file
+  const exportProjectConfigFile = useCallback(() => {
+    if (!projectConfig) return;
+    const jsonStr = exportProjectConfigJson(projectConfig);
+    const fileName = `${projectConfig.projectId}-config.json`;
+    triggerBrowserDownload(fileName, jsonStr, 'application/json');
+    setStatusMessage(`Configuración exportada a ${fileName}.`);
+  }, [projectConfig]);
+
+  // Reset configuration to base file defaults
+  const resetProjectConfigToDefaults = useCallback(async () => {
+    try {
+      const defConfig = getDefaultProjectConfig();
+      const currentId = projectConfig?.projectId ?? DEFAULT_PROJECT_ID;
+      const resetConfig: ProjectConfig = { ...defConfig, projectId: currentId };
+      setProjectConfig(resetConfig);
+      await saveProjectConfigToDb(resetConfig);
+      setStatusMessage('Configuración restaurada a los valores predeterminados del archivo.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al restablecer configuración');
+    }
+  }, [projectConfig]);
 
   return {
     width,
@@ -387,6 +467,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     pieceMachiningList,
     machiningSheets,
     selectedMachiningPieceId,
+    projectConfig,
     setWidth,
     setHeight,
     setDepth,
@@ -402,5 +483,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     exportCsv,
     exportPdf,
     exportMachiningPdf,
+    updateProjectConfig,
+    saveProjectConfig,
+    importProjectConfigFile,
+    exportProjectConfigFile,
+    resetProjectConfigToDefaults,
   };
 }

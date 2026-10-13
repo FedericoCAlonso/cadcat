@@ -4,9 +4,11 @@ import { renderToString } from 'react-dom/server';
 import { ModuleForm } from '../src/ui/ModuleForm';
 import { PieceListView } from '../src/ui/PieceListView';
 import { MachiningSheetView } from '../src/ui/MachiningSheetView';
+import { ProjectSettingsView } from '../src/ui/ProjectSettingsView';
 import { App } from '../src/ui/App';
 import type { Material, EdgeBand } from '../src/model';
 import type { ResolvedPieceWithCutSize, PieceMachiningSheet } from '../src/resolver';
+import { getDefaultProjectConfig } from '../src/storage';
 
 const mockMaterials: Material[] = [
   {
@@ -198,11 +200,51 @@ describe('MachiningSheetView Component', () => {
   });
 });
 
+describe('ProjectSettingsView Component', () => {
+  it('renders project settings menu, sections, and input fields', () => {
+    const config = getDefaultProjectConfig();
+    const html = renderToString(
+      <ProjectSettingsView
+        config={config}
+        isSaving={false}
+        onUpdateConfig={vi.fn()}
+        onSaveConfig={vi.fn()}
+        onExportConfig={vi.fn()}
+        onImportConfigFile={vi.fn()}
+        onResetConfig={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Menú de Configuración del Proyecto');
+    expect(html).toContain('Mecanizado &amp; Taller');
+    expect(html).toContain('Tornillo Confirmat');
+    expect(html).toContain('Guardar en DB');
+    expect(html).toContain('Exportar JSON');
+  });
+
+  it('renders loading notice when config is null', () => {
+    const html = renderToString(
+      <ProjectSettingsView
+        config={null}
+        isSaving={false}
+        onUpdateConfig={vi.fn()}
+        onSaveConfig={vi.fn()}
+        onExportConfig={vi.fn()}
+        onImportConfigFile={vi.fn()}
+        onResetConfig={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Cargando configuración de base de datos...');
+  });
+});
+
 describe('App MVVM Integration', () => {
-  it('renders application header, tabs (including Mecanizado), and main container', () => {
+  it('renders application header, tabs (including Mecanizado and Configuración), and main container', () => {
     const html = renderToString(<App />);
     expect(html).toContain('Mobilius');
     expect(html).toContain('Furniture design progressive web application.');
     expect(html).toContain('Mecanizado');
+    expect(html).toContain('Configuración');
   });
 });

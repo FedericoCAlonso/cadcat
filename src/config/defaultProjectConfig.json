@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "projectId": "default-project",
+  "projectName": "Proyecto Mobilius",
+  "clientName": "Cliente de Taller",
+  "description": "Configuración estándar de taller y proyecto para Mobilius.",
+  "units": {
+    "length": "mm",
+    "currency": "ARS"
+  },
+  "machining": {
+    "confirmatThroughDiameterMm": 7.0,
+    "confirmatCoreDiameterMm": 5.0,
+    "confirmatCoreDepthMm": 50.0,
+    "minifixPocketDiameterMm": 15.0,
+    "minifixPocketDepthMm": 13.5,
+    "minifixPocketSetbackMm": 34.0,
+    "minifixBoltDiameterMm": 8.0,
+    "minifixDowelDiameterMm": 5.0,
+    "minifixDowelDepthMm": 11.0,
+    "dowelFaceDiameterMm": 8.0,
+    "dowelFaceDepthMm": 12.0,
+    "dowelEdgeDiameterMm": 8.0,
+    "dowelEdgeDepthMm": 25.0,
+    "hingeCupDiameterMm": 35.0,
+    "hingeCupDepthMm": 12.0,
+    "hingeCupEdgeSetbackMm": 21.5,
+    "hingePlateSetbackMm": 37.0,
+    "hingePlateDiameterMm": 5.0,
+    "hingePlateDepthMm": 12.0,
+    "shelfPinDiameterMm": 5.0,
+    "shelfPinDepthMm": 12.0,
+    "system32FrontSetbackMm": 37.0,
+    "jointDrillMarginMm": 50.0,
+    "maxSpanWithoutCenterDrillMm": 600.0
+  },
+  "nesting": {
+    "sawKerfMm": 4.4,
+    "sheetTrimMarginMm": 10.0,
+    "respectGrain": true
+  },
+  "cost": {
+    "wasteFactorPercent": 10.0,
+    "hourlyLaborRate": 0.0
+  },
+  "deflection": {
+    "maxDeflectionRatio": 200,
+    "maxAbsoluteDeflectionMm": 3.0,
+    "designUniformLoadKgM2": 30.0
+  }
+}

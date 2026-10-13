@@ -86,3 +86,19 @@ export {
   pieceMachiningSchema,
   type PieceMachining,
 } from './operation';
+
+export {
+  unitsConfigSchema,
+  type UnitsConfig,
+  machiningConfigSchema,
+  type MachiningConfig,
+  nestingConfigSchema,
+  type NestingConfig,
+  costConfigSchema,
+  type CostConfig,
+  deflectionConfigSchema,
+  type DeflectionConfig,
+  projectConfigSchema,
+  type ProjectConfig,
+  validateProjectConfig,
+} from './projectConfig';

@@ -5,6 +5,7 @@ import { ModuleForm } from './ModuleForm';
 import { PieceListView } from './PieceListView';
 import { Viewport3D } from './Viewport3D';
 import { MachiningSheetView } from './MachiningSheetView';
+import { ProjectSettingsView } from './ProjectSettingsView';
 
 /**
  * Main application View component.
@@ -42,6 +43,13 @@ export function App(): ReactElement {
             onClick={() => vm.setActiveTab('pieces')}
           >
             📋 Piece List
+          </button>
+          <button
+            type="button"
+            className={`m3-tab-button ${vm.activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('settings')}
+          >
+            ⚙️ Configuración
           </button>
           <button
             type="button"
@@ -108,6 +116,18 @@ export function App(): ReactElement {
 
               {vm.activeTab === 'pieces' && (
                 <PieceListView pieces={vm.resolvedPieces} />
+              )}
+
+              {vm.activeTab === 'settings' && (
+                <ProjectSettingsView
+                  config={vm.projectConfig}
+                  isSaving={vm.isSaving}
+                  onUpdateConfig={vm.updateProjectConfig}
+                  onSaveConfig={() => void vm.saveProjectConfig()}
+                  onExportConfig={vm.exportProjectConfigFile}
+                  onImportConfigFile={(file) => void vm.importProjectConfigFile(file)}
+                  onResetConfig={() => void vm.resetProjectConfigToDefaults()}
+                />
               )}
 
               {vm.activeTab === 'form' && (

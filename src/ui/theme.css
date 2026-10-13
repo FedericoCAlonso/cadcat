@@ -640,3 +640,145 @@ body {
   color: var(--md-sys-color-outline);
   padding: 1rem 0;
 }
+
+/* Project Settings View (Material 3) */
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.settings-subtabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+}
+
+.settings-tab-btn {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--md-sys-shape-corner-sm);
+  font: var(--md-sys-typescale-label-large);
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+}
+
+.settings-tab-btn:hover {
+  background-color: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+}
+
+.settings-tab-btn.active {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-weight: 600;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-title {
+  font: var(--md-sys-typescale-title-large);
+  color: var(--md-sys-color-on-surface);
+}
+
+.section-desc {
+  font: var(--md-sys-typescale-body-medium);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.settings-group-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border-radius: var(--md-sys-shape-corner-md);
+  background-color: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.group-title {
+  font: var(--md-sys-typescale-title-medium);
+  color: var(--md-sys-color-primary);
+  margin-bottom: 0.25rem;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.input-field label {
+  font: var(--md-sys-typescale-label-medium);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.input-field input,
+.input-field textarea {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--md-sys-shape-corner-xs);
+  border: 1px solid var(--md-sys-color-outline);
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  font: var(--md-sys-typescale-body-large);
+  transition: border-color 0.15s ease;
+}
+
+.input-field input:focus,
+.input-field textarea:focus {
+  outline: none;
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 1px var(--md-sys-color-primary);
+}
+
+.input-field input:disabled {
+  background-color: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-outline);
+}
+
+.input-field-checkbox {
+  margin-top: 0.5rem;
+}
+
+.input-field-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: var(--md-sys-typescale-body-medium);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+}
+
+.input-field-checkbox input[type="checkbox"] {
+  accent-color: var(--md-sys-color-primary);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.field-hint {
+  font: var(--md-sys-typescale-label-medium);
+  color: var(--md-sys-color-outline);
+  font-size: 0.75rem;
+}
