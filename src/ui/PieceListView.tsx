@@ -14,16 +14,16 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
 
   if (pieces.length === 0) {
     return (
-      <section aria-labelledby="pieces-heading" className="piece-list-view">
-        <h2 id="pieces-heading">Pieces</h2>
+      <section aria-labelledby="pieces-heading" className="m3-card piece-list-view">
+        <h2 id="pieces-heading" className="m3-card__title">Pieces</h2>
         <p>No pieces resolved. Adjust module parameters.</p>
       </section>
     );
   }
 
   return (
-    <section aria-labelledby="pieces-heading" className="piece-list-view">
-      <h2 id="pieces-heading">Pieces Cut List ({pieces.length})</h2>
+    <section aria-labelledby="pieces-heading" className="m3-card piece-list-view">
+      <h2 id="pieces-heading" className="m3-card__title">Pieces Cut List ({pieces.length})</h2>
 
       <table>
         <thead>

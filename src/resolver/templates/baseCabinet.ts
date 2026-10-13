@@ -43,6 +43,7 @@ export function buildBaseCabinet(
   edgeBandId?: string,
 ): {
   module: Module;
+  placementTree: PlacementTree;
   resolvedPieces: ResolvedPieceWithCutSize[];
 } {
   const widthMm = params.width;
@@ -235,6 +236,7 @@ export function buildBaseCabinet(
 
   return {
     module,
+    placementTree,
     resolvedPieces,
   };
 }

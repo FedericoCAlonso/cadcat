@@ -56,6 +56,7 @@ export function buildDrawerUnit(
   edgeBandId?: string,
 ): {
   module: Module;
+  placementTree: PlacementTree;
   resolvedPieces: ResolvedPieceWithCutSize[];
 } {
   const widthMm = params.width;
@@ -348,6 +349,7 @@ export function buildDrawerUnit(
 
   return {
     module,
+    placementTree,
     resolvedPieces,
   };
 }

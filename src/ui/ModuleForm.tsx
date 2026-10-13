@@ -59,8 +59,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   };
 
   return (
-    <section aria-labelledby="form-heading" className="module-form">
-      <h2 id="form-heading">Module Parameters</h2>
+    <section aria-labelledby="form-heading" className="m3-card module-form">
+      <h2 id="form-heading" className="m3-card__title">Module Parameters</h2>
 
       {templates && templates.length > 0 && onTemplateChange && (
         <div className="form-group">
@@ -146,17 +146,30 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </select>
       </div>
 
-      <div className="form-actions">
-        <button type="button" onClick={onSave} disabled={isSaving}>
+      <div className="form-actions m3-button-row">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving}
+          className="m3-btn m3-btn--filled"
+        >
           {isSaving ? 'Saving...' : 'Save Module to Database'}
         </button>
         {onExportCsv && (
-          <button type="button" onClick={onExportCsv} className="export-btn">
+          <button
+            type="button"
+            onClick={onExportCsv}
+            className="m3-btn m3-btn--tonal export-btn"
+          >
             Export Cut List (CSV)
           </button>
         )}
         {onExportPdf && (
-          <button type="button" onClick={onExportPdf} className="export-btn">
+          <button
+            type="button"
+            onClick={onExportPdf}
+            className="m3-btn m3-btn--outlined export-btn"
+          >
             Export Cut Plan (PDF)
           </button>
         )}

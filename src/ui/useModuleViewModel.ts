@@ -26,6 +26,9 @@ import {
   type TemplateDefinition,
   TEMPLATES,
   getTemplateById,
+  resolveModuleSpatialBoxes,
+  type SpatialPieceBox,
+  type ModuleSpatialBounds,
 } from '../resolver';
 import { runGuillotineNesting } from '../workers';
 
@@ -48,12 +51,20 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
+  activeTab: 'form' | 'pieces' | '3d';
+  selectedPieceId: string | null;
+  explodedRatio: number;
+  spatialBoxes: SpatialPieceBox[];
+  spatialBounds: ModuleSpatialBounds;
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setDepth: (depth: number) => void;
   setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
+  setActiveTab: (tab: 'form' | 'pieces' | '3d') => void;
+  setSelectedPieceId: (id: string | null) => void;
+  setExplodedRatio: (ratio: number) => void;
   saveModule: () => Promise<void>;
   loadModule: (id: string) => Promise<void>;
   exportCsv: () => void;
@@ -71,6 +82,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('base-cabinet');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [selectedEdgeBandId, setSelectedEdgeBandId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d'>('3d');
+  const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
+  const [explodedRatio, setExplodedRatio] = useState<number>(0);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [edgeBands, setEdgeBands] = useState<EdgeBand[]>([]);
   const [hardware, setHardware] = useState<Hardware[]>([]);
@@ -126,9 +140,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   );
 
   // Resolves pieces dynamically whenever parameters, template, or materials change
-  const { currentModule, resolvedPieces } = useMemo(() => {
+  const { currentModule, resolvedPieces, placementTree } = useMemo(() => {
     if (!activeMaterial || width <= 0 || height <= 0 || depth <= 0) {
-      return { currentModule: null, resolvedPieces: [] };
+      return { currentModule: null, resolvedPieces: [], placementTree: null };
     }
 
     try {
@@ -139,11 +153,27 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         edgeBands,
         selectedEdgeBandId || undefined,
       );
-      return { currentModule: built.module, resolvedPieces: built.resolvedPieces };
+      return {
+        currentModule: built.module,
+        resolvedPieces: built.resolvedPieces,
+        placementTree: built.placementTree,
+      };
     } catch {
-      return { currentModule: null, resolvedPieces: [] };
+      return { currentModule: null, resolvedPieces: [], placementTree: null };
     }
   }, [width, height, depth, selectedTemplateId, activeMaterial, selectedEdgeBandId, edgeBands]);
+
+  // Resolves 3D spatial boxes and bounding box
+  const spatialData = useMemo(() => {
+    if (!currentModule || !placementTree) {
+      const zero = { x: 0, y: 0, z: 0 };
+      return {
+        boxes: [],
+        bounds: { min: zero, max: zero, center: zero, size: zero },
+      };
+    }
+    return resolveModuleSpatialBoxes(currentModule.pieces, placementTree);
+  }, [currentModule, placementTree]);
 
   // Generates Bill of Materials
   const bom = useMemo(() => {
@@ -294,12 +324,20 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     resolvedPieces,
     bom,
     cost,
+    activeTab,
+    selectedPieceId,
+    explodedRatio,
+    spatialBoxes: spatialData.boxes,
+    spatialBounds: spatialData.bounds,
     setWidth,
     setHeight,
     setDepth,
     setSelectedTemplateId,
     setSelectedMaterialId,
     setSelectedEdgeBandId,
+    setActiveTab,
+    setSelectedPieceId,
+    setExplodedRatio,
     saveModule,
     loadModule,
     exportCsv,

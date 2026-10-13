@@ -13,6 +13,14 @@ import {
   DEFAULT_DRAWER_GAP_MM,
 } from './drawerUnit';
 
+import { type PlacementTree } from '../tree';
+
+export interface TemplateBuildResult {
+  module: Module;
+  placementTree: PlacementTree;
+  resolvedPieces: ResolvedPieceWithCutSize[];
+}
+
 export interface TemplateDefinition {
   id: string;
   name: string;
@@ -22,10 +30,7 @@ export interface TemplateDefinition {
     material: Material,
     edgeBands?: EdgeBand[],
     edgeBandId?: string,
-  ) => {
-    module: Module;
-    resolvedPieces: ResolvedPieceWithCutSize[];
-  };
+  ) => TemplateBuildResult;
 }
 
 export const TEMPLATES: TemplateDefinition[] = [

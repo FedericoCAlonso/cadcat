@@ -74,6 +74,7 @@ export {
 
 export {
   type TemplateDefinition,
+  type TemplateBuildResult,
   TEMPLATES,
   getTemplateById,
   buildBaseCabinet,
@@ -83,3 +84,12 @@ export {
   DEFAULT_DRAWER_SLIDE_CLEARANCE_MM,
   DEFAULT_DRAWER_GAP_MM,
 } from './templates';
+
+export {
+  type SpatialPieceBox,
+  type ModuleSpatialBounds,
+  type ExplodedPieceBox,
+  determinePieceSpatialSize,
+  resolveModuleSpatialBoxes,
+  calculateExplodedBoxes,
+} from './spatial3d';
