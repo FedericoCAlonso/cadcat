@@ -41,6 +41,13 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | `hw-cam-dowel-15` | `pricePerUnit` | `TO_CONFIRM` | | Cam lock and dowel set price. |
 | `hw-dowel-8x35` | `pricePerUnit` | `TO_CONFIRM` | | Wooden dowel unit price. |
 
+### Drawer Clearances (Phase 1 Task 9)
+
+| Parameter | Current Default | Confirmed Value | Notes |
+|---|---|---|---|
+| Drawer slide clearance (`slideClearanceMm`) | `25.4 mm (TO_CONFIRM)` | | 12.7 mm per side for standard ball bearing slides. |
+| Drawer reveal gap (`gapMm`) | `3.0 mm (TO_CONFIRM)` | | Vertical and horizontal gap between drawer fronts. |
+
 ## 2. General Shop Values (from Plan Section 12)
 
 1. **Sheet sizes and thicknesses.** Confirm actual board dimensions in local shop stock.

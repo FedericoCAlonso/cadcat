@@ -27,6 +27,8 @@ export function App(): ReactElement {
             width={vm.width}
             height={vm.height}
             depth={vm.depth}
+            templates={vm.templates}
+            selectedTemplateId={vm.selectedTemplateId}
             materials={vm.materials}
             edgeBands={vm.edgeBands}
             selectedMaterialId={vm.selectedMaterialId}
@@ -35,6 +37,7 @@ export function App(): ReactElement {
             onWidthChange={vm.setWidth}
             onHeightChange={vm.setHeight}
             onDepthChange={vm.setDepth}
+            onTemplateChange={vm.setSelectedTemplateId}
             onMaterialChange={vm.setSelectedMaterialId}
             onEdgeBandChange={vm.setSelectedEdgeBandId}
             onSave={() => void vm.saveModule()}

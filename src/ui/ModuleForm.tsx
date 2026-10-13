@@ -1,10 +1,13 @@
 import type { ReactElement, ChangeEvent } from 'react';
 import type { Material, EdgeBand } from '../model';
+import type { TemplateDefinition } from '../resolver';
 
 export interface ModuleFormProps {
   width: number;
   height: number;
   depth: number;
+  templates?: TemplateDefinition[];
+  selectedTemplateId?: string;
   materials: Material[];
   edgeBands: EdgeBand[];
   selectedMaterialId: string;
@@ -13,6 +16,7 @@ export interface ModuleFormProps {
   onWidthChange: (val: number) => void;
   onHeightChange: (val: number) => void;
   onDepthChange: (val: number) => void;
+  onTemplateChange?: (id: string) => void;
   onMaterialChange: (id: string) => void;
   onEdgeBandChange: (id: string) => void;
   onSave: () => void;
@@ -29,6 +33,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     width,
     height,
     depth,
+    templates,
+    selectedTemplateId,
     materials,
     edgeBands,
     selectedMaterialId,
@@ -37,6 +43,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onWidthChange,
     onHeightChange,
     onDepthChange,
+    onTemplateChange,
     onMaterialChange,
     onEdgeBandChange,
     onSave,
@@ -54,6 +61,23 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   return (
     <section aria-labelledby="form-heading" className="module-form">
       <h2 id="form-heading">Module Parameters</h2>
+
+      {templates && templates.length > 0 && onTemplateChange && (
+        <div className="form-group">
+          <label htmlFor="select-template">Module Template:</label>
+          <select
+            id="select-template"
+            value={selectedTemplateId}
+            onChange={(e) => onTemplateChange(e.target.value)}
+          >
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="form-group">
         <label htmlFor="input-width">Width (mm):</label>

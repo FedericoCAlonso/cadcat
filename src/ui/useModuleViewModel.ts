@@ -13,7 +13,6 @@ import {
   loadItem,
 } from '../storage';
 import {
-  buildBaseCabinetModule,
   generateBillOfMaterials,
   calculateModuleCost,
   PlacementTree,
@@ -24,6 +23,9 @@ import {
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
   type ModuleCostSummary,
+  type TemplateDefinition,
+  TEMPLATES,
+  getTemplateById,
 } from '../resolver';
 import { runGuillotineNesting } from '../workers';
 
@@ -31,6 +33,8 @@ export interface ModuleViewModelState {
   width: number;
   height: number;
   depth: number;
+  selectedTemplateId: string;
+  templates: TemplateDefinition[];
   selectedMaterialId: string;
   selectedEdgeBandId: string;
   materials: Material[];
@@ -47,6 +51,7 @@ export interface ModuleViewModelState {
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setDepth: (depth: number) => void;
+  setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
   saveModule: () => Promise<void>;
@@ -63,6 +68,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [width, setWidth] = useState<number>(600);
   const [height, setHeight] = useState<number>(800);
   const [depth, setDepth] = useState<number>(560);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('base-cabinet');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [selectedEdgeBandId, setSelectedEdgeBandId] = useState<string>('');
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -113,40 +119,31 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     };
   }, [initialDb]);
 
-  // Selected material thickness
+  // Selected material
   const activeMaterial = useMemo(
     () => materials.find((m) => m.id === selectedMaterialId) ?? materials[0],
     [materials, selectedMaterialId],
   );
 
-  const materialThickness = useMemo(() => {
-    if (!activeMaterial) return 18;
-    return typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18;
-  }, [activeMaterial]);
-
-  // Resolves pieces dynamically whenever parameters or materials change
+  // Resolves pieces dynamically whenever parameters, template, or materials change
   const { currentModule, resolvedPieces } = useMemo(() => {
     if (!activeMaterial || width <= 0 || height <= 0 || depth <= 0) {
       return { currentModule: null, resolvedPieces: [] };
     }
 
     try {
-      const built = buildBaseCabinetModule(
-        {
-          widthMm: width,
-          heightMm: height,
-          depthMm: depth,
-          materialId: activeMaterial.id,
-          materialThicknessMm: materialThickness,
-          edgeBandId: selectedEdgeBandId || undefined,
-        },
+      const template = getTemplateById(selectedTemplateId);
+      const built = template.build(
+        { width, height, depth },
+        activeMaterial,
         edgeBands,
+        selectedEdgeBandId || undefined,
       );
       return { currentModule: built.module, resolvedPieces: built.resolvedPieces };
     } catch {
       return { currentModule: null, resolvedPieces: [] };
     }
-  }, [width, height, depth, activeMaterial, materialThickness, selectedEdgeBandId, edgeBands]);
+  }, [width, height, depth, selectedTemplateId, activeMaterial, selectedEdgeBandId, edgeBands]);
 
   // Generates Bill of Materials
   const bom = useMemo(() => {
@@ -282,6 +279,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     width,
     height,
     depth,
+    selectedTemplateId,
+    templates: TEMPLATES,
     selectedMaterialId,
     selectedEdgeBandId,
     materials,
@@ -298,6 +297,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setWidth,
     setHeight,
     setDepth,
+    setSelectedTemplateId,
     setSelectedMaterialId,
     setSelectedEdgeBandId,
     saveModule,

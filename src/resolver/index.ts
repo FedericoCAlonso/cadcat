@@ -71,3 +71,15 @@ export {
   exportCutPlanPdf,
   triggerBrowserDownload,
 } from './export';
+
+export {
+  type TemplateDefinition,
+  TEMPLATES,
+  getTemplateById,
+  buildBaseCabinet,
+  buildDrawerUnit,
+  DEFAULT_BASE_CABINET_PARAMS,
+  DEFAULT_DRAWER_UNIT_PARAMS,
+  DEFAULT_DRAWER_SLIDE_CLEARANCE_MM,
+  DEFAULT_DRAWER_GAP_MM,
+} from './templates';
