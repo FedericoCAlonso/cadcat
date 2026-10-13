@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "hardware": [
+    {
+      "schemaVersion": 1,
+      "id": "hw-confirmat-7x50",
+      "name": "Confirmat Screw 7x50mm",
+      "jointKind": "confirmat",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-cam-dowel-15",
+      "name": "Cam Lock & Connecting Dowel 15mm",
+      "jointKind": "cam-dowel",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-dowel-8x35",
+      "name": "Wooden Dowel 8x35mm",
+      "jointKind": "dowel",
+      "pricePerUnit": "TO_CONFIRM"
+    }
+  ]
+}

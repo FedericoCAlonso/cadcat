@@ -33,6 +33,14 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | Saw kerf (`sawKerfMm`) | `3.2 mm (TO_CONFIRM)` | | Blade cut thickness of panel saw. |
 | Trim margin (`trimMarginMm`) | `10.0 mm (TO_CONFIRM)` | | Perimeter waste margin on raw sheet. |
 
+### Hardware (Phase 1 Task 6)
+
+| Hardware ID | Field | Current Value | Confirmed Value | Notes |
+|---|---|---|---|---|
+| `hw-confirmat-7x50` | `pricePerUnit` | `TO_CONFIRM` | | Confirmat screw unit price. |
+| `hw-cam-dowel-15` | `pricePerUnit` | `TO_CONFIRM` | | Cam lock and dowel set price. |
+| `hw-dowel-8x35` | `pricePerUnit` | `TO_CONFIRM` | | Wooden dowel unit price. |
+
 ## 2. General Shop Values (from Plan Section 12)
 
 1. **Sheet sizes and thicknesses.** Confirm actual board dimensions in local shop stock.

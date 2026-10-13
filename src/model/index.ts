@@ -41,6 +41,15 @@ export {
 } from './edgeBand';
 
 export {
+  hardwareSchema,
+  type Hardware,
+  hardwareCatalogSchema,
+  type HardwareCatalog,
+  validateHardware,
+  validateHardwareCatalog,
+} from './hardware';
+
+export {
   faceSchema,
   type Face,
   pieceSchema,

@@ -53,3 +53,10 @@ export {
   generateBOMHardware,
   generateBillOfMaterials,
 } from './bom';
+
+export {
+  type CostItem,
+  type ModuleCostSummary,
+  type CostCalculationInput,
+  calculateModuleCost,
+} from './cost';
