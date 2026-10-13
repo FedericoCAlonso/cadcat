@@ -168,4 +168,40 @@ describe('Guillotine Nesting', () => {
     expect(result.unplacedPieces).toHaveLength(0);
     expect(result.sheets[0]?.placedPieces).toHaveLength(1);
   });
+
+  it('counts cut passes including perimeter trim cuts', () => {
+    const items: NestingItem[] = [
+      { id: '1', pieceId: 'p-1', materialId: 'mat-1', cutWidthMm: 500, cutHeightMm: 400, canRotate: false },
+      { id: '2', pieceId: 'p-2', materialId: 'mat-1', cutWidthMm: 500, cutHeightMm: 400, canRotate: false },
+    ];
+
+    const result = runGuillotineNesting({ items, sheet: standardSheet });
+    expect(result.totalCutPasses).toBeGreaterThanOrEqual(4); // At least 4 perimeter trim cuts
+    expect(result.sheets[0]?.cutPasses).toBe(result.totalCutPasses);
+  });
+
+  it('produces fewer or equal cut passes when optimizationGoal is min-passes compared to min-waste', () => {
+    const items: NestingItem[] = [
+      { id: '1', pieceId: 'p-1', materialId: 'mat-1', cutWidthMm: 600, cutHeightMm: 400, canRotate: false },
+      { id: '2', pieceId: 'p-2', materialId: 'mat-1', cutWidthMm: 500, cutHeightMm: 400, canRotate: false },
+      { id: '3', pieceId: 'p-3', materialId: 'mat-1', cutWidthMm: 400, cutHeightMm: 400, canRotate: false },
+      { id: '4', pieceId: 'p-4', materialId: 'mat-1', cutWidthMm: 300, cutHeightMm: 200, canRotate: false },
+    ];
+
+    const minPassesResult = runGuillotineNesting({
+      items,
+      sheet: standardSheet,
+      optimizationGoal: 'min-passes',
+    });
+
+    const minWasteResult = runGuillotineNesting({
+      items,
+      sheet: standardSheet,
+      optimizationGoal: 'min-waste',
+    });
+
+    expect(minPassesResult.unplacedPieces).toHaveLength(0);
+    expect(minWasteResult.unplacedPieces).toHaveLength(0);
+    expect(minPassesResult.totalCutPasses).toBeLessThanOrEqual(minWasteResult.totalCutPasses);
+  });
 });

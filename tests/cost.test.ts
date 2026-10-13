@@ -34,11 +34,13 @@ describe('Module Cost Calculator', () => {
         utilizationPercentage: 45,
         usedAreaM2: 1.5,
         wasteAreaM2: 4.29,
+        cutPasses: 0,
       },
     ],
     unplacedPieces: [],
     totalSheets: 1,
     overallUtilizationPercentage: 45,
+    totalCutPasses: 0,
   };
 
   it('calculates totals correctly when all prices are confirmed numbers', () => {
@@ -151,5 +153,117 @@ describe('Module Cost Calculator', () => {
     const confirmat = hardwareCatalog.hardware.find((h) => h.id === 'hw-confirmat-7x50');
     expect(confirmat).toBeDefined();
     expect(confirmat?.pricePerUnit).toBe('TO_CONFIRM');
+  });
+
+  it('calculates cutPassCost and includes it in totals when pricePerCutPass is confirmed', () => {
+    const nestingWithPasses: NestingResult = {
+      sheets: [
+        {
+          sheetIndex: 0,
+          materialId: 'mat-egger-white-18',
+          sheetLengthMm: 2800,
+          sheetWidthMm: 2070,
+          placedPieces: [],
+          utilizationPercentage: 45,
+          usedAreaM2: 1.5,
+          wasteAreaM2: 4.29,
+          cutPasses: 8,
+        },
+      ],
+      unplacedPieces: [],
+      totalSheets: 1,
+      overallUtilizationPercentage: 45,
+      totalCutPasses: 8,
+    };
+
+    const confirmedMaterials: Material[] = [
+      {
+        schemaVersion: 1,
+        id: 'mat-egger-white-18',
+        name: 'Egger White 18mm',
+        thicknessMm: 18,
+        sheetSizeMm: { length: 2800, width: 2070 },
+        hasGrain: false,
+        milling: { hidden: 'yes', visible: 'no', onStructuralPiece: 'limited' },
+        pricePerSheet: 50,
+      },
+    ];
+
+    const cost = calculateModuleCost({
+      bom: {
+        moduleId: 'cab-1',
+        pieces: [],
+        totalPieceCount: 1,
+        totalCutAreaM2: 1,
+        edgeBands: [],
+        totalEdgeBandMeters: 0,
+        hardware: [],
+        totalHardwareCount: 0,
+      },
+      nestingResult: nestingWithPasses,
+      materials: confirmedMaterials,
+      edgeBands: [],
+      hardware: [],
+      costConfig: {
+        wasteFactorPercent: 10,
+        hourlyLaborRate: 35,
+        pricePerCutPass: 1.5,
+        cutPricingMode: 'per-pass',
+      },
+    });
+
+    expect(cost.isFullyConfirmed).toBe(true);
+    // 8 passes * $1.50 = $12.00
+    expect(cost.cutPassCost).toBe(12);
+    // material: $50, cut passes: $12 => grand total: $62
+    expect(cost.materialTotal).toBe(50);
+    expect(cost.grandTotal).toBe(62);
+    expect(cost.confirmedSubtotal).toBe(62);
+
+    const cutItem = cost.items.find((it) => it.id === 'cut-passes');
+    expect(cutItem).toBeDefined();
+    expect(cutItem?.category).toBe('cutting');
+    expect(cutItem?.quantity).toBe(8);
+    expect(cutItem?.unitPrice).toBe(1.5);
+    expect(cutItem?.subtotal).toBe(12);
+  });
+
+  it('marks grandTotal as TO_CONFIRM when pricePerCutPass is TO_CONFIRM', () => {
+    const nestingWithPasses: NestingResult = {
+      sheets: [],
+      unplacedPieces: [],
+      totalSheets: 0,
+      overallUtilizationPercentage: 0,
+      totalCutPasses: 5,
+    };
+
+    const cost = calculateModuleCost({
+      bom: {
+        moduleId: 'cab-2',
+        pieces: [],
+        totalPieceCount: 0,
+        totalCutAreaM2: 0,
+        edgeBands: [],
+        totalEdgeBandMeters: 0,
+        hardware: [],
+        totalHardwareCount: 0,
+      },
+      nestingResult: nestingWithPasses,
+      materials: [],
+      edgeBands: [],
+      hardware: [],
+      costConfig: {
+        wasteFactorPercent: 10,
+        hourlyLaborRate: 35,
+        pricePerCutPass: 'TO_CONFIRM',
+        cutPricingMode: 'per-pass',
+      },
+    });
+
+    expect(cost.isFullyConfirmed).toBe(false);
+    expect(cost.cutPassCost).toBe(0);
+    expect(cost.grandTotal).toBe('TO_CONFIRM');
+    const cutItem = cost.items.find((it) => it.id === 'cut-passes');
+    expect(cutItem?.subtotal).toBe('TO_CONFIRM');
   });
 });

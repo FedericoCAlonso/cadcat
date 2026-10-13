@@ -37,11 +37,14 @@
   "nesting": {
     "sawKerfMm": 4.4,
     "sheetTrimMarginMm": 10.0,
-    "respectGrain": true
+    "respectGrain": true,
+    "optimizationGoal": "min-waste"
   },
   "cost": {
     "wasteFactorPercent": 10.0,
-    "hourlyLaborRate": 0.0
+    "hourlyLaborRate": 0.0,
+    "pricePerCutPass": "TO_CONFIRM",
+    "cutPricingMode": "per-pass"
   },
   "deflection": {
     "maxDeflectionRatio": 200,

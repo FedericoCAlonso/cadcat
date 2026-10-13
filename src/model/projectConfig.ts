@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { shopValueSchema, TO_CONFIRM } from './common';
 
 export const unitsConfigSchema = z.object({
   length: z.enum(['mm', 'cm', 'm']).default('mm'),
@@ -38,12 +39,15 @@ export const nestingConfigSchema = z.object({
   sawKerfMm: z.number().min(0),
   sheetTrimMarginMm: z.number().min(0),
   respectGrain: z.boolean(),
+  optimizationGoal: z.enum(['min-waste', 'min-passes']).default('min-waste'),
 });
 export type NestingConfig = z.infer<typeof nestingConfigSchema>;
 
 export const costConfigSchema = z.object({
   wasteFactorPercent: z.number().min(0).max(100),
   hourlyLaborRate: z.number().min(0),
+  pricePerCutPass: shopValueSchema.default(TO_CONFIRM),
+  cutPricingMode: z.enum(['per-pass', 'per-meter']).default('per-pass'),
 });
 export type CostConfig = z.infer<typeof costConfigSchema>;
 

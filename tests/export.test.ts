@@ -96,6 +96,7 @@ describe('Cut Plan PDF Export', () => {
         utilizationPercentage: 42.5,
         usedAreaM2: 0.89,
         wasteAreaM2: 4.90,
+        cutPasses: 0,
       },
       {
         sheetIndex: 1,
@@ -108,11 +109,13 @@ describe('Cut Plan PDF Export', () => {
         utilizationPercentage: 15.2,
         usedAreaM2: 0.28,
         wasteAreaM2: 5.51,
+        cutPasses: 0,
       },
     ],
     unplacedPieces: [],
     totalSheets: 2,
     overallUtilizationPercentage: 28.85,
+    totalCutPasses: 0,
   };
 
   it('generates a valid multi-page PDF document from nesting result', () => {
@@ -129,6 +132,7 @@ describe('Cut Plan PDF Export', () => {
       unplacedPieces: [],
       totalSheets: 0,
       overallUtilizationPercentage: 0,
+      totalCutPasses: 0,
     };
 
     const doc = exportCutPlanPdf(emptyNesting);

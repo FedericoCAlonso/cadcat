@@ -32,6 +32,7 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 |---|---|---|---|
 | Saw kerf (`sawKerfMm`) | `3.2 mm (TO_CONFIRM)` | | Blade cut thickness of panel saw. |
 | Trim margin (`trimMarginMm`) | `10.0 mm (TO_CONFIRM)` | | Perimeter waste margin on raw sheet. |
+| Price per cut pass (`pricePerCutPass`) | `TO_CONFIRM` | | Workshop cost per through-cut pass of the panel saw. |
 
 ### Hardware (Phase 1 Task 6 & Phase 2 Task 2)
 

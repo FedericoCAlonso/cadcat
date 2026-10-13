@@ -2,6 +2,7 @@ import {
   type Material,
   type EdgeBand,
   type Hardware,
+  type CostConfig,
 } from '../model';
 import { type BillOfMaterials } from './bom';
 import { type NestingResult } from '../workers';
@@ -9,9 +10,9 @@ import { type NestingResult } from '../workers';
 export interface CostItem {
   id: string;
   name: string;
-  category: 'material' | 'edge-band' | 'hardware';
+  category: 'material' | 'edge-band' | 'hardware' | 'cutting';
   quantity: number;
-  unit: 'sheet' | 'meter' | 'piece';
+  unit: 'sheet' | 'meter' | 'piece' | 'pass';
   unitPrice: number | 'TO_CONFIRM';
   subtotal: number | 'TO_CONFIRM';
 }
@@ -22,6 +23,7 @@ export interface ModuleCostSummary {
   materialTotal: number | 'TO_CONFIRM';
   edgeBandTotal: number | 'TO_CONFIRM';
   hardwareTotal: number | 'TO_CONFIRM';
+  cutPassCost: number;
   grandTotal: number | 'TO_CONFIRM';
   confirmedSubtotal: number;
   isFullyConfirmed: boolean;
@@ -33,6 +35,7 @@ export interface CostCalculationInput {
   materials: Material[] | { materials: Material[] } | Map<string, Material>;
   edgeBands: EdgeBand[] | { edgeBands: EdgeBand[] } | Map<string, EdgeBand>;
   hardware: Hardware[] | { hardware: Hardware[] } | Map<string, Hardware>;
+  costConfig?: CostConfig;
 }
 
 function normalizeMap<T extends { id: string }>(
@@ -124,6 +127,30 @@ export function calculateModuleCost(input: CostCalculationInput): ModuleCostSumm
     });
   }
 
+  // 4. Cutting passes cost
+  let cutPassCost = 0;
+  if (input.costConfig) {
+    const totalCutPasses = nestingResult.totalCutPasses ?? 0;
+    const pricePerCutPass = input.costConfig.pricePerCutPass;
+    const isPriceNumber = typeof pricePerCutPass === 'number';
+
+    if (isPriceNumber) {
+      cutPassCost = Number((totalCutPasses * pricePerCutPass).toFixed(2));
+    }
+
+    const subtotal = isPriceNumber ? cutPassCost : 'TO_CONFIRM';
+
+    items.push({
+      id: 'cut-passes',
+      name: 'Guillotine Cut Passes',
+      category: 'cutting',
+      quantity: totalCutPasses,
+      unit: 'pass',
+      unitPrice: pricePerCutPass,
+      subtotal,
+    });
+  }
+
   // Helper to sum category items
   function calculateCategoryTotal(category: 'material' | 'edge-band' | 'hardware'): number | 'TO_CONFIRM' {
     const categoryItems = items.filter((it) => it.category === category);
@@ -161,6 +188,7 @@ export function calculateModuleCost(input: CostCalculationInput): ModuleCostSumm
     materialTotal,
     edgeBandTotal,
     hardwareTotal,
+    cutPassCost,
     grandTotal,
     confirmedSubtotal: Number(confirmedSubtotal.toFixed(2)),
     isFullyConfirmed,

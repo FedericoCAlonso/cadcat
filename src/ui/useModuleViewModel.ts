@@ -288,6 +288,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           sawKerfMm: projectConfig?.nesting.sawKerfMm,
           trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
         },
+        optimizationGoal: projectConfig?.nesting.optimizationGoal,
       });
 
       return calculateModuleCost({
@@ -296,6 +297,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         materials,
         edgeBands,
         hardware,
+        costConfig: projectConfig?.cost,
       });
     } catch {
       return null;
