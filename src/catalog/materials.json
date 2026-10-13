@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "materials": [
+    {
+      "schemaVersion": 1,
+      "id": "mat-egger-white-18",
+      "name": "Egger Eurodekor White W980 SM 18mm",
+      "thicknessMm": 18,
+      "sheetSizeMm": {
+        "length": 2800,
+        "width": 2070
+      },
+      "hasGrain": false,
+      "milling": {
+        "hidden": "yes",
+        "visible": "no",
+        "onStructuralPiece": "limited",
+        "maxDepthMm": "TO_CONFIRM"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-egger-oak-18",
+      "name": "Egger Eurodekor Natural Halifax Oak H1180 ST37 18mm",
+      "thicknessMm": 18,
+      "sheetSizeMm": {
+        "length": 2800,
+        "width": 2070
+      },
+      "hasGrain": true,
+      "milling": {
+        "hidden": "yes",
+        "visible": "no",
+        "onStructuralPiece": "limited",
+        "maxDepthMm": "TO_CONFIRM"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    }
+  ]
+}

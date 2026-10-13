@@ -17,11 +17,16 @@ export {
 export {
   millingToleranceSchema,
   type MillingTolerance,
+  sheetDimensionSchema,
+  type SheetDimension,
   sheetSizeSchema,
   type SheetSize,
   materialSchema,
   type Material,
+  materialCatalogSchema,
+  type MaterialCatalog,
   validateMaterial,
+  validateMaterialCatalog,
 } from './material';
 
 export {
@@ -29,7 +34,10 @@ export {
   type EdgeBandKind,
   edgeBandSchema,
   type EdgeBand,
+  edgeBandCatalogSchema,
+  type EdgeBandCatalog,
   validateEdgeBand,
+  validateEdgeBandCatalog,
 } from './edgeBand';
 
 export {
