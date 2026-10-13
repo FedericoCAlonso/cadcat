@@ -75,3 +75,14 @@ export {
   type Module,
   validateModule,
 } from './module';
+
+export {
+  operationKindSchema,
+  type OperationKind,
+  faceTypeSchema,
+  type FaceType,
+  drillOperationSchema,
+  type DrillOperation,
+  pieceMachiningSchema,
+  type PieceMachining,
+} from './operation';

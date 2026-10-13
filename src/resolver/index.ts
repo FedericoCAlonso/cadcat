@@ -117,3 +117,11 @@ export {
   resolveModuleSpatialBoxes,
   calculateExplodedBoxes,
 } from './spatial3d';
+
+export {
+  type MachiningShopDefaults,
+  DEFAULT_MACHINING_SHOP_VALUES,
+  calculateJointDrillSpacings,
+  deriveModuleDrillOperations,
+  groupOperationsByPiece,
+} from './machining';

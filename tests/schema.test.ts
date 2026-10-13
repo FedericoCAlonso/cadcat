@@ -12,6 +12,8 @@ import {
   type Face,
   type Joint,
   type Module,
+  drillOperationSchema,
+  pieceMachiningSchema,
 } from '../src/model';
 
 describe('Model Schemas - Valid Data', () => {
@@ -233,5 +235,31 @@ describe('Model Schemas - Rejection of Wrong Data', () => {
     };
 
     expect(() => validateModule(moduleWithoutRoot)).toThrow();
+  });
+
+  it('validates drillOperationSchema and pieceMachiningSchema', () => {
+    const validDrill = {
+      schemaVersion: 1,
+      id: 'op-1',
+      pieceId: 'side-1',
+      faceId: 'inner',
+      faceType: 'face-A',
+      diameterMm: 7,
+      depthMm: 18,
+      isThrough: true,
+      positionMm: { x: 50, y: 9 },
+      origin: 'derived',
+      sourceJointKind: 'confirmat',
+    };
+    expect(drillOperationSchema.parse(validDrill)).toEqual(validDrill);
+
+    const validMachining = {
+      schemaVersion: 1,
+      pieceId: 'side-1',
+      role: 'side-left',
+      operations: [validDrill],
+      requiresTurn: false,
+    };
+    expect(pieceMachiningSchema.parse(validMachining)).toEqual(validMachining);
   });
 });

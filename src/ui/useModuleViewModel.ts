@@ -29,7 +29,10 @@ import {
   resolveModuleSpatialBoxes,
   type SpatialPieceBox,
   type ModuleSpatialBounds,
+  deriveModuleDrillOperations,
+  groupOperationsByPiece,
 } from '../resolver';
+import { type DrillOperation, type PieceMachining } from '../model';
 import { runGuillotineNesting } from '../workers';
 
 export interface ModuleViewModelState {
@@ -56,6 +59,8 @@ export interface ModuleViewModelState {
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
   spatialBounds: ModuleSpatialBounds;
+  machiningOperations: DrillOperation[];
+  pieceMachiningList: PieceMachining[];
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setDepth: (depth: number) => void;
@@ -174,6 +179,16 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
     return resolveModuleSpatialBoxes(currentModule.pieces, placementTree);
   }, [currentModule, placementTree]);
+
+  // Derives drill machining operations from module joints
+  const { machiningOperations, pieceMachiningList } = useMemo(() => {
+    if (!currentModule) {
+      return { machiningOperations: [], pieceMachiningList: [] };
+    }
+    const ops = deriveModuleDrillOperations(currentModule.pieces, currentModule.joints);
+    const list = groupOperationsByPiece(currentModule.pieces, ops);
+    return { machiningOperations: ops, pieceMachiningList: list };
+  }, [currentModule]);
 
   // Generates Bill of Materials
   const bom = useMemo(() => {
@@ -329,6 +344,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     explodedRatio,
     spatialBoxes: spatialData.boxes,
     spatialBounds: spatialData.bounds,
+    machiningOperations,
+    pieceMachiningList,
     setWidth,
     setHeight,
     setDepth,
