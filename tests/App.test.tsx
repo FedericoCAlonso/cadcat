@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { App } from '../src/ui/App';

@@ -60,3 +60,8 @@ export {
   type CostCalculationInput,
   calculateModuleCost,
 } from './cost';
+
+export {
+  type BaseCabinetInput,
+  buildBaseCabinetModule,
+} from './moduleBuilder';
