@@ -169,24 +169,24 @@ export function calculateExplodedBoxes(
       // Displace slightly vertically or toward center
       dy = (box.centerMm.y > bounds.center.y ? 0.3 : -0.3) * dist;
     } else if (role.includes('rail-front')) {
-      dz = dist * 0.8;
-      dy = dist * 0.8;
-    } else if (role.includes('rail-back')) {
       dz = -dist * 0.8;
       dy = dist * 0.8;
+    } else if (role.includes('rail-back')) {
+      dz = dist * 0.8;
+      dy = dist * 0.8;
     } else if (role.includes('back') && !role.includes('box-back')) {
-      dz = -dist * 1.4;
+      dz = dist * 1.4;
     } else if (role.includes('drawer-front')) {
-      dz = dist * 2.0;
+      dz = -dist * 2.0;
     } else if (role.includes('door')) {
-      dz = dist * 1.8;
+      dz = -dist * 1.8;
       if (role.includes('left')) dx = -dist * 0.4;
       if (role.includes('right')) dx = dist * 0.4;
     } else if (role.includes('partition')) {
       dx = 0;
     } else if (role.startsWith('drawer-') || role.includes('box-')) {
       // Internal drawer box elements slide forward together
-      dz = dist * 1.5;
+      dz = -dist * 1.5;
     } else {
       // Fallback: outward vector from bounding center
       const vx = box.centerMm.x - bounds.center.x;

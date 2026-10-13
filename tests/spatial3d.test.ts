@@ -104,7 +104,7 @@ describe('3D Spatial Resolver (spatial3d)', () => {
     expect(sideL.explodedOffsetMm.x).toBeLessThan(0);
     expect(sideR.explodedOffsetMm.x).toBeGreaterThan(0);
     expect(bottom.explodedOffsetMm.y).toBeLessThan(0);
-    expect(back.explodedOffsetMm.z).toBeLessThan(0);
+    expect(back.explodedOffsetMm.z).toBeGreaterThan(0);
   });
 
   it('resolves drawer unit pieces in 3D and explodes drawer sub-assemblies forward', () => {
@@ -126,8 +126,8 @@ describe('3D Spatial Resolver (spatial3d)', () => {
     const drawerFront = exploded.find((p) => p.role === 'drawer-front')!;
     const drawerSide = exploded.find((p) => p.role === 'drawer-side')!;
 
-    // Drawers move forward along positive Z
-    expect(drawerFront.explodedOffsetMm.z).toBeGreaterThan(0);
-    expect(drawerSide.explodedOffsetMm.z).toBeGreaterThan(0);
+    // Drawers move forward along negative Z
+    expect(drawerFront.explodedOffsetMm.z).toBeLessThan(0);
+    expect(drawerSide.explodedOffsetMm.z).toBeLessThan(0);
   });
 });

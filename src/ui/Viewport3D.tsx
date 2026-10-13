@@ -68,7 +68,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     camera.position.set(
       bounds.center.x + maxDim * 1.5,
       bounds.center.y + maxDim * 1.2,
-      bounds.center.z + maxDim * 2.2,
+      bounds.center.z - maxDim * 2.0,
     );
     camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
 
@@ -275,10 +275,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       camera.position.set(
         bounds.center.x + maxDim * 1.5,
         bounds.center.y + maxDim * 1.2,
-        bounds.center.z + maxDim * 2.2,
+        bounds.center.z - maxDim * 2.0,
       );
     } else if (type === 'front') {
-      camera.position.set(bounds.center.x, bounds.center.y, bounds.center.z + maxDim * 2.5);
+      camera.position.set(bounds.center.x, bounds.center.y, bounds.center.z - maxDim * 2.5);
     } else if (type === 'top') {
       camera.position.set(bounds.center.x, bounds.center.y + maxDim * 2.8, bounds.center.z);
     } else if (type === 'side') {
