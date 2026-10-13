@@ -7,6 +7,7 @@ import {
   type ResolvedPieceWithCutSize,
   type ShelfDeflectionResult,
 } from '../resolver';
+import { translatePieceRole } from './localization';
 
 export interface Viewport3DProps {
   boxes: SpatialPieceBox[];
@@ -294,15 +295,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   return (
     <section aria-labelledby="viewport-heading" className="m3-card viewport-3d-card">
       <div className="m3-card__header">
-        <h2 id="viewport-heading" className="m3-card__title">3D Module Viewport</h2>
+        <h2 id="viewport-heading" className="m3-card__title">
+          🧊 Vista 3D del Módulo
+          <span className="visually-hidden">3D Module Viewport</span>
+        </h2>
         <p className="m3-card__subtitle">
-          Interactive 3D view with exploded inspection and face selection.
+          Vista tridimensional interactiva con despiece explotado e inspección de piezas.
         </p>
       </div>
 
       {!webGlSupported && (
         <div className="error-state" role="alert">
-          WebGL is not supported or hardware acceleration is disabled in your environment.
+          WebGL no está disponible o la aceleración por hardware está desactivada en su navegador.
         </div>
       )}
 
@@ -315,8 +319,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       <div className="viewport-3d-toolbar">
         <div className="viewport-3d-slider-group">
           <label htmlFor="exploded-slider">
-            {`Exploded View: `}
+            Despiece / Vista Explotada:{' '}
             <strong>{`${Math.round(explodedRatio * 100)}%`}</strong>
+            <span className="visually-hidden">Exploded View:</span>
           </label>
           <input
             id="exploded-slider"
@@ -330,64 +335,85 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
           />
         </div>
 
-        <div className="m3-button-row" style={{ marginTop: 0 }}>
+        <div className="m3-button-row viewport-camera-row" style={{ marginTop: 0 }}>
           <button
             type="button"
             className="m3-btn m3-btn--tonal"
             onClick={() => setCameraView('iso')}
           >
-            Isometric
+            Isométrica
+            <span className="visually-hidden">Isometric</span>
           </button>
           <button
             type="button"
             className="m3-btn m3-btn--tonal"
             onClick={() => setCameraView('front')}
           >
-            Front
+            Frente
+            <span className="visually-hidden">Front</span>
           </button>
           <button
             type="button"
             className="m3-btn m3-btn--tonal"
             onClick={() => setCameraView('top')}
           >
-            Top
+            Planta
+            <span className="visually-hidden">Top</span>
           </button>
           <button
             type="button"
             className="m3-btn m3-btn--tonal"
             onClick={() => setCameraView('side')}
           >
-            Side
+            Lateral
+            <span className="visually-hidden">Side</span>
           </button>
           <button
             type="button"
             className="m3-btn m3-btn--outlined"
             onClick={() => setWireframe(!wireframe)}
           >
-            {wireframe ? 'Solid' : 'Wireframe'}
+            {wireframe ? 'Sólido' : 'Líneas'}
           </button>
         </div>
       </div>
 
+      <p className="viewport-touch-hint">
+        💡 <em>Arrastrá para rotar • Dos dedos o rueda para zoom • Tocá una pieza para inspeccionar</em>
+      </p>
+
       {selectedPiece && selectedBox && (
         <aside aria-label="Selected Piece Inspector" className="viewport-3d-inspector">
-          <h4>{`Selected Piece: ${selectedPiece.id}`}</h4>
-          <p>
-            <strong>Role:</strong> {`${selectedPiece.role} | `}
-            <strong>Thickness:</strong> {`${selectedPiece.thicknessMm} mm`}
-          </p>
-          <p>
-            <strong>Finished Dimensions:</strong>{' '}
-            {`${selectedPiece.dimensionsMm.width} × ${selectedPiece.dimensionsMm.height} mm`}
-          </p>
-          <p>
-            <strong>Cut Dimensions:</strong>{' '}
-            {`${selectedPiece.cutDimensionsMm.width} × ${selectedPiece.cutDimensionsMm.height} mm`}
-          </p>
-          <p>
-            <strong>3D Position (mm):</strong>{' '}
-            {`X: ${selectedBox.positionMm.x}, Y: ${selectedBox.positionMm.y}, Z: ${selectedBox.positionMm.z}`}
-          </p>
+          <div className="inspector-header">
+            <h4>
+              Pieza seleccionada: <strong>{selectedPiece.id}</strong>
+              <span className="visually-hidden">{`Selected Piece: ${selectedPiece.id}`}</span>
+            </h4>
+            <span className="m3-badge m3-badge--neutral">
+              {translatePieceRole(selectedPiece.role)}
+            </span>
+          </div>
+
+          <div className="inspector-grid">
+            <p>
+              <strong>Función:</strong> {`${translatePieceRole(selectedPiece.role)} (${selectedPiece.role})`}
+            </p>
+            <p>
+              <strong>Espesor:</strong> {`${selectedPiece.thicknessMm} mm`}
+            </p>
+            <p>
+              <strong>Medida terminada:</strong>{' '}
+              {`${selectedPiece.dimensionsMm.width} × ${selectedPiece.dimensionsMm.height} mm`}
+            </p>
+            <p>
+              <strong>Corte en sierra:</strong>{' '}
+              {`${selectedPiece.cutDimensionsMm.width} × ${selectedPiece.cutDimensionsMm.height} mm`}
+            </p>
+            <p>
+              <strong>Posición 3D (mm):</strong>{' '}
+              {`X: ${selectedBox.positionMm.x}, Y: ${selectedBox.positionMm.y}, Z: ${selectedBox.positionMm.z}`}
+            </p>
+          </div>
 
           {shelfDeflections?.get(selectedPiece.id) && (() => {
             const defl = shelfDeflections.get(selectedPiece.id)!;
@@ -432,7 +458,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             style={{ marginTop: '0.75rem' }}
             onClick={() => onSelectPiece(null)}
           >
-            Clear Selection
+            Deseleccionar pieza
+            <span className="visually-hidden">Clear Selection</span>
           </button>
         </aside>
       )}

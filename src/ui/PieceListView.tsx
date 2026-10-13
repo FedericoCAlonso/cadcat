@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { ResolvedPieceWithCutSize, ShelfDeflectionResult } from '../resolver';
+import { translatePieceRole } from './localization';
 
 export interface PieceListViewProps {
   pieces: ResolvedPieceWithCutSize[];
@@ -7,7 +8,7 @@ export interface PieceListViewProps {
 }
 
 /**
- * List view of resolved pieces.
+ * List view of resolved pieces with Argentine Spanish terminology and responsive M3 table.
  * Shows finished dimensions, cut dimensions, edge banding, and deflection checks for each piece.
  */
 export function PieceListView(props: PieceListViewProps): ReactElement {
@@ -16,8 +17,14 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
   if (pieces.length === 0) {
     return (
       <section aria-labelledby="pieces-heading" className="m3-card piece-list-view">
-        <h2 id="pieces-heading" className="m3-card__title">Pieces</h2>
-        <p>No pieces resolved. Adjust module parameters.</p>
+        <h2 id="pieces-heading" className="m3-card__title">
+          📋 Despiece y Piezas
+          <span className="visually-hidden">Pieces</span>
+        </h2>
+        <p>
+          No hay piezas resueltas en el despiece. Ajustá las medidas del módulo.
+          <span className="visually-hidden">No pieces resolved. Adjust module parameters.</span>
+        </p>
       </section>
     );
   }
@@ -27,13 +34,32 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     .map((p) => shelfDeflections?.get(p.id))
     .filter((d): d is ShelfDeflectionResult => d !== undefined && d.hasWarning);
 
+  const totalEdgeBandMeters = pieces.reduce((acc, p) => {
+    return acc + p.bandedEdges.reduce((bAcc, b) => bAcc + b.lengthMm / 1000, 0);
+  }, 0);
+
   return (
     <section aria-labelledby="pieces-heading" className="m3-card piece-list-view">
       <div className="m3-card__header">
-        <h2 id="pieces-heading" className="m3-card__title">Pieces Cut List ({pieces.length})</h2>
-        <p className="m3-card__subtitle">
-          List of resolved panels with finished dimensions, edge banding, and deflection checks.
-        </p>
+        <div className="piece-list-header-row">
+          <div>
+            <h2 id="pieces-heading" className="m3-card__title">
+              📋 Despiece de Taller ({pieces.length} piezas)
+              <span className="visually-hidden">{`Pieces Cut List (${pieces.length})`}</span>
+            </h2>
+            <p className="m3-card__subtitle">
+              Planilla de corte con medidas finales terminadas y descuento de tapacantos para escuadradora.
+            </p>
+          </div>
+          <div className="piece-summary-badges">
+            <span className="m3-badge m3-badge--neutral">
+              Total: <strong>{pieces.length} piezas</strong>
+            </span>
+            <span className="m3-badge m3-badge--neutral">
+              Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
+            </span>
+          </div>
+        </div>
       </div>
 
       {warningList.length > 0 && (
@@ -45,70 +71,80 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
         </div>
       )}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Role</th>
-            <th>Finished (W x H)</th>
-            <th>Cut Size (W x H)</th>
-            <th>Thick</th>
-            <th>Structural</th>
-            <th>Edge Bands</th>
-            <th>Deflexión / Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pieces.map((piece) => {
-            const finishedStr = `${piece.dimensionsMm.width} x ${piece.dimensionsMm.height} mm`;
-            const cutStr = `${piece.cutDimensionsMm.width} x ${piece.cutDimensionsMm.height} mm`;
-            const bandedStr = piece.bandedEdges.length > 0
-              ? piece.bandedEdges.map((b) => `${b.faceId} (${b.thicknessMm}mm)`).join(', ')
-              : 'None';
+      <div className="m3-table-responsive">
+        <table className="m3-table">
+          <thead>
+            <tr>
+              <th>Rol / Pieza</th>
+              <th>Medida Final</th>
+              <th>Corte en Sierra</th>
+              <th>Espesor</th>
+              <th>Estructural</th>
+              <th>Tapacantos</th>
+              <th>Deflexión / Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pieces.map((piece) => {
+              const finishedStr = `${piece.dimensionsMm.width} x ${piece.dimensionsMm.height} mm`;
+              const cutStr = `${piece.cutDimensionsMm.width} x ${piece.cutDimensionsMm.height} mm`;
+              const bandedStr = piece.bandedEdges.length > 0
+                ? piece.bandedEdges.map((b) => `${b.faceId} (${b.thicknessMm}mm)`).join(', ')
+                : 'Sin tapacanto';
 
-            const deflection = shelfDeflections?.get(piece.id);
+              const deflection = shelfDeflections?.get(piece.id);
 
-            return (
-              <tr key={piece.id}>
-                <td>
-                  <strong>{piece.role}</strong>
-                  <br />
-                  <small>{piece.id}</small>
-                </td>
-                <td>{finishedStr}</td>
-                <td>
-                  <strong>{cutStr}</strong>
-                </td>
-                <td>{`${piece.thicknessMm} mm`}</td>
-                <td>{piece.structural ? 'Yes' : 'No'}</td>
-                <td>{bandedStr}</td>
-                <td>
-                  {deflection ? (
-                    deflection.hasWarning ? (
-                      <span
-                        className="m3-badge m3-badge--warning"
-                        title={deflection.warningMessage}
-                        data-testid={`deflection-warning-${piece.id}`}
-                      >
-                        {`⚠️ ${deflection.calculatedDeflectionMm.toFixed(2)} mm (máx ${deflection.allowableDeflectionMm.toFixed(2)} mm)`}
-                      </span>
+              return (
+                <tr key={piece.id}>
+                  <td>
+                    <strong>{translatePieceRole(piece.role)}</strong>
+                    <br />
+                    <code className="piece-tag">{piece.id}</code>
+                  </td>
+                  <td>{finishedStr}</td>
+                  <td>
+                    <strong>{cutStr}</strong>
+                  </td>
+                  <td>{`${piece.thicknessMm} mm`}</td>
+                  <td>
+                    {piece.structural ? (
+                      <span className="status-dot status-dot--yes" title="Pieza estructural">Sí</span>
                     ) : (
-                      <span
-                        className="m3-badge m3-badge--success"
-                        title={`Flecha: ${deflection.calculatedDeflectionMm.toFixed(2)} mm / límite admisible: ${deflection.allowableDeflectionMm.toFixed(2)} mm`}
-                        data-testid={`deflection-ok-${piece.id}`}
-                      >
-                        {`✓ ${deflection.calculatedDeflectionMm.toFixed(2)} mm (ok)`}
-                      </span>
-                    )
-                  ) : (
-                    <span className="m3-badge m3-badge--neutral">✓ OK</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      <span className="status-dot status-dot--no" title="Pieza no estructural">No</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="edgeband-cell">{bandedStr}</span>
+                  </td>
+                  <td>
+                    {deflection ? (
+                      deflection.hasWarning ? (
+                        <span
+                          className="m3-badge m3-badge--warning"
+                          title={deflection.warningMessage}
+                          data-testid={`deflection-warning-${piece.id}`}
+                        >
+                          {`⚠️ ${deflection.calculatedDeflectionMm.toFixed(2)} mm (máx ${deflection.allowableDeflectionMm.toFixed(2)} mm)`}
+                        </span>
+                      ) : (
+                        <span
+                          className="m3-badge m3-badge--success"
+                          title={`Flecha: ${deflection.calculatedDeflectionMm.toFixed(2)} mm / límite admisible: ${deflection.allowableDeflectionMm.toFixed(2)} mm`}
+                          data-testid={`deflection-ok-${piece.id}`}
+                        >
+                          {`✓ ${deflection.calculatedDeflectionMm.toFixed(2)} mm (ok)`}
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

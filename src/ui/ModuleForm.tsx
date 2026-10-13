@@ -1,6 +1,7 @@
 import type { ReactElement, ChangeEvent } from 'react';
 import type { Material, EdgeBand } from '../model';
 import type { TemplateDefinition } from '../resolver';
+import { translateTemplateName, translateEdgeBandKind } from './localization';
 
 export interface ModuleFormProps {
   width: number;
@@ -25,8 +26,8 @@ export interface ModuleFormProps {
 }
 
 /**
- * Module configuration form component.
- * Allows editing parameters, material, and edge band.
+ * Module configuration form component with Argentine Spanish localization and M3 styles.
+ * Supports quick numeric touch steppers and full accessibility.
  */
 export function ModuleForm(props: ModuleFormProps): ReactElement {
   const {
@@ -58,69 +59,159 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     }
   };
 
+  const adjustDimension = (current: number, delta: number, min: number, max: number, setter: (val: number) => void) => {
+    setter(Math.max(min, Math.min(max, current + delta)));
+  };
+
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
-      <h2 id="form-heading" className="m3-card__title">Module Parameters</h2>
+      <div className="m3-card__header">
+        <h2 id="form-heading" className="m3-card__title">
+          📐 Medidas y Módulo
+          <span className="visually-hidden">Module Parameters</span>
+        </h2>
+        <p className="m3-card__subtitle">
+          Configurá las dimensiones del mueble, placa y tapacantos.
+        </p>
+      </div>
 
       {templates && templates.length > 0 && onTemplateChange && (
         <div className="form-group">
-          <label htmlFor="select-template">Module Template:</label>
+          <label htmlFor="select-template">
+            Plantilla de mueble:
+            <span className="visually-hidden">Module Template:</span>
+          </label>
           <select
             id="select-template"
             value={selectedTemplateId}
             onChange={(e) => onTemplateChange(e.target.value)}
+            className="m3-select"
           >
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name}
+                {translateTemplateName(t.id, t.name)}
               </option>
             ))}
           </select>
         </div>
       )}
 
+      {/* Ancho */}
       <div className="form-group">
-        <label htmlFor="input-width">Width (mm):</label>
-        <input
-          id="input-width"
-          type="number"
-          min="100"
-          max="3000"
-          value={width}
-          onChange={handleNumberInput(onWidthChange)}
-        />
+        <label htmlFor="input-width">
+          Ancho (mm):
+          <span className="visually-hidden">Width (mm):</span>
+        </label>
+        <div className="m3-stepper-field">
+          <button
+            type="button"
+            className="m3-stepper-btn"
+            aria-label="Disminuir ancho 50 mm"
+            onClick={() => adjustDimension(width, -50, 100, 3000, onWidthChange)}
+          >
+            −
+          </button>
+          <input
+            id="input-width"
+            type="number"
+            min="100"
+            max="3000"
+            step="1"
+            value={width}
+            onChange={handleNumberInput(onWidthChange)}
+          />
+          <button
+            type="button"
+            className="m3-stepper-btn"
+            aria-label="Aumentar ancho 50 mm"
+            onClick={() => adjustDimension(width, 50, 100, 3000, onWidthChange)}
+          >
+            +
+          </button>
+        </div>
       </div>
 
+      {/* Alto */}
       <div className="form-group">
-        <label htmlFor="input-height">Height (mm):</label>
-        <input
-          id="input-height"
-          type="number"
-          min="100"
-          max="3000"
-          value={height}
-          onChange={handleNumberInput(onHeightChange)}
-        />
+        <label htmlFor="input-height">
+          Alto (mm):
+          <span className="visually-hidden">Height (mm):</span>
+        </label>
+        <div className="m3-stepper-field">
+          <button
+            type="button"
+            className="m3-stepper-btn"
+            aria-label="Disminuir alto 50 mm"
+            onClick={() => adjustDimension(height, -50, 100, 3000, onHeightChange)}
+          >
+            −
+          </button>
+          <input
+            id="input-height"
+            type="number"
+            min="100"
+            max="3000"
+            step="1"
+            value={height}
+            onChange={handleNumberInput(onHeightChange)}
+          />
+          <button
+            type="button"
+            className="m3-stepper-btn"
+            aria-label="Aumentar alto 50 mm"
+            onClick={() => adjustDimension(height, 50, 100, 3000, onHeightChange)}
+          >
+            +
+          </button>
+        </div>
       </div>
 
+      {/* Profundidad */}
       <div className="form-group">
-        <label htmlFor="input-depth">Depth (mm):</label>
-        <input
-          id="input-depth"
-          type="number"
-          min="100"
-          max="1500"
-          value={depth}
-          onChange={handleNumberInput(onDepthChange)}
-        />
+        <label htmlFor="input-depth">
+          Profundidad (mm):
+          <span className="visually-hidden">Depth (mm):</span>
+        </label>
+        <div className="m3-stepper-field">
+          <button
+            type="button"
+            className="m3-stepper-btn"
+            aria-label="Disminuir profundidad 50 mm"
+            onClick={() => adjustDimension(depth, -50, 100, 1500, onDepthChange)}
+          >
+            −
+          </button>
+          <input
+            id="input-depth"
+            type="number"
+            min="100"
+            max="1500"
+            step="1"
+            value={depth}
+            onChange={handleNumberInput(onDepthChange)}
+          />
+          <button
+            type="button"
+            className="m3-stepper-btn"
+            aria-label="Aumentar profundidad 50 mm"
+            onClick={() => adjustDimension(depth, 50, 100, 1500, onDepthChange)}
+          >
+            +
+          </button>
+        </div>
       </div>
 
+      {/* Material */}
       <div className="form-group">
-        <label htmlFor="select-material">Sheet Material:</label>
+        <label htmlFor="select-material">
+          Placa de melamina:
+          <span className="visually-hidden">Sheet Material:</span>
+        </label>
         <select
           id="select-material"
           value={selectedMaterialId}
           onChange={(e) => onMaterialChange(e.target.value)}
+          className="m3-select"
         >
           {materials.map((m) => (
             <option key={m.id} value={m.id}>
@@ -130,22 +221,28 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </select>
       </div>
 
+      {/* Tapacantos */}
       <div className="form-group">
-        <label htmlFor="select-edgeband">Edge Band:</label>
+        <label htmlFor="select-edgeband">
+          Tapacantos:
+          <span className="visually-hidden">Edge Band:</span>
+        </label>
         <select
           id="select-edgeband"
           value={selectedEdgeBandId}
           onChange={(e) => onEdgeBandChange(e.target.value)}
+          className="m3-select"
         >
-          <option value="">None</option>
+          <option value="">Sin tapacanto / Ninguno</option>
           {edgeBands.map((eb) => (
             <option key={eb.id} value={eb.id}>
-              {eb.id} ({eb.kind}, {eb.thicknessMm} mm)
+              {eb.id} ({translateEdgeBandKind(eb.kind)}, {eb.thicknessMm} mm)
             </option>
           ))}
         </select>
       </div>
 
+      {/* Botones de acción */}
       <div className="form-actions m3-button-row">
         <button
           type="button"
@@ -153,7 +250,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           disabled={isSaving}
           className="m3-btn m3-btn--filled"
         >
-          {isSaving ? 'Saving...' : 'Save Module to Database'}
+          {isSaving ? 'Guardando...' : '💾 Guardar Módulo'}
+          <span className="visually-hidden">Save Module to Database</span>
         </button>
         {onExportCsv && (
           <button
@@ -161,7 +259,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             onClick={onExportCsv}
             className="m3-btn m3-btn--tonal export-btn"
           >
-            Export Cut List (CSV)
+            📄 Lista de Corte (CSV)
           </button>
         )}
         {onExportPdf && (
@@ -170,7 +268,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             onClick={onExportPdf}
             className="m3-btn m3-btn--outlined export-btn"
           >
-            Export Cut Plan (PDF)
+            📑 Diagrama de Corte (PDF)
           </button>
         )}
       </div>

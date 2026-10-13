@@ -159,7 +159,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         }
       } catch (err) {
         if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load database catalogs');
+        setError(err instanceof Error ? err.message : 'No se pudieron cargar los catálogos del taller');
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -347,9 +347,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     try {
       setIsSaving(true);
       await saveItem('modules', currentModule, initialDb);
-      setStatusMessage(`Module "${currentModule.id}" saved to IndexedDB.`);
+      setStatusMessage(`Módulo "${currentModule.id}" guardado en la base de datos.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save module');
+      setError(err instanceof Error ? err.message : 'Error al guardar el módulo');
     } finally {
       setIsSaving(false);
     }
@@ -364,10 +364,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         if (loaded.parameters['width']) setWidth(loaded.parameters['width']);
         if (loaded.parameters['height']) setHeight(loaded.parameters['height']);
         if (loaded.parameters['depth']) setDepth(loaded.parameters['depth']);
-        setStatusMessage(`Module "${id}" loaded from IndexedDB.`);
+        setStatusMessage(`Módulo "${id}" cargado desde la base de datos.`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load module');
+      setError(err instanceof Error ? err.message : 'Error al cargar el módulo');
     } finally {
       setIsLoading(false);
     }
@@ -395,7 +395,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const csvContent = exportCutListCsv(allPieces);
     const fileName = `cut-list-${currentModule?.id ?? 'module'}.csv`;
     triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
-    setStatusMessage(`Exported cut list to ${fileName}.`);
+    setStatusMessage(`Lista de corte exportada a ${fileName}.`);
   }, [resolvedPieces, currentModule, assemblySheet]);
 
   const exportPdf = useCallback(() => {
@@ -442,21 +442,21 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       optimizationGoal: projectConfig?.nesting.optimizationGoal,
     });
 
-    const doc = exportCutPlanPdf(nesting, `Cut Plan - ${currentModule?.id ?? 'Module'}`);
+    const doc = exportCutPlanPdf(nesting, `Plano de Corte - ${currentModule?.id ?? 'Módulo'}`);
     const pdfBlob = doc.output('blob');
-    const fileName = `cut-plan-${currentModule?.id ?? 'module'}.pdf`;
+    const fileName = `plano-corte-${currentModule?.id ?? 'modulo'}.pdf`;
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-    setStatusMessage(`Exported cut plan to ${fileName}.`);
+    setStatusMessage(`Plano de corte (nesting) exportado a ${fileName}.`);
   }, [resolvedPieces, activeMaterial, currentModule, projectConfig, assemblySheet]);
 
   // Export sequential assembly guide as PDF
   const exportAssemblyPdf = useCallback(() => {
     if (!assemblySheet) return;
-    const doc = exportAssemblyGuidePdf(assemblySheet, `Assembly Guide - ${currentModule?.id ?? 'Module'}`);
+    const doc = exportAssemblyGuidePdf(assemblySheet, `Guía de Armado - ${currentModule?.id ?? 'Módulo'}`);
     const pdfBlob = doc.output('blob');
-    const fileName = `assembly-guide-${currentModule?.id ?? 'module'}.pdf`;
+    const fileName = `guia-armado-${currentModule?.id ?? 'modulo'}.pdf`;
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-    setStatusMessage(`Exported assembly guide to ${fileName}.`);
+    setStatusMessage(`Guía de armado exportada a ${fileName}.`);
   }, [assemblySheet, currentModule]);
 
   // Export workshop machining sheets as PDF (single piece or full module)
@@ -479,7 +479,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         ? `mecanizado-${pieceId}.pdf`
         : `mecanizado-${currentModule?.id ?? 'modulo'}.pdf`;
       triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-      setStatusMessage(`Exported machining sheets to ${fileName}.`);
+      setStatusMessage(`Planos de mecanizado exportados a ${fileName}.`);
     },
     [machiningSheets, currentModule],
   );

@@ -184,10 +184,47 @@ body {
   gap: 1.5rem;
 }
 
+@media (max-width: 1023px) {
+  .m3-top-app-bar .m3-tabs {
+    display: none; /* Mobile uses M3 Bottom Navigation Bar */
+  }
+
+  .m3-container {
+    padding: 1rem;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px));
+  }
+
+  /* Responsive screen switching on mobile devices */
+  .layout-grid[data-mobile-view="form"] aside {
+    display: block;
+  }
+  .layout-grid[data-mobile-view="form"] section {
+    display: none;
+  }
+  .layout-grid[data-mobile-view="workspace"] aside {
+    display: none;
+  }
+  .layout-grid[data-mobile-view="workspace"] section {
+    display: block;
+  }
+}
+
 @media (min-width: 1024px) {
   .layout-grid--two-col {
     grid-template-columns: 380px 1fr;
     align-items: start;
+  }
+
+  .layout-grid aside {
+    display: block !important;
+  }
+
+  .layout-grid section {
+    display: block !important;
+  }
+
+  .m3-bottom-nav {
+    display: none !important;
   }
 }
 
@@ -831,3 +868,162 @@ body {
   font-size: 1.15rem;
   line-height: 1;
 }
+
+/* ==========================================================================
+   Accessibility: Screen Reader Utility
+   ========================================================================== */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* ==========================================================================
+   Material Design 3 Stepper Field & Buttons (Touch-friendly Ergonomics)
+   ========================================================================== */
+.m3-stepper-field {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.m3-stepper-field input {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.m3-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background-color: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-sm);
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.m3-stepper-btn:hover {
+  background-color: var(--md-sys-color-surface-container-highest);
+  border-color: var(--md-sys-color-outline);
+}
+
+.m3-stepper-btn:active {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
+   Material Design 3 Responsive Table Container
+   ========================================================================== */
+.m3-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 1rem;
+  border-radius: var(--md-sys-shape-corner-md);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background-color: var(--md-sys-color-surface);
+}
+
+.m3-table-responsive table {
+  min-width: 680px;
+  margin-top: 0;
+  border: none;
+}
+
+/* ==========================================================================
+   Material Design 3 Bottom Navigation Bar
+   Specification:
+   - Container height: 80dp (72px + safe-area)
+   - Pill indicator: 32px height x 56px width in Primary Container
+   - Min touch targets: >= 48px
+   - Elevation & surface container
+   ========================================================================== */
+.m3-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background-color: var(--md-sys-color-surface-container);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.m3-bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  min-width: 52px;
+  min-height: 48px;
+  color: var(--md-sys-color-on-surface-variant);
+  transition: all 0.2s ease-in-out;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m3-bottom-nav__indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 30px;
+  border-radius: var(--md-sys-shape-corner-full);
+  transition: background-color 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.15s ease;
+}
+
+.m3-bottom-nav__icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.m3-bottom-nav__label {
+  font: var(--md-sys-typescale-label-medium);
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition: color 0.2s ease, font-weight 0.2s ease;
+  white-space: nowrap;
+}
+
+.m3-bottom-nav__item.active .m3-bottom-nav__indicator {
+  background-color: var(--md-sys-color-primary-container);
+}
+
+.m3-bottom-nav__item.active .m3-bottom-nav__label {
+  color: var(--md-sys-color-on-primary-container);
+  font-weight: 700;
+}
+
+.m3-bottom-nav__item:hover:not(.active) .m3-bottom-nav__indicator {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+

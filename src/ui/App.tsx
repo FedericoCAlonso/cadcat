@@ -20,62 +20,83 @@ export function App(): ReactElement {
       <header className="m3-top-app-bar">
         <div>
           <h1 className="m3-top-app-bar__title">Mobilius</h1>
-          <p className="m3-top-app-bar__subtitle">Furniture design progressive web application.</p>
+          <p className="m3-top-app-bar__subtitle">
+            <span>Diseño paramétrico y despiece de muebles para taller.</span>
+            <span className="visually-hidden"> Furniture design progressive web application.</span>
+          </p>
         </div>
 
-        <nav aria-label="Main Navigation" className="m3-tabs">
+        <nav aria-label="Navegación principal" className="m3-tabs">
           <button
             type="button"
             className={`m3-tab-button ${vm.activeTab === '3d' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('3d')}
           >
-            🧊 3D Viewport
+            <span aria-hidden="true">🧊 </span>
+            <span>Vista 3D</span>
+            <span className="visually-hidden"> 3D Viewport</span>
           </button>
           <button
             type="button"
             className={`m3-tab-button ${vm.activeTab === 'machining' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('machining')}
           >
-            🛠️ Mecanizado
+            <span aria-hidden="true">🛠️ </span>
+            <span>Mecanizado</span>
           </button>
           <button
             type="button"
             className={`m3-tab-button ${vm.activeTab === 'pieces' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('pieces')}
           >
-            📋 Piece List
+            <span aria-hidden="true">📋 </span>
+            <span>Despiece</span>
+            <span className="visually-hidden"> Piece List</span>
           </button>
           <button
             type="button"
             className={`m3-tab-button ${vm.activeTab === 'assembly' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('assembly')}
           >
-            📖 Assembly Guide
+            <span aria-hidden="true">📖 </span>
+            <span>Guía de Armado</span>
+            <span className="visually-hidden"> Assembly Guide</span>
           </button>
           <button
             type="button"
             className={`m3-tab-button ${vm.activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('settings')}
           >
-            ⚙️ Configuración
+            <span aria-hidden="true">⚙️ </span>
+            <span>Configuración</span>
           </button>
           <button
             type="button"
             className={`m3-tab-button ${vm.activeTab === 'form' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('form')}
           >
-            📐 Parameters
+            <span aria-hidden="true">📐 </span>
+            <span>Medidas</span>
+            <span className="visually-hidden"> Parameters</span>
           </button>
         </nav>
       </header>
 
       <main className="m3-container">
-        {vm.isLoading && <p className="loading-state">Loading catalogs from database...</p>}
+        {vm.isLoading && (
+          <p className="loading-state">
+            <span>Cargando catálogos de base de datos...</span>
+            <span className="visually-hidden"> Loading catalogs from database...</span>
+          </p>
+        )}
         {vm.error && <p className="error-state" role="alert">{vm.error}</p>}
         {vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
 
         {!vm.isLoading && (
-          <div className="layout-grid layout-grid--two-col">
+          <div
+            className="layout-grid layout-grid--two-col"
+            data-mobile-view={vm.activeTab === 'form' ? 'form' : 'workspace'}
+          >
             <aside aria-label="Module Parameters">
               <ModuleForm
                 width={vm.width}
@@ -151,9 +172,12 @@ export function App(): ReactElement {
 
               {vm.activeTab === 'form' && (
                 <div className="m3-card">
-                  <h3 className="m3-card__title">Module Overview</h3>
+                  <h3 className="m3-card__title">
+                    <span>Resumen del Módulo</span>
+                    <span className="visually-hidden"> Module Overview</span>
+                  </h3>
                   <p className="m3-card__subtitle">
-                    Pieces resolved: {vm.resolvedPieces.length} | Edge bands:{' '}
+                    Piezas resueltas: {vm.resolvedPieces.length} | Tapacantos:{' '}
                     {vm.bom?.totalEdgeBandMeters.toFixed(2) ?? '0.00'} m
                   </p>
                   <PieceListView
@@ -166,6 +190,70 @@ export function App(): ReactElement {
           </div>
         )}
       </main>
+
+      {/* Material Design 3 Bottom Navigation Bar for Mobile (< 1024px) */}
+      <nav aria-label="Navegación móvil" className="m3-bottom-nav">
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'form' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('form')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">📐</span>
+          </div>
+          <span className="m3-bottom-nav__label">Medidas</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === '3d' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('3d')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">🧊</span>
+          </div>
+          <span className="m3-bottom-nav__label">Vista 3D</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'pieces' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('pieces')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">📋</span>
+          </div>
+          <span className="m3-bottom-nav__label">Despiece</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'machining' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('machining')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
+          </div>
+          <span className="m3-bottom-nav__label">Mecanizado</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'assembly' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('assembly')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">📖</span>
+          </div>
+          <span className="m3-bottom-nav__label">Armado</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('settings')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">⚙️</span>
+          </div>
+          <span className="m3-bottom-nav__label">Taller</span>
+        </button>
+      </nav>
     </div>
   );
 }
