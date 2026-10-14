@@ -167,4 +167,58 @@ describe('useModuleViewModel Interactive Modular Builder', () => {
 
     runner.unmount();
   });
+
+  it('allows customizing drawer height distribution presets, individual heights, and gap', () => {
+    const runner = createHookRunner(() => useModuleViewModel());
+
+    act(() => {
+      runner.current.setBayContentType(0, 'drawer-stack');
+    });
+
+    const initialBay = runner.current.bays[0];
+    expect(initialBay?.type).toBe('drawer-stack');
+
+    // Set cutlery-top preset (e.g. 150mm top drawer, remaining equal)
+    act(() => {
+      runner.current.setDrawerDistributionPreset(0, 'cutlery-top', 150);
+    });
+
+    const bayCutlery = runner.current.bays[0];
+    if (bayCutlery?.type === 'drawer-stack') {
+      expect(bayCutlery.drawerTracks[0]).toEqual({ type: 'fixed', valueMm: 150 });
+      expect(bayCutlery.drawerTracks[1]).toEqual({ type: 'fractional', valueFr: 1 });
+      expect(bayCutlery.drawerTracks[2]).toEqual({ type: 'fractional', valueFr: 1 });
+    }
+
+    // Adjust top height to 130mm
+    act(() => {
+      runner.current.setDrawerTopHeight(0, 130);
+    });
+    const bayAdjusted = runner.current.bays[0];
+    if (bayAdjusted?.type === 'drawer-stack') {
+      expect(bayAdjusted.drawerTracks[0]).toEqual({ type: 'fixed', valueMm: 130 });
+    }
+
+    // Adjust gap and transoms
+    act(() => {
+      runner.current.setDrawerGap(0, 3.5);
+      runner.current.setDrawerTransoms(0, true);
+    });
+    const bayGaps = runner.current.bays[0];
+    if (bayGaps?.type === 'drawer-stack') {
+      expect(bayGaps.gapMm).toBe(3.5);
+      expect(bayGaps.hasTransomDividers).toBe(true);
+    }
+
+    // Switch back to equal distribution
+    act(() => {
+      runner.current.setDrawerDistributionPreset(0, 'equal');
+    });
+    const bayEqual = runner.current.bays[0];
+    if (bayEqual?.type === 'drawer-stack') {
+      expect(bayEqual.drawerTracks.every((t) => t.type === 'fractional' && t.valueFr === 1)).toBe(true);
+    }
+
+    runner.unmount();
+  });
 });

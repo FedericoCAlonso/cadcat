@@ -8,7 +8,9 @@ import type {
   DrawerSlideType,
   DrawerFrontMount,
   DoorMountType,
+  TrackSize,
 } from '../resolver';
+import { resolveTracks } from '../resolver';
 import { translateTemplateName, translateEdgeBandKind } from './localization';
 
 export interface ModuleFormProps {
@@ -59,6 +61,15 @@ export interface ModuleFormProps {
   onRemoveDrawer?: (bayIndex: number) => void;
   onDrawerFrontMountChange?: (bayIndex: number, mount: DrawerFrontMount) => void;
   onDrawerSlideTypeChange?: (bayIndex: number, slide: DrawerSlideType) => void;
+  onDrawerDistributionPresetChange?: (
+    bayIndex: number,
+    preset: 'equal' | 'cutlery-top' | 'custom',
+    topHeightMm?: number,
+  ) => void;
+  onDrawerTopHeightChange?: (bayIndex: number, heightMm: number) => void;
+  onDrawerTrackChange?: (bayIndex: number, trackIndex: number, track: TrackSize) => void;
+  onDrawerGapChange?: (bayIndex: number, gapMm: number) => void;
+  onDrawerTransomsChange?: (bayIndex: number, hasTransoms: boolean) => void;
   onDoorCountChange?: (bayIndex: number, count: 1 | 2) => void;
   onDoorMountTypeChange?: (bayIndex: number, mount: DoorMountType) => void;
   onBifoldDirectionChange?: (bayIndex: number, dir: 'vertical-lift' | 'horizontal-book') => void;
@@ -115,6 +126,11 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onRemoveDrawer,
     onDrawerFrontMountChange,
     onDrawerSlideTypeChange,
+    onDrawerDistributionPresetChange,
+    onDrawerTopHeightChange,
+    onDrawerTrackChange,
+    onDrawerGapChange,
+    onDrawerTransomsChange,
     onDoorCountChange,
     onDoorMountTypeChange,
     onBifoldDirectionChange,
@@ -137,6 +153,51 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const currentBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '1-bay' ? 1 : 2;
   const currentActiveIndex = Math.min(activeBayIndex, currentBayCount - 1);
   const activeBay = bays[currentActiveIndex] ?? { type: 'empty' };
+
+  const currentDrawerPreset: 'equal' | 'cutlery-top' | 'custom' = (() => {
+    if (activeBay.type !== 'drawer-stack' || !activeBay.drawerTracks || activeBay.drawerTracks.length <= 1) {
+      return 'equal';
+    }
+    const tracks = activeBay.drawerTracks;
+    const isAllEqualFr = tracks.every((t) => t.type === 'fractional' && t.valueFr === 1);
+    if (isAllEqualFr) return 'equal';
+    const isCutleryTop =
+      tracks[0]?.type === 'fixed' &&
+      tracks.slice(1).every((t) => t.type === 'fractional' && t.valueFr === 1);
+    if (isCutleryTop) return 'cutlery-top';
+    return 'custom';
+  })();
+
+  const topCutleryHeight =
+    activeBay.type === 'drawer-stack' && activeBay.drawerTracks?.[0]?.type === 'fixed'
+      ? activeBay.drawerTracks[0].valueMm
+      : 140;
+
+  const rawThickness = materials.find((m) => m.id === selectedMaterialId)?.thicknessMm;
+  const matThickness = typeof rawThickness === 'number' ? rawThickness : 18;
+  const estimatedBayCavityHeight = Math.max(
+    100,
+    Math.round(
+      gridType === '2-bays-horizontal'
+        ? (height - 3 * matThickness) / 2
+        : roofType === 'solid-panel'
+        ? height - 2 * matThickness
+        : height - matThickness,
+    ),
+  );
+
+  const resolvedDrawerHeights = (() => {
+    if (activeBay.type !== 'drawer-stack' || !activeBay.drawerTracks || activeBay.drawerTracks.length === 0) {
+      return [];
+    }
+    const useTransoms = Boolean(activeBay.hasTransomDividers && activeBay.frontMount === 'inset');
+    const res = resolveTracks(
+      estimatedBayCavityHeight,
+      activeBay.drawerTracks,
+      useTransoms ? matThickness : 0,
+    );
+    return res.tracks.map((t) => t.sizeMm);
+  })();
 
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
@@ -500,6 +561,186 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </div>
             </div>
 
+            {/* Distribución de alturas */}
+            <div className="form-group">
+              <label id="drawer-distribution-label">Distribución de alturas:</label>
+              <div className="builder-segmented-group" role="group" aria-labelledby="drawer-distribution-label">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${currentDrawerPreset === 'equal' ? 'selected' : ''}`}
+                  onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'equal')}
+                >
+                  ⚖️ Todos iguales
+                </button>
+                {activeBay.drawerTracks.length >= 2 && (
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${currentDrawerPreset === 'cutlery-top' ? 'selected' : ''}`}
+                    onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'cutlery-top', topCutleryHeight)}
+                  >
+                    🥄 Cubertero + Olleros
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${currentDrawerPreset === 'custom' ? 'selected' : ''}`}
+                  onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'custom')}
+                >
+                  📐 Personalizado
+                </button>
+              </div>
+            </div>
+
+            {/* Si es Cubertero + Olleros: control para la altura del cajón superior */}
+            {currentDrawerPreset === 'cutlery-top' && (
+              <div className="form-group" style={{ padding: '0.6rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
+                <label htmlFor="input-cutlery-height">
+                  Altura cajón superior (cubertero):
+                </label>
+                <div className="m3-stepper-field">
+                  <button
+                    type="button"
+                    className="m3-stepper-btn"
+                    aria-label="Disminuir altura cubertero 10 mm"
+                    onClick={() => onDrawerTopHeightChange?.(currentActiveIndex, Math.max(80, topCutleryHeight - 10))}
+                  >
+                    −
+                  </button>
+                  <input
+                    id="input-cutlery-height"
+                    type="number"
+                    min="80"
+                    max="400"
+                    step="5"
+                    value={topCutleryHeight}
+                    onChange={(e) => {
+                      const v = Number.parseInt(e.target.value, 10);
+                      if (!Number.isNaN(v)) {
+                        onDrawerTopHeightChange?.(currentActiveIndex, v);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="m3-stepper-btn"
+                    aria-label="Aumentar altura cubertero 10 mm"
+                    onClick={() => onDrawerTopHeightChange?.(currentActiveIndex, Math.min(400, topCutleryHeight + 10))}
+                  >
+                    +
+                  </button>
+                </div>
+                <small style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '0.8rem', marginTop: '0.35rem', display: 'block' }}>
+                  {`Primer cajón de ${topCutleryHeight} mm; los restantes ${activeBay.drawerTracks.length - 1} se dividen en partes iguales.`}
+                </small>
+              </div>
+            )}
+
+            {/* Si es Personalizado: control individual por cajón */}
+            {currentDrawerPreset === 'custom' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.6rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
+                <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600 }}>
+                  Ajuste por cajón (de arriba a abajo):
+                </span>
+                {activeBay.drawerTracks.map((track, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ minWidth: '65px', font: 'var(--md-sys-typescale-body-small)', fontWeight: 600 }}>
+                      {`Cajón ${idx + 1}:`}
+                    </span>
+                    <div className="builder-segmented-group" style={{ flex: '1 1 auto', minWidth: '150px' }}>
+                      <button
+                        type="button"
+                        className={`builder-segmented-btn ${track.type === 'fixed' ? 'selected' : ''}`}
+                        style={{ minHeight: '34px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
+                        onClick={() =>
+                          onDrawerTrackChange?.(currentActiveIndex, idx, {
+                            type: 'fixed',
+                            valueMm: track.type === 'fixed' ? track.valueMm : (resolvedDrawerHeights[idx] ?? 140),
+                          })
+                        }
+                      >
+                        Fijo (mm)
+                      </button>
+                      <button
+                        type="button"
+                        className={`builder-segmented-btn ${track.type === 'fractional' ? 'selected' : ''}`}
+                        style={{ minHeight: '34px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
+                        onClick={() =>
+                          onDrawerTrackChange?.(currentActiveIndex, idx, {
+                            type: 'fractional',
+                            valueFr: 1,
+                          })
+                        }
+                      >
+                        Proporcional (fr)
+                      </button>
+                    </div>
+                    {track.type === 'fixed' ? (
+                      <div className="m3-stepper-field" style={{ width: '130px' }}>
+                        <input
+                          type="number"
+                          min="60"
+                          max="600"
+                          step="5"
+                          value={track.valueMm}
+                          aria-label={`Altura fija de cajón ${idx + 1} en mm`}
+                          onChange={(e) => {
+                            const val = Number.parseInt(e.target.value, 10);
+                            if (!Number.isNaN(val)) {
+                              onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fixed', valueMm: val });
+                            }
+                          }}
+                        />
+                        <span style={{ fontSize: '0.8rem', paddingRight: '0.5rem', color: 'var(--md-sys-color-on-surface-variant)' }}>mm</span>
+                      </div>
+                    ) : (
+                      <div className="m3-stepper-field" style={{ width: '110px' }}>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          step="1"
+                          value={track.valueFr}
+                          aria-label={`Proporción de cajón ${idx + 1} en fr`}
+                          onChange={(e) => {
+                            const val = Number.parseFloat(e.target.value);
+                            if (!Number.isNaN(val) && val > 0) {
+                              onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fractional', valueFr: val });
+                            }
+                          }}
+                        />
+                        <span style={{ fontSize: '0.8rem', paddingRight: '0.5rem', color: 'var(--md-sys-color-on-surface-variant)' }}>fr</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Frentes calculados en mm en vivo */}
+            {resolvedDrawerHeights.length > 0 && (
+              <div className="form-group">
+                <label>Alturas calculadas de frentes:</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  {resolvedDrawerHeights.map((h, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: 'var(--md-sys-shape-corner-full)',
+                        backgroundColor: 'var(--md-sys-color-secondary-container)',
+                        color: 'var(--md-sys-color-on-secondary-container)',
+                        font: 'var(--md-sys-typescale-label-small)',
+                        fontWeight: 600,
+                        border: '1px solid var(--md-sys-color-outline-variant)',
+                      }}
+                    >
+                      {`Cajón ${i + 1}: ${h} mm`}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="form-group">
               <label>Montaje de frentes:</label>
               <div className="builder-segmented-group">
@@ -520,6 +761,29 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </div>
             </div>
 
+            {/* Travesaños separadores para cajones embutidos */}
+            {activeBay.frontMount === 'inset' && (
+              <div className="form-group">
+                <label>Travesaños horizontales entre cajones:</label>
+                <div className="builder-segmented-group">
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${activeBay.hasTransomDividers ? 'selected' : ''}`}
+                    onClick={() => onDrawerTransomsChange?.(currentActiveIndex, true)}
+                  >
+                    Con fajas separadoras
+                  </button>
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${!activeBay.hasTransomDividers ? 'selected' : ''}`}
+                    onClick={() => onDrawerTransomsChange?.(currentActiveIndex, false)}
+                  >
+                    Sin fajas (frente corrido)
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="form-group">
               <label>Tipo de correderas:</label>
               <div className="builder-segmented-group">
@@ -536,6 +800,38 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'undermount')}
                 >
                   Ocultas (Bajo Fondo)
+                </button>
+              </div>
+            </div>
+
+            {/* Separación entre frentes (luz) */}
+            <div className="form-group">
+              <label>Separación entre frentes (luz):</label>
+              <div className="m3-stepper-field">
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Disminuir separación entre cajones 0.5 mm"
+                  onClick={() => {
+                    const currentGap = activeBay.gapMm ?? 2.5;
+                    onDrawerGapChange?.(currentActiveIndex, Math.max(1.0, Math.round((currentGap - 0.5) * 10) / 10));
+                  }}
+                >
+                  −
+                </button>
+                <div className="builder-stepper-display">
+                  {`${(activeBay.gapMm ?? 2.5).toFixed(1)} mm`}
+                </div>
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Aumentar separación entre cajones 0.5 mm"
+                  onClick={() => {
+                    const currentGap = activeBay.gapMm ?? 2.5;
+                    onDrawerGapChange?.(currentActiveIndex, Math.min(8.0, Math.round((currentGap + 0.5) * 10) / 10));
+                  }}
+                >
+                  +
                 </button>
               </div>
             </div>

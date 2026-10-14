@@ -56,6 +56,7 @@ import {
   type DrawerFrontMount,
   type DoorMountType,
   type BayGridDefinition,
+  type TrackSize,
   type ModularModuleDefinition,
   buildModularModule,
 } from '../resolver';
@@ -128,6 +129,11 @@ export interface ModuleViewModelState {
   removeDrawer: (bayIndex: number) => void;
   setDrawerFrontMount: (bayIndex: number, mount: DrawerFrontMount) => void;
   setDrawerSlideType: (bayIndex: number, slide: DrawerSlideType) => void;
+  setDrawerDistributionPreset: (bayIndex: number, preset: 'equal' | 'cutlery-top' | 'custom', topHeightMm?: number) => void;
+  setDrawerTopHeight: (bayIndex: number, heightMm: number) => void;
+  setDrawerTrack: (bayIndex: number, trackIndex: number, track: TrackSize) => void;
+  setDrawerGap: (bayIndex: number, gapMm: number) => void;
+  setDrawerTransoms: (bayIndex: number, hasTransoms: boolean) => void;
   setDoorCount: (bayIndex: number, count: 1 | 2) => void;
   setDoorMountType: (bayIndex: number, mount: DoorMountType) => void;
   setBifoldDirection: (bayIndex: number, dir: 'vertical-lift' | 'horizontal-book') => void;
@@ -471,6 +477,95 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       if (current?.type === 'drawer-stack') {
         next[bayIndex] = { ...current, slideType };
       }
+      return next;
+    });
+  }, []);
+
+  const setDrawerDistributionPreset = useCallback(
+    (bayIndex: number, preset: 'equal' | 'cutlery-top' | 'custom', topHeightMm: number = 140) => {
+      setIsCustomModular(true);
+      setBaysState((prev) => {
+        const next = [...prev];
+        const current = next[bayIndex];
+        if (current?.type !== 'drawer-stack') return prev;
+
+        const count = current.drawerTracks.length;
+        let newTracks: TrackSize[];
+
+        if (preset === 'equal') {
+          newTracks = Array.from({ length: count }, () => ({ type: 'fractional', valueFr: 1 }));
+        } else if (preset === 'cutlery-top') {
+          if (count === 1) {
+            newTracks = [{ type: 'fractional', valueFr: 1 }];
+          } else {
+            newTracks = [
+              { type: 'fixed', valueMm: topHeightMm },
+              ...Array.from({ length: count - 1 }, () => ({ type: 'fractional' as const, valueFr: 1 })),
+            ];
+          }
+        } else {
+          newTracks = current.drawerTracks.length > 0 ? [...current.drawerTracks] : Array.from({ length: count }, () => ({ type: 'fractional', valueFr: 1 }));
+        }
+
+        next[bayIndex] = { ...current, drawerTracks: newTracks };
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setDrawerTopHeight = useCallback((bayIndex: number, heightMm: number) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'drawer-stack') return prev;
+
+      const tracks = [...current.drawerTracks];
+      if (tracks.length > 0) {
+        tracks[0] = { type: 'fixed', valueMm: Math.max(60, Math.min(500, Math.round(heightMm))) };
+        next[bayIndex] = { ...current, drawerTracks: tracks };
+      }
+      return next;
+    });
+  }, []);
+
+  const setDrawerTrack = useCallback((bayIndex: number, trackIndex: number, track: TrackSize) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'drawer-stack') return prev;
+
+      const tracks = [...current.drawerTracks];
+      if (trackIndex >= 0 && trackIndex < tracks.length) {
+        tracks[trackIndex] = track;
+        next[bayIndex] = { ...current, drawerTracks: tracks };
+      }
+      return next;
+    });
+  }, []);
+
+  const setDrawerGap = useCallback((bayIndex: number, gapMm: number) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'drawer-stack') return prev;
+
+      next[bayIndex] = { ...current, gapMm: Math.max(1, Math.min(10, gapMm)) };
+      return next;
+    });
+  }, []);
+
+  const setDrawerTransoms = useCallback((bayIndex: number, hasTransomDividers: boolean) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'drawer-stack') return prev;
+
+      next[bayIndex] = { ...current, hasTransomDividers };
       return next;
     });
   }, []);
@@ -1073,6 +1168,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     removeDrawer,
     setDrawerFrontMount,
     setDrawerSlideType,
+    setDrawerDistributionPreset,
+    setDrawerTopHeight,
+    setDrawerTrack,
+    setDrawerGap,
+    setDrawerTransoms,
     setDoorCount,
     setDoorMountType,
     setBifoldDirection,

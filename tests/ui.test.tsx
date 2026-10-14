@@ -119,11 +119,64 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('1 Vano único');
     expect(html).toContain('2 Vanos (Parante)');
 
-    // Drawer controls (answers user request: cajones)
+    // Drawer controls (answers user request: cajones y distribucion)
     expect(html).toContain('3 Cajones');
+    expect(html).toContain('Distribución de alturas:');
+    expect(html).toContain('Todos iguales');
+    expect(html).toContain('Cubertero + Olleros');
+    expect(html).toContain('Personalizado');
+    expect(html).toContain('Altura cajón superior (cubertero):');
+    expect(html).toContain('value="140"');
+    expect(html).toContain('Alturas calculadas de frentes:');
+    expect(html).toContain('Cajón 1:');
+    expect(html).toContain('Separación entre frentes (luz):');
     expect(html).toContain('Aplicado (Solapado)');
     expect(html).toContain('Embutido');
     expect(html).toContain('Telescópicas (25.4mm)');
+  });
+
+  it('renders custom drawer tracks and inset transom options when configured', () => {
+    const html = renderToString(
+      <ModuleForm
+        width={600}
+        height={800}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        selectedMaterialId="mat-1"
+        selectedEdgeBandId="eb-1"
+        isSaving={false}
+        bays={[
+          {
+            type: 'drawer-stack',
+            drawerTracks: [
+              { type: 'fixed', valueMm: 120 },
+              { type: 'fixed', valueMm: 200 },
+              { type: 'fractional', valueFr: 2 },
+            ],
+            frontMount: 'inset',
+            hasTransomDividers: true,
+            slideType: 'undermount',
+            gapMm: 3.0,
+          },
+        ]}
+        activeBayIndex={0}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        onMaterialChange={vi.fn()}
+        onEdgeBandChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    // Custom track controls
+    expect(html).toContain('Ajuste por cajón (de arriba a abajo):');
+    expect(html).toContain('Fijo (mm)');
+    expect(html).toContain('Proporcional (fr)');
+    expect(html).toContain('Travesaños horizontales entre cajones:');
+    expect(html).toContain('Con fajas separadoras');
+    expect(html).toContain('3.0 mm');
   });
 
   it('renders interactive shelf and door controls when equipped', () => {
