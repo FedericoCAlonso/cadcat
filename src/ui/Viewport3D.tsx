@@ -471,79 +471,81 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         data-testid="viewport-3d-canvas-wrapper"
       />
 
-      <div className="viewport-3d-toolbar">
-        {kinematicMechanisms && kinematicMechanisms.length > 0 && (
-          <div className="m3-kinematics-bar">
-            <div className="m3-kinematics-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className="m3-kinematics-title">
-                  🎮 Cinemática / Apertura:
-                </span>
-                <select
-                  aria-label="Seleccionar mecanismo móvil"
-                  className="m3-select"
-                  style={{ fontSize: '0.85rem', padding: '0.2rem 0.5rem' }}
-                  value={activeMechId}
-                  onChange={(e) => setActiveMechId(e.target.value)}
-                >
-                  <option value="all">Todos los mecanismos ({kinematicMechanisms.length})</option>
-                  {kinematicMechanisms.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.35rem' }}>
-                <button
-                  type="button"
-                  className="m3-btn m3-btn--small m3-btn--tonal"
-                  onClick={() => {
-                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                    if (activeMechId === 'all') {
-                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0));
-                    } else {
-                      onMechanismOpenRatioChange(activeMechId, 0);
-                    }
-                  }}
-                >
-                  Cerrar (0%)
-                </button>
-                <button
-                  type="button"
-                  className="m3-btn m3-btn--small m3-btn--tonal"
-                  onClick={() => {
-                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                    if (activeMechId === 'all') {
-                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0.5));
-                    } else {
-                      onMechanismOpenRatioChange(activeMechId, 0.5);
-                    }
-                  }}
-                >
-                  50%
-                </button>
-                <button
-                  type="button"
-                  className="m3-btn m3-btn--small m3-btn--primary"
-                  onClick={() => {
-                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                    if (activeMechId === 'all') {
-                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 1));
-                    } else {
-                      onMechanismOpenRatioChange(activeMechId, 1);
-                    }
-                  }}
-                >
-                  Abrir (100%)
-                </button>
-              </div>
+      {kinematicMechanisms && kinematicMechanisms.length > 0 && (
+        <div className="m3-kinematics-bar" role="region" aria-label="Controles de cinemática y apertura">
+          <div className="m3-kinematics-header">
+            <div className="m3-kinematics-title-wrap">
+              <span className="m3-kinematics-title">
+                🎮 Cinemática / Apertura:
+              </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <label htmlFor="kinematics-slider" style={{ fontSize: '0.85rem', minWidth: '130px' }}>
-                Deslizador:{' '}
+            <div className="m3-kinematics-selector-wrap">
+              <select
+                aria-label="Seleccionar mecanismo móvil"
+                className="m3-select m3-kinematics-select"
+                value={activeMechId}
+                onChange={(e) => setActiveMechId(e.target.value)}
+              >
+                <option value="all">Todos los mecanismos ({kinematicMechanisms.length})</option>
+                {kinematicMechanisms.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="m3-kinematics-controls-body">
+            <div className="m3-kinematics-actions">
+              <button
+                type="button"
+                className="m3-btn m3-btn--small m3-btn--tonal"
+                onClick={() => {
+                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                  if (activeMechId === 'all') {
+                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0));
+                  } else {
+                    onMechanismOpenRatioChange(activeMechId, 0);
+                  }
+                }}
+              >
+                Cerrar (0%)
+              </button>
+              <button
+                type="button"
+                className="m3-btn m3-btn--small m3-btn--tonal"
+                onClick={() => {
+                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                  if (activeMechId === 'all') {
+                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0.5));
+                  } else {
+                    onMechanismOpenRatioChange(activeMechId, 0.5);
+                  }
+                }}
+              >
+                50%
+              </button>
+              <button
+                type="button"
+                className="m3-btn m3-btn--small m3-btn--primary"
+                onClick={() => {
+                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                  if (activeMechId === 'all') {
+                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 1));
+                  } else {
+                    onMechanismOpenRatioChange(activeMechId, 1);
+                  }
+                }}
+              >
+                Abrir (100%)
+              </button>
+            </div>
+
+            <div className="m3-kinematics-slider-row">
+              <label htmlFor="kinematics-slider" className="m3-kinematics-slider-label">
+                <span>Deslizador:</span>{' '}
                 <strong>
                   {Math.round(
                     (activeMechId === 'all'
@@ -576,11 +578,14 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
                   }
                 }}
                 className="viewport-3d-slider"
-                style={{ flex: 1 }}
+                aria-label="Control deslizante de apertura cinemática"
               />
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="viewport-3d-toolbar">
 
         <div className="viewport-3d-slider-group">
           <label htmlFor="exploded-slider">
@@ -714,6 +719,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
                 <button
                   type="button"
                   className="m3-btn m3-btn--small m3-btn--tonal"
+                  style={{ flex: 1, justifyContent: 'center' }}
                   onClick={() => onMechanismOpenRatioChange?.(pieceMech.id, 0)}
                 >
                   Cerrar
@@ -721,6 +727,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
                 <button
                   type="button"
                   className="m3-btn m3-btn--small m3-btn--primary"
+                  style={{ flex: 1, justifyContent: 'center' }}
                   onClick={() => onMechanismOpenRatioChange?.(pieceMech.id, 1)}
                 >
                   Abrir
