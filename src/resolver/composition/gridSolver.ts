@@ -260,3 +260,47 @@ export function subdivideBay(
     dividerPlacements,
   };
 }
+
+/**
+ * Formats a list of track sizes into a CSS Grid-style tracks string (e.g. "140mm 1fr 1fr").
+ */
+export function formatTracksToGridString(tracks: TrackSize[]): string {
+  if (!tracks || tracks.length === 0) return '';
+  return tracks
+    .map((t) => (t.type === 'fixed' ? `${t.valueMm}mm` : `${t.valueFr}fr`))
+    .join(' ');
+}
+
+/**
+ * Parses a CSS Grid-style tracks string (e.g. "140mm 1fr 1fr" or "140, 1fr, 2fr") into TrackSize[].
+ * Returns null if the string is empty or contains invalid tokens.
+ */
+export function parseGridStringToTracks(input: string): TrackSize[] | null {
+  const tokens = input
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  const tracks: TrackSize[] = [];
+  for (const token of tokens) {
+    const frMatch = token.match(/^([0-9]+(?:\.[0-9]+)?)fr$/i);
+    if (frMatch && frMatch[1]) {
+      const val = Number.parseFloat(frMatch[1]);
+      if (val > 0) {
+        tracks.push({ type: 'fractional', valueFr: val });
+        continue;
+      }
+    }
+    const mmMatch = token.match(/^([0-9]+(?:\.[0-9]+)?)(?:mm)?$/i);
+    if (mmMatch && mmMatch[1]) {
+      const val = Number.parseFloat(mmMatch[1]);
+      if (val > 0) {
+        tracks.push({ type: 'fixed', valueMm: Math.round(val) });
+        continue;
+      }
+    }
+    return null;
+  }
+  return tracks.length > 0 ? tracks : null;
+}

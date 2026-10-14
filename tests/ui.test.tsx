@@ -121,6 +121,10 @@ describe('ModuleForm Component', () => {
 
     // Drawer controls (answers user request: cajones y distribucion)
     expect(html).toContain('3 Cajones');
+    expect(html).toContain('Pistas de cajón (Sintaxis CSS Grid):');
+    expect(html).toContain('value="140mm 1fr 1fr"');
+    expect(html).toContain('1fr 1fr 1fr (3 iguales)');
+    expect(html).toContain('Proporción y alturas reales');
     expect(html).toContain('Distribución de alturas:');
     expect(html).toContain('Todos iguales');
     expect(html).toContain('Cubertero + Olleros');

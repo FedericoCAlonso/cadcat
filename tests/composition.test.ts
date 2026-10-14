@@ -3,6 +3,8 @@ import {
   resolveCarcass,
   resolveTracks,
   subdivideBay,
+  formatTracksToGridString,
+  parseGridStringToTracks,
   resolveBayContent,
   buildModularModule,
   getModularPresetById,
@@ -373,6 +375,44 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
 
       const drawerFronts = output.module.pieces.filter((p) => p.role === 'drawer-front');
       expect(drawerFronts.length).toBe(3);
+    });
+  });
+
+  describe('1.5 CSS Grid Track String Parsing and Formatting', () => {
+    it('formats TrackSize arrays into CSS Grid strings', () => {
+      expect(formatTracksToGridString([
+        { type: 'fixed', valueMm: 140 },
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ])).toBe('140mm 1fr 1fr');
+
+      expect(formatTracksToGridString([
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 2 },
+      ])).toBe('1fr 2fr');
+    });
+
+    it('parses CSS Grid strings into TrackSize arrays', () => {
+      expect(parseGridStringToTracks('140mm 1fr 1fr')).toEqual([
+        { type: 'fixed', valueMm: 140 },
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ]);
+
+      expect(parseGridStringToTracks('120 1fr 2.5fr')).toEqual([
+        { type: 'fixed', valueMm: 120 },
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 2.5 },
+      ]);
+
+      expect(parseGridStringToTracks('140mm, 1fr, 1fr')).toEqual([
+        { type: 'fixed', valueMm: 140 },
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ]);
+
+      expect(parseGridStringToTracks('invalid-string')).toBeNull();
+      expect(parseGridStringToTracks('')).toBeNull();
     });
   });
 });

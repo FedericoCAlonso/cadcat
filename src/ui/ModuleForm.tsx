@@ -10,7 +10,11 @@ import type {
   DoorMountType,
   TrackSize,
 } from '../resolver';
-import { resolveTracks } from '../resolver';
+import {
+  resolveTracks,
+  formatTracksToGridString,
+  parseGridStringToTracks,
+} from '../resolver';
 import { translateTemplateName, translateEdgeBandKind } from './localization';
 
 export interface ModuleFormProps {
@@ -68,6 +72,7 @@ export interface ModuleFormProps {
   ) => void;
   onDrawerTopHeightChange?: (bayIndex: number, heightMm: number) => void;
   onDrawerTrackChange?: (bayIndex: number, trackIndex: number, track: TrackSize) => void;
+  onDrawerTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onDrawerGapChange?: (bayIndex: number, gapMm: number) => void;
   onDrawerTransomsChange?: (bayIndex: number, hasTransoms: boolean) => void;
   onDoorCountChange?: (bayIndex: number, count: 1 | 2) => void;
@@ -129,6 +134,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onDrawerDistributionPresetChange,
     onDrawerTopHeightChange,
     onDrawerTrackChange,
+    onDrawerTracksChange,
     onDrawerGapChange,
     onDrawerTransomsChange,
     onDoorCountChange,
@@ -560,6 +566,159 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 </button>
               </div>
             </div>
+
+            {/* Definición de pistas estilo CSS Grid (Proporciones y Medidas) */}
+            <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+              <label htmlFor="input-grid-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                📐 Pistas de cajón (Sintaxis CSS Grid):
+              </label>
+              <input
+                id="input-grid-tracks"
+                type="text"
+                className="m3-input"
+                style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem', margin: '0.35rem 0' }}
+                value={formatTracksToGridString(activeBay.drawerTracks)}
+                placeholder="ej. 140mm 1fr 1fr o 1fr 2fr 1fr"
+                onChange={(e) => {
+                  const parsed = parseGridStringToTracks(e.target.value);
+                  if (parsed && parsed.length > 0) {
+                    onDrawerTracksChange?.(currentActiveIndex, parsed);
+                  }
+                }}
+              />
+              <small style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem' }}>
+                Definí cualquier combinación de medidas fijas (ej. <code>140mm</code>) y proporciones (ej. <code>1fr</code>, <code>2fr</code>), como en CSS Grid.
+              </small>
+
+              <span style={{ font: 'var(--md-sys-typescale-label-small)', color: 'var(--md-sys-color-on-surface-variant)', display: 'block', marginBottom: '0.35rem' }}>
+                Atajos de proporción rápidos:
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                <button
+                  type="button"
+                  className="m3-chip"
+                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                  onClick={() =>
+                    onDrawerTracksChange?.(currentActiveIndex, [
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                    ])
+                  }
+                >
+                  1fr 1fr 1fr (3 iguales)
+                </button>
+                <button
+                  type="button"
+                  className="m3-chip"
+                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                  onClick={() =>
+                    onDrawerTracksChange?.(currentActiveIndex, [
+                      { type: 'fixed', valueMm: 140 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                    ])
+                  }
+                >
+                  140mm 1fr 1fr (cubertero + 2)
+                </button>
+                <button
+                  type="button"
+                  className="m3-chip"
+                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                  onClick={() =>
+                    onDrawerTracksChange?.(currentActiveIndex, [
+                      { type: 'fixed', valueMm: 140 },
+                      { type: 'fixed', valueMm: 140 },
+                      { type: 'fractional', valueFr: 1 },
+                    ])
+                  }
+                >
+                  140mm 140mm 1fr (2 cuberteros + 1)
+                </button>
+                <button
+                  type="button"
+                  className="m3-chip"
+                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                  onClick={() =>
+                    onDrawerTracksChange?.(currentActiveIndex, [
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 2 },
+                      { type: 'fractional', valueFr: 2 },
+                    ])
+                  }
+                >
+                  1fr 2fr 2fr (1 chico + 2 grandes)
+                </button>
+                <button
+                  type="button"
+                  className="m3-chip"
+                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                  onClick={() =>
+                    onDrawerTracksChange?.(currentActiveIndex, [
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                    ])
+                  }
+                >
+                  1fr 1fr 1fr 1fr (4 iguales)
+                </button>
+                <button
+                  type="button"
+                  className="m3-chip"
+                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                  onClick={() =>
+                    onDrawerTracksChange?.(currentActiveIndex, [
+                      { type: 'fixed', valueMm: 120 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                    ])
+                  }
+                >
+                  120mm 1fr 1fr 1fr (1 fijo + 3)
+                </button>
+              </div>
+            </div>
+
+            {/* Visualizador de proporción y alturas calculadas */}
+            {resolvedDrawerHeights.length > 0 && (
+              <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.4rem' }}>
+                  📊 Proporción y alturas reales ({estimatedBayCavityHeight} mm luz libre):
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', borderRadius: '4px', overflow: 'hidden' }}>
+                  {resolvedDrawerHeights.map((h, i) => {
+                    const track = activeBay.drawerTracks[i];
+                    const isFixed = track?.type === 'fixed';
+                    const trackLabel = isFixed ? `${track.valueMm}mm fijo` : `${track?.valueFr ?? 1}fr prop.`;
+                    const pct = Math.max(14, Math.round((h / Math.max(1, estimatedBayCavityHeight)) * 100));
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          minHeight: `${Math.max(28, Math.round(pct * 0.75))}px`,
+                          backgroundColor: isFixed ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-primary-container)',
+                          color: isFixed ? 'var(--md-sys-color-on-tertiary-container)' : 'var(--md-sys-color-on-primary-container)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>{`Cajón ${i + 1} (${trackLabel})`}</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{`${h} mm`}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Distribución de alturas */}
             <div className="form-group">

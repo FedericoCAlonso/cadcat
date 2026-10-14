@@ -132,6 +132,7 @@ export interface ModuleViewModelState {
   setDrawerDistributionPreset: (bayIndex: number, preset: 'equal' | 'cutlery-top' | 'custom', topHeightMm?: number) => void;
   setDrawerTopHeight: (bayIndex: number, heightMm: number) => void;
   setDrawerTrack: (bayIndex: number, trackIndex: number, track: TrackSize) => void;
+  setDrawerTracks: (bayIndex: number, tracks: TrackSize[]) => void;
   setDrawerGap: (bayIndex: number, gapMm: number) => void;
   setDrawerTransoms: (bayIndex: number, hasTransoms: boolean) => void;
   setDoorCount: (bayIndex: number, count: 1 | 2) => void;
@@ -542,6 +543,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         tracks[trackIndex] = track;
         next[bayIndex] = { ...current, drawerTracks: tracks };
       }
+      return next;
+    });
+  }, []);
+
+  const setDrawerTracks = useCallback((bayIndex: number, tracks: TrackSize[]) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'drawer-stack') return prev;
+      if (tracks.length === 0) return prev;
+
+      next[bayIndex] = { ...current, drawerTracks: tracks };
       return next;
     });
   }, []);
@@ -1171,6 +1185,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setDrawerDistributionPreset,
     setDrawerTopHeight,
     setDrawerTrack,
+    setDrawerTracks,
     setDrawerGap,
     setDrawerTransoms,
     setDoorCount,

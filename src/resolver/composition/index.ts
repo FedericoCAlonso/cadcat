@@ -28,6 +28,8 @@ export {
   type SubdivideBayResult,
   resolveTracks,
   subdivideBay,
+  formatTracksToGridString,
+  parseGridStringToTracks,
 } from './gridSolver';
 
 export {

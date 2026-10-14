@@ -190,6 +190,8 @@ export {
   type SubdivideBayResult,
   resolveTracks,
   subdivideBay,
+  formatTracksToGridString,
+  parseGridStringToTracks,
   type ComponentSolverOptions,
   type ComponentSolverResult,
   resolveBayContent,
