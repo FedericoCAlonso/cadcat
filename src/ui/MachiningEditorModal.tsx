@@ -129,13 +129,16 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
     >
       <div className={`m3-modal-dialog machining-editor-dialog ${isMaximized ? 'machining-editor-dialog--maximized' : ''}`}>
         {/* Header */}
-        <div className="m3-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
+        <div className="m3-modal-header machining-editor-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="machining-editor-header-text">
             <h3 className="m3-modal-title">
-              🛠️ Editor de Mecanizados en Placa: <strong>{piece.id}</strong>
+              <span className="desktop-only-text">🛠️ Editor de Mecanizados en Placa: </span>
+              <span className="mobile-only-inline" aria-hidden="true" style={{ marginRight: '0.2rem' }}>🛠️</span>
+              <strong>{piece.id}</strong>
             </h3>
             <p className="m3-modal-subtitle">
-              {`Medidas: ${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} × ${piece.thicknessMm} mm | Rol: ${piece.role}`}
+              <span className="machining-header-dim-badge">{`${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} × ${piece.thicknessMm} mm`}</span>
+              <span className="desktop-only-text">{` | Rol: ${piece.role}`}</span>
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
@@ -150,7 +153,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
             </button>
             <button
               type="button"
-              className="m3-btn m3-btn--text"
+              className="m3-btn m3-btn--text machining-close-btn"
               onClick={vm.onClose}
               style={{ fontSize: '1.25rem', padding: '0.2rem 0.6rem' }}
               aria-label="Cerrar modal"
@@ -702,22 +705,33 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
 
             {/* Interactive 2D Technical SVG Canvas */}
             <div className="machining-editor-canvas-column">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '0.4rem' }}>
-                <h5 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface)' }}>
-                  Vista Técnica 2D ({vm.faceType === 'face-A' ? 'Cara A' : 'Cara B'}):
-                </h5>
+              <div className="machining-canvas-sub-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '0.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <h5 style={{ margin: 0, fontSize: '0.82rem', color: 'var(--md-sys-color-on-surface)' }}>
+                    Vista Técnica 2D ({vm.faceType === 'face-A' ? 'Cara A' : 'Cara B'}):
+                  </h5>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal mobile-only-inline"
+                    style={{ padding: '0.1rem 0.4rem', fontSize: '0.72rem' }}
+                    onClick={() => vm.setFaceType(vm.faceType === 'face-A' ? 'face-B' : 'face-A')}
+                    title="Alternar entre Cara A y Cara B"
+                  >
+                    🔄 {vm.faceType === 'face-A' ? 'Ir a Cara B' : 'Ir a Cara A'}
+                  </button>
+                </div>
                 {vm.cursorPosMm && (
                   <span
                     style={{
                       fontSize: '0.75rem',
                       fontFamily: 'monospace',
-                      padding: '0.15rem 0.5rem',
+                      padding: '0.12rem 0.4rem',
                       backgroundColor: 'var(--md-sys-color-secondary-container)',
                       color: 'var(--md-sys-color-on-secondary-container)',
                       borderRadius: '4px',
                     }}
                   >
-                    X: {vm.cursorPosMm.x} mm | Y: {vm.cursorPosMm.y} mm
+                    X:{Math.round(vm.cursorPosMm.x)} Y:{Math.round(vm.cursorPosMm.y)}
                     {vm.snapResult?.label ? ` • ${vm.snapResult.label}` : ''}
                   </span>
                 )}
@@ -1071,7 +1085,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 </button>
               </div>
 
-              <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="desktop-only-legend" style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span>🔴 Datum (0,0)</span>
                 <span>🔵 Contacto con placas</span>
                 <span>🧲 Snaps magnéticos</span>
@@ -1084,7 +1098,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
         </div>
 
         {/* Footer */}
-        <div className="m3-modal-footer">
+        <div className="m3-modal-footer desktop-only-control">
           <button type="button" className="m3-btn m3-btn--tonal" onClick={vm.onClose}>
             Listo / Cerrar
           </button>

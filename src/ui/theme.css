@@ -1755,6 +1755,17 @@ body {
   display: none !important;
 }
 
+.desktop-only-text,
+.desktop-only-legend,
+.desktop-only-control {
+  display: revert;
+}
+
+.machining-header-dim-badge {
+  font-size: 0.85rem;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
 @media (max-width: 768px) {
   .m3-modal-overlay {
     padding: 0 !important;
@@ -1770,40 +1781,96 @@ body {
     border: none !important;
     display: flex !important;
     flex-direction: column !important;
+    overflow: hidden !important;
   }
 
-  .machining-editor-dialog .m3-modal-header {
-    padding: 0.65rem 0.85rem !important;
+  .machining-editor-header {
+    padding: 0.35rem 0.65rem !important;
+    min-height: 42px !important;
+    height: 42px !important;
     flex-shrink: 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .machining-editor-header-text {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
   }
 
   .machining-editor-dialog .m3-modal-title {
-    font-size: 0.95rem !important;
+    font-size: 0.88rem !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
   }
 
   .machining-editor-dialog .m3-modal-subtitle {
-    font-size: 0.75rem !important;
+    font-size: 0.72rem !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .machining-header-dim-badge {
+    font-size: 0.72rem !important;
+    padding: 0.1rem 0.35rem !important;
+    background: var(--md-sys-color-secondary-container) !important;
+    color: var(--md-sys-color-on-secondary-container) !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+  }
+
+  .desktop-only-text,
+  .desktop-only-legend,
+  .desktop-only-control {
+    display: none !important;
+  }
+
+  .mobile-only-inline {
+    display: inline-flex !important;
+  }
+
+  .machining-editor-mobile-tabs {
+    display: block !important;
+    padding: 0.25rem 0.5rem 0.15rem !important;
+    background-color: var(--md-sys-color-surface-container-low) !important;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant) !important;
+    flex-shrink: 0 !important;
   }
 
   .machining-editor-dialog .m3-modal-body {
     flex: 1 1 auto !important;
-    overflow-y: auto !important;
-    padding: 0.5rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 0.35rem 0.5rem !important;
     max-height: none !important;
+    min-height: 0 !important;
   }
 
-  .machining-editor-mobile-tabs {
-    display: block;
-    padding: 0.4rem 0.6rem 0.2rem;
-    background-color: var(--md-sys-color-surface-container-low);
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
-    flex-shrink: 0;
+  .machining-editor-dialog .m3-modal-footer {
+    display: none !important;
   }
 
   .machining-editor-layout {
     display: flex !important;
     flex-direction: column !important;
-    gap: 0.75rem !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 0.35rem !important;
   }
 
   .machining-tool-chips-scroll {
@@ -1818,22 +1885,34 @@ body {
     white-space: nowrap;
   }
 
-  .desktop-only-control {
-    display: none !important;
-  }
-
-  .mobile-only-inline {
-    display: inline-flex !important;
-  }
-
   /* Mobile Tabs View Switching */
   .machining-editor-layout.mobile-tab--canvas .machining-editor-sidebar {
     display: none !important;
   }
 
+  .machining-editor-layout.mobile-tab--canvas {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
   .machining-editor-layout.mobile-tab--canvas .machining-editor-canvas-column {
     display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
     width: 100% !important;
+  }
+
+  .machining-editor-layout.mobile-tab--canvas .m3-modal-svg-canvas {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 280px !important;
+    max-height: none !important;
+    padding: 0.15rem !important;
   }
 
   .machining-editor-layout.mobile-tab--controls .machining-editor-canvas-column {
@@ -1842,7 +1921,11 @@ body {
 
   .machining-editor-layout.mobile-tab--controls .machining-editor-sidebar {
     display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
     width: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
   }
 
   .machining-editor-layout.mobile-tab--list .machining-editor-canvas-column {
@@ -1855,7 +1938,11 @@ body {
 
   .machining-editor-layout.mobile-tab--list .machining-editor-sidebar {
     display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
     width: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
   }
 
   .machining-editor-layout.mobile-tab--list .machining-custom-ops-section {
@@ -1865,15 +1952,15 @@ body {
 
   .machining-mobile-canvas-actions {
     display: flex !important;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    width: 100%;
+    gap: 0.5rem !important;
+    margin-top: 0.35rem !important;
+    width: 100% !important;
+    flex-shrink: 0 !important;
   }
 
-  .m3-modal-svg-canvas {
-    height: calc(100dvh - 290px) !important;
-    min-height: 260px;
-    padding: 0.25rem !important;
+  .machining-canvas-sub-header {
+    flex-shrink: 0 !important;
+    margin-bottom: 0.2rem !important;
   }
 }
 
