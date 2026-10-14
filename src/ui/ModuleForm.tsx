@@ -7,6 +7,8 @@ import type {
   BayContent,
   DrawerSlideType,
   DrawerFrontMount,
+  DrawerType,
+  DrawerBottomMount,
   DoorMountType,
   TrackSize,
 } from '../resolver';
@@ -68,6 +70,10 @@ export interface ModuleFormProps {
   onDrawerTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onDrawerGapChange?: (bayIndex: number, gapMm: number) => void;
   onDrawerTransomsChange?: (bayIndex: number, hasTransoms: boolean) => void;
+  onDrawerTypeChange?: (bayIndex: number, type: DrawerType) => void;
+  onDrawerBottomMountChange?: (bayIndex: number, mount: DrawerBottomMount) => void;
+  onDrawerTopPullGapChange?: (bayIndex: number, gapMm: number) => void;
+  onDrawerBoxSideHeightOffsetChange?: (bayIndex: number, offsetMm: number) => void;
   onDoorCountChange?: (bayIndex: number, count: 1 | 2) => void;
   onDoorMountTypeChange?: (bayIndex: number, mount: DoorMountType) => void;
   onBifoldDirectionChange?: (bayIndex: number, dir: 'vertical-lift' | 'horizontal-book') => void;
@@ -151,6 +157,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onDrawerTracksChange,
     onDrawerGapChange,
     onDrawerTransomsChange,
+    onDrawerTypeChange,
+    onDrawerBottomMountChange,
+    onDrawerTopPullGapChange,
+    onDrawerBoxSideHeightOffsetChange,
     onDoorCountChange,
     onDoorMountTypeChange,
     onBifoldDirectionChange,
@@ -810,24 +820,114 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
 
             <div className="form-group">
-              <label>Montaje de frentes:</label>
+              <label>Tipo de cajón:</label>
               <div className="builder-segmented-group">
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.frontMount === 'applied' ? 'selected' : ''}`}
-                  onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'applied')}
+                  className={`builder-segmented-btn ${activeBay.drawerType !== 'simple-interior' ? 'selected' : ''}`}
+                  onClick={() => onDrawerTypeChange?.(currentActiveIndex, 'standard')}
                 >
-                  Aplicado (Solapado)
+                  Estándar (Doble frente)
                 </button>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.frontMount === 'inset' ? 'selected' : ''}`}
-                  onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'inset')}
+                  className={`builder-segmented-btn ${activeBay.drawerType === 'simple-interior' ? 'selected' : ''}`}
+                  onClick={() => onDrawerTypeChange?.(currentActiveIndex, 'simple-interior')}
                 >
-                  Embutido
+                  Simple Interior (Placard / 1 tapa)
                 </button>
               </div>
             </div>
+
+            {/* Opciones para cajón simple interior de placard */}
+            {activeBay.drawerType === 'simple-interior' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                <div>
+                  <label htmlFor="drawer-top-pull" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                    Ranura superior para tirar:
+                  </label>
+                  <select
+                    id="drawer-top-pull"
+                    className="m3-select"
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    value={activeBay.topPullGapMm ?? 0}
+                    onChange={(e) => onDrawerTopPullGapChange?.(currentActiveIndex, Number(e.target.value))}
+                  >
+                    <option value="0">0 mm (Con tirador)</option>
+                    <option value="25">25 mm (Mano / Uñero)</option>
+                    <option value="30">30 mm (Acceso estándar)</option>
+                    <option value="35">35 mm (Acceso amplio)</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="drawer-side-offset" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                    Laterales más bajos que frente:
+                  </label>
+                  <select
+                    id="drawer-side-offset"
+                    className="m3-select"
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    value={activeBay.boxSideHeightOffsetMm ?? 0}
+                    onChange={(e) => onDrawerBoxSideHeightOffsetChange?.(currentActiveIndex, Number(e.target.value))}
+                  >
+                    <option value="0">Misma altura</option>
+                    <option value="30">30 mm más bajos</option>
+                    <option value="40">40 mm más bajos</option>
+                    <option value="50">50 mm más bajos</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="form-group">
+              <label>Construcción del fondo:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.bottomMount === 'grooved' ? 'selected' : ''}`}
+                  onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'grooved')}
+                >
+                  Ranurado (3-6 mm)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.bottomMount === 'bottom-screwed' ? 'selected' : ''}`}
+                  onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'bottom-screwed')}
+                >
+                  Atornillado/Clavado por debajo
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${!activeBay.bottomMount || activeBay.bottomMount === 'flush-thick' ? 'selected' : ''}`}
+                  onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'flush-thick')}
+                >
+                  Grueso embutido (15/18 mm)
+                </button>
+              </div>
+            </div>
+
+            {/* Montaje de frentes (solo si es estándar) */}
+            {activeBay.drawerType !== 'simple-interior' && (
+              <div className="form-group">
+                <label>Montaje de frentes:</label>
+                <div className="builder-segmented-group">
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${activeBay.frontMount === 'applied' ? 'selected' : ''}`}
+                    onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'applied')}
+                  >
+                    Aplicado (Solapado)
+                  </button>
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${activeBay.frontMount === 'inset' ? 'selected' : ''}`}
+                    onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'inset')}
+                  >
+                    Embutido
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Travesaños separadores para cajones embutidos */}
             {activeBay.frontMount === 'inset' && (

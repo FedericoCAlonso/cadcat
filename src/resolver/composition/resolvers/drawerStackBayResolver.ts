@@ -35,6 +35,10 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       hasTransomDividers = false,
       slideType,
       gapMm = 2.0,
+      drawerType = 'standard',
+      bottomMount = 'flush-thick',
+      topPullGapMm = 0,
+      boxSideHeightOffsetMm = 0,
     } = content;
 
     if (drawerTracks.length === 0) {
@@ -119,6 +123,10 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
           frontMount,
           edgeBandId,
           gapMm,
+          drawerType,
+          bottomMount,
+          topPullGapMm,
+          boxSideHeightOffsetMm,
         },
         rootPieceId,
       );

@@ -74,7 +74,7 @@
     "slideClearanceMetalBoxMm": 31.0,
     "slideClearanceRollerMm": 25.0,
     "drawerFrontGapMm": 3.0,
-    "drawerBoxFrontOffsetMm": 10.0,
+    "drawerBoxFrontOffsetMm": 0.0,
     "drawerBoxBottomClearanceMm": 15.0,
     "doorOverlayRevealMm": 1.5,
     "doorHalfOverlayRevealMm": 1.5,

@@ -2,6 +2,41 @@ import * as THREE from 'three';
 import type { PieceMachiningSheet, SheetOperationItem } from '../machiningSheet';
 
 /**
+ * Determines the sign of the normal axis for Face A vs Face B based on the piece's spatial role.
+ * - For right side panels (side-right, drawer-side-r): Face A is INNER (-X into cabinet), Face B is OUTER (+X).
+ * - For left side panels (side-left, drawer-side-l): Face A is INNER (+X into cabinet), Face B is OUTER (-X).
+ * - For roof / top panels: Face A is INNER (-Y into cabinet), Face B is OUTER (+Y).
+ * - For shelves and bottom panels: Face A is TOP (+Y), Face B is BOTTOM (-Y).
+ * - For doors and drawer fronts: Face A is EXTERIOR (+Z), Face B is INTERIOR (-Z).
+ */
+export function getPieceFaceNormalSign(
+  role: string,
+  pieceId: string,
+  isFaceA: boolean,
+  normal: 'x' | 'y' | 'z',
+): number {
+  const r = role.toLowerCase();
+  const id = pieceId.toLowerCase();
+
+  if (normal === 'x') {
+    if (r.includes('side-right') || r.includes('side-r') || id.includes('side-right') || id.includes('side-r')) {
+      return isFaceA ? -1 : 1;
+    }
+    return isFaceA ? 1 : -1;
+  }
+
+  if (normal === 'y') {
+    if (r.includes('roof') || r.includes('top') || id.includes('roof') || id.includes('top')) {
+      return isFaceA ? -1 : 1;
+    }
+    return isFaceA ? 1 : -1;
+  }
+
+  // normal === 'z'
+  return isFaceA ? 1 : -1;
+}
+
+/**
  * Builds a Three.js Group containing 3D visual representations of all machinings
  * (drill holes, hinge cups, grooves, cutouts) for a given piece, positioned in the piece's local coordinates.
  */
@@ -63,12 +98,28 @@ export function buildPieceMachining3DGroup(
 
   const w2d = sheet.dimensionsMm.width || uSize;
   const h2d = sheet.dimensionsMm.height || vSize;
+  const pieceThickness = normal === 'x' ? sx : normal === 'y' ? sy : sz;
+
+  // Set to avoid duplicate meshes for through-holes mirrored across Face A and Face B
+  const renderedThroughOpKeys = new Set<string>();
 
   // Helper to place a cylinder drill hole on a specific face
   const addDrillMesh = (op: SheetOperationItem) => {
+    // Deduplicate mirrored through-holes
+    if (op.isThrough) {
+      const baseKey = op.id.replace(/-through-[AB]$/, '');
+      if (renderedThroughOpKeys.has(baseKey)) {
+        return;
+      }
+      renderedThroughOpKeys.add(baseKey);
+    }
+
     const isHingeCup = op.diameterMm >= 30;
     const radius = Math.max(1.5, op.diameterMm / 2);
-    const depth = Math.min(Math.max(op.depthMm, 2), normal === 'x' ? sx : normal === 'y' ? sy : sz);
+    const depth = op.isThrough
+      ? pieceThickness + 0.2
+      : Math.min(Math.max(op.depthMm, 2), pieceThickness);
+
     const geom = new THREE.CylinderGeometry(radius, radius, depth, isHingeCup ? 24 : 12);
     const mat = isHingeCup ? hingeCupMaterial : drillHoleMaterial;
     const mesh = new THREE.Mesh(geom, mat);
@@ -78,21 +129,18 @@ export function buildPieceMachining3DGroup(
     const vLocal = op.yMm - h2d / 2;
 
     const isFaceA = op.faceType === 'face-A';
-    const normalSign = isFaceA ? 1 : -1;
+    const normalSign = getPieceFaceNormalSign(sheet.role, sheet.pieceId, isFaceA, normal);
 
     if (normal === 'x') {
-      // Cylinder default axis is Y. Rotate to align with X normal.
       mesh.rotation.z = Math.PI / 2;
-      const xPos = normalSign * (sx / 2 - depth / 2 + 0.1);
+      const xPos = op.isThrough ? 0 : normalSign * (sx / 2 - depth / 2 + 0.1);
       mesh.position.set(xPos, vLocal, uLocal);
     } else if (normal === 'y') {
-      // Cylinder default axis is Y, matches normal.
-      const yPos = normalSign * (sy / 2 - depth / 2 + 0.1);
+      const yPos = op.isThrough ? 0 : normalSign * (sy / 2 - depth / 2 + 0.1);
       mesh.position.set(uLocal, yPos, vLocal);
     } else {
-      // Rotate cylinder to align with Z normal.
       mesh.rotation.x = Math.PI / 2;
-      const zPos = normalSign * (sz / 2 - depth / 2 + 0.1);
+      const zPos = op.isThrough ? 0 : normalSign * (sz / 2 - depth / 2 + 0.1);
       mesh.position.set(uLocal, vLocal, zPos);
     }
 
@@ -119,11 +167,10 @@ export function buildPieceMachining3DGroup(
         const gOffset = cop.offsetMm;
 
         const isFaceA = cop.faceType === 'face-A';
-        const normalSign = isFaceA ? 1 : -1;
+        const normalSign = getPieceFaceNormalSign(sheet.role, sheet.pieceId, isFaceA, normal);
 
         if (normal === 'x') {
           // 2D: X along Z, Y along Y
-          // If axis is X: runs along Z across full length, offset along Y
           const gLen = isAxisX ? sz : sy;
           const geom = isAxisX
             ? new THREE.BoxGeometry(gDepth, gWidth, gLen)
@@ -168,12 +215,12 @@ export function buildPieceMachining3DGroup(
       } else if (cop.kind === 'cutout') {
         const cW = cop.widthMm;
         const cH = cop.heightMm;
-        const cDepth = cop.isThrough ? (normal === 'x' ? sx : normal === 'y' ? sy : sz) + 0.2 : cop.depthMm;
+        const cDepth = cop.isThrough ? pieceThickness + 0.2 : cop.depthMm;
         const uLocal = cop.xMm + cW / 2 - w2d / 2;
         const vLocal = cop.yMm + cH / 2 - h2d / 2;
 
         const isFaceA = cop.faceType === 'face-A';
-        const normalSign = isFaceA ? 1 : -1;
+        const normalSign = getPieceFaceNormalSign(sheet.role, sheet.pieceId, isFaceA, normal);
 
         if (normal === 'x') {
           const geom = new THREE.BoxGeometry(cDepth, cH, cW);

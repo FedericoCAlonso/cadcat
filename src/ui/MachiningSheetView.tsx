@@ -1,8 +1,10 @@
 import { useState, type ReactElement } from 'react';
 import {
   renderPieceMachiningSvg,
+  getFaceSemanticLabel,
   type PieceMachiningSheet,
 } from '../resolver';
+import { usePanZoom } from './usePanZoom';
 
 export interface MachiningSheetViewProps {
   sheets: PieceMachiningSheet[];
@@ -22,6 +24,7 @@ export function MachiningSheetView({
   onExportPdf,
 }: MachiningSheetViewProps): ReactElement {
   const [activeFace, setActiveFace] = useState<'face-A' | 'face-B'>('face-A');
+  const panZoom = usePanZoom({ minZoom: 0.4, maxZoom: 5.0, zoomStep: 1.25 });
 
   if (sheets.length === 0) {
     return (
@@ -177,37 +180,121 @@ export function MachiningSheetView({
             className={`m3-segmented-button__item ${activeFace === 'face-A' ? 'selected' : ''}`}
             onClick={() => setActiveFace('face-A')}
           >
-            Cara A (Frente) • {activeSheet.faceAOperations.length} op.
+            {`Cara A: ${getFaceSemanticLabel(activeSheet.role, 'face-A')} (${activeSheet.faceAOperations.length} op.)`}
           </button>
           <button
             type="button"
             className={`m3-segmented-button__item ${activeFace === 'face-B' ? 'selected' : ''}`}
             onClick={() => setActiveFace('face-B')}
           >
-            Cara B (Reverso) • {activeSheet.faceBOperations.length} op.
+            {`Cara B: ${getFaceSemanticLabel(activeSheet.role, 'face-B')} (${activeSheet.faceBOperations.length} op.)`}
             {activeSheet.requiresTurn && ' ⚠️'}
           </button>
         </div>
       </div>
 
-      {/* Technical SVG Drawing Box */}
-      <div className="machining-drawing-container">
+      {/* Technical SVG Drawing Box with CAD Pan & Zoom */}
+      <div
+        className="machining-drawing-container"
+        style={{ position: 'relative', overflow: 'hidden' }}
+        onWheel={panZoom.handleWheel}
+        onPointerDown={(e) => {
+          panZoom.startPan(e.clientX, e.clientY);
+        }}
+        onPointerMove={(e) => {
+          if (panZoom.isPanning) {
+            panZoom.updatePan(e.clientX, e.clientY);
+          }
+        }}
+        onPointerUp={() => {
+          if (panZoom.isPanning) panZoom.endPan();
+        }}
+        onPointerLeave={() => {
+          if (panZoom.isPanning) panZoom.endPan();
+        }}
+      >
+        {/* Floating CAD Zoom Toolbar */}
+        <div
+          className="cad-floating-toolbar"
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            zIndex: 10,
+            display: 'flex',
+            gap: '4px',
+            backgroundColor: 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(4px)',
+            padding: '3px 6px',
+            borderRadius: '6px',
+            boxShadow: 'var(--md-sys-elevation-2)',
+            border: '1px solid var(--md-sys-color-outline-variant)',
+          }}
+        >
+          <button
+            type="button"
+            className="m3-btn m3-btn--small m3-btn--tonal"
+            style={{ padding: '0.15rem 0.45rem', minWidth: '28px' }}
+            onClick={panZoom.zoomIn}
+            title="Acercar Zoom [Rueda del mouse]"
+          >
+            ➕
+          </button>
+          <button
+            type="button"
+            className="m3-btn m3-btn--small m3-btn--tonal"
+            style={{ padding: '0.15rem 0.45rem', minWidth: '28px' }}
+            onClick={panZoom.zoomOut}
+            title="Alejar Zoom"
+          >
+            ➖
+          </button>
+          <button
+            type="button"
+            className="m3-btn m3-btn--small m3-btn--tonal"
+            style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+            onClick={panZoom.fitView}
+            title="Ajustar a pantalla"
+          >
+            ⛶ Ajustar
+          </button>
+          <button
+            type="button"
+            className="m3-btn m3-btn--small m3-btn--outlined"
+            style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+            onClick={panZoom.resetView}
+            title="Restablecer escala 1:1"
+          >
+            {Math.round(panZoom.zoom * 100)}%
+          </button>
+        </div>
+
         <div
           className="machining-svg-wrapper"
+          style={{
+            transform: `translate(${panZoom.pan.x}px, ${panZoom.pan.y}px) scale(${panZoom.zoom})`,
+            transformOrigin: 'center center',
+            transition: panZoom.isPanning ? 'none' : 'transform 0.1s ease-out',
+            cursor: panZoom.isPanning ? 'grabbing' : 'grab',
+            userSelect: 'none',
+          }}
           dangerouslySetInnerHTML={{ __html: svgContent }}
         />
         <div className="machining-legend">
           <span className="legend-item">
             <span className="legend-dot legend-dot--datum" />
-            <strong>Datum (0,0):</strong> Esquina inferior izquierda de referencia
+            <strong>Datum (0,0):</strong> Esquina inferior izquierda
           </span>
           <span className="legend-item">
             <span className="legend-dot legend-dot--cota" />
-            <strong>Cotas X / Y:</strong> Distancias desde los bordes de referencia
+            <strong>Cotas X / Y:</strong> Distancias desde bordes de referencia
           </span>
           <span className="legend-item">
             <span className="legend-dot legend-dot--band" />
             <strong>Línea Azul:</strong> Borde con tapacantos
+          </span>
+          <span className="legend-item" style={{ marginLeft: 'auto', fontStyle: 'italic', fontSize: '0.8rem' }}>
+            🖱️ Paneo: Arrastrar con mouse | 🔍 Zoom: Rueda o botones
           </span>
         </div>
       </div>

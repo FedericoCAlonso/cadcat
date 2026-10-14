@@ -109,10 +109,11 @@ describe('Machining Sheet Resolver (machiningSheet)', () => {
     expect(sheet.bandedEdges.right).toBe(true);
     expect(sheet.bandedEdges.top).toBe(false);
 
-    // 2 on face A, 1 on edge, 0 on face B
+    // 2 on face A, 1 on edge, 2 through-holes projected on face B
     expect(sheet.faceAOperations).toHaveLength(2);
     expect(sheet.edgeOperations).toHaveLength(1);
-    expect(sheet.faceBOperations).toHaveLength(0);
+    expect(sheet.faceBOperations).toHaveLength(2);
+    expect(sheet.faceBOperations[0]?.xMm).toBe(560 - 50); // Mirrored from left edge
     expect(sheet.requiresTurn).toBe(false);
 
     // Distance from Left (X=0) and Bottom (Y=0)
@@ -145,7 +146,8 @@ describe('Machining Sheet Resolver (machiningSheet)', () => {
 
     const sheet = buildPieceMachiningSheet(samplePiece, opsWithFaceB);
     expect(sheet.requiresTurn).toBe(true);
-    expect(sheet.faceBOperations).toHaveLength(1);
+    // 2 through-holes + 1 direct face B operation = 3
+    expect(sheet.faceBOperations).toHaveLength(3);
     expect(sheet.turnInstructions).toContain('GIRAR LA PIEZA');
   });
 
@@ -176,9 +178,21 @@ describe('Machining Sheet Resolver (machiningSheet)', () => {
     expect(svgA).toContain('X:50');
     expect(svgA).toContain('Y:9');
 
-    // Face B SVG (blank face)
+    // Face B SVG (shows mirrored through-holes)
     const svgB = renderPieceMachiningSvg(sheet, 'face-B');
-    expect(svgB).toContain('Sin operaciones en Cara B');
+    expect(svgB).toContain('Ø7x18 🔄');
+    expect(svgB).toContain('X:510');
+
+    // Piece with only blind Face A operations renders 'Sin operaciones en Cara B'
+    const blindOps: DrillOperation[] = [
+      {
+        ...sampleOperations[0]!,
+        isThrough: false,
+      },
+    ];
+    const blindSheet = buildPieceMachiningSheet(samplePiece, blindOps);
+    const svgBlindB = renderPieceMachiningSvg(blindSheet, 'face-B');
+    expect(svgBlindB).toContain('Sin operaciones en Cara B');
   });
 
   it('renders SVG for Face B with turn warning when Face B operations exist', () => {

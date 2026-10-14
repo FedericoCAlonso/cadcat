@@ -149,6 +149,10 @@ export function App(): ReactElement {
                 onDrawerTracksChange={vm.setDrawerTracks}
                 onDrawerGapChange={vm.setDrawerGap}
                 onDrawerTransomsChange={vm.setDrawerTransoms}
+                onDrawerTypeChange={vm.setDrawerType}
+                onDrawerBottomMountChange={vm.setDrawerBottomMount}
+                onDrawerTopPullGapChange={vm.setDrawerTopPullGap}
+                onDrawerBoxSideHeightOffsetChange={vm.setDrawerBoxSideHeightOffset}
                 onDoorCountChange={vm.setDoorCount}
                 onDoorMountTypeChange={vm.setDoorMountType}
                 onBifoldDirectionChange={vm.setBifoldDirection}

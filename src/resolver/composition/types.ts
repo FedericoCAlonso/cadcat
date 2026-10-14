@@ -76,6 +76,8 @@ export interface BayBoundingBox {
 
 export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
 export type DrawerFrontMount = 'applied' | 'inset';
+export type DrawerType = 'standard' | 'simple-interior';
+export type DrawerBottomMount = 'grooved' | 'bottom-screwed' | 'flush-thick';
 export type DoorMountType = 'full-overlay' | 'half-overlay' | 'inset' | 'overlay';
 
 export type BayContent =
@@ -95,6 +97,10 @@ export type BayContent =
       slideType: DrawerSlideType;
       gapMm?: number;
       boxHeightRatio?: number;
+      drawerType?: DrawerType;
+      bottomMount?: DrawerBottomMount;
+      topPullGapMm?: number;
+      boxSideHeightOffsetMm?: number;
     }
   | {
       type: 'pull-out-tray';

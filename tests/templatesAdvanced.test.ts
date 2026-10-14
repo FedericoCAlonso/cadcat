@@ -260,3 +260,135 @@ describe('Integrated Templates - Door Cabinet & Partition Cabinet', () => {
     expect(drawerFronts).toHaveLength(3);
   });
 });
+
+describe('Drawer Customizations: Simple Interior, Bottom Mounts, and Flush Alignment', () => {
+  it('constructs standard drawer with flush box front (boxFrontOffsetMm = 0)', () => {
+    const res = buildDrawerSubAssembly(
+      {
+        idPrefix: 'test-std',
+        index: 1,
+        openingWidthMm: 500,
+        depthMm: 550,
+        frontHeightMm: 200,
+        boxHeightMm: 150,
+        baseYMm: 18,
+        carcaseThicknessMm: 18,
+        materialId: testMaterial.id,
+        slideType: 'telescopic',
+        frontMount: 'applied',
+        boxFrontOffsetMm: 0,
+      },
+      'side-left',
+    );
+
+    // Standard drawer has 6 pieces (front + 2 sides + box front + box back + bottom)
+    expect(res.pieces).toHaveLength(6);
+    expect(res.pieces.some((p) => p.role === 'drawer-front')).toBe(true);
+    expect(res.pieces.some((p) => p.role === 'drawer-box-front')).toBe(true);
+
+    const frontNode = res.placementNodes.find((n) => n.pieceId === 'test-std-front-1')!;
+    const boxFrontNode = res.placementNodes.find((n) => n.pieceId === 'test-std-box-front-1')!;
+    // Front is at Z = -18 (applied), Box front is at Z = 0 -> in flush direct contact
+    expect(frontNode.relativeOffset.z).toBe(-18);
+    expect(boxFrontNode.relativeOffset.z).toBe(0);
+  });
+
+  it('constructs simple-interior drawer (single front, no decorative outer front)', () => {
+    const res = buildDrawerSubAssembly(
+      {
+        idPrefix: 'test-simple',
+        index: 1,
+        openingWidthMm: 500,
+        depthMm: 550,
+        frontHeightMm: 200,
+        boxHeightMm: 150,
+        baseYMm: 18,
+        carcaseThicknessMm: 18,
+        materialId: testMaterial.id,
+        slideType: 'telescopic',
+        drawerType: 'simple-interior',
+        topPullGapMm: 30,
+        boxSideHeightOffsetMm: 25,
+      },
+      'side-left',
+    );
+
+    // Exactly 5 pieces: single front, 2 sides, back, bottom (no separate box front)
+    expect(res.pieces).toHaveLength(5);
+    expect(res.pieces.some((p) => p.role === 'drawer-front')).toBe(true);
+    expect(res.pieces.some((p) => p.role === 'drawer-box-front')).toBe(false);
+
+    // Front height reduced by top pull gap (200 - 2*2 - 30 = 166)
+    const frontPiece = res.pieces.find((p) => p.role === 'drawer-front')!;
+    expect(frontPiece.contour.points[2]!.y).toBe(166);
+
+    // Sides and back height lower than box height (150 - 25 = 125)
+    const sidePiece = res.pieces.find((p) => p.role === 'drawer-side')!;
+    expect(sidePiece.contour.points[2]!.y).toBe(125);
+  });
+
+  it('calculates bottom dimensions for grooved, bottom-screwed, and flush-thick bottom mounts', () => {
+    // 1. Grooved (for 3-6mm bottoms)
+    const grooved = buildDrawerSubAssembly(
+      {
+        idPrefix: 'test-groove',
+        index: 1,
+        openingWidthMm: 500,
+        depthMm: 550,
+        frontHeightMm: 200,
+        boxHeightMm: 150,
+        baseYMm: 18,
+        carcaseThicknessMm: 18,
+        materialId: testMaterial.id,
+        slideType: 'telescopic',
+        bottomMount: 'grooved',
+        grooveDepthMm: 7,
+      },
+      'side-left',
+    );
+    const groovedBottom = grooved.pieces.find((p) => p.role === 'drawer-bottom')!;
+    // Box width: 500 - 25.4 = 475. Inner span: 475 - 36 = 439. Grooved width (with 1mm insertion tolerance): 439 + 2*7 - 1 = 452.
+    expect(groovedBottom.contour.points[1]!.x).toBe(452);
+
+    // 2. Bottom-screwed (covers full box width & depth underneath)
+    const screwed = buildDrawerSubAssembly(
+      {
+        idPrefix: 'test-screw',
+        index: 1,
+        openingWidthMm: 500,
+        depthMm: 550,
+        frontHeightMm: 200,
+        boxHeightMm: 150,
+        baseYMm: 18,
+        carcaseThicknessMm: 18,
+        materialId: testMaterial.id,
+        slideType: 'telescopic',
+        bottomMount: 'bottom-screwed',
+      },
+      'side-left',
+    );
+    const screwedBottom = screwed.pieces.find((p) => p.role === 'drawer-bottom')!;
+    expect(screwedBottom.contour.points[1]!.x).toBe(475); // Full box width
+
+    // 3. Flush-thick (fits inside sides)
+    const thick = buildDrawerSubAssembly(
+      {
+        idPrefix: 'test-thick',
+        index: 1,
+        openingWidthMm: 500,
+        depthMm: 550,
+        frontHeightMm: 200,
+        boxHeightMm: 150,
+        baseYMm: 18,
+        carcaseThicknessMm: 18,
+        materialId: testMaterial.id,
+        slideType: 'telescopic',
+        bottomMount: 'flush-thick',
+      },
+      'side-left',
+    );
+    const thickBottom = thick.pieces.find((p) => p.role === 'drawer-bottom')!;
+    expect(thickBottom.contour.points[1]!.x).toBe(439); // 475 - 36
+  });
+});
+

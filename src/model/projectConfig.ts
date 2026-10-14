@@ -89,7 +89,7 @@ export const hardwareConfigSchema = z.object({
   slideClearanceMetalBoxMm: z.number().positive().default(31.0),
   slideClearanceRollerMm: z.number().positive().default(25.0),
   drawerFrontGapMm: z.number().min(0).default(3.0),
-  drawerBoxFrontOffsetMm: z.number().min(0).default(10.0),
+  drawerBoxFrontOffsetMm: z.number().min(0).default(0.0),
   drawerBoxBottomClearanceMm: z.number().min(0).default(15.0),
   doorOverlayRevealMm: z.number().min(0).default(1.5),
   doorHalfOverlayRevealMm: z.number().min(0).default(1.5),

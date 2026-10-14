@@ -6,6 +6,8 @@ import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
 export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
 export type DrawerFrontMount = 'applied' | 'inset';
+export type DrawerType = 'standard' | 'simple-interior';
+export type DrawerBottomMount = 'grooved' | 'bottom-screwed' | 'flush-thick';
 
 export const DRAWER_SLIDE_CLEARANCES_MM: Record<DrawerSlideType, number> = {
   telescopic: defaultProjectConfigJson.hardware.slideClearanceTelescopicMm ?? 25.4,
@@ -35,6 +37,13 @@ export interface DrawerConfig {
   gapMm?: number;
   boxFrontOffsetMm?: number;
   boxBottomClearanceMm?: number;
+  drawerType?: DrawerType;
+  bottomMount?: DrawerBottomMount;
+  topPullGapMm?: number;
+  boxSideHeightOffsetMm?: number;
+  bottomThicknessMm?: number;
+  grooveOffsetMm?: number;
+  grooveDepthMm?: number;
 }
 
 export interface DrawerSubAssemblyResult {
@@ -46,8 +55,11 @@ export interface DrawerSubAssemblyResult {
 }
 
 /**
- * Builds a drawer sub-assembly with 6 pieces and slide joints.
- * Supports applied (overlay) and inset front mounts, and slide clearance variants.
+ * Builds a drawer sub-assembly with configurable construction:
+ * - standard (double-front: decorative front + box front) or simple-interior (single inset front for wardrobes)
+ * - flush direct contact between decorative front and inner box (boxFrontOffsetMm = 0)
+ * - configurable bottom construction: grooved (thin), bottom-screwed, or flush-thick (heavy-duty)
+ * - optional top hand-pull gap (uñero) and differential side heights
  */
 export function buildDrawerSubAssembly(
   config: DrawerConfig,
@@ -71,8 +83,15 @@ export function buildDrawerSubAssembly(
     customSlideClearanceMm,
     edgeBandId,
     gapMm = 2.0,
-    boxFrontOffsetMm = 10,
+    boxFrontOffsetMm = 0,
     boxBottomClearanceMm = 15,
+    drawerType = 'standard',
+    bottomMount = 'flush-thick',
+    topPullGapMm = 0,
+    boxSideHeightOffsetMm = 0,
+    bottomThicknessMm,
+    grooveOffsetMm = 10,
+    grooveDepthMm = 7,
   } = config;
 
   const actualFrontMaterialId = frontMaterialId ?? materialId;
@@ -89,14 +108,25 @@ export function buildDrawerSubAssembly(
   const placementNodes: PlacementNode[] = [];
   const joints: Joint[] = [];
 
+  const isSimpleInterior = drawerType === 'simple-interior';
+  const isInset = isSimpleInterior || frontMount === 'inset';
+
+  // Effective box side & back height (can be lower than front)
+  const effectiveBoxSideHeight = Math.max(
+    50,
+    boxSideHeightOffsetMm > 0 ? boxHeightMm - boxSideHeightOffsetMm : boxHeightMm,
+  );
+
   // 1. Drawer Front
-  const isInset = frontMount === 'inset';
   const frontWidth = isInset
     ? Math.round(openingWidthMm - 2 * gapMm)
     : Math.round(openingWidthMm + 2 * T - 2 * gapMm);
+
+  const effectiveTopPullGap = isSimpleInterior ? (topPullGapMm ?? 0) : 0;
   const frontHeight = isInset
-    ? Math.round(frontHeightMm - 2 * gapMm)
+    ? Math.round(frontHeightMm - 2 * gapMm - effectiveTopPullGap)
     : frontHeightMm;
+
   const frontOffsetX = isInset ? T + gapMm : gapMm;
   const frontOffsetY = isInset ? baseYMm + gapMm : baseYMm;
   const frontOffsetZ = isInset ? 0 : -T;
@@ -124,28 +154,29 @@ export function buildDrawerSubAssembly(
   });
 
   // Box offset in Z: behind carcase face if applied, behind inset front if inset
+  // boxFrontOffsetMm defaults to 0 so front and box are in flush direct contact
   const boxOffsetZ = isInset ? T + boxFrontOffsetMm : boxFrontOffsetMm;
   const boxY = baseYMm + boxBottomClearanceMm;
+  const boxX = T + Math.round(slideClearance / 2);
 
   // 2. Drawer Box Sides
   const boxSideL = createPiece({
     id: `${idPrefix}-box-side-l-${index}`,
     role: 'drawer-side',
     materialId: actualBoxMaterialId,
-    contour: createRectangularContour(boxDepth, boxHeightMm),
+    contour: createRectangularContour(boxDepth, effectiveBoxSideHeight),
     thicknessMm: actualBoxT,
   });
   const boxSideR = createPiece({
     id: `${idPrefix}-box-side-r-${index}`,
     role: 'drawer-side',
     materialId: actualBoxMaterialId,
-    contour: createRectangularContour(boxDepth, boxHeightMm),
+    contour: createRectangularContour(boxDepth, effectiveBoxSideHeight),
     thicknessMm: actualBoxT,
   });
   pieces.push(boxSideL, boxSideR);
   subPieceIds.push(boxSideL.id, boxSideR.id);
 
-  const boxX = T + Math.round(slideClearance / 2);
   placementNodes.push({
     pieceId: boxSideL.id,
     parentPieceId,
@@ -157,42 +188,81 @@ export function buildDrawerSubAssembly(
     relativeOffset: { x: boxX + drawerBoxWidth - actualBoxT, y: boxY, z: boxOffsetZ },
   });
 
-  // 3. Drawer Box Front & Back
-  const boxFront = createPiece({
-    id: `${idPrefix}-box-front-${index}`,
-    role: 'drawer-box-front',
-    materialId: actualBoxMaterialId,
-    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxHeightMm),
-    thicknessMm: actualBoxT,
-  });
+  // 3. Drawer Box Front (only if standard double-front) & Box Back
+  let boxFront: Piece | null = null;
+
+  if (!isSimpleInterior) {
+    boxFront = createPiece({
+      id: `${idPrefix}-box-front-${index}`,
+      role: 'drawer-box-front',
+      materialId: actualBoxMaterialId,
+      contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxHeightMm),
+      thicknessMm: actualBoxT,
+    });
+    pieces.push(boxFront);
+    subPieceIds.push(boxFront.id);
+
+    placementNodes.push({
+      pieceId: boxFront.id,
+      parentPieceId,
+      relativeOffset: { x: boxX + actualBoxT, y: boxY, z: boxOffsetZ },
+    });
+  }
+
   const boxBack = createPiece({
     id: `${idPrefix}-box-back-${index}`,
     role: 'drawer-box-back',
     materialId: actualBoxMaterialId,
-    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxHeightMm),
+    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, effectiveBoxSideHeight),
     thicknessMm: actualBoxT,
   });
-  pieces.push(boxFront, boxBack);
-  subPieceIds.push(boxFront.id, boxBack.id);
+  pieces.push(boxBack);
+  subPieceIds.push(boxBack.id);
 
-  placementNodes.push({
-    pieceId: boxFront.id,
-    parentPieceId,
-    relativeOffset: { x: boxX + actualBoxT, y: boxY, z: boxOffsetZ },
-  });
   placementNodes.push({
     pieceId: boxBack.id,
     parentPieceId,
     relativeOffset: { x: boxX + actualBoxT, y: boxY, z: boxOffsetZ + boxDepth - actualBoxT },
   });
 
-  // 4. Drawer Bottom
+  // 4. Drawer Bottom Construction
+  let bottomWidth: number;
+  let bottomDepth: number;
+  let bottomThickness: number;
+  let bottomOffsetX: number;
+  let bottomOffsetY: number;
+  let bottomOffsetZ: number;
+
+  if (bottomMount === 'grooved') {
+    bottomThickness = bottomThicknessMm ?? 3;
+    bottomWidth = Math.round(drawerBoxWidth - 2 * actualBoxT + 2 * grooveDepthMm - 1);
+    bottomDepth = Math.round(boxDepth - 2 * actualBoxT + 2 * grooveDepthMm - 1);
+    bottomOffsetX = boxX + actualBoxT - grooveDepthMm + 0.5;
+    bottomOffsetY = boxY + grooveOffsetMm;
+    bottomOffsetZ = boxOffsetZ + (isSimpleInterior ? 0 : actualBoxT) - grooveDepthMm + 0.5;
+  } else if (bottomMount === 'bottom-screwed') {
+    bottomThickness = bottomThicknessMm ?? 3;
+    bottomWidth = drawerBoxWidth;
+    bottomDepth = boxDepth;
+    bottomOffsetX = boxX;
+    bottomOffsetY = boxY - bottomThickness;
+    bottomOffsetZ = boxOffsetZ;
+  } else {
+    // flush-thick (default, 15/18mm)
+    bottomThickness = bottomThicknessMm ?? actualBoxT;
+    bottomWidth = drawerBoxWidth - 2 * actualBoxT;
+    bottomDepth = boxDepth;
+    bottomOffsetX = boxX + actualBoxT;
+    bottomOffsetY = boxY;
+    bottomOffsetZ = boxOffsetZ;
+  }
+
   const boxBottom = createPiece({
     id: `${idPrefix}-box-bottom-${index}`,
     role: 'drawer-bottom',
     materialId: actualBoxMaterialId,
-    contour: createRectangularContour(drawerBoxWidth - 2 * actualBoxT, boxDepth),
-    thicknessMm: actualBoxT,
+    contour: createRectangularContour(bottomWidth, bottomDepth),
+    thicknessMm: bottomThickness,
     structural: false,
   });
   pieces.push(boxBottom);
@@ -201,21 +271,40 @@ export function buildDrawerSubAssembly(
   placementNodes.push({
     pieceId: boxBottom.id,
     parentPieceId,
-    relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
+    relativeOffset: { x: bottomOffsetX, y: bottomOffsetY, z: bottomOffsetZ },
   });
 
-  // Box joints
+  // 5. Box Joints
+  if (boxFront) {
+    joints.push(
+      createJoint({
+        a: { pieceId: boxSideL.id, faceId: 'inner' },
+        b: { pieceId: boxFront.id, faceId: 'left-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: boxSideR.id, faceId: 'inner' },
+        b: { pieceId: boxFront.id, faceId: 'right-edge' },
+        kind: 'confirmat',
+      }),
+    );
+  } else {
+    // Simple-interior: sides connect directly to single front
+    joints.push(
+      createJoint({
+        a: { pieceId: front.id, faceId: 'inner' },
+        b: { pieceId: boxSideL.id, faceId: 'front-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: front.id, faceId: 'inner' },
+        b: { pieceId: boxSideR.id, faceId: 'front-edge' },
+        kind: 'confirmat',
+      }),
+    );
+  }
+
   joints.push(
-    createJoint({
-      a: { pieceId: boxSideL.id, faceId: 'inner' },
-      b: { pieceId: boxFront.id, faceId: 'left-edge' },
-      kind: 'confirmat',
-    }),
-    createJoint({
-      a: { pieceId: boxSideR.id, faceId: 'inner' },
-      b: { pieceId: boxFront.id, faceId: 'right-edge' },
-      kind: 'confirmat',
-    }),
     createJoint({
       a: { pieceId: boxSideL.id, faceId: 'inner' },
       b: { pieceId: boxBack.id, faceId: 'left-edge' },
@@ -229,12 +318,12 @@ export function buildDrawerSubAssembly(
     createJoint({
       a: { pieceId: boxSideL.id, faceId: 'inner' },
       b: { pieceId: boxBottom.id, faceId: 'left-edge' },
-      kind: 'rebate',
+      kind: bottomMount === 'grooved' ? 'groove' : 'rebate',
     }),
     createJoint({
       a: { pieceId: boxSideR.id, faceId: 'inner' },
       b: { pieceId: boxBottom.id, faceId: 'right-edge' },
-      kind: 'rebate',
+      kind: bottomMount === 'grooved' ? 'groove' : 'rebate',
     }),
     // Slide hardware joints connecting drawer sides to cabinet side
     createJoint({
@@ -252,6 +341,9 @@ export function buildDrawerSubAssembly(
       height: boxHeightMm,
       depth: boxDepth,
       slideClearance,
+      isSimpleInterior: isSimpleInterior ? 1 : 0,
+      topPullGapMm: effectiveTopPullGap,
+      boxSideHeightOffsetMm,
     },
     pieceIds: subPieceIds,
   };

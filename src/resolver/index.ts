@@ -158,6 +158,7 @@ export {
   type PieceMachiningSheet,
   buildPieceMachiningSheet,
   buildModuleMachiningSheets,
+  getFaceSemanticLabel,
   renderPieceMachiningSvg,
   exportMachiningSheetPdf,
 } from './machiningSheet';
@@ -201,6 +202,8 @@ export {
   type BayGridDefinition,
   type BayBoundingBox,
   type DrawerFrontMount,
+  type DrawerType,
+  type DrawerBottomMount,
   type BayContent,
   type ModuleMaterialRoles,
   type ModularModuleDefinition,

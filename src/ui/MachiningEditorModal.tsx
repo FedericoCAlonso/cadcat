@@ -1,4 +1,4 @@
-import { useRef, type ReactElement } from 'react';
+import { useRef, useState, useEffect, type ReactElement } from 'react';
 import type { CustomPieceOperation } from '../model';
 import {
   type ResolvedPieceWithCutSize,
@@ -6,6 +6,7 @@ import {
 } from '../resolver';
 import { NumericInput } from './NumericInput';
 import { useMachiningEditorViewModel } from './useMachiningEditorViewModel';
+import { usePanZoom } from './usePanZoom';
 
 export interface MachiningEditorModalProps {
   piece: ResolvedPieceWithCutSize | null;
@@ -19,8 +20,47 @@ export interface MachiningEditorModalProps {
 export function MachiningEditorModal(props: MachiningEditorModalProps): ReactElement | null {
   const { piece } = props;
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const vm = useMachiningEditorViewModel(props);
+  const panZoom = usePanZoom({ minZoom: 0.35, maxZoom: 6.0, zoomStep: 1.25 });
+
+  // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, T=Fasteners, Esc=Close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === 'g') {
+        vm.setOpType('groove');
+      } else if (key === 'r') {
+        vm.setOpType('rebate');
+      } else if (key === 'f' && !e.shiftKey) {
+        vm.setOpType('cutout');
+      } else if (key === 'd') {
+        vm.setOpType('drill');
+      } else if (key === 't') {
+        vm.setOpType('fastener');
+      } else if (e.key === 'Escape') {
+        vm.onClose();
+      } else if (key === 'f' && e.shiftKey) {
+        panZoom.fitView();
+      } else if (e.key === '+' || e.key === '=') {
+        panZoom.zoomIn();
+      } else if (e.key === '-') {
+        panZoom.zoomOut();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [vm, panZoom]);
 
   if (!piece) return null;
 
@@ -46,15 +86,24 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   const toSvgX = (mm: number) => datumX + mm * scale;
   const toSvgY = (mm: number) => datumY - mm * scale;
 
-  // Convert client pointer to local mm coordinates
+  // Convert client pointer to local mm coordinates accounting for pan & zoom
   const handleSvgPointer = (e: React.PointerEvent<SVGSVGElement>, isClick = false) => {
     if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * targetWidth;
-    const py = ((e.clientY - rect.top) / rect.height) * targetHeight;
 
-    const rawMmX = (px - datumX) / scale;
-    const rawMmY = (datumY - py) / scale;
+    if (panZoom.isPanning) {
+      panZoom.updatePan(e.clientX, e.clientY);
+      return;
+    }
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgPxX = ((e.clientX - rect.left) / rect.width) * targetWidth;
+    const svgPxY = ((e.clientY - rect.top) / rect.height) * targetHeight;
+
+    const unpannedSvgX = (svgPxX - panZoom.pan.x) / panZoom.zoom;
+    const unpannedSvgY = (svgPxY - panZoom.pan.y) / panZoom.zoom;
+
+    const rawMmX = (unpannedSvgX - datumX) / scale;
+    const rawMmY = (datumY - unpannedSvgY) / scale;
 
     if (isClick) {
       vm.handleCanvasClick(rawMmX, rawMmY);
@@ -76,9 +125,9 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
         if (e.target === e.currentTarget) vm.onClose();
       }}
     >
-      <div className="m3-modal-dialog machining-editor-dialog">
+      <div className={`m3-modal-dialog machining-editor-dialog ${isMaximized ? 'machining-editor-dialog--maximized' : ''}`}>
         {/* Header */}
-        <div className="m3-modal-header">
+        <div className="m3-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h3 className="m3-modal-title">
               🛠️ Editor de Mecanizados en Placa: <strong>{piece.id}</strong>
@@ -87,15 +136,26 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
               {`Medidas: ${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} × ${piece.thicknessMm} mm | Rol: ${piece.role}`}
             </p>
           </div>
-          <button
-            type="button"
-            className="m3-btn m3-btn--text"
-            onClick={vm.onClose}
-            style={{ fontSize: '1.25rem', padding: '0.2rem 0.6rem' }}
-            aria-label="Cerrar modal"
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="m3-btn m3-btn--small m3-btn--outlined"
+              onClick={() => setIsMaximized(!isMaximized)}
+              title="Alternar Pantalla Completa CAD"
+              aria-label="Maximizar o restaurar modal"
+            >
+              {isMaximized ? '🗗 Restaurar' : '🗖 Maximizar CAD'}
+            </button>
+            <button
+              type="button"
+              className="m3-btn m3-btn--text"
+              onClick={vm.onClose}
+              style={{ fontSize: '1.25rem', padding: '0.2rem 0.6rem' }}
+              aria-label="Cerrar modal"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
@@ -624,29 +684,111 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 )}
               </div>
 
-              <div className="m3-modal-svg-canvas" style={{ width: '100%', position: 'relative' }}>
+              <div className="m3-modal-svg-canvas" style={{ width: '100%', position: 'relative', overflow: 'hidden' }}>
+                {/* Floating CAD Zoom Toolbar */}
+                <div
+                  className="cad-floating-toolbar"
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    zIndex: 10,
+                    display: 'flex',
+                    gap: '4px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+                    backdropFilter: 'blur(4px)',
+                    padding: '3px 6px',
+                    borderRadius: '6px',
+                    boxShadow: 'var(--md-sys-elevation-2)',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    style={{ padding: '0.15rem 0.45rem', minWidth: '28px', fontSize: '0.8rem' }}
+                    onClick={panZoom.zoomIn}
+                    title="Acercar Zoom [Tecla +]"
+                  >
+                    ➕
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    style={{ padding: '0.15rem 0.45rem', minWidth: '28px', fontSize: '0.8rem' }}
+                    onClick={panZoom.zoomOut}
+                    title="Alejar Zoom [Tecla -]"
+                  >
+                    ➖
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                    onClick={panZoom.fitView}
+                    title="Ajustar a pantalla [Shift + F]"
+                  >
+                    ⛶ Ajustar
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--outlined"
+                    style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                    onClick={panZoom.resetView}
+                    title="Restablecer escala 1:1"
+                  >
+                    {Math.round(panZoom.zoom * 100)}%
+                  </button>
+                </div>
+
                 <svg
                   ref={svgRef}
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox={`0 0 ${targetWidth} ${targetHeight}`}
                   width="100%"
                   height="100%"
-                  style={{ backgroundColor: '#fafafa', cursor: 'crosshair', userSelect: 'none', touchAction: 'none' }}
-                  onPointerMove={(e) => handleSvgPointer(e, false)}
-                  onPointerLeave={vm.handlePointerLeave}
-                  onPointerDown={(e) => handleSvgPointer(e, true)}
+                  style={{
+                    backgroundColor: '#fafafa',
+                    cursor: panZoom.isPanning ? 'grabbing' : 'crosshair',
+                    userSelect: 'none',
+                    touchAction: 'none',
+                  }}
+                  onWheel={panZoom.handleWheel}
+                  onPointerDown={(e) => {
+                    if (e.button === 1 || e.button === 2) {
+                      panZoom.startPan(e.clientX, e.clientY);
+                      return;
+                    }
+                    handleSvgPointer(e, true);
+                  }}
+                  onPointerMove={(e) => {
+                    if (panZoom.isPanning) {
+                      panZoom.updatePan(e.clientX, e.clientY);
+                      return;
+                    }
+                    handleSvgPointer(e, false);
+                  }}
+                  onPointerUp={() => {
+                    if (panZoom.isPanning) panZoom.endPan();
+                  }}
+                  onPointerLeave={() => {
+                    if (panZoom.isPanning) panZoom.endPan();
+                    vm.handlePointerLeave();
+                  }}
+                  onContextMenu={(e) => e.preventDefault()}
                 >
-                  {/* Turn banner for Face B */}
-                  {vm.faceType === 'face-B' && vm.previewSheet?.requiresTurn && (
-                    <g>
-                      <rect x="20" y="12" width={targetWidth - 40} height="32" rx="6" fill="#fff3cd" stroke="#ffc107" strokeWidth="1.5" />
-                      <text x={targetWidth / 2} y="32" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#664d03">
-                        ⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B (TURN PIECE OVER)
-                      </text>
-                    </g>
-                  )}
+                  <g transform={`translate(${panZoom.pan.x}, ${panZoom.pan.y}) scale(${panZoom.zoom})`}>
+                    {/* Turn banner for Face B */}
+                    {vm.faceType === 'face-B' && vm.previewSheet?.requiresTurn && (
+                      <g>
+                        <rect x="20" y="12" width={targetWidth - 40} height="32" rx="6" fill="#fff3cd" stroke="#ffc107" strokeWidth="1.5" />
+                        <text x={targetWidth / 2} y="32" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#664d03">
+                          ⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B (TURN PIECE OVER)
+                        </text>
+                      </g>
+                    )}
 
-                  {/* Piece Board Outline */}
+                    {/* Piece Board Outline */}
                   <rect
                     x={originX}
                     y={originY}
@@ -854,13 +996,17 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       />
                     </g>
                   )}
+                  </g>
                 </svg>
               </div>
 
-              <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                <span>🔴 Datum (0,0) en esquina inferior izquierda</span>
-                <span>🔵 Línea punteada: Contacto con placas adyacentes</span>
-                <span>🧲 Snaps: Centros, Cuartos, Línea 37mm, Ejes</span>
+              <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span>🔴 Datum (0,0)</span>
+                <span>🔵 Contacto con placas</span>
+                <span>🧲 Snaps magnéticos</span>
+                <span style={{ marginLeft: 'auto', fontStyle: 'italic', color: 'var(--md-sys-color-primary)' }}>
+                  ⌨️ Teclado: [G] Ranura | [R] Rebaje | [F] Fresado | [D] Perforación | [T] Tornillos | Rueda: Zoom | Botón central: Paneo
+                </span>
               </div>
             </div>
           </div>

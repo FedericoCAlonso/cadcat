@@ -120,17 +120,47 @@ export function buildPieceMachiningSheet(
 
     if (op.faceType === 'face-B') {
       faceBOperations.push(item);
+      if (op.isThrough) {
+        const mirroredX = Math.round(Math.max(0, pWidth - x) * 10) / 10;
+        faceAOperations.push({
+          ...item,
+          id: `${op.id}-through-A`,
+          faceType: 'face-A',
+          xMm: mirroredX,
+          distFromLeftMm: mirroredX,
+          distFromRightMm: x,
+          description: `${item.description} (Pasante)`,
+        });
+      }
     } else if (op.faceType === 'edge') {
       edgeOperations.push(item);
     } else {
       faceAOperations.push(item);
+      if (op.isThrough) {
+        const mirroredX = Math.round(Math.max(0, pWidth - x) * 10) / 10;
+        faceBOperations.push({
+          ...item,
+          id: `${op.id}-through-B`,
+          faceType: 'face-B',
+          xMm: mirroredX,
+          distFromLeftMm: mirroredX,
+          distFromRightMm: x,
+          description: `${item.description} (Pasante)`,
+        });
+      }
     }
   }
 
-  const requiresTurn =
-    faceBOperations.length > 0 || pieceCustomOps.some((op) => op.faceType === 'face-B');
-  const turnInstructions = requiresTurn
-    ? 'GIRAR LA PIEZA: Contiene operaciones en Cara B. Girar la pieza sobre su eje longitudinal para mecanizar Cara B.'
+  const hasDirectFaceBOps =
+    pieceOps.some((op) => op.faceType === 'face-B') ||
+    pieceCustomOps.some((op) => op.faceType === 'face-B');
+  const hasThroughOnB = !hasDirectFaceBOps && faceBOperations.some((o) => o.isThrough);
+
+  const requiresTurn = hasDirectFaceBOps;
+  const turnInstructions = hasDirectFaceBOps
+    ? 'GIRAR LA PIEZA: Contiene operaciones independientes en Cara B. Girar la pieza sobre su eje vertical para mecanizar Cara B.'
+    : hasThroughOnB
+    ? 'Perforaciones pasantes: Los agujeros pasantes atraviesan el tablero y son visibles desde ambas caras.'
     : 'No requiere giro: Todo el mecanizado de cara está en Cara A.';
 
   return {
@@ -166,6 +196,31 @@ export function buildModuleMachiningSheets(
   customOperations: CustomPieceOperation[] = [],
 ): PieceMachiningSheet[] {
   return pieces.map((p) => buildPieceMachiningSheet(p, operations, customOperations));
+}
+
+/**
+ * Returns human-readable semantic orientation for a piece's Face A or Face B.
+ */
+export function getFaceSemanticLabel(role: string, face: 'face-A' | 'face-B'): string {
+  const r = role.toLowerCase();
+  const isA = face === 'face-A';
+  if (r.includes('side') || r.includes('partition') || r.includes('lateral')) {
+    return isA ? 'Cara Interior (Montaje estantes y guías)' : 'Cara Exterior (Avellanados y tornillos)';
+  }
+  if (
+    r.includes('shelf') ||
+    r.includes('bottom') ||
+    r.includes('roof') ||
+    r.includes('estante') ||
+    r.includes('piso') ||
+    r.includes('techo')
+  ) {
+    return isA ? 'Cara Superior' : 'Cara Inferior';
+  }
+  if (r.includes('door') || r.includes('front') || r.includes('puerta') || r.includes('frente')) {
+    return isA ? 'Cara Exterior (Frente visible)' : 'Cara Interior (Reverso)';
+  }
+  return isA ? 'Cara A (Frente)' : 'Cara B (Reverso)';
 }
 
 /**
@@ -251,13 +306,25 @@ export function renderPieceMachiningSvg(
     </g>
   `);
 
-  // Overall Dimensions
+  // Overall Dimensions and Edge Orientation Reference
   svgParts.push(`
     <text x="${originX + drawW / 2}" y="${datumY + 28}" text-anchor="middle" font-size="11" font-weight="bold" fill="#444746">
       Ancho: ${widthMm} mm
     </text>
     <text x="${originX - 18}" y="${originY + drawH / 2}" text-anchor="middle" font-size="11" font-weight="bold" fill="#444746" transform="rotate(-90, ${originX - 18}, ${originY + drawH / 2})">
       Alto: ${heightMm} mm
+    </text>
+    <text x="${originX + drawW / 2}" y="${datumY + 15}" text-anchor="middle" font-size="8" fill="#747775">
+      Borde Inferior (Datum 0)
+    </text>
+    <text x="${originX + drawW / 2}" y="${originY - 8}" text-anchor="middle" font-size="8" fill="#747775">
+      Borde Superior
+    </text>
+    <text x="${originX - 6}" y="${originY + 14}" text-anchor="end" font-size="8" fill="#747775">
+      Borde Izq.
+    </text>
+    <text x="${originX + drawW + 6}" y="${originY + 14}" text-anchor="start" font-size="8" fill="#747775">
+      Borde Der.
     </text>
   `);
 
@@ -374,9 +441,9 @@ export function renderPieceMachiningSvg(
     const calloutY = hy - r - 5;
     svgParts.push(`
       <g>
-        <rect x="${hx - 22}" y="${calloutY - 11}" width="44" height="13" rx="3" fill="#ffffff" stroke="#c4c7c5" stroke-width="0.8" />
-        <text x="${hx}" y="${calloutY - 2}" text-anchor="middle" font-size="8" font-weight="bold" fill="#1f1f1f">
-          Ø${op.diameterMm}x${op.depthMm}
+        <rect x="${hx - 22}" y="${calloutY - 11}" width="44" height="13" rx="3" fill="#ffffff" stroke="${op.isThrough ? '#0b57d0' : '#c4c7c5'}" stroke-width="${op.isThrough ? '1.2' : '0.8'}" />
+        <text x="${hx}" y="${calloutY - 2}" text-anchor="middle" font-size="8" font-weight="bold" fill="${op.isThrough ? '#0b57d0' : '#1f1f1f'}">
+          Ø${op.diameterMm}x${op.depthMm}${op.isThrough ? ' 🔄' : ''}
         </text>
         <text x="${hx}" y="${datumY - 2}" text-anchor="middle" font-size="7.5" fill="#00639b" font-weight="bold">
           X:${op.xMm}

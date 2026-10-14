@@ -11,6 +11,8 @@ export {
   type BayBoundingBox,
   type DrawerSlideType,
   type DrawerFrontMount,
+  type DrawerType,
+  type DrawerBottomMount,
   type DoorMountType,
   type BayContent,
   type ModuleMaterialRoles,

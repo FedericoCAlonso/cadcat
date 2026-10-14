@@ -91,7 +91,7 @@ export function buildDrawerUnit(
   const slideClearance =
     params.slideClearanceMm ?? configClearance ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? DEFAULT_DRAWER_SLIDE_CLEARANCE_MM;
   const gap = params.gapMm ?? hw?.drawerFrontGapMm ?? DEFAULT_DRAWER_GAP_MM;
-  const boxFrontOffset = params.boxFrontOffsetMm ?? hw?.drawerBoxFrontOffsetMm ?? 10;
+  const boxFrontOffset = params.boxFrontOffsetMm ?? hw?.drawerBoxFrontOffsetMm ?? 0;
   const boxBottomClearance = params.boxBottomClearanceMm ?? hw?.drawerBoxBottomClearanceMm ?? 15;
   const T = typeof material.thicknessMm === 'number' ? material.thicknessMm : 18;
   const materialId = material.id;

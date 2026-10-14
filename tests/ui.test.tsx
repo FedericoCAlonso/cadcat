@@ -420,8 +420,8 @@ describe('MachiningSheetView Component', () => {
     expect(html).toContain('base-side-left');
     expect(html).toContain('560 x 800 x 18 mm');
     expect(html).toContain('ATENCIÓN: GIRAR LA PIEZA');
-    expect(html).toContain('Cara A (Frente)');
-    expect(html).toContain('Cara B (Reverso)');
+    expect(html).toContain('Cara Interior');
+    expect(html).toContain('Cara Exterior');
     expect(html).toContain('Confirmat hole');
   });
 
