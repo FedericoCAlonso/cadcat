@@ -79,7 +79,7 @@ describe('Interactive Kinematics (Point 11)', () => {
     expect(bottomBox.kinematicPositionMm.z).toBe(20 - 160);
   });
 
-  it('rotates hinged door open when openRatio > 0', () => {
+  it('rotates hinged door open toward user (-Z) when openRatio > 0', () => {
     const mechs = identifyKinematicMechanisms(sampleBoxes);
     const doorMech = mechs.find((m) => m.kind === 'door-left')!;
 
@@ -88,7 +88,111 @@ describe('Interactive Kinematics (Point 11)', () => {
     });
 
     const doorBox = result.find((b) => b.pieceId === 'bay-1-door-l')!;
-    expect(doorBox.kinematicRotationRad.y).toBeLessThan(0); // Rotated around Y
+    expect(doorBox.kinematicRotationRad.y).toBeGreaterThan(0); // Positive angle swings +X toward -Z
     expect(doorBox.kinematicPositionMm.z).toBeLessThan(0); // Swung forward
+  });
+
+  it('separates individual drawers into independent mechanisms', () => {
+    const multiDrawerBoxes: SpatialPieceBox[] = [
+      {
+        pieceId: 'modular-bay-0-drawer-front-1',
+        role: 'drawer-front',
+        materialId: 'mat-1',
+        thicknessMm: 18,
+        positionMm: { x: 18, y: 500, z: -18 },
+        sizeMm: { x: 564, y: 150, z: 18 },
+        centerMm: { x: 300, y: 575, z: -9 },
+      },
+      {
+        pieceId: 'modular-bay-0-drawer-box-side-l-1',
+        role: 'drawer-side',
+        materialId: 'mat-1',
+        thicknessMm: 15,
+        positionMm: { x: 30, y: 515, z: 10 },
+        sizeMm: { x: 15, y: 120, z: 450 },
+        centerMm: { x: 37.5, y: 575, z: 235 },
+      },
+      {
+        pieceId: 'modular-bay-0-drawer-front-2',
+        role: 'drawer-front',
+        materialId: 'mat-1',
+        thicknessMm: 18,
+        positionMm: { x: 18, y: 300, z: -18 },
+        sizeMm: { x: 564, y: 150, z: 18 },
+        centerMm: { x: 300, y: 375, z: -9 },
+      },
+      {
+        pieceId: 'modular-bay-0-drawer-box-side-l-2',
+        role: 'drawer-side',
+        materialId: 'mat-1',
+        thicknessMm: 15,
+        positionMm: { x: 30, y: 315, z: 10 },
+        sizeMm: { x: 15, y: 120, z: 450 },
+        centerMm: { x: 37.5, y: 375, z: 235 },
+      },
+    ];
+
+    const mechs = identifyKinematicMechanisms(multiDrawerBoxes);
+    expect(mechs).toHaveLength(2);
+    expect(mechs[0]?.name).toBe('Cajón 1');
+    expect(mechs[1]?.name).toBe('Cajón 2');
+    expect(mechs[0]?.pieceIds).toEqual([
+      'modular-bay-0-drawer-front-1',
+      'modular-bay-0-drawer-box-side-l-1',
+    ]);
+    expect(mechs[1]?.pieceIds).toEqual([
+      'modular-bay-0-drawer-front-2',
+      'modular-bay-0-drawer-box-side-l-2',
+    ]);
+
+    // Opening only Drawer 1 moves Drawer 1 pieces, leaving Drawer 2 unmoved
+    const result = calculateKinematicBoxes(multiDrawerBoxes, mechs, {
+      [mechs[0]!.id]: 1.0, // Open drawer 1 only
+    });
+
+    const front1 = result.find((b) => b.pieceId === 'modular-bay-0-drawer-front-1')!;
+    const front2 = result.find((b) => b.pieceId === 'modular-bay-0-drawer-front-2')!;
+
+    expect(front1.kinematicPositionMm.z).toBe(-18 - 320); // Moved -320mm
+    expect(front2.kinematicPositionMm.z).toBe(-18); // Unmoved
+  });
+
+  it('coordinates bi-fold closure leaves in single mechanism', () => {
+    const bifoldBoxes: SpatialPieceBox[] = [
+      {
+        pieceId: 'bay-0-bifold-leaf-1',
+        role: 'bifold-leaf',
+        materialId: 'mat-1',
+        thicknessMm: 18,
+        positionMm: { x: 18, y: 400, z: -18 },
+        sizeMm: { x: 564, y: 300, z: 18 },
+        centerMm: { x: 300, y: 550, z: -9 },
+      },
+      {
+        pieceId: 'bay-0-bifold-leaf-2',
+        role: 'bifold-leaf',
+        materialId: 'mat-1',
+        thicknessMm: 18,
+        positionMm: { x: 18, y: 100, z: -18 },
+        sizeMm: { x: 564, y: 300, z: 18 },
+        centerMm: { x: 300, y: 250, z: -9 },
+      },
+    ];
+
+    const mechs = identifyKinematicMechanisms(bifoldBoxes);
+    expect(mechs).toHaveLength(1);
+    expect(mechs[0]?.kind).toBe('bifold');
+    expect(mechs[0]?.pieceIds).toHaveLength(2);
+
+    const result = calculateKinematicBoxes(bifoldBoxes, mechs, {
+      [mechs[0]!.id]: 0.8,
+    });
+
+    const leaf1 = result.find((b) => b.pieceId === 'bay-0-bifold-leaf-1')!;
+    const leaf2 = result.find((b) => b.pieceId === 'bay-0-bifold-leaf-2')!;
+
+    expect(leaf1.kinematicRotationRad.x).toBeGreaterThan(0);
+    expect(leaf2.kinematicRotationRad.x).toBeGreaterThan(0);
+    expect(leaf1.kinematicPositionMm.z).toBeLessThan(-18);
   });
 });

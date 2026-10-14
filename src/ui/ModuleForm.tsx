@@ -68,13 +68,6 @@ export interface ModuleFormProps {
   onRemoveDrawer?: (bayIndex: number) => void;
   onDrawerFrontMountChange?: (bayIndex: number, mount: DrawerFrontMount) => void;
   onDrawerSlideTypeChange?: (bayIndex: number, slide: DrawerSlideType) => void;
-  onDrawerDistributionPresetChange?: (
-    bayIndex: number,
-    preset: 'equal' | 'cutlery-top' | 'custom',
-    topHeightMm?: number,
-  ) => void;
-  onDrawerTopHeightChange?: (bayIndex: number, heightMm: number) => void;
-  onDrawerTrackChange?: (bayIndex: number, trackIndex: number, track: TrackSize) => void;
   onDrawerTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onDrawerGapChange?: (bayIndex: number, gapMm: number) => void;
   onDrawerTransomsChange?: (bayIndex: number, hasTransoms: boolean) => void;
@@ -158,8 +151,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onRemoveDrawer,
     onDrawerFrontMountChange,
     onDrawerSlideTypeChange,
-    onDrawerDistributionPresetChange,
-    onDrawerTrackChange,
     onDrawerTracksChange,
     onDrawerGapChange,
     onDrawerTransomsChange,
@@ -477,7 +468,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
         {/* Refuerzos Avanzados de Estructura y Zócalo (Punto 7) */}
         {roofType === 'front-back-rails' && (
-          <div className="form-group" style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+          <div className="form-group m3-structure-card">
             <label htmlFor="input-rail-orientation" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
               Orientación de Fajas Superiores:
             </label>
@@ -520,7 +511,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
 
-        <div className="form-group" style={{ marginTop: '0.5rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+        <div className="form-group m3-structure-card">
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
               <input
@@ -754,15 +745,15 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
 
             {/* Definición de pistas estilo CSS Grid (Proporciones y Medidas) */}
-            <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-              <label htmlFor="input-grid-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                📐 Pistas de cajón (Sintaxis CSS Grid):
+            <div className="form-group" style={{ padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+              <label htmlFor="input-grid-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+                📐 Medidas de cajones (mm, fr o mixto):
               </label>
               <input
                 id="input-grid-tracks"
                 type="text"
                 className="m3-input"
-                style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem', margin: '0.35rem 0' }}
+                style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem', margin: '0.25rem 0 0.5rem' }}
                 value={formatTracksToGridString(activeBay.drawerTracks)}
                 placeholder="ej. 140mm 1fr 1fr o 1fr 2fr 1fr"
                 onChange={(e) => {
@@ -772,20 +763,17 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   }
                 }}
               />
-              <small style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem' }}>
-                Definí cualquier combinación de medidas fijas (ej. <code>140mm</code>) y proporciones (ej. <code>1fr</code>, <code>2fr</code>), como en CSS Grid.
-              </small>
 
-              <span style={{ font: 'var(--md-sys-typescale-label-small)', color: 'var(--md-sys-color-on-surface-variant)', display: 'block', marginBottom: '0.35rem' }}>
-                Atajos de proporción rápidos:
-              </span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+                <span style={{ font: 'var(--md-sys-typescale-label-small)', color: 'var(--md-sys-color-on-surface-variant)', marginRight: '0.25rem' }}>
+                  Atajos rápidos:
+                </span>
                 {DEFAULT_UI_CONFIG.quickTrackRecipes.map((recipe, rIdx) => (
                   <button
                     key={rIdx}
                     type="button"
                     className="m3-chip"
-                    style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                    style={{ height: '30px', padding: '0 0.65rem', fontSize: '0.78rem' }}
                     onClick={() =>
                       onDrawerTracksChange?.(currentActiveIndex, recipe.tracks as TrackSize[])
                     }
@@ -800,7 +788,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             {resolvedDrawerHeights.length > 0 && (
               <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
                 <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-                  📊 Proporción y alturas reales (Alturas calculadas de frentes: {estimatedBayCavityHeight} mm luz libre):
+                  📊 Alturas reales calculadas ({estimatedBayCavityHeight} mm luz libre):
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', borderRadius: '4px', overflow: 'hidden' }}>
                   {resolvedDrawerHeights.map((h, i) => {
@@ -832,110 +820,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 </div>
               </div>
             )}
-
-            {/* Atajos Rápidos de Distribución de Alturas (Chips) */}
-            <div className="form-group">
-              <label id="drawer-distribution-label">Atajos de distribución rápida:</label>
-              <div className="builder-chips-row" style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-                <button
-                  type="button"
-                  className="m3-btn m3-btn--tonal"
-                  style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
-                  onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'equal')}
-                >
-                  ⚖️ {t('form.drawers.chips.equal')}
-                </button>
-                {activeBay.drawerTracks.length >= 2 && (
-                  <button
-                    type="button"
-                    className="m3-btn m3-btn--tonal"
-                    style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
-                    onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'cutlery-top', 140)}
-                  >
-                    🥄 {t('form.drawers.chips.cutlery140')}
-                  </button>
-                )}
-                {activeBay.drawerTracks.length >= 2 && (
-                  <button
-                    type="button"
-                    className="m3-btn m3-btn--tonal"
-                    style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
-                    onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'cutlery-top', 100)}
-                  >
-                    🍳 {t('form.drawers.chips.cutlery100')}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Ajuste por cajón - Siempre visible y directamente editable con NumericInput */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
-              <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600 }}>
-                Ajuste por cajón (Cajón 1 es el superior):
-              </span>
-              {activeBay.drawerTracks.map((track, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ minWidth: '125px', font: 'var(--md-sys-typescale-body-small)', fontWeight: 600 }}>
-                    {idx === 0
-                      ? t('form.drawers.drawerTop')
-                      : idx === activeBay.drawerTracks.length - 1
-                      ? t('form.drawers.drawerBottom', { n: idx + 1 })
-                      : t('form.drawers.drawerNumber', { n: idx + 1 }) + ':'}
-                  </span>
-                  <div className="builder-segmented-group" style={{ flex: '1 1 auto', minWidth: '150px' }}>
-                    <button
-                      type="button"
-                      className={`builder-segmented-btn ${track.type === 'fixed' ? 'selected' : ''}`}
-                      style={{ minHeight: '32px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
-                      onClick={() =>
-                        onDrawerTrackChange?.(currentActiveIndex, idx, {
-                          type: 'fixed',
-                          valueMm: track.type === 'fixed' ? track.valueMm : (resolvedDrawerHeights[idx] ?? 140),
-                        })
-                      }
-                    >
-                      Fijo (mm)
-                    </button>
-                    <button
-                      type="button"
-                      className={`builder-segmented-btn ${track.type === 'fractional' ? 'selected' : ''}`}
-                      style={{ minHeight: '32px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
-                      onClick={() =>
-                        onDrawerTrackChange?.(currentActiveIndex, idx, {
-                          type: 'fractional',
-                          valueFr: 1,
-                        })
-                      }
-                    >
-                      Proporcional (fr)
-                    </button>
-                  </div>
-                  {track.type === 'fixed' ? (
-                    <NumericInput
-                      value={track.valueMm}
-                      min={60}
-                      max={800}
-                      step={5}
-                      unit="mm"
-                      style={{ width: '90px' }}
-                      ariaLabel={`Altura fija de cajón ${idx + 1} en mm`}
-                      onChange={(val) => onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fixed', valueMm: val })}
-                    />
-                  ) : (
-                    <NumericInput
-                      value={track.valueFr}
-                      min={1}
-                      max={10}
-                      step={1}
-                      unit="fr"
-                      style={{ width: '70px' }}
-                      ariaLabel={`Proporción de cajón ${idx + 1} en fr`}
-                      onChange={(val) => onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fractional', valueFr: val })}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
 
 
             <div className="form-group">

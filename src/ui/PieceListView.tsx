@@ -305,38 +305,18 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             const matObj = materials?.find((m) => m.id === matId);
 
             return (
-              <div
-                key={matId}
-                className="plate-group-card"
-                style={{
-                  background: '#ffffff',
-                  borderRadius: '10px',
-                  border: '1px solid #d3e3fd',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '0.75rem 1rem',
-                    background: '#f0f4f9',
-                    borderBottom: '1px solid #e0e0e0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '0.5rem',
-                  }}
-                >
+              <div key={matId} className="m3-plate-group-card">
+                <div className="m3-plate-group-header">
                   <div>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#041e49' }}>
+                    <span className="m3-plate-title">
                       🪵 Placa: {matObj?.name ?? matId}
                     </span>
-                    <span style={{ fontSize: '0.85rem', color: '#444746', marginLeft: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)', marginLeft: '0.5rem' }}>
                       (Espesor base: {matPieces[0]?.thicknessMm} mm)
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <span className="m3-badge m3-badge--neutral">
+                    <span className="m3-plate-badge">
                       {matPieces.length} piezas de corte
                     </span>
                     <span className="m3-badge m3-badge--neutral">
@@ -355,18 +335,9 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
 
       {/* Selected Piece Inspector & Inline Property Editor (Point 10 & Point 8) */}
       {selectedPiece && (
-        <div
-          className="piece-selection-inspector"
-          style={{
-            marginTop: '1.5rem',
-            padding: '1rem',
-            background: '#f8fafd',
-            border: '1px solid #c2e7ff',
-            borderRadius: '10px',
-          }}
-        >
+        <div className="m3-inspector-card" style={{ marginTop: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <h4 style={{ margin: 0, fontSize: '1rem', color: '#041e49' }}>
+            <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)' }}>
               🔧 Modificar Placa Seleccionada: <code>{selectedPiece.id}</code> (
               {translatePieceRole(selectedPiece.role)})
             </h4>

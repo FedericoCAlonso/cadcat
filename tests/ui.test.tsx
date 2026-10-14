@@ -121,14 +121,10 @@ describe('ModuleForm Component', () => {
 
     // Drawer controls (answers user request: cajones y distribucion)
     expect(html).toContain('3 Cajones');
-    expect(html).toContain('Pistas de cajón (Sintaxis CSS Grid):');
+    expect(html).toContain('Medidas de cajones (mm, fr o mixto):');
     expect(html).toContain('value="140mm 1fr 1fr"');
-    expect(html).toContain('1fr 1fr 1fr (3 iguales)');
-    expect(html).toContain('Proporción y alturas reales');
-    expect(html).toContain('Atajos de distribución rápida:');
-    expect(html).toContain('Dividir iguales');
-    expect(html).toContain('Cubertero 140 mm + Olleros');
-    expect(html).toContain('Alturas calculadas de frentes:');
+    expect(html).toContain('Atajos rápidos:');
+    expect(html).toContain('Alturas reales calculadas');
     expect(html).toContain('Cajón 1 (Superior):');
     expect(html).toContain('Separación entre frentes (luz):');
     expect(html).toContain('Aplicado (Solapado)');
@@ -172,9 +168,9 @@ describe('ModuleForm Component', () => {
     );
 
     // Custom track controls
-    expect(html).toContain('Ajuste por cajón (Cajón 1 es el superior):');
-    expect(html).toContain('Fijo (mm)');
-    expect(html).toContain('Proporcional (fr)');
+    expect(html).toContain('Medidas de cajones (mm, fr o mixto):');
+    expect(html).toContain('value="120mm 200mm 2fr"');
+    expect(html).toContain('Alturas reales calculadas');
     expect(html).toContain('Travesaños horizontales entre cajones:');
     expect(html).toContain('Con fajas separadoras');
     expect(html).toContain('3.0 mm');

@@ -243,7 +243,7 @@ export function calculateExplodedBoxes(
 export interface KinematicMechanism {
   id: string;
   name: string;
-  kind: 'drawer' | 'door-left' | 'door-right' | 'tray' | 'lift-flap';
+  kind: 'drawer' | 'door-left' | 'door-right' | 'tray' | 'lift-flap' | 'bifold';
   pieceIds: string[];
   travelMm?: number;
 }
@@ -255,25 +255,27 @@ export interface KinematicPieceBox extends SpatialPieceBox {
 }
 
 /**
- * Identifies mobile kinematic mechanisms (drawers, doors, pull-out trays, flaps)
+ * Identifies mobile kinematic mechanisms (drawers, doors, pull-out trays, flaps, bi-fold)
  * from pieces and their spatial positions.
  */
 export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): KinematicMechanism[] {
   const mechanisms: KinematicMechanism[] = [];
   const drawerGroups = new Map<string, string[]>();
   const trayGroups = new Map<string, string[]>();
+  const bifoldGroups = new Map<string, string[]>();
 
   for (const box of boxes) {
     const role = box.role.toLowerCase();
     const id = box.pieceId;
 
-    // 1. Drawers (cajones)
-    const drawerMatch =
-      id.match(/(.*drawer(?:-stack)?-\d+)/i) ||
-      (role.includes('drawer') || role.includes('box-') ? id.match(/(.*drawer[^-]*)/i) : null);
+    // 1. Drawers (cajones) - group per individual drawer using index
+    if (role.includes('drawer') || role.includes('box-')) {
+      const match =
+        id.match(/^(.*?drawer(?:-stack)?)(?:-[a-z-]+)?-(\d+)$/i) ||
+        id.match(/^(.*?drawer.*?)-(\d+)(?:-[a-z-]+)?$/i) ||
+        id.match(/^(.*?)-(\d+)$/);
 
-    if (drawerMatch && drawerMatch[1]) {
-      const groupKey = drawerMatch[1];
+      const groupKey = match ? `${match[1]}-${match[2]}` : (id.match(/(.*drawer[^-]*)/i)?.[1] ?? id);
       const list = drawerGroups.get(groupKey) ?? [];
       list.push(id);
       drawerGroups.set(groupKey, list);
@@ -282,8 +284,8 @@ export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): Kinematic
 
     // 2. Trays (bandejas extraíbles)
     if (role.includes('tray')) {
-      const trayMatch = id.match(/(.*tray[^-]*)/i);
-      const groupKey = trayMatch?.[1] ?? 'pull-out-tray';
+      const match = id.match(/^(.*?tray)(?:-[a-z-]+)?-(\d+)$/i) || id.match(/^(.*?)-(\d+)$/);
+      const groupKey = match ? `${match[1]}-${match[2]}` : id;
       const list = trayGroups.get(groupKey) ?? [];
       list.push(id);
       trayGroups.set(groupKey, list);
@@ -307,8 +309,17 @@ export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): Kinematic
       continue;
     }
 
-    // 4. Bi-fold / lift flaps
+    // 4. Bi-fold closures (tapas plegables elevables)
     if (role.includes('bifold') || role.includes('leaf')) {
+      const groupKey = id.replace(/-leaf-\d+$/i, '') || 'bifold-closure';
+      const list = bifoldGroups.get(groupKey) ?? [];
+      list.push(id);
+      bifoldGroups.set(groupKey, list);
+      continue;
+    }
+
+    // 5. Generic single lift flaps
+    if (role.includes('flap')) {
       mechanisms.push({
         id,
         name: 'Tapa Elevable',
@@ -318,7 +329,7 @@ export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): Kinematic
     }
   }
 
-  // Add gathered drawer mechanisms
+  // Add individual drawer mechanisms
   let drawerNum = 1;
   for (const [key, pieceIds] of drawerGroups.entries()) {
     mechanisms.push({
@@ -339,6 +350,17 @@ export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): Kinematic
       kind: 'tray',
       pieceIds,
       travelMm: 280,
+    });
+  }
+
+  // Add bi-fold mechanisms
+  let bifoldNum = 1;
+  for (const [key, pieceIds] of bifoldGroups.entries()) {
+    mechanisms.push({
+      id: key,
+      name: bifoldGroups.size > 1 ? `Apertura Bi-Fold ${bifoldNum++}` : 'Apertura Bi-Fold',
+      kind: 'bifold',
+      pieceIds,
     });
   }
 
@@ -385,32 +407,48 @@ export function calculateKinematicBoxes(
       const travel = mech.travelMm ?? 300;
       dz = -ratio * travel;
     } else if (mech.kind === 'door-left') {
+      // Swings outward toward user (-Z) around left edge hinge (x = -w/2, z = +t/2)
       const angle = ratio * (Math.PI / 2 + 0.15); // ~100 degrees open
-      ry = -angle;
-      const w = box.sizeMm.x;
-      const t = box.sizeMm.z;
-      const xRot = (w / 2) * Math.cos(angle) + (t / 2) * Math.sin(angle);
-      const zRot = -(w / 2) * Math.sin(angle) + (t / 2) * Math.cos(angle);
-      dx = xRot - w / 2;
-      dz = zRot - t / 2;
-    } else if (mech.kind === 'door-right') {
-      const angle = ratio * (Math.PI / 2 + 0.15);
       ry = angle;
       const w = box.sizeMm.x;
       const t = box.sizeMm.z;
-      const xRot = (-w / 2) * Math.cos(angle) - (t / 2) * Math.sin(angle);
-      const zRot = (-w / 2) * Math.sin(angle) + (t / 2) * Math.cos(angle);
-      dx = xRot - -w / 2;
-      dz = zRot - t / 2;
+      dx = (-w / 2) * (1 - Math.cos(angle)) - (t / 2) * Math.sin(angle);
+      dz = (t / 2) * (1 - Math.cos(angle)) - (w / 2) * Math.sin(angle);
+    } else if (mech.kind === 'door-right') {
+      // Swings outward toward user (-Z) around right edge hinge (x = +w/2, z = +t/2)
+      const angle = ratio * (Math.PI / 2 + 0.15);
+      ry = -angle;
+      const w = box.sizeMm.x;
+      const t = box.sizeMm.z;
+      dx = (w / 2) * (1 - Math.cos(angle)) + (t / 2) * Math.sin(angle);
+      dz = (t / 2) * (1 - Math.cos(angle)) - (w / 2) * Math.sin(angle);
     } else if (mech.kind === 'lift-flap') {
+      // Swings outward & upward around top edge hinge (y = +h/2, z = +t/2)
       const angle = ratio * (Math.PI / 2);
-      rx = -angle;
+      rx = angle;
       const h = box.sizeMm.y;
       const t = box.sizeMm.z;
-      const yRot = (-h / 2) * Math.cos(angle) - (t / 2) * Math.sin(angle);
-      const zRot = (-h / 2) * Math.sin(angle) + (t / 2) * Math.cos(angle);
-      dy = yRot - -h / 2;
-      dz = zRot - t / 2;
+      dy = (h / 2) * (1 - Math.cos(angle)) + (t / 2) * Math.sin(angle);
+      dz = (t / 2) * (1 - Math.cos(angle)) - (h / 2) * Math.sin(angle);
+    } else if (mech.kind === 'bifold') {
+      // Coordinated two-leaf lift (e.g. Aventos HF)
+      const isLeaf1 = box.pieceId.endsWith('leaf-1') || box.pieceId.includes('-1');
+      const angle1 = ratio * 1.15; // Upper leaf rises ~65 degrees
+      const h = box.sizeMm.y;
+      const t = box.sizeMm.z;
+
+      if (isLeaf1) {
+        rx = angle1;
+        dy = (h / 2) * (1 - Math.cos(angle1)) + (t / 2) * Math.sin(angle1);
+        dz = (t / 2) * (1 - Math.cos(angle1)) - (h / 2) * Math.sin(angle1);
+      } else {
+        // Lower leaf follows intermediate hinge of leaf 1, folding forward
+        rx = ratio * 0.25;
+        const leaf1DispY = h * (1 - Math.cos(angle1));
+        const leaf1DispZ = -h * Math.sin(angle1);
+        dy = leaf1DispY + (h / 2) * (1 - Math.cos(rx));
+        dz = leaf1DispZ - (h / 2) * Math.sin(rx);
+      }
     }
 
     return {

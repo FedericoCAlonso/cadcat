@@ -457,22 +457,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
       <div className="viewport-3d-toolbar">
         {kinematicMechanisms && kinematicMechanisms.length > 0 && (
-          <div
-            className="viewport-kinematics-bar"
-            style={{
-              padding: '0.6rem 0.8rem',
-              background: '#eef2fa',
-              borderRadius: '8px',
-              marginBottom: '0.75rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.4rem',
-              border: '1px solid #d3e3fd',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div className="m3-kinematics-bar">
+            <div className="m3-kinematics-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#041e49' }}>
+                <span className="m3-kinematics-title">
                   🎮 Cinemática / Apertura:
                 </span>
                 <select
@@ -678,12 +666,12 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
           {/* Kinematic mechanism action for selected piece (Point 11) */}
           {pieceMech && (
-            <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#eef2fa', borderRadius: '8px', border: '1px solid #c2e7ff' }}>
+            <div className="m3-structure-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#001d35' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--md-sys-color-primary)' }}>
                   🚪 Mecanismo: {pieceMech.name}
                 </span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
                   {Math.round((kinematicsState?.[pieceMech.id] ?? 0) * 100)}%
                 </span>
               </div>
@@ -719,7 +707,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
           {/* Piece-level Material Override (Point 10) */}
           {materials && materials.length > 0 && (
-            <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+            <div className="m3-structure-card">
               <label
                 htmlFor={`viewport-material-override-${selectedPiece.id}`}
                 style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}
@@ -743,7 +731,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
           )}
 
           {/* Piece-level Thickness Override (Point 10) */}
-          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+          <div className="m3-structure-card">
             <label
               htmlFor={`viewport-thickness-override-${selectedPiece.id}`}
               style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}
@@ -768,7 +756,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
           </div>
 
           {/* Piece-level EdgeBand Overrides (Point 10) */}
-          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+          <div className="m3-structure-card">
             <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
               🏷️ Tapacantos en Bordes:
             </span>
@@ -813,7 +801,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
               <div style={{ marginTop: '0.45rem' }}>
                 <label
                   htmlFor={`viewport-edgeband-override-${selectedPiece.id}`}
-                  style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.2rem', color: '#555' }}
+                  style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.2rem', color: 'var(--md-sys-color-on-surface-variant)' }}
                 >
                   Tipo / Espesor de Tapacanto:
                 </label>
@@ -861,7 +849,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
           )}
 
           {/* Piece-level Joint Override (Point 9) */}
-          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+          <div className="m3-structure-card">
             <label
               htmlFor={`viewport-joint-override-${selectedPiece.id}`}
               style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}

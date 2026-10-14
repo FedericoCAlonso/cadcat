@@ -62,8 +62,8 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
 
   return (
     <div className="base-structure-editor" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div className="structure-section" style={{ background: '#f8f9fa', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-        <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#1f1f1f' }}>
+      <div className="m3-structure-card">
+        <h4 className="m3-structure-title">
           🏗️ Unión y Ensamble Estructural
         </h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
@@ -103,8 +103,8 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
       </div>
 
       {roofType === 'front-back-rails' && (
-        <div className="structure-section" style={{ background: '#f8f9fa', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-          <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#1f1f1f' }}>
+        <div className="m3-structure-card">
+          <h4 className="m3-structure-title">
             🪚 Travesaños y Refuerzos Superiores
           </h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
@@ -154,8 +154,8 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
         </div>
       )}
 
-      <div className="structure-section" style={{ background: '#f8f9fa', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-        <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#1f1f1f' }}>
+      <div className="m3-structure-card">
+        <h4 className="m3-structure-title">
           🧱 Faja de Colgado / Amarre y Zócalo
         </h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>

@@ -146,9 +146,6 @@ export function App(): ReactElement {
                 onRemoveDrawer={vm.removeDrawer}
                 onDrawerFrontMountChange={vm.setDrawerFrontMount}
                 onDrawerSlideTypeChange={vm.setDrawerSlideType}
-                onDrawerDistributionPresetChange={vm.setDrawerDistributionPreset}
-                onDrawerTopHeightChange={vm.setDrawerTopHeight}
-                onDrawerTrackChange={vm.setDrawerTrack}
                 onDrawerTracksChange={vm.setDrawerTracks}
                 onDrawerGapChange={vm.setDrawerGap}
                 onDrawerTransomsChange={vm.setDrawerTransoms}

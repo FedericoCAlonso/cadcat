@@ -330,7 +330,7 @@ export function CatalogManagerView({
                         <button
                           type="button"
                           className="m3-button m3-button--outlined"
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#ba1a1a' }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--md-sys-color-error)' }}
                           onClick={async () => {
                             if (window.confirm(t('catalog.deleteConfirm'))) {
                               await onDeleteMaterial(m.id);
@@ -470,7 +470,7 @@ export function CatalogManagerView({
                         <button
                           type="button"
                           className="m3-button m3-button--outlined"
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#ba1a1a' }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--md-sys-color-error)' }}
                           onClick={async () => {
                             if (window.confirm(t('catalog.deleteConfirm'))) {
                               await onDeleteEdgeBand(b.id);
@@ -603,7 +603,7 @@ export function CatalogManagerView({
                         <button
                           type="button"
                           className="m3-button m3-button--outlined"
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#ba1a1a' }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--md-sys-color-error)' }}
                           onClick={async () => {
                             if (window.confirm(t('catalog.deleteConfirm'))) {
                               await onDeleteHardware(h.id);
@@ -623,11 +623,11 @@ export function CatalogManagerView({
       )}
 
       {/* Reset to factory button */}
-      <div style={{ marginTop: '2rem', borderTop: '1px solid #e0e0e0', paddingTop: '1rem' }}>
+      <div style={{ marginTop: '2rem', borderTop: '1px solid var(--md-sys-color-outline-variant)', paddingTop: '1rem' }}>
         <button
           type="button"
           className="m3-button m3-button--outlined"
-          style={{ color: '#ba1a1a' }}
+          style={{ color: 'var(--md-sys-color-error)' }}
           onClick={async () => {
             if (window.confirm(t('catalog.resetConfirm'))) {
               await onResetCatalogs();

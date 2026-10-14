@@ -114,39 +114,18 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
 
   return (
     <div
-      className="m3-modal-backdrop"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '1rem',
-      }}
+      className="m3-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        className="m3-card m3-modal-content"
-        style={{
-          maxWidth: '920px',
-          width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          backgroundColor: '#fff',
-          borderRadius: '16px',
-          padding: '1.5rem',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div className="m3-modal-dialog">
+        <div className="m3-modal-header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1f1f1f' }}>
+            <h3 className="m3-modal-title">
               🛠️ Editor de Mecanizados en Placa: <strong>{piece.id}</strong>
             </h3>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#666' }}>
+            <p className="m3-modal-subtitle">
               {`Medidas: ${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} × ${piece.thicknessMm} mm | Rol: ${piece.role}`}
             </p>
           </div>
@@ -155,12 +134,14 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
             className="m3-btn m3-btn--text"
             onClick={onClose}
             style={{ fontSize: '1.25rem', padding: '0.2rem 0.6rem' }}
+            aria-label="Cerrar modal"
           >
             ✕
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
+        <div className="m3-modal-body">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.25rem' }}>
           {/* Controls Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -213,7 +194,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
             </div>
 
             {/* Dynamic Inputs according to opType */}
-            <div style={{ background: '#f8f9fa', padding: '0.85rem', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+            <div className="m3-modal-panel">
               {opType === 'groove' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                   <div>
@@ -432,7 +413,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 Mecanizados Personalizados en esta placa ({pieceCustomOps.length}):
               </h5>
               {pieceCustomOps.length === 0 ? (
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#777' }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
                   Sin mecanizados adicionales.
                 </p>
               ) : (
@@ -445,8 +426,9 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         padding: '0.4rem 0.6rem',
-                        background: '#f1f3f4',
-                        borderRadius: '6px',
+                        backgroundColor: 'var(--md-sys-color-surface-container)',
+                        color: 'var(--md-sys-color-on-surface)',
+                        borderRadius: 'var(--md-sys-shape-corner-xs)',
                         fontSize: '0.8rem',
                       }}
                     >
@@ -463,8 +445,9 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       <button
                         type="button"
                         className="m3-btn m3-btn--text"
-                        style={{ color: '#ba1a1a', padding: '0.1rem 0.4rem' }}
+                        style={{ color: 'var(--md-sys-color-error)', padding: '0.1rem 0.4rem' }}
                         onClick={() => onRemoveOperation(piece.id, op.id)}
+                        aria-label="Eliminar mecanizado"
                       >
                         🗑️
                       </button>
@@ -477,30 +460,24 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
 
           {/* Live Preview Column */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <h5 style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', alignSelf: 'flex-start' }}>
+            <h5 style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', alignSelf: 'flex-start', color: 'var(--md-sys-color-on-surface)' }}>
               Vista Técnica 2D ({faceType === 'face-A' ? 'Cara A' : 'Cara B'}):
             </h5>
             <div
-              style={{
-                width: '100%',
-                background: '#fafafa',
-                border: '1px solid #ccc',
-                borderRadius: '8px',
-                padding: '0.5rem',
-                display: 'flex',
-                justifyContent: 'center',
-              }}
+              className="m3-modal-svg-canvas"
+              style={{ width: '100%' }}
               dangerouslySetInnerHTML={{ __html: svgPreview }}
             />
           </div>
         </div>
+      </div>
 
-        <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" className="m3-btn m3-btn--outlined" onClick={onClose}>
-            Listo / Cerrar
-          </button>
-        </div>
+      <div className="m3-modal-footer">
+        <button type="button" className="m3-btn m3-btn--tonal" onClick={onClose}>
+          Listo / Cerrar
+        </button>
       </div>
     </div>
-  );
+  </div>
+);
 }
