@@ -14,6 +14,7 @@ export {
   type DoorMountType,
   type BayContent,
   type ModuleMaterialRoles,
+  type PieceEdgeBandOverride,
   type ModularModuleDefinition,
 } from './types';
 
@@ -36,6 +37,17 @@ export {
   type ComponentSolverOptions,
   type ComponentSolverResult,
   resolveBayContent,
+  type IBayContentResolver,
+  type IBayContentRegistry,
+  type BayResolutionContext,
+  BayContentRegistry,
+  defaultBayContentRegistry,
+  EmptyBayResolver,
+  ShelvesBayResolver,
+  DrawerStackBayResolver,
+  DoorsBayResolver,
+  PullOutTrayBayResolver,
+  BiFoldClosureBayResolver,
 } from './componentSolver';
 
 export {
@@ -46,6 +58,8 @@ export {
 
 export {
   type ModularPreset,
+  ModularPresetRegistry,
+  defaultModularPresetRegistry,
   MODULAR_PRESETS,
   getModularPresetById,
 } from './presets';

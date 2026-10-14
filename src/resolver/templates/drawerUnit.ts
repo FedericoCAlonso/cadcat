@@ -21,18 +21,19 @@ import {
   type DrawerSlideType,
   type DrawerFrontMount,
 } from './drawer';
+import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
 /**
- * Slide clearance total in millimeters (both sides).
- * Marked TO_CONFIRM.
+ * Slide clearance total in millimeters (both sides) from configuration.
  */
-export const DEFAULT_DRAWER_SLIDE_CLEARANCE_MM = 25.4;
+export const DEFAULT_DRAWER_SLIDE_CLEARANCE_MM =
+  defaultProjectConfigJson.hardware.slideClearanceTelescopicMm ?? 25.4;
 
 /**
- * Reveal gap between drawer fronts in millimeters.
- * Marked TO_CONFIRM.
+ * Reveal gap between drawer fronts in millimeters from configuration.
  */
-export const DEFAULT_DRAWER_GAP_MM = 3.0;
+export const DEFAULT_DRAWER_GAP_MM =
+  defaultProjectConfigJson.hardware.drawerFrontGapMm ?? 3.0;
 
 export interface DrawerUnitParams {
   width: number;

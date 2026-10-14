@@ -8,11 +8,24 @@ import {
   type PieceMachining,
   type ProjectConfig,
   type JointStrategy,
+  type UserTemplate,
+  type JointKind,
+  type CustomPieceOperation,
 } from '../model';
 import {
   loadMaterialsFromDb,
   loadEdgeBandsFromDb,
   loadHardwareFromDb,
+  saveMaterialToDb,
+  deleteMaterialFromDb,
+  saveEdgeBandToDb,
+  deleteEdgeBandFromDb,
+  saveHardwareToDb,
+  deleteHardwareFromDb,
+  resetCatalogsToSeed,
+  loadUserTemplatesFromDb,
+  saveUserTemplateToDb,
+  deleteUserTemplateFromDb,
   saveItem,
   loadItem,
   loadProjectConfigFromDb,
@@ -22,6 +35,7 @@ import {
   importProjectConfigJson,
   DEFAULT_PROJECT_ID,
 } from '../storage';
+import { DEFAULT_UI_CONFIG } from '../config';
 import { getSeedMaterials, getSeedEdgeBands, getSeedHardware } from '../catalog';
 import {
   generateBillOfMaterials,
@@ -35,7 +49,8 @@ import {
   type BillOfMaterials,
   type ModuleCostSummary,
   type TemplateDefinition,
-  ALL_TEMPLATES,
+  BASE_EMPTY_TEMPLATE,
+  createUserTemplateDefinition,
   getTemplateById,
   resolveModuleSpatialBoxes,
   type SpatialPieceBox,
@@ -59,6 +74,11 @@ import {
   type BayGridDefinition,
   type TrackSize,
   type ModularModuleDefinition,
+  type PieceEdgeBandOverride,
+  type KinematicMechanism,
+  type KinematicPieceBox,
+  identifyKinematicMechanisms,
+  calculateKinematicBoxes,
   buildModularModule,
 } from '../resolver';
 import { runMultiMaterialGuillotineNesting } from '../workers';
@@ -155,6 +175,54 @@ export interface ModuleViewModelState {
   importProjectConfigFile: (file: File) => Promise<void>;
   exportProjectConfigFile: () => void;
   resetProjectConfigToDefaults: () => Promise<void>;
+  // User templates
+  userTemplates: UserTemplate[];
+  saveCurrentUserTemplate: (name: string, description?: string) => Promise<void>;
+  deleteUserTemplate: (id: string) => Promise<void>;
+  // Catalog database CRUD
+  saveMaterial: (material: Material) => Promise<void>;
+  deleteMaterial: (id: string) => Promise<void>;
+  saveEdgeBand: (edgeBand: EdgeBand) => Promise<void>;
+  deleteEdgeBand: (id: string) => Promise<void>;
+  saveHardware: (hardware: Hardware) => Promise<void>;
+  deleteHardware: (id: string) => Promise<void>;
+  resetCatalogs: () => Promise<void>;
+  // Piece-level joint overrides (Point 9)
+  pieceJointOverrides: Record<string, JointKind>;
+  setPieceJointOverride: (pieceId: string, jointKind: JointKind | null) => void;
+  // Base structure settings (Point 7)
+  railOrientation: 'horizontal' | 'vertical';
+  hasMiddleBrace: boolean;
+  middleBraceWidthMm: number;
+  hasWallHangingRail: boolean;
+  wallHangingRailWidthMm: number;
+  hasPlinth: boolean;
+  plinthHeightMm: number;
+  plinthSetbackMm: number;
+  setRailOrientation: (val: 'horizontal' | 'vertical') => void;
+  setHasMiddleBrace: (val: boolean) => void;
+  setMiddleBraceWidthMm: (val: number) => void;
+  setHasWallHangingRail: (val: boolean) => void;
+  setWallHangingRailWidthMm: (val: number) => void;
+  setHasPlinth: (val: boolean) => void;
+  setPlinthHeightMm: (val: number) => void;
+  setPlinthSetbackMm: (val: number) => void;
+  // Piece-level overrides (Point 10)
+  pieceMaterialOverrides: Record<string, string>;
+  pieceThicknessOverrides: Record<string, number>;
+  pieceEdgeBandOverrides: Record<string, PieceEdgeBandOverride>;
+  setPieceMaterial: (pieceId: string, materialId: string | null) => void;
+  setPieceThickness: (pieceId: string, thicknessMm: number | null) => void;
+  setPieceEdgeBands: (pieceId: string, override: PieceEdgeBandOverride | null) => void;
+  // Custom machining operations (Point 8)
+  customPieceOperations: Record<string, CustomPieceOperation[]>;
+  addCustomPieceOperation: (pieceId: string, op: CustomPieceOperation) => void;
+  removeCustomPieceOperation: (pieceId: string, opId: string) => void;
+  // Kinematics (Point 11)
+  kinematicsState: Record<string, number>;
+  kinematicMechanisms: KinematicMechanism[];
+  kinematicBoxes: KinematicPieceBox[];
+  setMechanismOpenRatio: (mechanismId: string | null, ratio: number) => void;
 }
 
 /**
@@ -162,10 +230,12 @@ export interface ModuleViewModelState {
  * Fetches sheet, edge band, and hardware data directly from IndexedDB.
  */
 export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelState {
-  const [width, setWidth] = useState<number>(600);
-  const [height, setHeight] = useState<number>(800);
-  const [depth, setDepth] = useState<number>(560);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('base-cabinet');
+  const [width, setWidth] = useState<number>(DEFAULT_UI_CONFIG.dimensions.width.default);
+  const [height, setHeight] = useState<number>(DEFAULT_UI_CONFIG.dimensions.height.default);
+  const [depth, setDepth] = useState<number>(DEFAULT_UI_CONFIG.dimensions.depth.default);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('modular-empty');
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
+  const [pieceJointOverrides, setPieceJointOverrides] = useState<Record<string, JointKind>>({});
   const [materials, setMaterials] = useState<Material[]>(() => {
     try {
       return getSeedMaterials().materials;
@@ -211,21 +281,56 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Modular Builder Interactive State
+  // Modular Builder Interactive State (default: Estructura Hueco Libre)
   const [isCustomModular, setIsCustomModular] = useState<boolean>(false);
-  const [roofType, setRoofTypeState] = useState<RoofType>('front-back-rails');
-  const [jointPriority, setJointPriorityState] = useState<JointPriority>('lateral-over-bottom');
-  const [hasBacking, setHasBackingState] = useState<boolean>(true);
+  const [roofType, setRoofTypeState] = useState<RoofType>(
+    DEFAULT_UI_CONFIG.defaultCarcassSettings.roofType as RoofType,
+  );
+  const [jointPriority, setJointPriorityState] = useState<JointPriority>(
+    DEFAULT_UI_CONFIG.defaultCarcassSettings.jointPriority as JointPriority,
+  );
+  const [hasBacking, setHasBackingState] = useState<boolean>(
+    DEFAULT_UI_CONFIG.defaultCarcassSettings.hasBacking,
+  );
   const [gridType, setGridTypeState] = useState<'1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal'>('1-bay');
   const [bays, setBaysState] = useState<BayContent[]>([
-    { type: 'shelves', count: 1, shelfType: 'adjustable', setbackMm: 20 },
+    { type: 'empty' },
   ]);
   const [activeBayIndex, setActiveBayIndex] = useState<number>(0);
   const [frontsMaterialId, setFrontsMaterialId] = useState<string>('');
   const [drawerBoxesMaterialId, setDrawerBoxesMaterialId] = useState<string>('');
   const [backingsMaterialId, setBackingsMaterialId] = useState<string>('');
 
-  // Handle template selection and sync builder options with preset
+  // Base structure state (Point 7)
+  const [railOrientation, setRailOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [hasMiddleBrace, setHasMiddleBrace] = useState<boolean>(false);
+  const [middleBraceWidthMm, setMiddleBraceWidthMm] = useState<number>(80);
+  const [hasWallHangingRail, setHasWallHangingRail] = useState<boolean>(false);
+  const [wallHangingRailWidthMm, setWallHangingRailWidthMm] = useState<number>(100);
+  const [hasPlinth, setHasPlinth] = useState<boolean>(false);
+  const [plinthHeightMm, setPlinthHeightMm] = useState<number>(100);
+  const [plinthSetbackMm, setPlinthSetbackMm] = useState<number>(50);
+
+  // Piece-level overrides (Point 10)
+  const [pieceMaterialOverrides, setPieceMaterialOverrides] = useState<Record<string, string>>({});
+  const [pieceThicknessOverrides, setPieceThicknessOverrides] = useState<Record<string, number>>({});
+  const [pieceEdgeBandOverrides, setPieceEdgeBandOverrides] = useState<Record<string, PieceEdgeBandOverride>>({});
+
+  // Custom piece machining operations (Point 8)
+  const [customPieceOperations, setCustomPieceOperations] = useState<Record<string, CustomPieceOperation[]>>({});
+
+  // Interactive Kinematics state (Point 11)
+  const [kinematicsState, setKinematicsState] = useState<Record<string, number>>({});
+
+  // Templates list exposed to UI: single base empty carcass + user templates
+  const templates = useMemo<TemplateDefinition[]>(() => {
+    return [
+      BASE_EMPTY_TEMPLATE,
+      ...userTemplates.map(createUserTemplateDefinition),
+    ];
+  }, [userTemplates]);
+
+  // Handle template selection and sync builder options with preset or user template
   const handleSelectTemplate = useCallback((id: string) => {
     setSelectedTemplateId(id);
     setIsCustomModular(false);
@@ -235,64 +340,47 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       setRoofTypeState('front-back-rails');
       setJointPriorityState('lateral-over-bottom');
       setHasBackingState(true);
+      setRailOrientation('horizontal');
+      setHasMiddleBrace(false);
+      setHasWallHangingRail(false);
+      setHasPlinth(false);
       setGridTypeState('1-bay');
-      setBaysState(id === 'modular-empty' ? [{ type: 'empty' }] : [{ type: 'shelves', count: 1, shelfType: 'adjustable', setbackMm: 20 }]);
-    } else if (id === 'door-cabinet' || id === 'modular-door-cabinet') {
-      setRoofTypeState('solid-panel');
-      setJointPriorityState('lateral-over-bottom');
-      setHasBackingState(true);
-      setGridTypeState('1-bay');
-      setBaysState([{ type: 'doors', count: 2, mountType: 'full-overlay' }]);
-    } else if (id === 'drawer-unit' || id === 'modular-drawer-unit-3') {
-      setRoofTypeState('front-back-rails');
-      setJointPriorityState('lateral-over-bottom');
-      setHasBackingState(true);
-      setGridTypeState('1-bay');
-      setBaysState([
-        {
-          type: 'drawer-stack',
-          drawerTracks: [
-            { type: 'fixed', valueMm: 140 },
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-          ],
-          frontMount: 'applied',
-          slideType: 'telescopic',
-          gapMm: 2.5,
-        },
-      ]);
-    } else if (id === 'partition-cabinet' || id === 'modular-partition-combo') {
-      setRoofTypeState('front-back-rails');
-      setJointPriorityState('lateral-over-bottom');
-      setHasBackingState(true);
-      setGridTypeState('2-bays-vertical');
-      setBaysState([
-        { type: 'shelves', count: 2, shelfType: 'adjustable', setbackMm: 20 },
-        {
-          type: 'drawer-stack',
-          drawerTracks: [
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-          ],
-          frontMount: 'applied',
-          slideType: 'telescopic',
-        },
-      ]);
-    } else if (id === 'modular-pullout-tray') {
-      setRoofTypeState('front-back-rails');
-      setJointPriorityState('lateral-over-bottom');
-      setHasBackingState(true);
-      setGridTypeState('1-bay');
-      setBaysState([{ type: 'pull-out-tray', lipHeightMm: 45, slideType: 'telescopic' }]);
-    } else if (id === 'modular-bifold-closure') {
-      setRoofTypeState('solid-panel');
-      setJointPriorityState('lateral-over-bottom');
-      setHasBackingState(true);
-      setGridTypeState('1-bay');
-      setBaysState([{ type: 'bi-fold-closure', hingeType: 'aventos', openingDirection: 'vertical-lift' }]);
+      setBaysState([{ type: 'empty' }]);
+      setPieceJointOverrides({});
+      setPieceMaterialOverrides({});
+      setPieceThicknessOverrides({});
+      setPieceEdgeBandOverrides({});
+      setCustomPieceOperations({});
+      setKinematicsState({});
+    } else {
+      const userTpl = userTemplates.find((t) => t.id === id);
+      if (userTpl) {
+        setWidth(userTpl.dimensions.width);
+        setHeight(userTpl.dimensions.height);
+        setDepth(userTpl.dimensions.depth);
+        setRoofTypeState(userTpl.carcassSettings.roofType);
+        setJointPriorityState(userTpl.carcassSettings.jointPriority);
+        setHasBackingState(userTpl.carcassSettings.hasBacking);
+        if (userTpl.carcassSettings.railOrientation) setRailOrientation(userTpl.carcassSettings.railOrientation);
+        if (userTpl.carcassSettings.hasMiddleBrace !== undefined) setHasMiddleBrace(userTpl.carcassSettings.hasMiddleBrace);
+        if (userTpl.carcassSettings.middleBraceWidthMm) setMiddleBraceWidthMm(userTpl.carcassSettings.middleBraceWidthMm);
+        if (userTpl.carcassSettings.hasWallHangingRail !== undefined) setHasWallHangingRail(userTpl.carcassSettings.hasWallHangingRail);
+        if (userTpl.carcassSettings.wallHangingRailWidthMm) setWallHangingRailWidthMm(userTpl.carcassSettings.wallHangingRailWidthMm);
+        if (userTpl.carcassSettings.hasPlinth !== undefined) setHasPlinth(userTpl.carcassSettings.hasPlinth);
+        if (userTpl.carcassSettings.plinthHeightMm) setPlinthHeightMm(userTpl.carcassSettings.plinthHeightMm);
+        if (userTpl.carcassSettings.plinthSetbackMm) setPlinthSetbackMm(userTpl.carcassSettings.plinthSetbackMm);
+        setGridTypeState(userTpl.gridType);
+        setBaysState(userTpl.bays);
+        if (userTpl.materials?.carcassMaterialId) setSelectedMaterialId(userTpl.materials.carcassMaterialId);
+        if (userTpl.materials?.frontsMaterialId) setFrontsMaterialId(userTpl.materials.frontsMaterialId);
+        if (userTpl.materials?.drawerBoxesMaterialId) setDrawerBoxesMaterialId(userTpl.materials.drawerBoxesMaterialId);
+        if (userTpl.materials?.backingsMaterialId) setBackingsMaterialId(userTpl.materials.backingsMaterialId);
+        if (userTpl.materials?.edgeBandId) setSelectedEdgeBandId(userTpl.materials.edgeBandId);
+        if (userTpl.jointOverrides) setPieceJointOverrides(userTpl.jointOverrides);
+        else setPieceJointOverrides({});
+      }
     }
-  }, []);
+  }, [userTemplates]);
 
   // Builder setters that activate custom modular mode
   const setRoofType = useCallback((roof: RoofType) => {
@@ -625,18 +713,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     });
   }, []);
 
-  // Load catalogs and project config from IndexedDB on startup
+  // Load catalogs, user templates, and project config from IndexedDB on startup
   useEffect(() => {
     let isMounted = true;
 
     async function loadData(): Promise<void> {
       try {
         setIsLoading(true);
-        const [loadedMats, loadedBands, loadedHw, loadedConfig] = await Promise.all([
+        const [loadedMats, loadedBands, loadedHw, loadedConfig, loadedUserTpls] = await Promise.all([
           loadMaterialsFromDb(initialDb),
           loadEdgeBandsFromDb(initialDb),
           loadHardwareFromDb(initialDb),
           loadProjectConfigFromDb(DEFAULT_PROJECT_ID, initialDb),
+          loadUserTemplatesFromDb(initialDb),
         ]);
 
         if (!isMounted) return;
@@ -645,6 +734,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         setEdgeBands(loadedBands);
         setHardware(loadedHw);
         setProjectConfig(loadedConfig);
+        setUserTemplates(loadedUserTpls);
 
         if (loadedMats[0]) {
           setSelectedMaterialId(loadedMats[0].id);
@@ -667,6 +757,232 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     };
   }, [initialDb]);
 
+  // User templates persistence actions
+  const saveCurrentUserTemplate = useCallback(
+    async (name: string, description?: string) => {
+      try {
+        setIsSaving(true);
+        const newTemplate: UserTemplate = {
+          id: `user-tpl-${Date.now()}`,
+          schemaVersion: 1,
+          name: name.trim(),
+          description: description?.trim() || undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          dimensions: { width, height, depth },
+          carcassSettings: {
+            roofType,
+            jointPriority,
+            hasBacking,
+            railOrientation,
+            hasMiddleBrace,
+            middleBraceWidthMm,
+            hasWallHangingRail,
+            wallHangingRailWidthMm,
+            hasPlinth,
+            plinthHeightMm,
+            plinthSetbackMm,
+          },
+          gridType,
+          bays,
+          materials: {
+            carcassMaterialId: selectedMaterialId,
+            frontsMaterialId,
+            drawerBoxesMaterialId,
+            backingsMaterialId,
+            edgeBandId: selectedEdgeBandId,
+          },
+          jointOverrides: pieceJointOverrides,
+        };
+        await saveUserTemplateToDb(newTemplate, initialDb);
+        setUserTemplates((prev) => [...prev.filter((t) => t.id !== newTemplate.id), newTemplate]);
+        setSelectedTemplateId(newTemplate.id);
+        setStatusMessage(`Plantilla "${name}" guardada con éxito.`);
+        setTimeout(() => setStatusMessage(null), 3000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al guardar plantilla.');
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [
+      width,
+      height,
+      depth,
+      roofType,
+      jointPriority,
+      hasBacking,
+      railOrientation,
+      hasMiddleBrace,
+      middleBraceWidthMm,
+      hasWallHangingRail,
+      wallHangingRailWidthMm,
+      hasPlinth,
+      plinthHeightMm,
+      plinthSetbackMm,
+      gridType,
+      bays,
+      selectedMaterialId,
+      frontsMaterialId,
+      drawerBoxesMaterialId,
+      backingsMaterialId,
+      selectedEdgeBandId,
+      pieceJointOverrides,
+      initialDb,
+    ],
+  );
+
+  const deleteUserTemplate = useCallback(
+    async (id: string) => {
+      try {
+        setIsSaving(true);
+        await deleteUserTemplateFromDb(id, initialDb);
+        setUserTemplates((prev) => prev.filter((t) => t.id !== id));
+        if (selectedTemplateId === id) {
+          handleSelectTemplate('modular-empty');
+        }
+        setStatusMessage('Plantilla eliminada.');
+        setTimeout(() => setStatusMessage(null), 3000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al eliminar plantilla.');
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [selectedTemplateId, initialDb, handleSelectTemplate],
+  );
+
+  // Catalog Database CRUD Actions
+  const saveMaterial = useCallback(
+    async (mat: Material) => {
+      await saveMaterialToDb(mat, initialDb);
+      const mats = await loadMaterialsFromDb(initialDb);
+      setMaterials(mats);
+    },
+    [initialDb],
+  );
+
+  const deleteMaterial = useCallback(
+    async (matId: string) => {
+      await deleteMaterialFromDb(matId, initialDb);
+      const mats = await loadMaterialsFromDb(initialDb);
+      setMaterials(mats);
+    },
+    [initialDb],
+  );
+
+  const saveEdgeBand = useCallback(
+    async (eb: EdgeBand) => {
+      await saveEdgeBandToDb(eb, initialDb);
+      const bands = await loadEdgeBandsFromDb(initialDb);
+      setEdgeBands(bands);
+    },
+    [initialDb],
+  );
+
+  const deleteEdgeBand = useCallback(
+    async (ebId: string) => {
+      await deleteEdgeBandFromDb(ebId, initialDb);
+      const bands = await loadEdgeBandsFromDb(initialDb);
+      setEdgeBands(bands);
+    },
+    [initialDb],
+  );
+
+  const saveHardware = useCallback(
+    async (hw: Hardware) => {
+      await saveHardwareToDb(hw, initialDb);
+      const items = await loadHardwareFromDb(initialDb);
+      setHardware(items);
+    },
+    [initialDb],
+  );
+
+  const deleteHardware = useCallback(
+    async (hwId: string) => {
+      await deleteHardwareFromDb(hwId, initialDb);
+      const items = await loadHardwareFromDb(initialDb);
+      setHardware(items);
+    },
+    [initialDb],
+  );
+
+  const resetCatalogs = useCallback(async () => {
+    await resetCatalogsToSeed(initialDb);
+    const mats = await loadMaterialsFromDb(initialDb);
+    const bands = await loadEdgeBandsFromDb(initialDb);
+    const items = await loadHardwareFromDb(initialDb);
+    setMaterials(mats);
+    setEdgeBands(bands);
+    setHardware(items);
+  }, [initialDb]);
+
+  // Piece-level joint overrides
+  const setPieceJointOverride = useCallback((pieceId: string, jointKind: JointKind | null) => {
+    setPieceJointOverrides((prev) => {
+      const next = { ...prev };
+      if (jointKind === null) {
+        delete next[pieceId];
+      } else {
+        next[pieceId] = jointKind;
+      }
+      return next;
+    });
+  }, []);
+
+  // Piece-level overrides (Point 10)
+  const setPieceMaterial = useCallback((pieceId: string, materialId: string | null) => {
+    setPieceMaterialOverrides((prev) => {
+      const next = { ...prev };
+      if (!materialId) {
+        delete next[pieceId];
+      } else {
+        next[pieceId] = materialId;
+      }
+      return next;
+    });
+  }, []);
+
+  const setPieceThickness = useCallback((pieceId: string, thicknessMm: number | null) => {
+    setPieceThicknessOverrides((prev) => {
+      const next = { ...prev };
+      if (!thicknessMm || thicknessMm <= 0) {
+        delete next[pieceId];
+      } else {
+        next[pieceId] = thicknessMm;
+      }
+      return next;
+    });
+  }, []);
+
+  const setPieceEdgeBands = useCallback((pieceId: string, override: PieceEdgeBandOverride | null) => {
+    setPieceEdgeBandOverrides((prev) => {
+      const next = { ...prev };
+      if (!override) {
+        delete next[pieceId];
+      } else {
+        next[pieceId] = override;
+      }
+      return next;
+    });
+  }, []);
+
+  // Custom piece machining operations (Point 8)
+  const addCustomPieceOperation = useCallback((pieceId: string, op: CustomPieceOperation) => {
+    setCustomPieceOperations((prev) => {
+      const list = prev[pieceId] ? [...prev[pieceId]] : [];
+      list.push(op);
+      return { ...prev, [pieceId]: list };
+    });
+  }, []);
+
+  const removeCustomPieceOperation = useCallback((pieceId: string, opId: string) => {
+    setCustomPieceOperations((prev) => {
+      const list = prev[pieceId] ? prev[pieceId].filter((o) => o.id !== opId) : [];
+      return { ...prev, [pieceId]: list };
+    });
+  }, []);
+
   // Selected material
   const activeMaterial = useMemo(
     () => materials.find((m) => m.id === selectedMaterialId) ?? materials[0],
@@ -680,7 +996,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
 
     try {
-      if (isCustomModular || selectedTemplateId.startsWith('modular-')) {
+      if (isCustomModular || selectedTemplateId.startsWith('modular-') || selectedTemplateId.startsWith('user-')) {
         const gridDef: BayGridDefinition | undefined =
           gridType === '2-bays-vertical'
             ? {
@@ -724,6 +1040,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             jointPriority,
             roofType,
             railWidthMm: 80,
+            railOrientation,
+            hasMiddleBrace,
+            middleBraceWidthMm,
+            hasWallHangingRail,
+            wallHangingRailWidthMm,
+            hasPlinth,
+            plinthHeightMm,
+            plinthSetbackMm,
             hasBacking,
           },
           grid: gridDef,
@@ -733,6 +1057,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             frontsMaterialId: frontsMaterialId || activeMaterial.id,
             drawerBoxesMaterialId: drawerBoxesMaterialId || activeMaterial.id,
             backingsMaterialId: backingsMaterialId || activeMaterial.id,
+            pieceOverrides: pieceMaterialOverrides,
+            pieceThicknessOverrides,
+            pieceEdgeBandOverrides,
           },
           edgeBandId: selectedEdgeBandId || undefined,
         };
@@ -751,7 +1078,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         };
       }
 
-      const template = getTemplateById(selectedTemplateId);
+      const template = getTemplateById(selectedTemplateId, userTemplates);
       const built = template.build(
         { width, height, depth },
         activeMaterial,
@@ -780,11 +1107,23 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     roofType,
     jointPriority,
     hasBacking,
+    railOrientation,
+    hasMiddleBrace,
+    middleBraceWidthMm,
+    hasWallHangingRail,
+    wallHangingRailWidthMm,
+    hasPlinth,
+    plinthHeightMm,
+    plinthSetbackMm,
+    pieceMaterialOverrides,
+    pieceThicknessOverrides,
+    pieceEdgeBandOverrides,
     gridType,
     bays,
     frontsMaterialId,
     drawerBoxesMaterialId,
     backingsMaterialId,
+    userTemplates,
   ]);
 
   // Resolves 3D spatial boxes and bounding box
@@ -799,7 +1138,40 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     return resolveModuleSpatialBoxes(currentModule.pieces, placementTree);
   }, [currentModule, placementTree]);
 
-  // Derives drill machining operations from module joints
+  // Custom operations flattened list
+  const customOperationsList = useMemo(() => {
+    return Object.values(customPieceOperations).flat();
+  }, [customPieceOperations]);
+
+  // Identifies mobile kinematic mechanisms (drawers, doors, trays, flaps)
+  const kinematicMechanisms = useMemo(() => {
+    return identifyKinematicMechanisms(spatialData.boxes);
+  }, [spatialData.boxes]);
+
+  // Calculates kinematic transforms for interactive mechanism opening
+  const kinematicBoxes = useMemo(() => {
+    return calculateKinematicBoxes(spatialData.boxes, kinematicMechanisms, kinematicsState);
+  }, [spatialData.boxes, kinematicMechanisms, kinematicsState]);
+
+  // Mechanism kinematics opening (Point 11)
+  const setMechanismOpenRatio = useCallback(
+    (mechanismId: string | null, ratio: number) => {
+      const clamped = Math.max(0, Math.min(1, ratio));
+      setKinematicsState((prev) => {
+        if (!mechanismId) {
+          const next: Record<string, number> = {};
+          for (const m of kinematicMechanisms) {
+            next[m.id] = clamped;
+          }
+          return next;
+        }
+        return { ...prev, [mechanismId]: clamped };
+      });
+    },
+    [kinematicMechanisms],
+  );
+
+  // Derives drill machining operations from module joints (with piece-level overrides & custom operations)
   const { machiningOperations, pieceMachiningList } = useMemo(() => {
     if (!currentModule) {
       return { machiningOperations: [], pieceMachiningList: [] };
@@ -809,16 +1181,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       piecesForMachining,
       currentModule.joints,
       projectConfig?.machining,
+      undefined,
+      pieceJointOverrides,
+      customOperationsList,
     );
-    const list = groupOperationsByPiece(currentModule.pieces, ops);
+    const list = groupOperationsByPiece(currentModule.pieces, ops, customOperationsList);
     return { machiningOperations: ops, pieceMachiningList: list };
-  }, [currentModule, resolvedPieces, projectConfig]);
+  }, [currentModule, resolvedPieces, projectConfig, pieceJointOverrides, customOperationsList]);
 
   // Builds machining sheets for workshop manual machines
   const machiningSheets = useMemo(() => {
     if (resolvedPieces.length === 0) return [];
-    return buildModuleMachiningSheets(resolvedPieces, machiningOperations);
-  }, [resolvedPieces, machiningOperations]);
+    return buildModuleMachiningSheets(resolvedPieces, machiningOperations, customOperationsList);
+  }, [resolvedPieces, machiningOperations, customOperationsList]);
 
   // Checks deflection for shelves using project configuration
   const shelfDeflections = useMemo(() => {
@@ -1159,7 +1534,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     height,
     depth,
     selectedTemplateId,
-    templates: ALL_TEMPLATES,
+    templates,
+    userTemplates,
+    saveCurrentUserTemplate,
+    deleteUserTemplate,
+    saveMaterial,
+    deleteMaterial,
+    saveEdgeBand,
+    deleteEdgeBand,
+    saveHardware,
+    deleteHardware,
+    resetCatalogs,
+    pieceJointOverrides,
+    setPieceJointOverride,
     selectedMaterialId,
     selectedEdgeBandId,
     materials,
@@ -1245,5 +1632,34 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     importProjectConfigFile,
     exportProjectConfigFile,
     resetProjectConfigToDefaults,
+    railOrientation,
+    hasMiddleBrace,
+    middleBraceWidthMm,
+    hasWallHangingRail,
+    wallHangingRailWidthMm,
+    hasPlinth,
+    plinthHeightMm,
+    plinthSetbackMm,
+    setRailOrientation,
+    setHasMiddleBrace,
+    setMiddleBraceWidthMm,
+    setHasWallHangingRail,
+    setWallHangingRailWidthMm,
+    setHasPlinth,
+    setPlinthHeightMm,
+    setPlinthSetbackMm,
+    pieceMaterialOverrides,
+    pieceThicknessOverrides,
+    pieceEdgeBandOverrides,
+    setPieceMaterial,
+    setPieceThickness,
+    setPieceEdgeBands,
+    customPieceOperations,
+    addCustomPieceOperation,
+    removeCustomPieceOperation,
+    kinematicsState,
+    kinematicMechanisms,
+    kinematicBoxes,
+    setMechanismOpenRatio,
   };
 }

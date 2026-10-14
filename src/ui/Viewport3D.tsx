@@ -6,7 +6,12 @@ import {
   calculateExplodedBoxes,
   type ResolvedPieceWithCutSize,
   type ShelfDeflectionResult,
+  type KinematicMechanism,
+  type KinematicPieceBox,
+  type PieceEdgeBandOverride,
+  type ExplodedPieceBox,
 } from '../resolver';
+import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
 import { translatePieceRole } from './localization';
 
 export interface Viewport3DProps {
@@ -18,6 +23,25 @@ export interface Viewport3DProps {
   selectedPieceId: string | null;
   onSelectPiece: (pieceId: string | null) => void;
   shelfDeflections?: Map<string, ShelfDeflectionResult>;
+  pieceJointOverrides?: Record<string, JointKind>;
+  onSetPieceJointOverride?: (pieceId: string, jointKind: JointKind | null) => void;
+  defaultJointStrategy?: JointStrategy;
+  // Kinematics (Point 11)
+  kinematicBoxes?: KinematicPieceBox[];
+  kinematicMechanisms?: KinematicMechanism[];
+  kinematicsState?: Record<string, number>;
+  onMechanismOpenRatioChange?: (mechanismId: string, ratio: number) => void;
+  // Piece modifications (Point 10)
+  materials?: Material[];
+  edgeBands?: EdgeBand[];
+  pieceMaterialOverrides?: Record<string, string>;
+  pieceThicknessOverrides?: Record<string, number>;
+  pieceEdgeBandOverrides?: Record<string, PieceEdgeBandOverride>;
+  onSetPieceMaterial?: (pieceId: string, materialId: string | null) => void;
+  onSetPieceThickness?: (pieceId: string, thicknessMm: number | null) => void;
+  onSetPieceEdgeBands?: (pieceId: string, overrides: PieceEdgeBandOverride | null) => void;
+  // Custom Machinings (Point 8)
+  onOpenMachiningModal?: (pieceId: string) => void;
 }
 
 export function Viewport3D(props: Viewport3DProps): ReactElement {
@@ -30,6 +54,22 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     selectedPieceId,
     onSelectPiece,
     shelfDeflections,
+    pieceJointOverrides,
+    onSetPieceJointOverride,
+    defaultJointStrategy = 'confirmat',
+    kinematicBoxes,
+    kinematicMechanisms,
+    kinematicsState,
+    onMechanismOpenRatioChange,
+    materials,
+    edgeBands,
+    pieceMaterialOverrides,
+    pieceThicknessOverrides,
+    pieceEdgeBandOverrides,
+    onSetPieceMaterial,
+    onSetPieceThickness,
+    onSetPieceEdgeBands,
+    onOpenMachiningModal,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,10 +80,19 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
   const [webGlSupported, setWebGlSupported] = useState<boolean>(true);
   const [wireframe, setWireframe] = useState<boolean>(false);
+  const [activeMechId, setActiveMechId] = useState<string>('all');
 
   // Selected piece data lookup
   const selectedPiece = pieces.find((p) => p.id === selectedPieceId) ?? null;
   const selectedBox = boxes.find((b) => b.pieceId === selectedPieceId) ?? null;
+  const pieceMech = kinematicMechanisms?.find((m) => m.pieceIds.includes(selectedPiece?.id ?? ''));
+
+  // Sync active mechanism when selected piece changes
+  useEffect(() => {
+    if (pieceMech) {
+      setActiveMechId(pieceMech.id);
+    }
+  }, [selectedPieceId, pieceMech]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -281,7 +330,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     };
   }, [bounds]);
 
-  // Update piece meshes when boxes, explosion ratio, wireframe, or selection changes
+  // Update piece meshes when boxes, explosion ratio, wireframe, selection, or kinematics change
   useEffect(() => {
     const group = pieceGroupRef.current;
     if (!group) return;
@@ -301,9 +350,12 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       group.remove(child);
     }
 
-    const exploded = calculateExplodedBoxes(boxes, bounds, explodedRatio);
+    const useKinematics = explodedRatio === 0 && Boolean(kinematicBoxes && kinematicBoxes.length > 0);
+    const activeBoxes = useKinematics
+      ? kinematicBoxes!
+      : calculateExplodedBoxes(boxes, bounds, explodedRatio);
 
-    for (const item of exploded) {
+    for (const item of activeBoxes) {
       const geom = new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
 
       const isSelected = item.pieceId === selectedPieceId;
@@ -320,11 +372,26 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       });
 
       const mesh = new THREE.Mesh(geom, mat);
-      // Box position is at its center
-      const posX = item.explodedPositionMm.x + item.sizeMm.x / 2;
-      const posY = item.explodedPositionMm.y + item.sizeMm.y / 2;
-      const posZ = item.explodedPositionMm.z + item.sizeMm.z / 2;
-      mesh.position.set(posX, posY, posZ);
+
+      if (useKinematics) {
+        const kBox = item as KinematicPieceBox;
+        const posX = kBox.kinematicPositionMm.x + kBox.sizeMm.x / 2;
+        const posY = kBox.kinematicPositionMm.y + kBox.sizeMm.y / 2;
+        const posZ = kBox.kinematicPositionMm.z + kBox.sizeMm.z / 2;
+        mesh.position.set(posX, posY, posZ);
+        mesh.rotation.set(
+          kBox.kinematicRotationRad.x,
+          kBox.kinematicRotationRad.y,
+          kBox.kinematicRotationRad.z,
+        );
+      } else {
+        const expBox = item as ExplodedPieceBox;
+        const posX = expBox.explodedPositionMm.x + expBox.sizeMm.x / 2;
+        const posY = expBox.explodedPositionMm.y + expBox.sizeMm.y / 2;
+        const posZ = expBox.explodedPositionMm.z + expBox.sizeMm.z / 2;
+        mesh.position.set(posX, posY, posZ);
+        mesh.rotation.set(0, 0, 0);
+      }
 
       mesh.userData = { pieceId: item.pieceId, role: item.role };
 
@@ -339,7 +406,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
       group.add(mesh);
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes]);
 
   // Camera presets
   const setCameraView = (type: 'iso' | 'front' | 'top' | 'side') => {
@@ -389,6 +456,128 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       />
 
       <div className="viewport-3d-toolbar">
+        {kinematicMechanisms && kinematicMechanisms.length > 0 && (
+          <div
+            className="viewport-kinematics-bar"
+            style={{
+              padding: '0.6rem 0.8rem',
+              background: '#eef2fa',
+              borderRadius: '8px',
+              marginBottom: '0.75rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.4rem',
+              border: '1px solid #d3e3fd',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#041e49' }}>
+                  🎮 Cinemática / Apertura:
+                </span>
+                <select
+                  aria-label="Seleccionar mecanismo móvil"
+                  className="m3-select"
+                  style={{ fontSize: '0.85rem', padding: '0.2rem 0.5rem' }}
+                  value={activeMechId}
+                  onChange={(e) => setActiveMechId(e.target.value)}
+                >
+                  <option value="all">Todos los mecanismos ({kinematicMechanisms.length})</option>
+                  {kinematicMechanisms.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--small m3-btn--tonal"
+                  onClick={() => {
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, 0);
+                    }
+                  }}
+                >
+                  Cerrar (0%)
+                </button>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--small m3-btn--tonal"
+                  onClick={() => {
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0.5));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, 0.5);
+                    }
+                  }}
+                >
+                  50%
+                </button>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--small m3-btn--primary"
+                  onClick={() => {
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 1));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, 1);
+                    }
+                  }}
+                >
+                  Abrir (100%)
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <label htmlFor="kinematics-slider" style={{ fontSize: '0.85rem', minWidth: '130px' }}>
+                Deslizador:{' '}
+                <strong>
+                  {Math.round(
+                    (activeMechId === 'all'
+                      ? kinematicMechanisms.reduce((acc, m) => acc + (kinematicsState?.[m.id] ?? 0), 0) /
+                        kinematicMechanisms.length
+                      : (kinematicsState?.[activeMechId] ?? 0)) * 100,
+                  )}
+                  %
+                </strong>
+              </label>
+              <input
+                id="kinematics-slider"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={
+                  activeMechId === 'all'
+                    ? kinematicMechanisms.reduce((acc, m) => acc + (kinematicsState?.[m.id] ?? 0), 0) /
+                      kinematicMechanisms.length
+                    : (kinematicsState?.[activeMechId] ?? 0)
+                }
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                  if (activeMechId === 'all') {
+                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, val));
+                  } else {
+                    onMechanismOpenRatioChange(activeMechId, val);
+                  }
+                }}
+                className="viewport-3d-slider"
+                style={{ flex: 1 }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="viewport-3d-slider-group">
           <label htmlFor="exploded-slider">
             Despiece / Vista Explotada:{' '}
@@ -485,6 +674,222 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
               <strong>Posición 3D (mm):</strong>{' '}
               {`X: ${selectedBox.positionMm.x}, Y: ${selectedBox.positionMm.y}, Z: ${selectedBox.positionMm.z}`}
             </p>
+          </div>
+
+          {/* Kinematic mechanism action for selected piece (Point 11) */}
+          {pieceMech && (
+            <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#eef2fa', borderRadius: '8px', border: '1px solid #c2e7ff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#001d35' }}>
+                  🚪 Mecanismo: {pieceMech.name}
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                  {Math.round((kinematicsState?.[pieceMech.id] ?? 0) * 100)}%
+                </span>
+              </div>
+              <input
+                aria-label={`Apertura de ${pieceMech.name}`}
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={kinematicsState?.[pieceMech.id] ?? 0}
+                onChange={(e) => onMechanismOpenRatioChange?.(pieceMech.id, parseFloat(e.target.value))}
+                className="viewport-3d-slider"
+                style={{ width: '100%' }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--small m3-btn--tonal"
+                  onClick={() => onMechanismOpenRatioChange?.(pieceMech.id, 0)}
+                >
+                  Cerrar
+                </button>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--small m3-btn--primary"
+                  onClick={() => onMechanismOpenRatioChange?.(pieceMech.id, 1)}
+                >
+                  Abrir
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Piece-level Material Override (Point 10) */}
+          {materials && materials.length > 0 && (
+            <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+              <label
+                htmlFor={`viewport-material-override-${selectedPiece.id}`}
+                style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}
+              >
+                🪵 Material de la Placa:
+              </label>
+              <select
+                id={`viewport-material-override-${selectedPiece.id}`}
+                className="m3-select"
+                style={{ width: '100%', fontSize: '0.85rem' }}
+                value={pieceMaterialOverrides?.[selectedPiece.id] ?? selectedPiece.materialId}
+                onChange={(e) => onSetPieceMaterial?.(selectedPiece.id, e.target.value || null)}
+              >
+                {materials.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name ?? m.id} ({m.thicknessMm} mm)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Piece-level Thickness Override (Point 10) */}
+          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+            <label
+              htmlFor={`viewport-thickness-override-${selectedPiece.id}`}
+              style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}
+            >
+              📏 Espesor de Placa (mm):
+            </label>
+            <input
+              id={`viewport-thickness-override-${selectedPiece.id}`}
+              type="number"
+              className="m3-input"
+              style={{ width: '100%', fontSize: '0.85rem', padding: '0.35rem 0.5rem' }}
+              min={3}
+              max={50}
+              value={pieceThicknessOverrides?.[selectedPiece.id] ?? selectedPiece.thicknessMm}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && val > 0) {
+                  onSetPieceThickness?.(selectedPiece.id, val);
+                }
+              }}
+            />
+          </div>
+
+          {/* Piece-level EdgeBand Overrides (Point 10) */}
+          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+            <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+              🏷️ Tapacantos en Bordes:
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem', fontSize: '0.85rem' }}>
+              {(['top', 'bottom', 'left', 'right'] as const).map((edgeKey) => {
+                const label =
+                  edgeKey === 'top'
+                    ? 'Superior'
+                    : edgeKey === 'bottom'
+                    ? 'Inferior'
+                    : edgeKey === 'left'
+                    ? 'Izquierdo'
+                    : 'Derecho';
+                const isBanded =
+                  pieceEdgeBandOverrides?.[selectedPiece.id]?.[edgeKey] ??
+                  selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes(edgeKey));
+
+                return (
+                  <label key={edgeKey} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(isBanded)}
+                      onChange={(e) => {
+                        const current = pieceEdgeBandOverrides?.[selectedPiece.id] ?? {
+                          top: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('top')),
+                          bottom: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('bottom')),
+                          left: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('left')),
+                          right: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('right')),
+                        };
+                        onSetPieceEdgeBands?.(selectedPiece.id, {
+                          ...current,
+                          [edgeKey]: e.target.checked,
+                        });
+                      }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+            {edgeBands && edgeBands.length > 0 && (
+              <div style={{ marginTop: '0.45rem' }}>
+                <label
+                  htmlFor={`viewport-edgeband-override-${selectedPiece.id}`}
+                  style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.2rem', color: '#555' }}
+                >
+                  Tipo / Espesor de Tapacanto:
+                </label>
+                <select
+                  id={`viewport-edgeband-override-${selectedPiece.id}`}
+                  className="m3-select"
+                  style={{ width: '100%', fontSize: '0.8rem' }}
+                  value={pieceEdgeBandOverrides?.[selectedPiece.id]?.edgeBandId ?? ''}
+                  onChange={(e) => {
+                    const current = pieceEdgeBandOverrides?.[selectedPiece.id] ?? {
+                      top: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('top')),
+                      bottom: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('bottom')),
+                      left: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('left')),
+                      right: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('right')),
+                    };
+                    onSetPieceEdgeBands?.(selectedPiece.id, {
+                      ...current,
+                      edgeBandId: e.target.value || undefined,
+                    });
+                  }}
+                >
+                  <option value="">Por defecto del módulo</option>
+                  {edgeBands.map((eb) => (
+                    <option key={eb.id} value={eb.id}>
+                      {eb.id} ({eb.thicknessMm} mm - {eb.kind})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Machinings Button (Point 8) */}
+          {onOpenMachiningModal && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <button
+                type="button"
+                className="m3-btn m3-btn--tonal"
+                style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}
+                onClick={() => onOpenMachiningModal(selectedPiece.id)}
+              >
+                🛠️ Mecanizar Placa (Ranuras / Fresados / Agujeros)
+              </button>
+            </div>
+          )}
+
+          {/* Piece-level Joint Override (Point 9) */}
+          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+            <label
+              htmlFor={`viewport-joint-override-${selectedPiece.id}`}
+              style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}
+            >
+              🔩 Fijación / Unión para esta placa:
+            </label>
+            <select
+              id={`viewport-joint-override-${selectedPiece.id}`}
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+              value={pieceJointOverrides?.[selectedPiece.id] ?? ''}
+              onChange={(e) => {
+                const val = e.target.value as JointKind | '';
+                onSetPieceJointOverride?.(selectedPiece.id, val ? val : null);
+              }}
+            >
+              <option value="">Por defecto del proyecto ({defaultJointStrategy})</option>
+              <option value="cam-dowel">Minifix / Rastex (Oculto sin tornillos pasantes)</option>
+              <option value="dowel">Tarugos de madera (Oculto)</option>
+              <option value="confirmat">Tornillo pasante (Confirmat)</option>
+              <option value="dowel-and-confirmat">Tarugos + Confirmat</option>
+              <option value="screw">Tornillo común (Spax)</option>
+            </select>
+            {pieceJointOverrides?.[selectedPiece.id] && (
+              <span className="m3-badge m3-badge--success" style={{ marginTop: '0.35rem', display: 'inline-block' }}>
+                ✓ Fijación personalizada: {pieceJointOverrides[selectedPiece.id]}
+              </span>
+            )}
           </div>
 
           {shelfDeflections?.get(selectedPiece.id) && (() => {

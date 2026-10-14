@@ -1,24 +1,28 @@
 import { type Material, type DeflectionConfig } from '../model';
 import { type ResolvedPieceWithCutSize } from './edgeBand';
+import defaultProjectConfigJson from '../config/defaultProjectConfig.json';
 
 /**
- * Standard acceleration of gravity in m/s^2.
+ * Standard acceleration of gravity in m/s^2 from configuration file.
  */
-export const GRAVITY_ACCELERATION_M_S2 = 9.80665;
+export const GRAVITY_ACCELERATION_M_S2 =
+  defaultProjectConfigJson.deflection.gravityAccelerationMS2 ?? 9.80665;
 
 /**
- * Default modulus of elasticity for wood panel boards (particleboard / MDF) in MPa (N/mm^2).
- * Mark as TO_CONFIRM until domain expert confirms exact shop value per supplier.
+ * Default modulus of elasticity for wood panel boards (particleboard / MDF) in MPa (N/mm^2) from configuration file.
  */
-export const DEFAULT_ELASTIC_MODULUS_MPA = 3000; // TO_CONFIRM
+export const DEFAULT_ELASTIC_MODULUS_MPA =
+  defaultProjectConfigJson.deflection.defaultElasticModulusMPa ?? 3000;
 
 /**
- * Default deflection criteria from shop configuration.
+ * Default deflection criteria from shop configuration file.
  */
 export const DEFAULT_DEFLECTION_CONFIG: DeflectionConfig = {
-  maxDeflectionRatio: 200, // TO_CONFIRM: L / 200 standard limit
-  maxAbsoluteDeflectionMm: 3.0, // TO_CONFIRM: 3.0 mm maximum absolute sag
-  designUniformLoadKgM2: 30.0, // TO_CONFIRM: 30 kg/m^2 distributed storage load
+  maxDeflectionRatio: defaultProjectConfigJson.deflection.maxDeflectionRatio ?? 200,
+  maxAbsoluteDeflectionMm: defaultProjectConfigJson.deflection.maxAbsoluteDeflectionMm ?? 3.0,
+  designUniformLoadKgM2: defaultProjectConfigJson.deflection.designUniformLoadKgM2 ?? 30.0,
+  defaultElasticModulusMPa: DEFAULT_ELASTIC_MODULUS_MPA,
+  gravityAccelerationMS2: GRAVITY_ACCELERATION_M_S2,
 };
 
 export interface ShelfDeflectionInput {

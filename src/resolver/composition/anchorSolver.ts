@@ -50,6 +50,14 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     jointPriority = 'lateral-over-bottom',
     roofType = 'front-back-rails',
     railWidthMm = 80,
+    railOrientation = 'horizontal',
+    hasMiddleBrace = false,
+    middleBraceWidthMm = 80,
+    hasWallHangingRail = false,
+    wallHangingRailWidthMm = 100,
+    hasPlinth = false,
+    plinthHeightMm = 100,
+    plinthSetbackMm = 50,
     hasBacking = true,
     backingGrooveDistanceMm = 15,
     backingGrooveDepthMm = 8,
@@ -65,6 +73,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
   let topPieceId = `${idPrefix}-roof`;
 
   const rootPieceId = leftPieceId;
+  const plinthY = hasPlinth ? plinthHeightMm : 0;
 
   // 1. Carcass Sides and Bottom
   if (jointPriority === 'lateral-over-bottom' || jointPriority === 'miter-45') {
@@ -114,7 +123,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     placementNodes.push({
       pieceId: bottomPieceId,
       parentPieceId: leftPieceId,
-      relativeOffset: { x: T, y: 0, z: 0 },
+      relativeOffset: { x: T, y: plinthY, z: 0 },
     });
 
     // Joints: confirmat from sides to bottom
@@ -141,7 +150,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
       structural: true,
     });
 
-    const sideHeight = roofType === 'solid-panel' ? height - 2 * T : height - T;
+    const sideHeight = (roofType === 'solid-panel' ? height - 2 * T : height - T) - plinthY;
 
     const sideLeft = createPiece({
       id: leftPieceId,
@@ -177,7 +186,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     placementNodes.push({
       pieceId: bottomPieceId,
       parentPieceId: leftPieceId,
-      relativeOffset: { x: 0, y: -T, z: 0 },
+      relativeOffset: { x: 0, y: plinthY > 0 ? plinthY : -T, z: 0 },
     });
 
     // Joints: confirmat from bottom into side lower edges
@@ -195,14 +204,57 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     );
   }
 
+  // 1.1 Plinth / Zócalo front panel (if enabled)
+  if (hasPlinth) {
+    const plinthPieceId = `${idPrefix}-plinth-front`;
+    const plinthWidth = jointPriority === 'lateral-over-bottom' ? width - 2 * T : width;
+    const plinthX = jointPriority === 'lateral-over-bottom' ? T : 0;
+
+    const plinthPiece = createPiece({
+      id: plinthPieceId,
+      role: 'plinth-front',
+      materialId: carcassMaterialId,
+      contour: createRectangularContour(plinthWidth, plinthHeightMm),
+      thicknessMm: T,
+      structural: true,
+    });
+
+    if (edgeBandId) {
+      applyFrontEdgeBand(plinthPiece, edgeBandId);
+    }
+
+    pieces.push(plinthPiece);
+
+    placementNodes.push({
+      pieceId: plinthPieceId,
+      parentPieceId: leftPieceId,
+      relativeOffset: { x: plinthX, y: 0, z: plinthSetbackMm },
+    });
+
+    joints.push(
+      createJoint({
+        a: { pieceId: leftPieceId, faceId: 'inner' },
+        b: { pieceId: plinthPieceId, faceId: 'left-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: rightPieceId, faceId: 'inner' },
+        b: { pieceId: plinthPieceId, faceId: 'right-edge' },
+        kind: 'confirmat',
+      }),
+    );
+  }
+
   // 2. Roof / Top / Rails
+  const isBottomPass = jointPriority === 'bottom-over-lateral';
   const interiorWidth = width - 2 * T;
-  const interiorY = T;
+  const interiorY = (isBottomPass ? 0 : T) + plinthY;
 
   if (roofType === 'solid-panel') {
-    const isSolidFullWidth = jointPriority === 'bottom-over-lateral';
+    const isSolidFullWidth = isBottomPass;
     const topWidth = isSolidFullWidth ? width : interiorWidth;
     const topX = isSolidFullWidth ? 0 : T;
+    const topY = isBottomPass ? height - 2 * T : height - T;
 
     const roof = createPiece({
       id: topPieceId,
@@ -219,29 +271,46 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     placementNodes.push({
       pieceId: topPieceId,
       parentPieceId: leftPieceId,
-      relativeOffset: { x: topX, y: height - T, z: 0 },
+      relativeOffset: { x: topX, y: topY, z: 0 },
     });
 
-    joints.push(
-      createJoint({
-        a: { pieceId: leftPieceId, faceId: 'inner' },
-        b: { pieceId: topPieceId, faceId: 'left-edge' },
-        kind: 'confirmat',
-      }),
-      createJoint({
-        a: { pieceId: rightPieceId, faceId: 'inner' },
-        b: { pieceId: topPieceId, faceId: 'right-edge' },
-        kind: 'confirmat',
-      }),
-    );
+    if (isBottomPass) {
+      joints.push(
+        createJoint({
+          a: { pieceId: topPieceId, faceId: 'bottom' },
+          b: { pieceId: leftPieceId, faceId: 'top-edge' },
+          kind: 'confirmat',
+        }),
+        createJoint({
+          a: { pieceId: topPieceId, faceId: 'bottom' },
+          b: { pieceId: rightPieceId, faceId: 'top-edge' },
+          kind: 'confirmat',
+        }),
+      );
+    } else {
+      joints.push(
+        createJoint({
+          a: { pieceId: leftPieceId, faceId: 'inner' },
+          b: { pieceId: topPieceId, faceId: 'left-edge' },
+          kind: 'confirmat',
+        }),
+        createJoint({
+          a: { pieceId: rightPieceId, faceId: 'inner' },
+          b: { pieceId: topPieceId, faceId: 'right-edge' },
+          kind: 'confirmat',
+        }),
+      );
+    }
   } else if (roofType === 'front-back-rails') {
     topPieceId = `${idPrefix}-rail-front`;
     const railFrontId = topPieceId;
     const railBackId = `${idPrefix}-rail-back`;
+    const railY = isBottomPass ? height - 2 * T : height - T;
+    const isVertical = railOrientation === 'vertical';
 
     const railFront = createPiece({
       id: railFrontId,
-      role: 'rail',
+      role: isVertical ? 'rail-vertical' : 'rail',
       materialId: carcassMaterialId,
       contour: createRectangularContour(interiorWidth, railWidthMm),
       thicknessMm: T,
@@ -250,7 +319,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
 
     const railBack = createPiece({
       id: railBackId,
-      role: 'rail',
+      role: isVertical ? 'rail-vertical' : 'rail',
       materialId: carcassMaterialId,
       contour: createRectangularContour(interiorWidth, railWidthMm),
       thicknessMm: T,
@@ -263,15 +332,25 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
 
     pieces.push(railFront, railBack);
 
+    const vertRailY = railY + T - railWidthMm;
+
     placementNodes.push({
       pieceId: railFrontId,
       parentPieceId: leftPieceId,
-      relativeOffset: { x: T, y: height - T, z: 0 },
+      relativeOffset: {
+        x: T,
+        y: isVertical ? vertRailY : railY,
+        z: 0,
+      },
     });
     placementNodes.push({
       pieceId: railBackId,
       parentPieceId: leftPieceId,
-      relativeOffset: { x: T, y: height - T, z: depth - railWidthMm },
+      relativeOffset: {
+        x: T,
+        y: isVertical ? vertRailY : railY,
+        z: isVertical ? depth - T : depth - railWidthMm,
+      },
     });
 
     joints.push(
@@ -296,22 +375,98 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
         kind: 'confirmat',
       }),
     );
+
+    // 2.1 Middle structural brace between rails (if enabled)
+    if (hasMiddleBrace) {
+      const middleBraceId = `${idPrefix}-brace-middle`;
+      const braceLength = depth - (isVertical ? 2 * T : 2 * railWidthMm);
+
+      const middleBrace = createPiece({
+        id: middleBraceId,
+        role: 'brace-middle',
+        materialId: carcassMaterialId,
+        contour: createRectangularContour(braceLength, middleBraceWidthMm),
+        thicknessMm: T,
+        structural: true,
+      });
+
+      pieces.push(middleBrace);
+
+      const braceX = T + (interiorWidth - middleBraceWidthMm) / 2;
+      const braceZ = isVertical ? T : railWidthMm;
+
+      placementNodes.push({
+        pieceId: middleBraceId,
+        parentPieceId: leftPieceId,
+        relativeOffset: { x: braceX, y: railY, z: braceZ },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: railFrontId, faceId: 'inner' },
+          b: { pieceId: middleBraceId, faceId: 'front-edge' },
+          kind: 'confirmat',
+        }),
+        createJoint({
+          a: { pieceId: railBackId, faceId: 'inner' },
+          b: { pieceId: middleBraceId, faceId: 'back-edge' },
+          kind: 'confirmat',
+        }),
+      );
+    }
   } else {
     // roofType === 'none'
     topPieceId = leftPieceId;
   }
 
-  // 3. Interior Useful Cavity
+  // 2.2 Rear Wall Hanging Rail (if enabled)
   const interiorHeight =
-    roofType === 'none' ? height - T : height - 2 * T;
+    (roofType === 'none' ? height - T : height - 2 * T) - plinthY;
   const interiorDepth = depth;
 
+  if (hasWallHangingRail) {
+    const hangingRailId = `${idPrefix}-hanging-rail`;
+    const hangingRail = createPiece({
+      id: hangingRailId,
+      role: 'hanging-rail',
+      materialId: carcassMaterialId,
+      contour: createRectangularContour(interiorWidth, wallHangingRailWidthMm),
+      thicknessMm: T,
+      structural: true,
+    });
+
+    pieces.push(hangingRail);
+
+    const hangingY = interiorY + interiorHeight - wallHangingRailWidthMm;
+    const hangingZ = depth - T;
+
+    placementNodes.push({
+      pieceId: hangingRailId,
+      parentPieceId: leftPieceId,
+      relativeOffset: { x: T, y: hangingY, z: hangingZ },
+    });
+
+    joints.push(
+      createJoint({
+        a: { pieceId: leftPieceId, faceId: 'inner' },
+        b: { pieceId: hangingRailId, faceId: 'left-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: rightPieceId, faceId: 'inner' },
+        b: { pieceId: hangingRailId, faceId: 'right-edge' },
+        kind: 'confirmat',
+      }),
+    );
+  }
+
+  // 3. Interior Useful Cavity
   const interior: InteriorBounds = {
     x: T,
     y: interiorY,
     z: 0,
     width: interiorWidth,
-    height: interiorHeight,
+    height: Math.max(50, interiorHeight),
     depth: interiorDepth,
   };
 
@@ -354,7 +509,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
         kind: 'groove',
       }),
       createJoint({
-        a: { pieceId: bottomPieceId, faceId: 'inner' },
+        a: { pieceId: bottomPieceId, faceId: isBottomPass ? 'top' : 'inner' },
         b: { pieceId: backPieceId, faceId: 'bottom-edge' },
         kind: 'groove',
       }),

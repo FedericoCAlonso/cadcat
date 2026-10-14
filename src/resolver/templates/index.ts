@@ -45,107 +45,100 @@ export interface TemplateDefinition {
   ) => TemplateBuildResult;
 }
 
-export const TEMPLATES: TemplateDefinition[] = [
-  {
-    id: 'base-cabinet',
-    name: 'Base Cabinet (1 Shelf)',
-    description: 'Two sides, bottom, front/back rails, back panel, and one shelf.',
-    build: (params, mat, bands, ebId) => buildBaseCabinet(params, mat, bands, ebId),
-  },
-  {
-    id: 'door-cabinet',
-    name: 'Door Cabinet (Hinged Doors & Shelf)',
-    description: 'Carcase with single or double hinged doors and adjustable shelf.',
-    build: (params, mat, bands, ebId, conf) => buildDoorCabinet(params, mat, bands, ebId, conf),
-  },
-  {
-    id: 'drawer-unit',
-    name: 'Drawer Unit (3 Drawers)',
-    description: 'Base carcase with three drawer sub-assemblies and slide clearances.',
-    build: (params, mat, bands, ebId, conf) => buildDrawerUnit(params, mat, bands, ebId, conf),
-  },
-  {
-    id: 'partition-cabinet',
-    name: '2-Bay Partition Cabinet',
-    description: 'Carcase with vertical partition dividing shelves and drawer units.',
-    build: (params, mat, bands, ebId) => buildPartitionCabinet(params, mat, bands, ebId),
-  },
-];
+import { type UserTemplate } from '../../model';
+import { type ModularModuleDefinition, type BayGridDefinition } from '../composition/types';
 
-export const MODULAR_TEMPLATES: TemplateDefinition[] = [
-  {
-    id: 'modular-empty',
-    name: 'Modular: Hueco Libre / Casco',
-    description: 'Casco compositivo configurable con fajas de amarre o tapa entera.',
-    build: (params, mat, bands, ebId) => {
-      const def = getModularPresetById('preset-empty').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
-      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
-      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
-      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
-    },
+export const BASE_EMPTY_TEMPLATE: TemplateDefinition = {
+  id: 'modular-empty',
+  name: 'Estructura Hueco Libre',
+  description: 'Casco base con estructura paramétrica libre para diseñar y agregar refuerzos o accesorios.',
+  build: (params, mat, bands, ebId) => {
+    const def = getModularPresetById('preset-empty').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
+    const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
+    const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
+    return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
   },
-  {
-    id: 'modular-drawer-unit-3',
-    name: 'Modular: Cajonera 3 Cajones (fr + mm)',
-    description: 'Cajonera paramétrica con cajón cubertero fijo (140mm) y dos olleros en fr.',
-    build: (params, mat, bands, ebId) => {
-      const def = getModularPresetById('preset-drawer-unit-3').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
-      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
-      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
-      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
-    },
-  },
-  {
-    id: 'modular-door-cabinet',
-    name: 'Modular: Alacena 2 Puertas',
-    description: 'Alacena con techo macizo y dos puertas batientes completas.',
-    build: (params, mat, bands, ebId) => {
-      const def = getModularPresetById('preset-door-cabinet-2').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
-      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
-      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
-      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
-    },
-  },
-  {
-    id: 'modular-partition-combo',
-    name: 'Modular: 2 Vanos (Estantes + Cajones)',
-    description: 'Vano izquierdo con 2 estantes y vano derecho con 3 cajones.',
-    build: (params, mat, bands, ebId) => {
-      const def = getModularPresetById('preset-partition-combo').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
-      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
-      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
-      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
-    },
-  },
-  {
-    id: 'modular-pullout-tray',
-    name: 'Modular: Bandeja Extraíble Telescópica',
-    description: 'Módulo bajo con bandeja deslizable reforzada para ollas y electrodomésticos.',
-    build: (params, mat, bands, ebId) => {
-      const def = getModularPresetById('preset-pullout-tray').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
-      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
-      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
-      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
-    },
-  },
-  {
-    id: 'modular-bifold-closure',
-    name: 'Modular: Puerta Plegable Bi-Fold',
-    description: 'Alacena con puerta elevable articulada en dos hojas.',
-    build: (params, mat, bands, ebId) => {
-      const def = getModularPresetById('preset-bifold-closure').createDefinition(params, { carcassMaterialId: mat.id }, ebId);
-      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
-      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
-      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
-    },
-  },
-];
+};
 
-export const ALL_TEMPLATES: TemplateDefinition[] = [...TEMPLATES, ...MODULAR_TEMPLATES];
+/**
+ * Creates an executable TemplateDefinition from a UserTemplate stored in the database.
+ */
+export function createUserTemplateDefinition(userTemplate: UserTemplate): TemplateDefinition {
+  return {
+    id: userTemplate.id,
+    name: userTemplate.name,
+    description: userTemplate.description ?? 'Plantilla personalizada por el usuario.',
+    build: (params, mat, bands, ebId) => {
+      const gridDef: BayGridDefinition | undefined =
+        userTemplate.gridType === '2-bays-vertical'
+          ? { axis: 'horizontal', tracks: [{ type: 'fractional', valueFr: 1 }, { type: 'fractional', valueFr: 1 }] }
+          : userTemplate.gridType === '3-bays-vertical'
+          ? {
+              axis: 'horizontal',
+              tracks: [
+                { type: 'fractional', valueFr: 1 },
+                { type: 'fractional', valueFr: 1 },
+                { type: 'fractional', valueFr: 1 },
+              ],
+            }
+          : userTemplate.gridType === '2-bays-horizontal'
+          ? { axis: 'vertical', tracks: [{ type: 'fractional', valueFr: 1 }, { type: 'fractional', valueFr: 1 }] }
+          : undefined;
 
-export function getTemplateById(templateId: string): TemplateDefinition {
-  const found = ALL_TEMPLATES.find((t) => t.id === templateId);
-  return found ?? TEMPLATES[0]!;
+      const def: ModularModuleDefinition = {
+        id: userTemplate.id,
+        carcass: {
+          width: params.width,
+          height: params.height,
+          depth: params.depth,
+          roofType: userTemplate.carcassSettings.roofType,
+          jointPriority: userTemplate.carcassSettings.jointPriority,
+          hasBacking: userTemplate.carcassSettings.hasBacking,
+          railOrientation: userTemplate.carcassSettings.railOrientation,
+          hasMiddleBrace: userTemplate.carcassSettings.hasMiddleBrace,
+          middleBraceWidthMm: userTemplate.carcassSettings.middleBraceWidthMm,
+          hasWallHangingRail: userTemplate.carcassSettings.hasWallHangingRail,
+          wallHangingRailWidthMm: userTemplate.carcassSettings.wallHangingRailWidthMm,
+          hasPlinth: userTemplate.carcassSettings.hasPlinth,
+          plinthHeightMm: userTemplate.carcassSettings.plinthHeightMm,
+          plinthSetbackMm: userTemplate.carcassSettings.plinthSetbackMm,
+        },
+        grid: gridDef,
+        bays: userTemplate.bays,
+        materials: {
+          carcassMaterialId: userTemplate.materials?.carcassMaterialId ?? mat.id,
+          frontsMaterialId: userTemplate.materials?.frontsMaterialId ?? mat.id,
+          drawerBoxesMaterialId: userTemplate.materials?.drawerBoxesMaterialId ?? mat.id,
+          backingsMaterialId: userTemplate.materials?.backingsMaterialId ?? mat.id,
+        },
+        edgeBandId: userTemplate.materials?.edgeBandId ?? ebId,
+      };
+      const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
+      const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: bands });
+      return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
+    },
+  };
+}
+
+/**
+ * Single base template as requested: only "Estructura Hueco Libre".
+ * All other designs are saved and managed as user templates.
+ */
+export const TEMPLATES: TemplateDefinition[] = [BASE_EMPTY_TEMPLATE];
+export const MODULAR_TEMPLATES: TemplateDefinition[] = [BASE_EMPTY_TEMPLATE];
+export const ALL_TEMPLATES: TemplateDefinition[] = [BASE_EMPTY_TEMPLATE];
+
+export function getTemplateById(templateId: string, userTemplates?: UserTemplate[]): TemplateDefinition {
+  if (templateId === BASE_EMPTY_TEMPLATE.id) {
+    return BASE_EMPTY_TEMPLATE;
+  }
+  if (userTemplates) {
+    const foundUser = userTemplates.find((t) => t.id === templateId);
+    if (foundUser) {
+      return createUserTemplateDefinition(foundUser);
+    }
+  }
+  return BASE_EMPTY_TEMPLATE;
 }
 
 export {

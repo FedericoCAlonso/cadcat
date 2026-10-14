@@ -45,6 +45,20 @@ export function determinePieceSpatialSize(piece: Piece): Position3D {
     return { x: t, y: h, z: w };
   }
 
+  // Vertical panels standing in XY plane (vertical rails, hanging rail, plinth/zócalo)
+  if (
+    role.includes('rail-vertical') ||
+    role.includes('hanging-rail') ||
+    role.includes('plinth')
+  ) {
+    return { x: w, y: h, z: t };
+  }
+
+  // Cross brace running front-to-back in XZ plane
+  if (role.includes('brace-middle')) {
+    return { x: h, y: t, z: w };
+  }
+
   // Horizontal rails / stretchers / transoms in XZ plane
   if (role.includes('rail') || role.includes('transom')) {
     return { x: w, y: t, z: h };
@@ -222,6 +236,196 @@ export function calculateExplodedBoxes(
         z: box.positionMm.z + offset.z,
       },
       explodedOffsetMm: offset,
+    };
+  });
+}
+
+export interface KinematicMechanism {
+  id: string;
+  name: string;
+  kind: 'drawer' | 'door-left' | 'door-right' | 'tray' | 'lift-flap';
+  pieceIds: string[];
+  travelMm?: number;
+}
+
+export interface KinematicPieceBox extends SpatialPieceBox {
+  kinematicPositionMm: Position3D;
+  kinematicRotationRad: Position3D;
+  mechanismId?: string;
+}
+
+/**
+ * Identifies mobile kinematic mechanisms (drawers, doors, pull-out trays, flaps)
+ * from pieces and their spatial positions.
+ */
+export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): KinematicMechanism[] {
+  const mechanisms: KinematicMechanism[] = [];
+  const drawerGroups = new Map<string, string[]>();
+  const trayGroups = new Map<string, string[]>();
+
+  for (const box of boxes) {
+    const role = box.role.toLowerCase();
+    const id = box.pieceId;
+
+    // 1. Drawers (cajones)
+    const drawerMatch =
+      id.match(/(.*drawer(?:-stack)?-\d+)/i) ||
+      (role.includes('drawer') || role.includes('box-') ? id.match(/(.*drawer[^-]*)/i) : null);
+
+    if (drawerMatch && drawerMatch[1]) {
+      const groupKey = drawerMatch[1];
+      const list = drawerGroups.get(groupKey) ?? [];
+      list.push(id);
+      drawerGroups.set(groupKey, list);
+      continue;
+    }
+
+    // 2. Trays (bandejas extraíbles)
+    if (role.includes('tray')) {
+      const trayMatch = id.match(/(.*tray[^-]*)/i);
+      const groupKey = trayMatch?.[1] ?? 'pull-out-tray';
+      const list = trayGroups.get(groupKey) ?? [];
+      list.push(id);
+      trayGroups.set(groupKey, list);
+      continue;
+    }
+
+    // 3. Doors (puertas)
+    if (role.includes('door')) {
+      const isRight = id.endsWith('-r') || id.includes('right');
+      const isLeft = id.endsWith('-l') || id.includes('left') || !isRight;
+      mechanisms.push({
+        id,
+        name: isRight
+          ? 'Puerta Derecha'
+          : isLeft && boxes.some((b) => b.pieceId.endsWith('-r'))
+          ? 'Puerta Izquierda'
+          : 'Puerta',
+        kind: isRight ? 'door-right' : 'door-left',
+        pieceIds: [id],
+      });
+      continue;
+    }
+
+    // 4. Bi-fold / lift flaps
+    if (role.includes('bifold') || role.includes('leaf')) {
+      mechanisms.push({
+        id,
+        name: 'Tapa Elevable',
+        kind: 'lift-flap',
+        pieceIds: [id],
+      });
+    }
+  }
+
+  // Add gathered drawer mechanisms
+  let drawerNum = 1;
+  for (const [key, pieceIds] of drawerGroups.entries()) {
+    mechanisms.push({
+      id: key,
+      name: `Cajón ${drawerNum++}`,
+      kind: 'drawer',
+      pieceIds,
+      travelMm: 320,
+    });
+  }
+
+  // Add gathered tray mechanisms
+  let trayNum = 1;
+  for (const [key, pieceIds] of trayGroups.entries()) {
+    mechanisms.push({
+      id: key,
+      name: `Bandeja Extraíble ${trayNum++}`,
+      kind: 'tray',
+      pieceIds,
+      travelMm: 280,
+    });
+  }
+
+  return mechanisms;
+}
+
+/**
+ * Calculates positions and rotations for pieces based on kinematics state.
+ * kinematicsState is a map from mechanismId to openRatio (0.0 = closed, 1.0 = fully open).
+ */
+export function calculateKinematicBoxes(
+  boxes: SpatialPieceBox[],
+  mechanisms: KinematicMechanism[],
+  kinematicsState: Record<string, number>,
+): KinematicPieceBox[] {
+  const pieceMechMap = new Map<string, { mech: KinematicMechanism; ratio: number }>();
+  for (const m of mechanisms) {
+    const ratio = Math.max(0, Math.min(1, kinematicsState[m.id] ?? 0));
+    for (const pId of m.pieceIds) {
+      pieceMechMap.set(pId, { mech: m, ratio });
+    }
+  }
+
+  return boxes.map((box) => {
+    const entry = pieceMechMap.get(box.pieceId);
+    if (!entry || entry.ratio === 0) {
+      return {
+        ...box,
+        kinematicPositionMm: { ...box.positionMm },
+        kinematicRotationRad: { x: 0, y: 0, z: 0 },
+        mechanismId: entry?.mech.id,
+      };
+    }
+
+    const { mech, ratio } = entry;
+    let dx = 0;
+    let dy = 0;
+    let dz = 0;
+    let rx = 0;
+    let ry = 0;
+    let rz = 0;
+
+    if (mech.kind === 'drawer' || mech.kind === 'tray') {
+      const travel = mech.travelMm ?? 300;
+      dz = -ratio * travel;
+    } else if (mech.kind === 'door-left') {
+      const angle = ratio * (Math.PI / 2 + 0.15); // ~100 degrees open
+      ry = -angle;
+      const w = box.sizeMm.x;
+      const t = box.sizeMm.z;
+      const xRot = (w / 2) * Math.cos(angle) + (t / 2) * Math.sin(angle);
+      const zRot = -(w / 2) * Math.sin(angle) + (t / 2) * Math.cos(angle);
+      dx = xRot - w / 2;
+      dz = zRot - t / 2;
+    } else if (mech.kind === 'door-right') {
+      const angle = ratio * (Math.PI / 2 + 0.15);
+      ry = angle;
+      const w = box.sizeMm.x;
+      const t = box.sizeMm.z;
+      const xRot = (-w / 2) * Math.cos(angle) - (t / 2) * Math.sin(angle);
+      const zRot = (-w / 2) * Math.sin(angle) + (t / 2) * Math.cos(angle);
+      dx = xRot - -w / 2;
+      dz = zRot - t / 2;
+    } else if (mech.kind === 'lift-flap') {
+      const angle = ratio * (Math.PI / 2);
+      rx = -angle;
+      const h = box.sizeMm.y;
+      const t = box.sizeMm.z;
+      const yRot = (-h / 2) * Math.cos(angle) - (t / 2) * Math.sin(angle);
+      const zRot = (-h / 2) * Math.sin(angle) + (t / 2) * Math.cos(angle);
+      dy = yRot - -h / 2;
+      dz = zRot - t / 2;
+    }
+
+    return {
+      ...box,
+      kinematicPositionMm: {
+        x: Math.round((box.positionMm.x + dx) * 10) / 10,
+        y: Math.round((box.positionMm.y + dy) * 10) / 10,
+        z: Math.round((box.positionMm.z + dz) * 10) / 10,
+      },
+      kinematicRotationRad: {
+        x: Math.round(rx * 1000) / 1000,
+        y: Math.round(ry * 1000) / 1000,
+        z: Math.round(rz * 1000) / 1000,
+      },
+      mechanismId: mech.id,
     };
   });
 }

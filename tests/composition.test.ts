@@ -102,6 +102,20 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
       expect(sideL!.contour.points[2]!.y).toBe(864);
       // Top spans full width 800
       expect(top!.contour.points[1]!.x).toBe(800);
+
+      // Cavity starts at y = 0 (flush with top of bottom panel)
+      expect(res.interior.y).toBe(0);
+      expect(res.interior.height).toBe(864);
+
+      // Top placement node sits flush on top of the sides at y = 864
+      const topNode = res.placementNodes.find((n) => n.pieceId === top!.id);
+      expect(topNode!.relativeOffset.y).toBe(864);
+
+      // Joints from roof into top edges of sides
+      const roofJoint = res.joints.find((j) => j.a.pieceId === top!.id);
+      expect(roofJoint).toBeDefined();
+      expect(roofJoint!.a.faceId).toBe('bottom');
+      expect(roofJoint!.b.faceId).toBe('top-edge');
     });
   });
 
@@ -272,6 +286,15 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
       // Slide joints generated
       const slideJoints = result.joints.filter((j) => j.kind === 'slide');
       expect(slideJoints.length).toBe(4); // 2 drawers * 2 sides
+
+      // Drawer 1 (Cajón 1) is at the top (y = 564 with gap), Drawer 2 is at the bottom (y = 20 with gap)
+      const front1Node = result.placementNodes.find((n) => n.pieceId.includes('-drawer-front-1'));
+      const front2Node = result.placementNodes.find((n) => n.pieceId.includes('-drawer-front-2'));
+      expect(front1Node).toBeDefined();
+      expect(front2Node).toBeDefined();
+      expect(front1Node!.relativeOffset.y).toBe(564);
+      expect(front2Node!.relativeOffset.y).toBe(20);
+      expect(front1Node!.relativeOffset.y).toBeGreaterThan(front2Node!.relativeOffset.y);
     });
 
     it('resolves pull-out-tray with telescopic slide deduction and lips', () => {

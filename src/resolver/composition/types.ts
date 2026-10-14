@@ -13,6 +13,14 @@ export interface CarcassDefinition {
   jointPriority: JointPriority;
   roofType: RoofType;
   railWidthMm?: number;              // Width of front/back stretchers (default: 80mm)
+  railOrientation?: 'horizontal' | 'vertical'; // Stretcher orientation (default: horizontal)
+  hasMiddleBrace?: boolean;          // Intermediate structural reinforcement stretcher
+  middleBraceWidthMm?: number;       // Width of middle brace (default: 80mm)
+  hasWallHangingRail?: boolean;      // Top-back wall mounting rail (faja de colgado)
+  wallHangingRailWidthMm?: number;   // Width of wall hanging rail (default: 100mm)
+  hasPlinth?: boolean;               // Bottom plinth / kickboard (zócalo)
+  plinthHeightMm?: number;           // Height of plinth (default: 100mm)
+  plinthSetbackMm?: number;          // Setback from front edge (default: 50mm)
   hasBacking?: boolean;              // Whether there is a back panel
   backingType?: BackingType;         // Default: 'groove'
   backingGrooveDistanceMm?: number;  // Distance from back edge to groove (default: 15mm)
@@ -108,12 +116,29 @@ export type BayContent =
       openingDirection: 'vertical-lift' | 'horizontal-book';
     };
 
+export type BayContentEmpty = Extract<BayContent, { type: 'empty' }>;
+export type BayContentShelves = Extract<BayContent, { type: 'shelves' }>;
+export type BayContentDrawerStack = Extract<BayContent, { type: 'drawer-stack' }>;
+export type BayContentPullOutTray = Extract<BayContent, { type: 'pull-out-tray' }>;
+export type BayContentDoors = Extract<BayContent, { type: 'doors' }>;
+export type BayContentBiFoldClosure = Extract<BayContent, { type: 'bi-fold-closure' }>;
+
+export interface PieceEdgeBandOverride {
+  top?: boolean;
+  bottom?: boolean;
+  left?: boolean;
+  right?: boolean;
+  edgeBandId?: string;
+}
+
 export interface ModuleMaterialRoles {
   carcassMaterialId: string;
   frontsMaterialId: string;
   drawerBoxesMaterialId: string;
   backingsMaterialId: string;
   pieceOverrides?: Record<string, string>;
+  pieceThicknessOverrides?: Record<string, number>;
+  pieceEdgeBandOverrides?: Record<string, PieceEdgeBandOverride>;
 }
 
 export interface ModularModuleDefinition {

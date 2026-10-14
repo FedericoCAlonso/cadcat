@@ -368,6 +368,25 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
     expect(screwEdgeOps).toHaveLength(2);
     expect(screwEdgeOps[0]!.diameterMm).toBe(3);
     expect(screwEdgeOps[0]!.depthMm).toBe(35);
+
+    // 3. piece-level override: change confirmat to cam-dowel (minifix) for p-side to avoid through holes
+    const overrideOps = deriveModuleDrillOperations(
+      [side, bottom],
+      [joint],
+      { jointStrategy: 'confirmat' },
+      undefined,
+      { 'p-side': 'cam-dowel' },
+    );
+    const overrideSideOps = overrideOps.filter((o) => o.pieceId === 'p-side');
+    // Side should now have minifix dowel anchor holes that are NOT through holes
+    expect(overrideSideOps.length).toBeGreaterThan(0);
+    expect(overrideSideOps.every((o) => !o.isThrough)).toBe(true);
+    expect(overrideSideOps[0]!.sourceJointKind).toBe('cam-dowel');
+
+    const overrideBottomOps = overrideOps.filter((o) => o.pieceId === 'p-bottom');
+    const pocketOps = overrideBottomOps.filter((o) => o.description?.includes('Minifix cam pocket'));
+    expect(pocketOps.length).toBeGreaterThan(0);
   });
 });
+
 

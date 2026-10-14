@@ -1,26 +1,27 @@
+import { type ProjectConfig } from '../model';
 import {
-  type ProjectConfig,
-  validateProjectConfig,
-} from '../model';
-import {
-  saveItem,
-  loadItem,
-  type StoredEntity,
-} from './db';
-import defaultProjectConfigJson from '../config/defaultProjectConfig.json';
+  ProjectConfigService,
+  projectConfigService,
+  type IConfigService,
+  type StoredProjectConfig,
+  CONFIG_STORE,
+  DEFAULT_PROJECT_ID,
+} from './configService';
 
-export interface StoredProjectConfig extends StoredEntity {
-  data: ProjectConfig;
-}
-
-export const CONFIG_STORE = 'configs';
-export const DEFAULT_PROJECT_ID = 'default-project';
+export {
+  type StoredProjectConfig,
+  type IConfigService,
+  ProjectConfigService,
+  projectConfigService,
+  CONFIG_STORE,
+  DEFAULT_PROJECT_ID,
+};
 
 /**
  * Loads baseline project configuration directly from configuration file.
  */
 export function getDefaultProjectConfig(): ProjectConfig {
-  return validateProjectConfig(defaultProjectConfigJson);
+  return projectConfigService.getDefaultConfig();
 }
 
 /**
@@ -31,28 +32,7 @@ export async function loadProjectConfigFromDb(
   projectId = DEFAULT_PROJECT_ID,
   database?: IDBDatabase,
 ): Promise<ProjectConfig> {
-  const existing = await loadItem<StoredProjectConfig>(
-    CONFIG_STORE,
-    projectId,
-    database,
-  );
-
-  if (existing && existing.data) {
-    try {
-      return validateProjectConfig(existing.data);
-    } catch {
-      // In case of schema upgrade or corrupted record, fallback to default
-      const defaultConf = getDefaultProjectConfig();
-      await saveProjectConfigToDb({ ...defaultConf, projectId }, database);
-      return { ...defaultConf, projectId };
-    }
-  }
-
-  // Seed into database from config file
-  const defaultConf = getDefaultProjectConfig();
-  const seeded: ProjectConfig = { ...defaultConf, projectId };
-  await saveProjectConfigToDb(seeded, database);
-  return seeded;
+  return projectConfigService.loadConfig(projectId, database);
 }
 
 /**
@@ -62,30 +42,19 @@ export async function saveProjectConfigToDb(
   config: ProjectConfig,
   database?: IDBDatabase,
 ): Promise<void> {
-  const validated = validateProjectConfig(config);
-  await saveItem<StoredProjectConfig>(
-    CONFIG_STORE,
-    {
-      id: validated.projectId,
-      schemaVersion: 1,
-      data: validated,
-    },
-    database,
-  );
+  return projectConfigService.saveConfig(config, database);
 }
 
 /**
  * Serializes project configuration to a downloadable JSON string.
  */
 export function exportProjectConfigJson(config: ProjectConfig): string {
-  const validated = validateProjectConfig(config);
-  return JSON.stringify(validated, null, 2);
+  return projectConfigService.exportConfigJson(config);
 }
 
 /**
  * Parses and validates an uploaded project configuration JSON string.
  */
 export function importProjectConfigJson(jsonString: string): ProjectConfig {
-  const parsed = JSON.parse(jsonString) as unknown;
-  return validateProjectConfig(parsed);
+  return projectConfigService.importConfigJson(jsonString);
 }

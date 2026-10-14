@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import './theme.css';
 import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
@@ -7,6 +7,7 @@ import { Viewport3D } from './Viewport3D';
 import { MachiningSheetView } from './MachiningSheetView';
 import { ProjectSettingsView } from './ProjectSettingsView';
 import { AssemblySheetView } from './AssemblySheetView';
+import { MachiningEditorModal } from './MachiningEditorModal';
 
 /**
  * Main application View component.
@@ -14,6 +15,7 @@ import { AssemblySheetView } from './AssemblySheetView';
  */
 export function App(): ReactElement {
   const vm = useModuleViewModel();
+  const [machiningPieceId, setMachiningPieceId] = useState<string | null>(null);
 
   return (
     <div className="app-wrapper">
@@ -118,6 +120,8 @@ export function App(): ReactElement {
                 onSave={() => void vm.saveModule()}
                 onExportCsv={vm.exportCsv}
                 onExportPdf={vm.exportPdf}
+                onSaveUserTemplate={vm.saveCurrentUserTemplate}
+                onDeleteUserTemplate={vm.deleteUserTemplate}
                 isCustomModular={vm.isCustomModular}
                 roofType={vm.roofType}
                 jointPriority={vm.jointPriority}
@@ -156,6 +160,22 @@ export function App(): ReactElement {
                 onBackingsMaterialChange={vm.setBackingsMaterialId}
                 jointStrategy={vm.jointStrategy}
                 onJointStrategyChange={vm.setJointStrategy}
+                railOrientation={vm.railOrientation}
+                onRailOrientationChange={vm.setRailOrientation}
+                hasMiddleBrace={vm.hasMiddleBrace}
+                onHasMiddleBraceChange={vm.setHasMiddleBrace}
+                middleBraceWidthMm={vm.middleBraceWidthMm}
+                onMiddleBraceWidthChange={vm.setMiddleBraceWidthMm}
+                hasWallHangingRail={vm.hasWallHangingRail}
+                onHasWallHangingRailChange={vm.setHasWallHangingRail}
+                wallHangingRailWidthMm={vm.wallHangingRailWidthMm}
+                onWallHangingRailWidthChange={vm.setWallHangingRailWidthMm}
+                hasPlinth={vm.hasPlinth}
+                onHasPlinthChange={vm.setHasPlinth}
+                plinthHeightMm={vm.plinthHeightMm}
+                onPlinthHeightChange={vm.setPlinthHeightMm}
+                plinthSetbackMm={vm.plinthSetbackMm}
+                onPlinthSetbackChange={vm.setPlinthSetbackMm}
                 onView3dClick={() => vm.setActiveTab('3d')}
               />
             </aside>
@@ -172,6 +192,22 @@ export function App(): ReactElement {
                     selectedPieceId={vm.selectedPieceId}
                     onSelectPiece={vm.setSelectedPieceId}
                     shelfDeflections={vm.shelfDeflections}
+                    pieceJointOverrides={vm.pieceJointOverrides}
+                    onSetPieceJointOverride={vm.setPieceJointOverride}
+                    defaultJointStrategy={vm.jointStrategy}
+                    kinematicBoxes={vm.kinematicBoxes}
+                    kinematicMechanisms={vm.kinematicMechanisms}
+                    kinematicsState={vm.kinematicsState}
+                    onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
+                    materials={vm.materials}
+                    edgeBands={vm.edgeBands}
+                    pieceMaterialOverrides={vm.pieceMaterialOverrides}
+                    pieceThicknessOverrides={vm.pieceThicknessOverrides}
+                    pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
+                    onSetPieceMaterial={vm.setPieceMaterial}
+                    onSetPieceThickness={vm.setPieceThickness}
+                    onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                    onOpenMachiningModal={(id) => setMachiningPieceId(id)}
                   />
                   <button
                     type="button"
@@ -197,6 +233,20 @@ export function App(): ReactElement {
                 <PieceListView
                   pieces={vm.resolvedPieces}
                   shelfDeflections={vm.shelfDeflections}
+                  selectedPieceId={vm.selectedPieceId}
+                  onSelectPiece={vm.setSelectedPieceId}
+                  pieceJointOverrides={vm.pieceJointOverrides}
+                  onSetPieceJointOverride={vm.setPieceJointOverride}
+                  defaultJointStrategy={vm.jointStrategy}
+                  materials={vm.materials}
+                  edgeBands={vm.edgeBands}
+                  pieceMaterialOverrides={vm.pieceMaterialOverrides}
+                  pieceThicknessOverrides={vm.pieceThicknessOverrides}
+                  pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
+                  onSetPieceMaterial={vm.setPieceMaterial}
+                  onSetPieceThickness={vm.setPieceThickness}
+                  onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                  onOpenMachiningModal={(id) => setMachiningPieceId(id)}
                 />
               )}
 
@@ -216,6 +266,16 @@ export function App(): ReactElement {
                   onExportConfig={vm.exportProjectConfigFile}
                   onImportConfigFile={(file) => void vm.importProjectConfigFile(file)}
                   onResetConfig={() => void vm.resetProjectConfigToDefaults()}
+                  materials={vm.materials}
+                  edgeBands={vm.edgeBands}
+                  hardware={vm.hardware}
+                  onSaveMaterial={vm.saveMaterial}
+                  onDeleteMaterial={vm.deleteMaterial}
+                  onSaveEdgeBand={vm.saveEdgeBand}
+                  onDeleteEdgeBand={vm.deleteEdgeBand}
+                  onSaveHardware={vm.saveHardware}
+                  onDeleteHardware={vm.deleteHardware}
+                  onResetCatalogs={vm.resetCatalogs}
                 />
               )}
 
@@ -303,6 +363,17 @@ export function App(): ReactElement {
           <span className="m3-bottom-nav__label">Taller</span>
         </button>
       </nav>
+
+      {/* Interactive 2D Machining Editor Modal (Point 8) */}
+      {machiningPieceId && (
+        <MachiningEditorModal
+          piece={vm.resolvedPieces.find((p) => p.id === machiningPieceId) ?? null}
+          customOperations={Object.values(vm.customPieceOperations).flat()}
+          onAddOperation={vm.addCustomPieceOperation}
+          onRemoveOperation={vm.removeCustomPieceOperation}
+          onClose={() => setMachiningPieceId(null)}
+        />
+      )}
     </div>
   );
 }

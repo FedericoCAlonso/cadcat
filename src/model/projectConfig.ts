@@ -30,17 +30,29 @@ export const machiningConfigSchema = z.object({
   dowelFaceDepthMm: z.number().positive(),
   dowelEdgeDiameterMm: z.number().positive(),
   dowelEdgeDepthMm: z.number().positive(),
+  dowelSpacingMm: z.number().positive().default(32.0),
+  dowelMinContactLengthMm: z.number().positive().default(160.0),
+  screwThroughDiameterMm: z.number().positive().default(4.0),
+  screwCoreDiameterMm: z.number().positive().default(3.0),
+  screwCoreDepthMm: z.number().positive().default(35.0),
+  slideHoleDiameterMm: z.number().positive().default(5.0),
+  slideHoleDepthMm: z.number().positive().default(12.0),
+  slideHolePitchMm: z.number().positive().default(192.0),
   hingeCupDiameterMm: z.number().positive(),
   hingeCupDepthMm: z.number().positive(),
   hingeCupEdgeSetbackMm: z.number().positive(),
   hingePlateSetbackMm: z.number().positive(),
   hingePlateDiameterMm: z.number().positive(),
   hingePlateDepthMm: z.number().positive(),
+  hingePlateHoleSpacingMm: z.number().positive().default(32.0),
   shelfPinDiameterMm: z.number().positive(),
   shelfPinDepthMm: z.number().positive(),
   system32FrontSetbackMm: z.number().positive(),
   jointDrillMarginMm: z.number().positive(),
   maxSpanWithoutCenterDrillMm: z.number().positive(),
+  shortPieceThresholdMm: z.number().positive().default(110.0),
+  shortPieceMaxMarginMm: z.number().positive().default(25.0),
+  minJointLengthMm: z.number().positive().default(50.0),
   defaultGaugeWidthMm: shopValueSchema.default(50),
 });
 export type MachiningConfig = z.infer<typeof machiningConfigSchema>;
@@ -66,6 +78,8 @@ export const deflectionConfigSchema = z.object({
   maxDeflectionRatio: z.number().positive(), // e.g., 200 for L/200
   maxAbsoluteDeflectionMm: z.number().positive(), // e.g., 3.0 mm
   designUniformLoadKgM2: z.number().positive(), // e.g., 30 kg/m2
+  defaultElasticModulusMPa: z.number().positive().default(3000.0),
+  gravityAccelerationMS2: z.number().positive().default(9.80665),
 });
 export type DeflectionConfig = z.infer<typeof deflectionConfigSchema>;
 
@@ -73,6 +87,7 @@ export const hardwareConfigSchema = z.object({
   slideClearanceTelescopicMm: z.number().positive().default(25.4),
   slideClearanceUndermountMm: z.number().positive().default(10.0),
   slideClearanceMetalBoxMm: z.number().positive().default(31.0),
+  slideClearanceRollerMm: z.number().positive().default(25.0),
   drawerFrontGapMm: z.number().min(0).default(3.0),
   drawerBoxFrontOffsetMm: z.number().min(0).default(10.0),
   drawerBoxBottomClearanceMm: z.number().min(0).default(15.0),
@@ -83,18 +98,7 @@ export const hardwareConfigSchema = z.object({
 });
 export type HardwareConfig = z.infer<typeof hardwareConfigSchema>;
 
-export const DEFAULT_HARDWARE_CONFIG: HardwareConfig = {
-  slideClearanceTelescopicMm: 25.4,
-  slideClearanceUndermountMm: 10.0,
-  slideClearanceMetalBoxMm: 31.0,
-  drawerFrontGapMm: 3.0,
-  drawerBoxFrontOffsetMm: 10.0,
-  drawerBoxBottomClearanceMm: 15.0,
-  doorOverlayRevealMm: 1.5,
-  doorHalfOverlayRevealMm: 1.5,
-  doorInsetGapMm: 2.0,
-  doorHingeMarginMm: 100.0,
-};
+export const DEFAULT_HARDWARE_CONFIG: HardwareConfig = hardwareConfigSchema.parse({});
 
 export const projectConfigSchema = z.object({
   schemaVersion: z.literal(1),

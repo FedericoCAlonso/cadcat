@@ -206,6 +206,66 @@ describe('Machining Sheet Resolver (machiningSheet)', () => {
     expect(svg).toContain('Ø35x12');
   });
 
+  it('handles custom piece operations (groove, rebate, cutout, drill) and renders in SVG', () => {
+    const customOps = [
+      {
+        kind: 'groove' as const,
+        id: 'cust-groove-1',
+        pieceId: 'test-side-left',
+        faceType: 'face-A' as const,
+        axis: 'x' as const,
+        offsetMm: 20,
+        widthMm: 4,
+        depthMm: 8,
+      },
+      {
+        kind: 'rebate' as const,
+        id: 'cust-rebate-1',
+        pieceId: 'test-side-left',
+        faceType: 'face-A' as const,
+        edge: 'top' as const,
+        widthMm: 10,
+        depthMm: 5,
+      },
+      {
+        kind: 'cutout' as const,
+        id: 'cust-cutout-1',
+        pieceId: 'test-side-left',
+        faceType: 'face-A' as const,
+        xMm: 100,
+        yMm: 200,
+        widthMm: 60,
+        heightMm: 60,
+        depthMm: 18,
+        isThrough: true,
+      },
+      {
+        kind: 'drill' as const,
+        id: 'cust-drill-1',
+        pieceId: 'test-side-left',
+        faceType: 'face-A' as const,
+        xMm: 150,
+        yMm: 300,
+        diameterMm: 8,
+        depthMm: 12,
+        isThrough: false,
+      },
+    ];
+
+    const sheet = buildPieceMachiningSheet(samplePiece, [], customOps);
+
+    expect(sheet.customOperations).toHaveLength(4);
+    // Custom drill was converted and placed in faceAOperations
+    expect(sheet.faceAOperations).toHaveLength(1);
+    expect(sheet.faceAOperations[0]?.diameterMm).toBe(8);
+
+    const svg = renderPieceMachiningSvg(sheet, 'face-A');
+    expect(svg).toContain('Ranura 4x8mm (Y: 20mm)');
+    expect(svg).toContain('Rebaje top 10x5mm');
+    expect(svg).toContain('Fresado 60x60x18mm');
+    expect(svg).toContain('Ø8x12');
+  });
+
   it('exports multi-page PDF machining sheets for workshop manual machines', () => {
     const built = buildDoorCabinet(
       { width: 600, height: 800, depth: 560 },
@@ -221,3 +281,4 @@ describe('Machining Sheet Resolver (machiningSheet)', () => {
     expect(doc.getNumberOfPages()).toBe(sheets.length);
   });
 });
+

@@ -1,0 +1,199 @@
+[
+  {
+    "id": "preset-empty",
+    "name": "Módulo Vacío / Hueco Libre",
+    "description": "Estructura perimetral con fajas de amarre superiores y fondo ranurado.",
+    "defaultDimensions": { "width": 600, "height": 720, "depth": 560 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "front-back-rails",
+      "railWidthMm": 80,
+      "hasBacking": true
+    },
+    "bays": [{ "type": "empty" }],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-white-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
+    "id": "preset-base-shelf",
+    "name": "Bajo Mesada Clásico (1 Estante)",
+    "description": "Casco con fajas de amarre superiores y 1 estante regulable central.",
+    "defaultDimensions": { "width": 600, "height": 720, "depth": 560 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "front-back-rails",
+      "railWidthMm": 80,
+      "hasBacking": true
+    },
+    "bays": [
+      {
+        "type": "shelves",
+        "count": 1,
+        "shelfType": "adjustable",
+        "setbackMm": 20
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-white-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
+    "id": "preset-drawer-unit-3",
+    "name": "Cajonera 3 Cajones (Cubertero + 2 Olleros)",
+    "description": "Cajón superior fijo de 140mm y 2 cajones inferiores proporcionales en 1fr 1fr con frentes aplicados.",
+    "defaultDimensions": { "width": 500, "height": 720, "depth": 560 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "front-back-rails",
+      "railWidthMm": 80,
+      "hasBacking": true
+    },
+    "bays": [
+      {
+        "type": "drawer-stack",
+        "drawerTracks": [
+          { "type": "fixed", "valueMm": 140 },
+          { "type": "fractional", "valueFr": 1 },
+          { "type": "fractional", "valueFr": 1 }
+        ],
+        "frontMount": "applied",
+        "slideType": "telescopic",
+        "gapMm": 2.5
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-oak-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
+    "id": "preset-door-cabinet-2",
+    "name": "Alacena / Mueble 2 Puertas",
+    "description": "Mueble con techo macizo, 1 estante interior y 2 puertas batientes full-overlay.",
+    "defaultDimensions": { "width": 800, "height": 720, "depth": 350 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "solid-panel",
+      "hasBacking": true
+    },
+    "bays": [
+      {
+        "type": "doors",
+        "count": 2,
+        "mountType": "full-overlay"
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-oak-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
+    "id": "preset-partition-combo",
+    "name": "Módulo Combinado 2 Vanos (Estantes + Cajones)",
+    "description": "División vertical en 2 vanos: izquierdo con 2 estantes y derecho con 3 cajones.",
+    "defaultDimensions": { "width": 900, "height": 720, "depth": 560 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "front-back-rails",
+      "railWidthMm": 80,
+      "hasBacking": true
+    },
+    "grid": {
+      "axis": "horizontal",
+      "tracks": [
+        { "type": "fractional", "valueFr": 1 },
+        { "type": "fractional", "valueFr": 1 }
+      ],
+      "dividerThicknessMm": 18
+    },
+    "bays": [
+      {
+        "type": "shelves",
+        "count": 2,
+        "shelfType": "adjustable",
+        "setbackMm": 20
+      },
+      {
+        "type": "drawer-stack",
+        "drawerTracks": [
+          { "type": "fractional", "valueFr": 1 },
+          { "type": "fractional", "valueFr": 1 },
+          { "type": "fractional", "valueFr": 1 }
+        ],
+        "frontMount": "applied",
+        "slideType": "telescopic"
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-oak-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
+    "id": "preset-pullout-tray",
+    "name": "Bajo Mesada con Bandeja Extraíble",
+    "description": "Módulo con 1 bandeja extraíble con correderas telescópicas y 1 estante superior.",
+    "defaultDimensions": { "width": 600, "height": 720, "depth": 560 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "front-back-rails",
+      "railWidthMm": 80,
+      "hasBacking": true
+    },
+    "bays": [
+      {
+        "type": "pull-out-tray",
+        "lipHeightMm": 45,
+        "slideType": "telescopic"
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-white-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
+    "id": "preset-bifold-closure",
+    "name": "Alacena con Puerta Elevable Plegable (Bi-Fold)",
+    "description": "Alacena con techo macizo y puerta doble plegable de apertura vertical.",
+    "defaultDimensions": { "width": 800, "height": 700, "depth": 350 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "solid-panel",
+      "hasBacking": true
+    },
+    "bays": [
+      {
+        "type": "bi-fold-closure",
+        "leafTracks": [
+          { "type": "fractional", "valueFr": 1 },
+          { "type": "fractional", "valueFr": 1 }
+        ],
+        "hingeType": "aventos",
+        "openingDirection": "vertical-lift"
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-oak-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  }
+]

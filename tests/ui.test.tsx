@@ -125,14 +125,11 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('value="140mm 1fr 1fr"');
     expect(html).toContain('1fr 1fr 1fr (3 iguales)');
     expect(html).toContain('Proporción y alturas reales');
-    expect(html).toContain('Distribución de alturas:');
-    expect(html).toContain('Todos iguales');
-    expect(html).toContain('Cubertero + Olleros');
-    expect(html).toContain('Personalizado');
-    expect(html).toContain('Altura cajón superior (cubertero):');
-    expect(html).toContain('value="140"');
+    expect(html).toContain('Atajos de distribución rápida:');
+    expect(html).toContain('Dividir iguales');
+    expect(html).toContain('Cubertero 140 mm + Olleros');
     expect(html).toContain('Alturas calculadas de frentes:');
-    expect(html).toContain('Cajón 1:');
+    expect(html).toContain('Cajón 1 (Superior):');
     expect(html).toContain('Separación entre frentes (luz):');
     expect(html).toContain('Aplicado (Solapado)');
     expect(html).toContain('Embutido');
@@ -175,7 +172,7 @@ describe('ModuleForm Component', () => {
     );
 
     // Custom track controls
-    expect(html).toContain('Ajuste por cajón (de arriba a abajo):');
+    expect(html).toContain('Ajuste por cajón (Cajón 1 es el superior):');
     expect(html).toContain('Fijo (mm)');
     expect(html).toContain('Proporcional (fr)');
     expect(html).toContain('Travesaños horizontales entre cajones:');
@@ -462,7 +459,7 @@ describe('ProjectSettingsView Component', () => {
     );
 
     expect(html).toContain('Menú de Configuración del Proyecto');
-    expect(html).toContain('Mecanizado &amp; Taller');
+    expect(html).toContain('Mecanizado del Proyecto');
     expect(html).toContain('Tornillo Confirmat');
     expect(html).toContain('Guardar en DB');
     expect(html).toContain('Exportar JSON');

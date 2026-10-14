@@ -1,5 +1,6 @@
 import { useState, useRef, type ReactElement, type ChangeEvent } from 'react';
-import type { ProjectConfig } from '../model';
+import type { ProjectConfig, Material, EdgeBand, Hardware } from '../model';
+import { CatalogManagerView } from './CatalogManagerView';
 
 export interface ProjectSettingsViewProps {
   config: ProjectConfig | null;
@@ -9,6 +10,16 @@ export interface ProjectSettingsViewProps {
   onExportConfig: () => void;
   onImportConfigFile: (file: File) => void;
   onResetConfig: () => void;
+  materials?: Material[];
+  edgeBands?: EdgeBand[];
+  hardware?: Hardware[];
+  onSaveMaterial?: (material: Material) => Promise<void>;
+  onDeleteMaterial?: (id: string) => Promise<void>;
+  onSaveEdgeBand?: (edgeBand: EdgeBand) => Promise<void>;
+  onDeleteEdgeBand?: (id: string) => Promise<void>;
+  onSaveHardware?: (hardware: Hardware) => Promise<void>;
+  onDeleteHardware?: (id: string) => Promise<void>;
+  onResetCatalogs?: () => Promise<void>;
 }
 
 /**
@@ -23,8 +34,18 @@ export function ProjectSettingsView({
   onExportConfig,
   onImportConfigFile,
   onResetConfig,
+  materials = [],
+  edgeBands = [],
+  hardware = [],
+  onSaveMaterial,
+  onDeleteMaterial,
+  onSaveEdgeBand,
+  onDeleteEdgeBand,
+  onSaveHardware,
+  onDeleteHardware,
+  onResetCatalogs,
 }: ProjectSettingsViewProps): ReactElement {
-  const [activeSection, setActiveSection] = useState<'general' | 'machining' | 'nesting' | 'costs'>('machining');
+  const [activeSection, setActiveSection] = useState<'general' | 'machining' | 'catalog' | 'nesting' | 'costs'>('machining');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!config) {
@@ -161,7 +182,14 @@ export function ProjectSettingsView({
           className={`settings-tab-btn ${activeSection === 'machining' ? 'active' : ''}`}
           onClick={() => setActiveSection('machining')}
         >
-          🛠️ Mecanizado & Taller
+          🛠️ Mecanizado del Proyecto
+        </button>
+        <button
+          type="button"
+          className={`settings-tab-btn ${activeSection === 'catalog' ? 'active' : ''}`}
+          onClick={() => setActiveSection('catalog')}
+        >
+          🗄️ Insumos & Base de Datos
         </button>
         <button
           type="button"
@@ -186,12 +214,12 @@ export function ProjectSettingsView({
         </button>
       </nav>
 
-      {/* SECTION: Machining & Workshop */}
+      {/* SECTION: Machining & Workshop Defaults */}
       {activeSection === 'machining' && (
         <div className="settings-section">
-          <h3 className="section-title">Parámetros de Mecanizado y Perforaciones de Taller</h3>
+          <h3 className="section-title">Parámetros de Mecanizado del Proyecto (Valores por Defecto)</h3>
           <p className="section-desc">
-            Estos valores definen las brocas, profundidades y cotas calculadas automáticamente para cada herraje.
+            Configuración general de uniones para este proyecto. Podés sobreescribir la fijación de una placa en particular (por ejemplo, usar Minifix o tarugos ocultos para evitar tornillos pasantes en un lateral visto) seleccionándola directamente en la vista 3D o en el despiece.
           </p>
 
           <div className="settings-grid">
@@ -460,6 +488,28 @@ export function ProjectSettingsView({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SECTION: Catalog & Workshop Database */}
+      {activeSection === 'catalog' && (
+        <div className="settings-section">
+          <h3 className="section-title">Base de Datos de Insumos del Taller</h3>
+          <p className="section-desc">
+            Configuración persistente en base de datos local (IndexedDB) para placas, tapacantos, herrajes y fijaciones. Podés dar de alta, editar o eliminar materiales sin tocar el código.
+          </p>
+          <CatalogManagerView
+            materials={materials}
+            edgeBands={edgeBands}
+            hardware={hardware}
+            onSaveMaterial={onSaveMaterial ?? (async () => {})}
+            onDeleteMaterial={onDeleteMaterial ?? (async () => {})}
+            onSaveEdgeBand={onSaveEdgeBand ?? (async () => {})}
+            onDeleteEdgeBand={onDeleteEdgeBand ?? (async () => {})}
+            onSaveHardware={onSaveHardware ?? (async () => {})}
+            onDeleteHardware={onDeleteHardware ?? (async () => {})}
+            onResetCatalogs={onResetCatalogs ?? (async () => {})}
+          />
         </div>
       )}
 

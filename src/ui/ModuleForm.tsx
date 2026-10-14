@@ -1,4 +1,4 @@
-import type { ReactElement, ChangeEvent } from 'react';
+import { useState, type ReactElement } from 'react';
 import type { Material, EdgeBand, JointStrategy } from '../model';
 import type {
   TemplateDefinition,
@@ -15,7 +15,9 @@ import {
   formatTracksToGridString,
   parseGridStringToTracks,
 } from '../resolver';
-import { translateTemplateName, translateEdgeBandKind } from './localization';
+import { translateTemplateName, translateEdgeBandKind, t } from './localization';
+import { NumericInput } from './NumericInput';
+import { DEFAULT_UI_CONFIG } from '../config';
 
 export interface ModuleFormProps {
   width: number;
@@ -84,6 +86,25 @@ export interface ModuleFormProps {
   onBackingsMaterialChange?: (id: string) => void;
   onJointStrategyChange?: (strategy: JointStrategy) => void;
   onView3dClick?: () => void;
+  onSaveUserTemplate?: (name: string, description?: string) => Promise<void> | void;
+  onDeleteUserTemplate?: (id: string) => Promise<void> | void;
+  // Base structure & reinforcement props (Point 7)
+  railOrientation?: 'horizontal' | 'vertical';
+  hasMiddleBrace?: boolean;
+  middleBraceWidthMm?: number;
+  hasWallHangingRail?: boolean;
+  wallHangingRailWidthMm?: number;
+  hasPlinth?: boolean;
+  plinthHeightMm?: number;
+  plinthSetbackMm?: number;
+  onRailOrientationChange?: (val: 'horizontal' | 'vertical') => void;
+  onHasMiddleBraceChange?: (val: boolean) => void;
+  onMiddleBraceWidthChange?: (val: number) => void;
+  onHasWallHangingRailChange?: (val: boolean) => void;
+  onWallHangingRailWidthChange?: (val: number) => void;
+  onHasPlinthChange?: (val: boolean) => void;
+  onPlinthHeightChange?: (val: number) => void;
+  onPlinthSetbackChange?: (val: number) => void;
 }
 
 /**
@@ -112,6 +133,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onSave,
     onExportCsv,
     onExportPdf,
+    onSaveUserTemplate,
+    onDeleteUserTemplate,
     roofType = 'front-back-rails',
     jointPriority = 'lateral-over-bottom',
     hasBacking = true,
@@ -136,7 +159,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onDrawerFrontMountChange,
     onDrawerSlideTypeChange,
     onDrawerDistributionPresetChange,
-    onDrawerTopHeightChange,
     onDrawerTrackChange,
     onDrawerTracksChange,
     onDrawerGapChange,
@@ -149,41 +171,27 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onBackingsMaterialChange,
     onJointStrategyChange,
     onView3dClick,
+    railOrientation = 'horizontal',
+    hasMiddleBrace = false,
+    middleBraceWidthMm = 80,
+    hasWallHangingRail = false,
+    wallHangingRailWidthMm = 100,
+    hasPlinth = false,
+    plinthHeightMm = 100,
+    plinthSetbackMm = 50,
+    onRailOrientationChange,
+    onHasMiddleBraceChange,
+    onMiddleBraceWidthChange,
+    onHasWallHangingRailChange,
+    onWallHangingRailWidthChange,
+    onHasPlinthChange,
+    onPlinthHeightChange,
+    onPlinthSetbackChange,
   } = props;
-
-  const handleNumberInput = (setter: (val: number) => void) => (e: ChangeEvent<HTMLInputElement>) => {
-    const val = Number.parseFloat(e.target.value);
-    if (!Number.isNaN(val)) {
-      setter(val);
-    }
-  };
-
-  const adjustDimension = (current: number, delta: number, min: number, max: number, setter: (val: number) => void) => {
-    setter(Math.max(min, Math.min(max, current + delta)));
-  };
 
   const currentBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '1-bay' ? 1 : 2;
   const currentActiveIndex = Math.min(activeBayIndex, currentBayCount - 1);
   const activeBay = bays[currentActiveIndex] ?? { type: 'empty' };
-
-  const currentDrawerPreset: 'equal' | 'cutlery-top' | 'custom' = (() => {
-    if (activeBay.type !== 'drawer-stack' || !activeBay.drawerTracks || activeBay.drawerTracks.length <= 1) {
-      return 'equal';
-    }
-    const tracks = activeBay.drawerTracks;
-    const isAllEqualFr = tracks.every((t) => t.type === 'fractional' && t.valueFr === 1);
-    if (isAllEqualFr) return 'equal';
-    const isCutleryTop =
-      tracks[0]?.type === 'fixed' &&
-      tracks.slice(1).every((t) => t.type === 'fractional' && t.valueFr === 1);
-    if (isCutleryTop) return 'cutlery-top';
-    return 'custom';
-  })();
-
-  const topCutleryHeight =
-    activeBay.type === 'drawer-stack' && activeBay.drawerTracks?.[0]?.type === 'fixed'
-      ? activeBay.drawerTracks[0].valueMm
-      : 140;
 
   const rawThickness = materials.find((m) => m.id === selectedMaterialId)?.thicknessMm;
   const matThickness = typeof rawThickness === 'number' ? rawThickness : 18;
@@ -211,6 +219,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     return res.tracks.map((t) => t.sizeMm);
   })();
 
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateDesc, setNewTemplateDesc] = useState('');
+
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
       <div className="m3-card__header">
@@ -224,129 +236,165 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       </div>
 
       {templates && templates.length > 0 && onTemplateChange && (
-        <div className="form-group">
-          <label htmlFor="select-template">
-            Plantilla base:
-            <span className="visually-hidden">Module Template:</span>
-          </label>
-          <select
-            id="select-template"
-            value={selectedTemplateId}
-            onChange={(e) => onTemplateChange(e.target.value)}
-            className="m3-select"
-          >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {translateTemplateName(t.id, t.name)}
-              </option>
-            ))}
-          </select>
+        <div className="form-group template-selection-group">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label htmlFor="select-template">
+              Plantilla base o personalizada:
+              <span className="visually-hidden">Module Template:</span>
+            </label>
+            {onSaveUserTemplate && (
+              <button
+                type="button"
+                className="m3-button m3-button--tonal"
+                style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
+                onClick={() => setIsSavingTemplate(!isSavingTemplate)}
+              >
+                💾 {t('userTemplates.saveButton')}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+            <select
+              id="select-template"
+              value={selectedTemplateId}
+              onChange={(e) => onTemplateChange(e.target.value)}
+              className="m3-select"
+              style={{ flex: 1 }}
+            >
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.id.startsWith('user-') ? `⭐ ${t.name}` : translateTemplateName(t.id, t.name)}
+                </option>
+              ))}
+            </select>
+
+            {selectedTemplateId?.startsWith('user-') && onDeleteUserTemplate && (
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                style={{ padding: '0.25rem 0.5rem', color: '#ba1a1a' }}
+                title={t('userTemplates.delete')}
+                onClick={() => {
+                  const currentTpl = templates.find((t) => t.id === selectedTemplateId);
+                  const name = currentTpl?.name ?? selectedTemplateId;
+                  if (window.confirm(t('userTemplates.deleteConfirm', { name }))) {
+                    onDeleteUserTemplate(selectedTemplateId);
+                  }
+                }}
+              >
+                🗑️
+              </button>
+            )}
+          </div>
+
+          {isSavingTemplate && (
+            <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{t('userTemplates.saveTitle')}</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  className="m3-input"
+                  placeholder={t('userTemplates.namePlaceholder')}
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+                <input
+                  type="text"
+                  className="m3-input"
+                  placeholder={t('userTemplates.descPlaceholder')}
+                  value={newTemplateDesc}
+                  onChange={(e) => setNewTemplateDesc(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="m3-button m3-button--outlined"
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                    onClick={() => {
+                      setIsSavingTemplate(false);
+                      setNewTemplateName('');
+                      setNewTemplateDesc('');
+                    }}
+                  >
+                    {t('userTemplates.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-button m3-button--filled"
+                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                    disabled={!newTemplateName.trim()}
+                    onClick={async () => {
+                      if (!newTemplateName.trim()) return;
+                      await onSaveUserTemplate?.(newTemplateName, newTemplateDesc);
+                      setIsSavingTemplate(false);
+                      setNewTemplateName('');
+                      setNewTemplateDesc('');
+                    }}
+                  >
+                    {t('userTemplates.save')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Ancho */}
       <div className="form-group">
         <label htmlFor="input-width">
-          Ancho exterior (mm):
+          {t('form.dimensions.width')}
           <span className="visually-hidden">Width (mm):</span>
         </label>
-        <div className="m3-stepper-field">
-          <button
-            type="button"
-            className="m3-stepper-btn"
-            aria-label="Disminuir ancho 50 mm"
-            onClick={() => adjustDimension(width, -50, 100, 3000, onWidthChange)}
-          >
-            −
-          </button>
-          <input
-            id="input-width"
-            type="number"
-            min="100"
-            max="3000"
-            step="1"
-            value={width}
-            onChange={handleNumberInput(onWidthChange)}
-          />
-          <button
-            type="button"
-            className="m3-stepper-btn"
-            aria-label="Aumentar ancho 50 mm"
-            onClick={() => adjustDimension(width, 50, 100, 3000, onWidthChange)}
-          >
-            +
-          </button>
-        </div>
+        <NumericInput
+          id="input-width"
+          min={DEFAULT_UI_CONFIG.dimensions.width.min}
+          max={DEFAULT_UI_CONFIG.dimensions.width.max}
+          step={DEFAULT_UI_CONFIG.dimensions.width.step}
+          value={width}
+          showStepper={true}
+          unit="mm"
+          onChange={onWidthChange}
+        />
       </div>
 
       {/* Alto */}
       <div className="form-group">
         <label htmlFor="input-height">
-          Alto exterior (mm):
+          {t('form.dimensions.height')}
           <span className="visually-hidden">Height (mm):</span>
         </label>
-        <div className="m3-stepper-field">
-          <button
-            type="button"
-            className="m3-stepper-btn"
-            aria-label="Disminuir alto 50 mm"
-            onClick={() => adjustDimension(height, -50, 100, 3000, onHeightChange)}
-          >
-            −
-          </button>
-          <input
-            id="input-height"
-            type="number"
-            min="100"
-            max="3000"
-            step="1"
-            value={height}
-            onChange={handleNumberInput(onHeightChange)}
-          />
-          <button
-            type="button"
-            className="m3-stepper-btn"
-            aria-label="Aumentar alto 50 mm"
-            onClick={() => adjustDimension(height, 50, 100, 3000, onHeightChange)}
-          >
-            +
-          </button>
-        </div>
+        <NumericInput
+          id="input-height"
+          min={DEFAULT_UI_CONFIG.dimensions.height.min}
+          max={DEFAULT_UI_CONFIG.dimensions.height.max}
+          step={DEFAULT_UI_CONFIG.dimensions.height.step}
+          value={height}
+          showStepper={true}
+          unit="mm"
+          onChange={onHeightChange}
+        />
       </div>
 
       {/* Profundidad */}
       <div className="form-group">
         <label htmlFor="input-depth">
-          Profundidad exterior (mm):
+          {t('form.dimensions.depth')}
           <span className="visually-hidden">Depth (mm):</span>
         </label>
-        <div className="m3-stepper-field">
-          <button
-            type="button"
-            className="m3-stepper-btn"
-            aria-label="Disminuir profundidad 50 mm"
-            onClick={() => adjustDimension(depth, -50, 100, 1500, onDepthChange)}
-          >
-            −
-          </button>
-          <input
-            id="input-depth"
-            type="number"
-            min="100"
-            max="1500"
-            step="1"
-            value={depth}
-            onChange={handleNumberInput(onDepthChange)}
-          />
-          <button
-            type="button"
-            className="m3-stepper-btn"
-            aria-label="Aumentar profundidad 50 mm"
-            onClick={() => adjustDimension(depth, 50, 100, 1500, onDepthChange)}
-          >
-            +
-          </button>
-        </div>
+        <NumericInput
+          id="input-depth"
+          min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+          max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+          step={DEFAULT_UI_CONFIG.dimensions.depth.step}
+          value={depth}
+          showStepper={true}
+          unit="mm"
+          onChange={onDepthChange}
+        />
       </div>
 
       {/* =========================================================================
@@ -425,6 +473,138 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               Sin fondo
             </button>
           </div>
+        </div>
+
+        {/* Refuerzos Avanzados de Estructura y Zócalo (Punto 7) */}
+        {roofType === 'front-back-rails' && (
+          <div className="form-group" style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+            <label htmlFor="input-rail-orientation" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+              Orientación de Fajas Superiores:
+            </label>
+            <select
+              id="input-rail-orientation"
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+              value={railOrientation}
+              onChange={(e) => onRailOrientationChange?.(e.target.value as 'horizontal' | 'vertical')}
+            >
+              <option value="horizontal">Horizontal (Planos)</option>
+              <option value="vertical">Vertical de Canto (Mayor resistencia)</option>
+            </select>
+
+            <div style={{ marginTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(hasMiddleBrace)}
+                  onChange={(e) => onHasMiddleBraceChange?.(e.target.checked)}
+                />
+                Refuerzo central entre fajas
+              </label>
+              {hasMiddleBrace && (
+                <div style={{ marginTop: '0.35rem' }}>
+                  <label htmlFor="input-middle-brace-width" style={{ fontSize: '0.75rem', display: 'block' }}>
+                    Ancho refuerzo (mm):
+                  </label>
+                  <NumericInput
+                    id="input-middle-brace-width"
+                    value={middleBraceWidthMm}
+                    min={40}
+                    max={250}
+                    step={10}
+                    onChange={(val) => onMiddleBraceWidthChange?.(val)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="form-group" style={{ marginTop: '0.5rem', padding: '0.65rem 0.85rem', background: '#f5f5f5', borderRadius: '8px' }}>
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={Boolean(hasWallHangingRail)}
+                onChange={(e) => onHasWallHangingRailChange?.(e.target.checked)}
+              />
+              Faja posterior de amarre / colgado a pared
+            </label>
+            {hasWallHangingRail && (
+              <div style={{ marginTop: '0.35rem' }}>
+                <label htmlFor="input-wall-rail-width" style={{ fontSize: '0.75rem', display: 'block' }}>
+                  Ancho faja (mm):
+                </label>
+                <NumericInput
+                  id="input-wall-rail-width"
+                  value={wallHangingRailWidthMm}
+                  min={50}
+                  max={200}
+                  step={10}
+                  onChange={(val) => onWallHangingRailWidthChange?.(val)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={Boolean(hasPlinth)}
+                onChange={(e) => onHasPlinthChange?.(e.target.checked)}
+              />
+              Zócalo / Plinto estructural integrado
+            </label>
+            {hasPlinth && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.35rem' }}>
+                <div>
+                  <label htmlFor="input-plinth-height" style={{ fontSize: '0.75rem', display: 'block' }}>
+                    Alto zócalo (mm):
+                  </label>
+                  <NumericInput
+                    id="input-plinth-height"
+                    value={plinthHeightMm}
+                    min={40}
+                    max={200}
+                    step={10}
+                    onChange={(val) => onPlinthHeightChange?.(val)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="input-plinth-setback" style={{ fontSize: '0.75rem', display: 'block' }}>
+                    Retranqueo (mm):
+                  </label>
+                  <NumericInput
+                    id="input-plinth-setback"
+                    value={plinthSetbackMm}
+                    min={0}
+                    max={150}
+                    step={5}
+                    onChange={(val) => onPlinthSetbackChange?.(val)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {onSaveUserTemplate && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <button
+                type="button"
+                className="m3-btn m3-btn--small m3-btn--tonal"
+                style={{ width: '100%' }}
+                onClick={() => {
+                  const name = window.prompt?.('Nombre para la nueva plantilla de estructura base:', 'Módulo Base Personalizado');
+                  if (name) {
+                    void onSaveUserTemplate(name, 'Estructura base personalizada con refuerzos');
+                  }
+                }}
+              >
+                💾 Guardar Estructura como Módulo Base
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -600,92 +780,19 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 Atajos de proporción rápidos:
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-                <button
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, [
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                    ])
-                  }
-                >
-                  1fr 1fr 1fr (3 iguales)
-                </button>
-                <button
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, [
-                      { type: 'fixed', valueMm: 140 },
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                    ])
-                  }
-                >
-                  140mm 1fr 1fr (cubertero + 2)
-                </button>
-                <button
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, [
-                      { type: 'fixed', valueMm: 140 },
-                      { type: 'fixed', valueMm: 140 },
-                      { type: 'fractional', valueFr: 1 },
-                    ])
-                  }
-                >
-                  140mm 140mm 1fr (2 cuberteros + 1)
-                </button>
-                <button
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, [
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 2 },
-                      { type: 'fractional', valueFr: 2 },
-                    ])
-                  }
-                >
-                  1fr 2fr 2fr (1 chico + 2 grandes)
-                </button>
-                <button
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, [
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                    ])
-                  }
-                >
-                  1fr 1fr 1fr 1fr (4 iguales)
-                </button>
-                <button
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, [
-                      { type: 'fixed', valueMm: 120 },
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                      { type: 'fractional', valueFr: 1 },
-                    ])
-                  }
-                >
-                  120mm 1fr 1fr 1fr (1 fijo + 3)
-                </button>
+                {DEFAULT_UI_CONFIG.quickTrackRecipes.map((recipe, rIdx) => (
+                  <button
+                    key={rIdx}
+                    type="button"
+                    className="m3-chip"
+                    style={{ height: '30px', padding: '0 0.6rem', fontSize: '0.78rem' }}
+                    onClick={() =>
+                      onDrawerTracksChange?.(currentActiveIndex, recipe.tracks as TrackSize[])
+                    }
+                  >
+                    {recipe.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -717,7 +824,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                           fontWeight: 600,
                         }}
                       >
-                        <span>{`Cajón ${i + 1}: (${trackLabel})`}</span>
+                        <span>{`Cajón ${i + 1}${i === 0 ? ' (Superior)' : i === activeBay.drawerTracks.length - 1 ? ' (Inferior)' : ''}: (${trackLabel})`}</span>
                         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{`${h} mm`}</span>
                       </div>
                     );
@@ -726,160 +833,109 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </div>
             )}
 
-            {/* Distribución de alturas */}
+            {/* Atajos Rápidos de Distribución de Alturas (Chips) */}
             <div className="form-group">
-              <label id="drawer-distribution-label">Distribución de alturas:</label>
-              <div className="builder-segmented-group" role="group" aria-labelledby="drawer-distribution-label">
+              <label id="drawer-distribution-label">Atajos de distribución rápida:</label>
+              <div className="builder-chips-row" style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${currentDrawerPreset === 'equal' ? 'selected' : ''}`}
+                  className="m3-btn m3-btn--tonal"
+                  style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
                   onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'equal')}
                 >
-                  ⚖️ Todos iguales
+                  ⚖️ {t('form.drawers.chips.equal')}
                 </button>
                 {activeBay.drawerTracks.length >= 2 && (
                   <button
                     type="button"
-                    className={`builder-segmented-btn ${currentDrawerPreset === 'cutlery-top' ? 'selected' : ''}`}
-                    onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'cutlery-top', topCutleryHeight)}
+                    className="m3-btn m3-btn--tonal"
+                    style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                    onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'cutlery-top', 140)}
                   >
-                    🥄 Cubertero + Olleros
+                    🥄 {t('form.drawers.chips.cutlery140')}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className={`builder-segmented-btn ${currentDrawerPreset === 'custom' ? 'selected' : ''}`}
-                  onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'custom')}
-                >
-                  📐 Personalizado
-                </button>
+                {activeBay.drawerTracks.length >= 2 && (
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--tonal"
+                    style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                    onClick={() => onDrawerDistributionPresetChange?.(currentActiveIndex, 'cutlery-top', 100)}
+                  >
+                    🍳 {t('form.drawers.chips.cutlery100')}
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Si es Cubertero + Olleros: control para la altura del cajón superior */}
-            {currentDrawerPreset === 'cutlery-top' && (
-              <div className="form-group" style={{ padding: '0.6rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
-                <label htmlFor="input-cutlery-height">
-                  Altura cajón superior (cubertero):
-                </label>
-                <div className="m3-stepper-field">
-                  <button
-                    type="button"
-                    className="m3-stepper-btn"
-                    aria-label="Disminuir altura cubertero 10 mm"
-                    onClick={() => onDrawerTopHeightChange?.(currentActiveIndex, Math.max(80, topCutleryHeight - 10))}
-                  >
-                    −
-                  </button>
-                  <input
-                    id="input-cutlery-height"
-                    type="number"
-                    min="80"
-                    max="400"
-                    step="5"
-                    value={topCutleryHeight}
-                    onChange={(e) => {
-                      const v = Number.parseInt(e.target.value, 10);
-                      if (!Number.isNaN(v)) {
-                        onDrawerTopHeightChange?.(currentActiveIndex, v);
+            {/* Ajuste por cajón - Siempre visible y directamente editable con NumericInput */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
+              <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600 }}>
+                Ajuste por cajón (Cajón 1 es el superior):
+              </span>
+              {activeBay.drawerTracks.map((track, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ minWidth: '125px', font: 'var(--md-sys-typescale-body-small)', fontWeight: 600 }}>
+                    {idx === 0
+                      ? t('form.drawers.drawerTop')
+                      : idx === activeBay.drawerTracks.length - 1
+                      ? t('form.drawers.drawerBottom', { n: idx + 1 })
+                      : t('form.drawers.drawerNumber', { n: idx + 1 }) + ':'}
+                  </span>
+                  <div className="builder-segmented-group" style={{ flex: '1 1 auto', minWidth: '150px' }}>
+                    <button
+                      type="button"
+                      className={`builder-segmented-btn ${track.type === 'fixed' ? 'selected' : ''}`}
+                      style={{ minHeight: '32px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
+                      onClick={() =>
+                        onDrawerTrackChange?.(currentActiveIndex, idx, {
+                          type: 'fixed',
+                          valueMm: track.type === 'fixed' ? track.valueMm : (resolvedDrawerHeights[idx] ?? 140),
+                        })
                       }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="m3-stepper-btn"
-                    aria-label="Aumentar altura cubertero 10 mm"
-                    onClick={() => onDrawerTopHeightChange?.(currentActiveIndex, Math.min(400, topCutleryHeight + 10))}
-                  >
-                    +
-                  </button>
-                </div>
-                <small style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '0.8rem', marginTop: '0.35rem', display: 'block' }}>
-                  {`Primer cajón de ${topCutleryHeight} mm; los restantes ${activeBay.drawerTracks.length - 1} se dividen en partes iguales.`}
-                </small>
-              </div>
-            )}
-
-            {/* Si es Personalizado: control individual por cajón */}
-            {currentDrawerPreset === 'custom' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.6rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
-                <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600 }}>
-                  Ajuste por cajón (de arriba a abajo):
-                </span>
-                {activeBay.drawerTracks.map((track, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ minWidth: '65px', font: 'var(--md-sys-typescale-body-small)', fontWeight: 600 }}>
-                      {`Cajón ${idx + 1}:`}
-                    </span>
-                    <div className="builder-segmented-group" style={{ flex: '1 1 auto', minWidth: '150px' }}>
-                      <button
-                        type="button"
-                        className={`builder-segmented-btn ${track.type === 'fixed' ? 'selected' : ''}`}
-                        style={{ minHeight: '34px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
-                        onClick={() =>
-                          onDrawerTrackChange?.(currentActiveIndex, idx, {
-                            type: 'fixed',
-                            valueMm: track.type === 'fixed' ? track.valueMm : (resolvedDrawerHeights[idx] ?? 140),
-                          })
-                        }
-                      >
-                        Fijo (mm)
-                      </button>
-                      <button
-                        type="button"
-                        className={`builder-segmented-btn ${track.type === 'fractional' ? 'selected' : ''}`}
-                        style={{ minHeight: '34px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
-                        onClick={() =>
-                          onDrawerTrackChange?.(currentActiveIndex, idx, {
-                            type: 'fractional',
-                            valueFr: 1,
-                          })
-                        }
-                      >
-                        Proporcional (fr)
-                      </button>
-                    </div>
-                    {track.type === 'fixed' ? (
-                      <div className="m3-stepper-field" style={{ width: '130px' }}>
-                        <input
-                          type="number"
-                          min="60"
-                          max="600"
-                          step="5"
-                          value={track.valueMm}
-                          aria-label={`Altura fija de cajón ${idx + 1} en mm`}
-                          onChange={(e) => {
-                            const val = Number.parseInt(e.target.value, 10);
-                            if (!Number.isNaN(val)) {
-                              onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fixed', valueMm: val });
-                            }
-                          }}
-                        />
-                        <span style={{ fontSize: '0.8rem', paddingRight: '0.5rem', color: 'var(--md-sys-color-on-surface-variant)' }}>mm</span>
-                      </div>
-                    ) : (
-                      <div className="m3-stepper-field" style={{ width: '110px' }}>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          step="1"
-                          value={track.valueFr}
-                          aria-label={`Proporción de cajón ${idx + 1} en fr`}
-                          onChange={(e) => {
-                            const val = Number.parseFloat(e.target.value);
-                            if (!Number.isNaN(val) && val > 0) {
-                              onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fractional', valueFr: val });
-                            }
-                          }}
-                        />
-                        <span style={{ fontSize: '0.8rem', paddingRight: '0.5rem', color: 'var(--md-sys-color-on-surface-variant)' }}>fr</span>
-                      </div>
-                    )}
+                    >
+                      Fijo (mm)
+                    </button>
+                    <button
+                      type="button"
+                      className={`builder-segmented-btn ${track.type === 'fractional' ? 'selected' : ''}`}
+                      style={{ minHeight: '32px', padding: '0.2rem 0.45rem', fontSize: '0.78rem' }}
+                      onClick={() =>
+                        onDrawerTrackChange?.(currentActiveIndex, idx, {
+                          type: 'fractional',
+                          valueFr: 1,
+                        })
+                      }
+                    >
+                      Proporcional (fr)
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
+                  {track.type === 'fixed' ? (
+                    <NumericInput
+                      value={track.valueMm}
+                      min={60}
+                      max={800}
+                      step={5}
+                      unit="mm"
+                      style={{ width: '90px' }}
+                      ariaLabel={`Altura fija de cajón ${idx + 1} en mm`}
+                      onChange={(val) => onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fixed', valueMm: val })}
+                    />
+                  ) : (
+                    <NumericInput
+                      value={track.valueFr}
+                      min={1}
+                      max={10}
+                      step={1}
+                      unit="fr"
+                      style={{ width: '70px' }}
+                      ariaLabel={`Proporción de cajón ${idx + 1} en fr`}
+                      onChange={(val) => onDrawerTrackChange?.(currentActiveIndex, idx, { type: 'fractional', valueFr: val })}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
 
 
             <div className="form-group">

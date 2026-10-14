@@ -116,3 +116,114 @@ export async function loadHardwareFromDb(database?: IDBDatabase): Promise<Hardwa
   const validated = validateHardwareCatalog(record.data);
   return validated.hardware;
 }
+
+/**
+ * Save or update a material in the materials catalog in IndexedDB.
+ */
+export async function saveMaterialToDb(material: Material, database?: IDBDatabase): Promise<void> {
+  const current = await loadMaterialsFromDb(database);
+  const index = current.findIndex((m) => m.id === material.id);
+  const updated = index >= 0
+    ? [...current.slice(0, index), material, ...current.slice(index + 1)]
+    : [...current, material];
+
+  const catalog: MaterialCatalog = {
+    schemaVersion: 1,
+    materials: updated,
+  };
+  const validated = validateMaterialCatalog(catalog);
+  await saveItem(CATALOG_STORE, { id: MATERIALS_CATALOG_ID, schemaVersion: 1, data: validated }, database);
+}
+
+/**
+ * Delete a material by id from the materials catalog in IndexedDB.
+ */
+export async function deleteMaterialFromDb(materialId: string, database?: IDBDatabase): Promise<void> {
+  const current = await loadMaterialsFromDb(database);
+  const filtered = current.filter((m) => m.id !== materialId);
+  const catalog: MaterialCatalog = {
+    schemaVersion: 1,
+    materials: filtered,
+  };
+  const validated = validateMaterialCatalog(catalog);
+  await saveItem(CATALOG_STORE, { id: MATERIALS_CATALOG_ID, schemaVersion: 1, data: validated }, database);
+}
+
+/**
+ * Save or update an edge band in the edge bands catalog in IndexedDB.
+ */
+export async function saveEdgeBandToDb(edgeBand: EdgeBand, database?: IDBDatabase): Promise<void> {
+  const current = await loadEdgeBandsFromDb(database);
+  const index = current.findIndex((b) => b.id === edgeBand.id);
+  const updated = index >= 0
+    ? [...current.slice(0, index), edgeBand, ...current.slice(index + 1)]
+    : [...current, edgeBand];
+
+  const catalog: EdgeBandCatalog = {
+    schemaVersion: 1,
+    edgeBands: updated,
+  };
+  const validated = validateEdgeBandCatalog(catalog);
+  await saveItem(CATALOG_STORE, { id: EDGE_BANDS_CATALOG_ID, schemaVersion: 1, data: validated }, database);
+}
+
+/**
+ * Delete an edge band by id from the edge bands catalog in IndexedDB.
+ */
+export async function deleteEdgeBandFromDb(edgeBandId: string, database?: IDBDatabase): Promise<void> {
+  const current = await loadEdgeBandsFromDb(database);
+  const filtered = current.filter((b) => b.id !== edgeBandId);
+  const catalog: EdgeBandCatalog = {
+    schemaVersion: 1,
+    edgeBands: filtered,
+  };
+  const validated = validateEdgeBandCatalog(catalog);
+  await saveItem(CATALOG_STORE, { id: EDGE_BANDS_CATALOG_ID, schemaVersion: 1, data: validated }, database);
+}
+
+/**
+ * Save or update hardware/fastener in the hardware catalog in IndexedDB.
+ */
+export async function saveHardwareToDb(hardware: Hardware, database?: IDBDatabase): Promise<void> {
+  const current = await loadHardwareFromDb(database);
+  const index = current.findIndex((h) => h.id === hardware.id);
+  const updated = index >= 0
+    ? [...current.slice(0, index), hardware, ...current.slice(index + 1)]
+    : [...current, hardware];
+
+  const catalog: HardwareCatalog = {
+    schemaVersion: 1,
+    hardware: updated,
+  };
+  const validated = validateHardwareCatalog(catalog);
+  await saveItem(CATALOG_STORE, { id: HARDWARE_CATALOG_ID, schemaVersion: 1, data: validated }, database);
+}
+
+/**
+ * Delete a hardware item by id from the hardware catalog in IndexedDB.
+ */
+export async function deleteHardwareFromDb(hardwareId: string, database?: IDBDatabase): Promise<void> {
+  const current = await loadHardwareFromDb(database);
+  const filtered = current.filter((h) => h.id !== hardwareId);
+  const catalog: HardwareCatalog = {
+    schemaVersion: 1,
+    hardware: filtered,
+  };
+  const validated = validateHardwareCatalog(catalog);
+  await saveItem(CATALOG_STORE, { id: HARDWARE_CATALOG_ID, schemaVersion: 1, data: validated }, database);
+}
+
+/**
+ * Reset all catalogs back to default factory seed definitions.
+ */
+export async function resetCatalogsToSeed(database?: IDBDatabase): Promise<void> {
+  const matSeed = getSeedMaterials();
+  await saveItem(CATALOG_STORE, { id: MATERIALS_CATALOG_ID, schemaVersion: 1, data: matSeed }, database);
+
+  const ebSeed = getSeedEdgeBands();
+  await saveItem(CATALOG_STORE, { id: EDGE_BANDS_CATALOG_ID, schemaVersion: 1, data: ebSeed }, database);
+
+  const hwSeed = getSeedHardware();
+  await saveItem(CATALOG_STORE, { id: HARDWARE_CATALOG_ID, schemaVersion: 1, data: hwSeed }, database);
+}
+

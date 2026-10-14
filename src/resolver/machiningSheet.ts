@@ -1,6 +1,11 @@
 import { jsPDF } from 'jspdf';
 import { type ResolvedPieceWithCutSize } from './edgeBand';
-import { type DrillOperation, type FaceType } from '../model/operation';
+import {
+  type DrillOperation,
+  type FaceType,
+  type CustomPieceOperation,
+  customDrillToDrillOperation,
+} from '../model/operation';
 
 export interface SheetOperationItem {
   id: string;
@@ -43,6 +48,7 @@ export interface PieceMachiningSheet {
   faceAOperations: SheetOperationItem[];
   faceBOperations: SheetOperationItem[];
   edgeOperations: SheetOperationItem[];
+  customOperations?: CustomPieceOperation[];
   totalOperations: number;
   requiresTurn: boolean;
   turnInstructions: string;
@@ -55,6 +61,7 @@ export interface PieceMachiningSheet {
 export function buildPieceMachiningSheet(
   piece: ResolvedPieceWithCutSize,
   operations: DrillOperation[],
+  customOperations: CustomPieceOperation[] = [],
 ): PieceMachiningSheet {
   const pWidth = piece.dimensionsMm?.width ?? piece.cutDimensionsMm.width;
   const pHeight = piece.dimensionsMm?.height ?? piece.cutDimensionsMm.height;
@@ -76,7 +83,15 @@ export function buildPieceMachiningSheet(
     if (fId.includes('right')) bandedEdges.right = true;
   }
 
+  const pieceCustomOps = (customOperations ?? []).filter((op) => op.pieceId === piece.id);
   const pieceOps = operations.filter((op) => op.pieceId === piece.id);
+
+  // Convert custom drill operations to participate in drill tables and coordinate cotas
+  for (const cop of pieceCustomOps) {
+    if (cop.kind === 'drill') {
+      pieceOps.push(customDrillToDrillOperation(cop));
+    }
+  }
 
   const faceAOperations: SheetOperationItem[] = [];
   const faceBOperations: SheetOperationItem[] = [];
@@ -112,7 +127,8 @@ export function buildPieceMachiningSheet(
     }
   }
 
-  const requiresTurn = faceBOperations.length > 0;
+  const requiresTurn =
+    faceBOperations.length > 0 || pieceCustomOps.some((op) => op.faceType === 'face-B');
   const turnInstructions = requiresTurn
     ? 'GIRAR LA PIEZA: Contiene operaciones en Cara B. Girar la pieza sobre su eje longitudinal para mecanizar Cara B.'
     : 'No requiere giro: Todo el mecanizado de cara está en Cara A.';
@@ -134,7 +150,8 @@ export function buildPieceMachiningSheet(
     faceAOperations,
     faceBOperations,
     edgeOperations,
-    totalOperations: pieceOps.length,
+    customOperations: pieceCustomOps,
+    totalOperations: pieceOps.length + pieceCustomOps.filter((o) => o.kind !== 'drill').length,
     requiresTurn,
     turnInstructions,
   };
@@ -146,8 +163,9 @@ export function buildPieceMachiningSheet(
 export function buildModuleMachiningSheets(
   pieces: ResolvedPieceWithCutSize[],
   operations: DrillOperation[],
+  customOperations: CustomPieceOperation[] = [],
 ): PieceMachiningSheet[] {
-  return pieces.map((p) => buildPieceMachiningSheet(p, operations));
+  return pieces.map((p) => buildPieceMachiningSheet(p, operations, customOperations));
 }
 
 /**
@@ -243,12 +261,91 @@ export function renderPieceMachiningSvg(
     </text>
   `);
 
-  if (ops.length === 0) {
+  const customOps = (sheet.customOperations ?? []).filter(
+    (op) => op.faceType === face && op.kind !== 'drill',
+  );
+
+  if (ops.length === 0 && customOps.length === 0) {
     svgParts.push(`
       <text x="${originX + drawW / 2}" y="${originY + drawH / 2}" text-anchor="middle" font-size="14" fill="#747775">
         Sin operaciones en ${face === 'face-A' ? 'Cara A' : 'Cara B'}
       </text>
     `);
+  }
+
+  // Draw custom grooves, rebates, and pockets
+  for (const cop of customOps) {
+    if (cop.kind === 'groove') {
+      if (cop.axis === 'x') {
+        const gh = Math.max(3, cop.widthMm * scale);
+        const gy = datumY - (cop.offsetMm + cop.widthMm) * scale;
+        const gx = originX + (cop.startMm ?? 0) * scale;
+        const gw = (cop.lengthMm ? cop.lengthMm : (widthMm - (cop.startMm ?? 0))) * scale;
+
+        svgParts.push(`
+          <!-- Custom Groove (X) -->
+          <rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" fill="#0b57d0" fill-opacity="0.22" stroke="#0b57d0" stroke-width="1.2" stroke-dasharray="4 2" />
+          <line x1="${originX}" y1="${gy + gh / 2}" x2="${originX - 10}" y2="${gy + gh / 2}" stroke="#0b57d0" stroke-width="1" />
+          <text x="${gx + gw / 2}" y="${gy + gh / 2 + 3}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#0b57d0">
+            Ranura ${cop.widthMm}x${cop.depthMm}mm (Y: ${cop.offsetMm}mm)
+          </text>
+        `);
+      } else {
+        const gw = Math.max(3, cop.widthMm * scale);
+        const gx = originX + cop.offsetMm * scale;
+        const gy = originY + (cop.startMm ?? 0) * scale;
+        const gh = (cop.lengthMm ? cop.lengthMm : (heightMm - (cop.startMm ?? 0))) * scale;
+
+        svgParts.push(`
+          <!-- Custom Groove (Y) -->
+          <rect x="${gx}" y="${gy}" width="${gw}" height="${gh}" fill="#0b57d0" fill-opacity="0.22" stroke="#0b57d0" stroke-width="1.2" stroke-dasharray="4 2" />
+          <line x1="${gx + gw / 2}" y1="${datumY}" x2="${gx + gw / 2}" y2="${datumY + 10}" stroke="#0b57d0" stroke-width="1" />
+          <text x="${gx + gw / 2}" y="${gy + gh / 2}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#0b57d0" transform="rotate(-90, ${gx + gw / 2}, ${gy + gh / 2})">
+            Ranura ${cop.widthMm}x${cop.depthMm}mm (X: ${cop.offsetMm}mm)
+          </text>
+        `);
+      }
+    } else if (cop.kind === 'rebate') {
+      let rx = originX;
+      let ry = originY;
+      let rw = drawW;
+      let rh = drawH;
+
+      if (cop.edge === 'top') {
+        rh = Math.max(4, cop.widthMm * scale);
+      } else if (cop.edge === 'bottom') {
+        rh = Math.max(4, cop.widthMm * scale);
+        ry = datumY - rh;
+      } else if (cop.edge === 'left') {
+        rw = Math.max(4, cop.widthMm * scale);
+      } else if (cop.edge === 'right') {
+        rw = Math.max(4, cop.widthMm * scale);
+        rx = originX + drawW - rw;
+      }
+
+      svgParts.push(`
+        <!-- Custom Rebate -->
+        <rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#ffd8e4" fill-opacity="0.45" stroke="#b3261e" stroke-width="1.2" />
+        <text x="${rx + rw / 2}" y="${ry + rh / 2 + 3}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#b3261e">
+          Rebaje ${cop.edge} ${cop.widthMm}x${cop.depthMm}mm
+        </text>
+      `);
+    } else if (cop.kind === 'cutout') {
+      const pw = cop.widthMm * scale;
+      const ph = cop.heightMm * scale;
+      const px = originX + cop.xMm * scale;
+      const py = datumY - (cop.yMm + cop.heightMm) * scale;
+
+      svgParts.push(`
+        <!-- Custom Pocket / Cutout -->
+        <rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="3" fill="#00639b" fill-opacity="0.2" stroke="#00639b" stroke-width="1.5" />
+        <line x1="${originX}" y1="${py + ph / 2}" x2="${px}" y2="${py + ph / 2}" stroke="#747775" stroke-dasharray="2 2" stroke-width="1" />
+        <line x1="${px + pw / 2}" y1="${datumY}" x2="${px + pw / 2}" y2="${py + ph}" stroke="#747775" stroke-dasharray="2 2" stroke-width="1" />
+        <text x="${px + pw / 2}" y="${py + ph / 2 + 3}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#00639b">
+          Fresado ${cop.widthMm}x${cop.heightMm}x${cop.depthMm}mm
+        </text>
+      `);
+    }
   }
 
   // Draw operations

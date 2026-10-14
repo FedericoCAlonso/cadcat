@@ -1,4 +1,5 @@
 import { type ModularModuleDefinition } from './types';
+import { loadModularPresetsConfigFile, type ModularPresetConfig } from '../../config';
 
 export interface ModularPreset {
   id: string;
@@ -17,256 +18,100 @@ export interface ModularPreset {
   ) => ModularModuleDefinition;
 }
 
-export const MODULAR_PRESETS: ModularPreset[] = [
-  {
-    id: 'preset-empty',
-    name: 'Módulo Vacío / Hueco Libre',
-    description: 'Estructura perimetral con fajas de amarre superiores y fondo ranurado.',
-    defaultDimensions: { width: 600, height: 720, depth: 560 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-empty',
-      carcass: {
-        width: dims?.width ?? 600,
-        height: dims?.height ?? 720,
-        depth: dims?.depth ?? 560,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'front-back-rails',
-        railWidthMm: 80,
-        hasBacking: true,
-      },
-      bays: [{ type: 'empty' }],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-white-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-  {
-    id: 'preset-base-shelf',
-    name: 'Bajo Mesada Clásico (1 Estante)',
-    description: 'Casco con fajas de amarre superiores y 1 estante regulable central.',
-    defaultDimensions: { width: 600, height: 720, depth: 560 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-base-shelf',
-      carcass: {
-        width: dims?.width ?? 600,
-        height: dims?.height ?? 720,
-        depth: dims?.depth ?? 560,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'front-back-rails',
-        railWidthMm: 80,
-        hasBacking: true,
-      },
-      bays: [
-        {
-          type: 'shelves',
-          count: 1,
-          shelfType: 'adjustable',
-          setbackMm: 20,
+/**
+ * Registry for modular presets, supporting runtime extension (OCP & SRP).
+ */
+export class ModularPresetRegistry {
+  private presets: ModularPreset[] = [];
+
+  public constructor() {
+    this.loadFromConfigFile();
+  }
+
+  /**
+   * Registers a preset into the registry (OCP).
+   */
+  public register(preset: ModularPreset): void {
+    const existingIndex = this.presets.findIndex((p) => p.id === preset.id);
+    if (existingIndex >= 0) {
+      this.presets[existingIndex] = preset;
+    } else {
+      this.presets.push(preset);
+    }
+  }
+
+  /**
+   * Retrieves all registered presets.
+   */
+  public getAll(): ModularPreset[] {
+    return [...this.presets];
+  }
+
+  /**
+   * Finds a preset by ID, falling back to the first preset.
+   */
+  public getById(presetId: string): ModularPreset {
+    const found = this.presets.find((p) => p.id === presetId);
+    return found ?? this.presets[0]!;
+  }
+
+  /**
+   * Loads presets from modularPresets.json configuration file.
+   */
+  private loadFromConfigFile(): void {
+    const configs = loadModularPresetsConfigFile();
+    for (const conf of configs) {
+      this.presets.push(this.createPresetFromConfig(conf));
+    }
+  }
+
+  /**
+   * Builds a ModularPreset instance from parsed configuration.
+   */
+  private createPresetFromConfig(conf: ModularPresetConfig): ModularPreset {
+    return {
+      id: conf.id,
+      name: conf.name,
+      description: conf.description,
+      defaultDimensions: conf.defaultDimensions,
+      createDefinition: (dims, mats, ebId): ModularModuleDefinition => ({
+        id: `module-${conf.id}`,
+        carcass: {
+          width: dims?.width ?? conf.defaultDimensions.width,
+          height: dims?.height ?? conf.defaultDimensions.height,
+          depth: dims?.depth ?? conf.defaultDimensions.depth,
+          jointPriority: conf.carcass.jointPriority,
+          roofType: conf.carcass.roofType,
+          railWidthMm: conf.carcass.railWidthMm ?? 80,
+          hasBacking: conf.carcass.hasBacking,
         },
-      ],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-white-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-  {
-    id: 'preset-drawer-unit-3',
-    name: 'Cajonera 3 Cajones (Cubertero + 2 Olleros)',
-    description: 'Cajón superior fijo de 140mm y 2 cajones inferiores proporcionales en 1fr 1fr con frentes aplicados.',
-    defaultDimensions: { width: 500, height: 720, depth: 560 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-drawer-unit-3',
-      carcass: {
-        width: dims?.width ?? 500,
-        height: dims?.height ?? 720,
-        depth: dims?.depth ?? 560,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'front-back-rails',
-        railWidthMm: 80,
-        hasBacking: true,
-      },
-      bays: [
-        {
-          type: 'drawer-stack',
-          drawerTracks: [
-            { type: 'fixed', valueMm: 140 },
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-          ],
-          frontMount: 'applied',
-          slideType: 'telescopic',
-          gapMm: 2.5,
+        grid: conf.grid
+          ? {
+              axis: conf.grid.axis,
+              tracks: conf.grid.tracks,
+              dividerThicknessMm: conf.grid.dividerThicknessMm ?? 18,
+            }
+          : undefined,
+        bays: conf.bays,
+        materials: {
+          carcassMaterialId: mats?.carcassMaterialId ?? conf.defaultMaterials.carcassMaterialId,
+          frontsMaterialId: mats?.frontsMaterialId ?? conf.defaultMaterials.frontsMaterialId,
+          drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? conf.defaultMaterials.drawerBoxesMaterialId,
+          backingsMaterialId: mats?.backingsMaterialId ?? conf.defaultMaterials.backingsMaterialId,
         },
-      ],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-oak-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-  {
-    id: 'preset-door-cabinet-2',
-    name: 'Alacena / Mueble 2 Puertas',
-    description: 'Mueble con techo macizo, 1 estante interior y 2 puertas batientes full-overlay.',
-    defaultDimensions: { width: 800, height: 720, depth: 350 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-door-cabinet-2',
-      carcass: {
-        width: dims?.width ?? 800,
-        height: dims?.height ?? 720,
-        depth: dims?.depth ?? 350,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'solid-panel',
-        hasBacking: true,
-      },
-      bays: [
-        {
-          type: 'doors',
-          count: 2,
-          mountType: 'full-overlay',
-        },
-      ],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-oak-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-  {
-    id: 'preset-partition-combo',
-    name: 'Módulo Combinado 2 Vanos (Estantes + Cajones)',
-    description: 'División vertical en 2 vanos: izquierdo con 2 estantes y derecho con 3 cajones.',
-    defaultDimensions: { width: 900, height: 720, depth: 560 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-partition-combo',
-      carcass: {
-        width: dims?.width ?? 900,
-        height: dims?.height ?? 720,
-        depth: dims?.depth ?? 560,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'front-back-rails',
-        railWidthMm: 80,
-        hasBacking: true,
-      },
-      grid: {
-        axis: 'horizontal',
-        tracks: [
-          { type: 'fractional', valueFr: 1 },
-          { type: 'fractional', valueFr: 1 },
-        ],
-        dividerThicknessMm: 18,
-      },
-      bays: [
-        {
-          type: 'shelves',
-          count: 2,
-          shelfType: 'adjustable',
-          setbackMm: 20,
-        },
-        {
-          type: 'drawer-stack',
-          drawerTracks: [
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-          ],
-          frontMount: 'applied',
-          slideType: 'telescopic',
-        },
-      ],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-oak-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-  {
-    id: 'preset-pullout-tray',
-    name: 'Bajo Mesada con Bandeja Extraíble',
-    description: 'Módulo con 1 bandeja extraíble con correderas telescópicas y 1 estante superior.',
-    defaultDimensions: { width: 600, height: 720, depth: 560 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-pullout-tray',
-      carcass: {
-        width: dims?.width ?? 600,
-        height: dims?.height ?? 720,
-        depth: dims?.depth ?? 560,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'front-back-rails',
-        railWidthMm: 80,
-        hasBacking: true,
-      },
-      bays: [
-        {
-          type: 'pull-out-tray',
-          lipHeightMm: 45,
-          slideType: 'telescopic',
-        },
-      ],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-white-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-  {
-    id: 'preset-bifold-closure',
-    name: 'Alacena con Puerta Elevable Plegable (Bi-Fold)',
-    description: 'Alacena con techo macizo y puerta doble plegable de apertura vertical.',
-    defaultDimensions: { width: 800, height: 700, depth: 350 },
-    createDefinition: (dims, mats, ebId) => ({
-      id: 'module-preset-bifold-closure',
-      carcass: {
-        width: dims?.width ?? 800,
-        height: dims?.height ?? 700,
-        depth: dims?.depth ?? 350,
-        jointPriority: 'lateral-over-bottom',
-        roofType: 'solid-panel',
-        hasBacking: true,
-      },
-      bays: [
-        {
-          type: 'bi-fold-closure',
-          leafTracks: [
-            { type: 'fractional', valueFr: 1 },
-            { type: 'fractional', valueFr: 1 },
-          ],
-          hingeType: 'aventos',
-          openingDirection: 'vertical-lift',
-        },
-      ],
-      materials: {
-        carcassMaterialId: mats?.carcassMaterialId ?? 'mat-egger-white-18',
-        frontsMaterialId: mats?.frontsMaterialId ?? 'mat-egger-oak-18',
-        drawerBoxesMaterialId: mats?.drawerBoxesMaterialId ?? 'mat-egger-white-18',
-        backingsMaterialId: mats?.backingsMaterialId ?? 'mat-egger-white-18',
-      },
-      edgeBandId: ebId,
-    }),
-  },
-];
+        edgeBandId: ebId,
+      }),
+    };
+  }
+}
+
+/**
+ * Singleton preset registry instance.
+ */
+export const defaultModularPresetRegistry: ModularPresetRegistry = new ModularPresetRegistry();
+
+export const MODULAR_PRESETS: ModularPreset[] = defaultModularPresetRegistry.getAll();
 
 export function getModularPresetById(presetId: string): ModularPreset {
-  const found = MODULAR_PRESETS.find((p) => p.id === presetId);
-  return found ?? MODULAR_PRESETS[0]!;
+  return defaultModularPresetRegistry.getById(presetId);
 }

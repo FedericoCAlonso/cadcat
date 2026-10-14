@@ -1,0 +1,231 @@
+{
+  "app": {
+    "title": "Mobilius — Custom Cabinetry Design & Manufacturing",
+    "subtitle": "Modular Parametric Carpentry Configurator",
+    "loading": "Loading project and catalogs...",
+    "save": "Save",
+    "saved": "Saved",
+    "saving": "Saving...",
+    "export": "Export",
+    "import": "Import",
+    "error": "Error"
+  },
+  "nav": {
+    "form": "Configurator",
+    "pieces": "Cut List & Panels",
+    "viewport3d": "3D View",
+    "machining": "Machining Sheet",
+    "assembly": "Assembly Guide",
+    "settings": "Project Settings"
+  },
+  "roles": {
+    "side-left": "Left side",
+    "side-right": "Right side",
+    "bottom": "Bottom / Base",
+    "top": "Top / Roof",
+    "back": "Back panel",
+    "shelf": "Shelf",
+    "partition": "Vertical partition",
+    "rail-front": "Front stretcher",
+    "rail-back": "Rear stretcher",
+    "drawer-front": "Drawer front",
+    "drawer-side": "Drawer box side",
+    "drawer-box-front": "Drawer sub-front",
+    "drawer-box-back": "Drawer box back",
+    "drawer-bottom": "Drawer bottom",
+    "door-left": "Left door",
+    "door-right": "Right door",
+    "door-single": "Hinged door",
+    "assembly-gauge": "Assembly gauge (auxiliary)",
+    "transom": "Divider transom",
+    "tray-bottom": "Pull-out tray bottom",
+    "tray-lip-side": "Pull-out tray side lip",
+    "tray-lip-front": "Pull-out tray front lip",
+    "tray-lip-back": "Pull-out tray rear lip",
+    "shelf-brace": "Shelf anti-deflection stiffener",
+    "bifold-leaf": "Articulated leaf (Bi-Fold)"
+  },
+  "templates": {
+    "base-cabinet": "Base cabinet (1 shelf)",
+    "door-cabinet": "Cabinet with doors and shelf",
+    "drawer-unit": "Drawer unit (3 drawers)",
+    "partition-cabinet": "2-bay partition cabinet",
+    "modular-empty": "Open carcass / Free bay",
+    "modular-drawer-unit-3": "Drawer unit (Cutlery + Pots)",
+    "modular-door-cabinet": "2-door wall cabinet",
+    "modular-partition-combo": "Combined cabinet (Shelves + Drawers)",
+    "modular-pullout-tray": "Pull-out tray module",
+    "modular-bifold-closure": "Bi-fold lift-up cabinet"
+  },
+  "edgebands": {
+    "adhesive": "Melamine / Iron-on",
+    "aluminium-profile": "Aluminum profile",
+    "veneer": "PVC / Veneer",
+    "rod": "Rigid edge band",
+    "none": "No edge band"
+  },
+  "viewport": {
+    "explodedView": "Exploded View",
+    "wireframe": "Wireframe",
+    "solid": "Solid",
+    "camera": {
+      "iso": "Isometric",
+      "front": "Front",
+      "top": "Top",
+      "side": "Side"
+    },
+    "controls": "Rotate: Drag | Zoom: Wheel or Pinch | Frame: Double click",
+    "mechanisms": {
+      "title": "Mechanisms & Kinematics",
+      "openClose": "Mechanism Opening",
+      "openAll": "Open all",
+      "closeAll": "Close all"
+    }
+  },
+  "form": {
+    "dimensions": {
+      "title": "Outer Module Dimensions",
+      "width": "Total width (mm):",
+      "height": "Total height (mm):",
+      "depth": "Total depth (mm):"
+    },
+    "carcass": {
+      "title": "Carcass & Top Construction",
+      "roofType": "Top panel / Roof:",
+      "roofRails": "2 Stretchers (80 mm)",
+      "roofSolid": "Solid top panel",
+      "roofNone": "No top panel",
+      "jointPriority": "Corner joint priority:",
+      "lateralOverBottom": "Sides run full height",
+      "bottomOverLateral": "Bottom runs full width",
+      "backing": "Back panel:",
+      "withBacking": "With back panel (3 mm groove)",
+      "withoutBacking": "No back panel"
+    },
+    "materials": {
+      "title": "Materials & Edge Banding",
+      "carcassMaterial": "Carcass material:",
+      "frontsMaterial": "Fronts material (doors & drawers):",
+      "drawerBoxesMaterial": "Drawer boxes material:",
+      "edgeBand": "General front edge band:"
+    },
+    "bays": {
+      "title": "Interior Bays Layout",
+      "bayCount": "Vertical bays count:",
+      "bayLabel": "Bay {n}",
+      "contentType": "Bay content:",
+      "empty": "Open bay",
+      "shelves": "Shelves",
+      "drawers": "Drawer stack",
+      "doors": "Hinged doors",
+      "pulloutTray": "Pull-out tray",
+      "bifold": "Bi-fold door"
+    },
+    "drawers": {
+      "title": "Drawers Configuration",
+      "drawerCount": "Drawers count:",
+      "slideType": "Slides type:",
+      "slideTelescopic": "Standard ball-bearing (26 mm pair clearance)",
+      "slideRoller": "Bottom roller slide (25 mm pair clearance)",
+      "frontMount": "Front mount:",
+      "frontOverlay": "Overlay",
+      "frontInset": "Inset",
+      "drawerNumber": "Drawer {n}",
+      "drawerTop": "Drawer 1 (Top)",
+      "drawerBottom": "Drawer {n} (Bottom)",
+      "height": "Front height (mm):",
+      "gap": "Gap between fronts (mm):",
+      "chips": {
+        "equal": "Equal division",
+        "cutlery140": "Cutlery 140 mm + Pots",
+        "cutlery100": "Cutlery 100 mm + Pots",
+        "ratio122": "Ratio 1:2:2"
+      }
+    },
+    "doors": {
+      "title": "Doors Configuration",
+      "count": "Leaves count:",
+      "single": "1 Door",
+      "double": "2 Doors",
+      "mount": "Mount type:",
+      "overlay": "Overlay",
+      "inset": "Inset"
+    },
+    "shelves": {
+      "title": "Shelves Configuration",
+      "count": "Shelves count:",
+      "type": "Mounting type:",
+      "adjustable": "Adjustable (System 32 pins)",
+      "fixed": "Fixed (Confirmat screws)",
+      "antiSag": "Anti-deflection brace:"
+    }
+  },
+  "pieces": {
+    "title": "Cut List & Workshop Parts",
+    "filterMaterial": "Filter by material:",
+    "allMaterials": "All materials",
+    "exportPdf": "Export PDF List",
+    "exportCsv": "Export CSV for Panel Saw",
+    "table": {
+      "piece": "Piece / Role",
+      "material": "Material",
+      "finishedSize": "Finished Size (L × W)",
+      "cutSize": "Cut Size (L × W)",
+      "thickness": "Thickness",
+      "edgeBands": "Edges",
+      "quantity": "Qty",
+      "actions": "Actions"
+    }
+  },
+  "machining": {
+    "title": "Machining & Drilling Plan",
+    "holes": "Drill holes",
+    "grooves": "Grooves",
+    "diameter": "Ø {d} mm",
+    "depth": "Depth {p} mm",
+    "through": "Through hole",
+    "face": "Face: {f}",
+    "jointOverride": "Joint / Machining for this piece:",
+    "projectDefault": "Project default",
+    "minifixConcealed": "Minifix / Cam & dowel (Concealed without through holes)",
+    "dowelConcealed": "Wooden dowels (Concealed)",
+    "confirmatThrough": "Through screws (Confirmat)",
+    "spaxScrew": "Standard screws (Spax)",
+    "dowelAndConfirmat": "Double dowel + Confirmat"
+  },
+  "userTemplates": {
+    "saveButton": "Save as template",
+    "saveTitle": "Save current design as template",
+    "namePlaceholder": "Template name...",
+    "descPlaceholder": "Optional description...",
+    "save": "Save template",
+    "cancel": "Cancel",
+    "delete": "Delete template",
+    "deleteConfirm": "Delete custom template \"{name}\"?",
+    "myTemplates": "My Custom Templates"
+  },
+  "catalog": {
+    "title": "Workshop Database Management",
+    "materialsTitle": "Sheets and Materials Catalog",
+    "edgeBandsTitle": "Edge Bands Catalog",
+    "hardwareTitle": "Hardware and Fasteners Catalog",
+    "addNew": "Add new",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Do you want to delete this item from the database?",
+    "resetDefaults": "Reset to factory defaults",
+    "resetConfirm": "Do you want to reset all catalogs to factory defaults?",
+    "saved": "Item saved successfully.",
+    "deleted": "Item deleted successfully.",
+    "materialName": "Material name",
+    "thickness": "Thickness (mm)",
+    "sheetLength": "Sheet length (mm)",
+    "sheetWidth": "Sheet width (mm)",
+    "hasGrain": "Has grain",
+    "price": "Price",
+    "edgeBandKind": "Edge band kind",
+    "needsGroove": "Needs groove",
+    "hardwareName": "Hardware name",
+    "jointKind": "Joint kind"
+  }
+}

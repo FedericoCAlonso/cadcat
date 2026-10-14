@@ -23,10 +23,20 @@ export {
   loadMaterialsFromDb,
   loadEdgeBandsFromDb,
   loadHardwareFromDb,
+  saveMaterialToDb,
+  deleteMaterialFromDb,
+  saveEdgeBandToDb,
+  deleteEdgeBandFromDb,
+  saveHardwareToDb,
+  deleteHardwareFromDb,
+  resetCatalogsToSeed,
 } from './catalogStore';
 
 export {
   type StoredProjectConfig,
+  type IConfigService,
+  ProjectConfigService,
+  projectConfigService,
   CONFIG_STORE,
   DEFAULT_PROJECT_ID,
   getDefaultProjectConfig,
@@ -35,3 +45,13 @@ export {
   exportProjectConfigJson,
   importProjectConfigJson,
 } from './projectConfigStore';
+
+export {
+  type StoredUserTemplate,
+  USER_TEMPLATE_STORE,
+  loadUserTemplatesFromDb,
+  saveUserTemplateToDb,
+  deleteUserTemplateFromDb,
+  loadUserTemplateById,
+} from './userTemplateStore';
+

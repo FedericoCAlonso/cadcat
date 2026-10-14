@@ -2,15 +2,16 @@ import { type Piece, type Joint, type SubAssembly } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
+import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
 export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
 export type DrawerFrontMount = 'applied' | 'inset';
 
 export const DRAWER_SLIDE_CLEARANCES_MM: Record<DrawerSlideType, number> = {
-  telescopic: 25.4, // 12.7 mm per side
-  undermount: 10.0, // 5.0 mm per side
-  'metal-box': 31.0, // 15.5 mm per side
-  roller: 25.0,     // 12.5 mm per side
+  telescopic: defaultProjectConfigJson.hardware.slideClearanceTelescopicMm ?? 25.4,
+  undermount: defaultProjectConfigJson.hardware.slideClearanceUndermountMm ?? 10.0,
+  'metal-box': defaultProjectConfigJson.hardware.slideClearanceMetalBoxMm ?? 31.0,
+  roller: defaultProjectConfigJson.hardware.slideClearanceRollerMm ?? 25.0,
 };
 
 export interface DrawerConfig {

@@ -2,6 +2,7 @@ import { type Piece, type Joint } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
+import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
 export type DoorMountType = 'full-overlay' | 'half-overlay' | 'inset' | 'overlay';
 
@@ -87,9 +88,9 @@ export function buildDoorSubAssembly(
     materialId,
     doorThicknessMm,
     edgeBandId,
-    gapMm = 2.0,
-    revealMm = 1.5,
-    hingeSetbackFromEndMm = 100,
+    gapMm = defaultProjectConfigJson.hardware.doorInsetGapMm ?? 2.0,
+    revealMm = defaultProjectConfigJson.hardware.doorOverlayRevealMm ?? 1.5,
+    hingeSetbackFromEndMm = defaultProjectConfigJson.hardware.doorHingeMarginMm ?? 100,
   } = config;
 
   const doorT = doorThicknessMm ?? T;

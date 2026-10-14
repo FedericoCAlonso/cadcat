@@ -83,6 +83,17 @@ export {
   type FaceType,
   drillOperationSchema,
   type DrillOperation,
+  customDrillOperationSchema,
+  type CustomDrillOperation,
+  customGrooveOperationSchema,
+  type CustomGrooveOperation,
+  customRebateOperationSchema,
+  type CustomRebateOperation,
+  customPocketOperationSchema,
+  type CustomPocketOperation,
+  customPieceOperationSchema,
+  type CustomPieceOperation,
+  customDrillToDrillOperation,
   pieceMachiningSchema,
   type PieceMachining,
 } from './operation';
@@ -106,3 +117,10 @@ export {
   type ProjectConfig,
   validateProjectConfig,
 } from './projectConfig';
+
+export {
+  userTemplateSchema,
+  type UserTemplate,
+  validateUserTemplate,
+} from './userTemplate';
+

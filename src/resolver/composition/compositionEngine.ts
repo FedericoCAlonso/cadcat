@@ -131,12 +131,37 @@ export function buildModularModule(
     subAssemblies.push(...compResult.subAssemblies);
   }
 
-  // 5. Apply Manual Piece Material Overrides if defined
+  // 5. Apply Manual Piece Material, Thickness, and EdgeBand Overrides if defined
   if (materials.pieceOverrides) {
     for (const piece of pieces) {
       const overrideMat = materials.pieceOverrides[piece.id];
       if (overrideMat) {
         piece.materialId = overrideMat;
+      }
+    }
+  }
+
+  if (materials.pieceThicknessOverrides) {
+    for (const piece of pieces) {
+      const overrideT = materials.pieceThicknessOverrides[piece.id];
+      if (overrideT && overrideT > 0) {
+        piece.thicknessMm = overrideT;
+      }
+    }
+  }
+
+  if (materials.pieceEdgeBandOverrides) {
+    for (const piece of pieces) {
+      const ebOverride = materials.pieceEdgeBandOverrides[piece.id];
+      if (ebOverride) {
+        const bandId = ebOverride.edgeBandId ?? edgeBandId;
+        for (const face of piece.faces) {
+          const fId = face.id.toLowerCase();
+          if (fId.includes('top')) face.edgeBandId = ebOverride.top ? bandId : undefined;
+          if (fId.includes('bottom')) face.edgeBandId = ebOverride.bottom ? bandId : undefined;
+          if (fId.includes('left')) face.edgeBandId = ebOverride.left ? bandId : undefined;
+          if (fId.includes('right')) face.edgeBandId = ebOverride.right ? bandId : undefined;
+        }
       }
     }
   }

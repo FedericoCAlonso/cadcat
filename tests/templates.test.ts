@@ -130,25 +130,36 @@ describe('Template 2: Drawer Unit (Section 9 Task 9)', () => {
 });
 
 describe('Template Registry', () => {
-  it('registers Base Cabinet, Door Cabinet, Drawer Unit, and Partition Cabinet templates', () => {
-    expect(TEMPLATES).toHaveLength(4);
-    expect(TEMPLATES.map((t) => t.id)).toEqual([
-      'base-cabinet',
-      'door-cabinet',
-      'drawer-unit',
-      'partition-cabinet',
-    ]);
+  it('registers only the base empty carcass template', () => {
+    expect(TEMPLATES).toHaveLength(1);
+    expect(TEMPLATES[0]!.id).toBe('modular-empty');
+    expect(TEMPLATES[0]!.name).toBe('Estructura Hueco Libre');
 
-    const baseTpl = getTemplateById('base-cabinet');
-    expect(baseTpl.name).toContain('Base Cabinet');
+    const emptyTpl = getTemplateById('modular-empty');
+    expect(emptyTpl.id).toBe('modular-empty');
+  });
 
-    const drawerTpl = getTemplateById('drawer-unit');
-    expect(drawerTpl.name).toContain('Drawer Unit');
+  it('supports resolving dynamic user templates', () => {
+    const userTpl = {
+      id: 'user-custom-1',
+      schemaVersion: 1 as const,
+      name: 'Mi Módulo Personalizado',
+      description: 'Módulo de prueba',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      dimensions: { width: 600, height: 720, depth: 550 },
+      carcassSettings: {
+        roofType: 'solid-panel' as const,
+        jointPriority: 'lateral-over-bottom' as const,
+        hasBacking: true,
+      },
+      gridType: '1-bay' as const,
+      bays: [{ type: 'empty' as const }],
+    };
 
-    const doorTpl = getTemplateById('door-cabinet');
-    expect(doorTpl.name).toContain('Door Cabinet');
-
-    const partTpl = getTemplateById('partition-cabinet');
-    expect(partTpl.name).toContain('Partition');
+    const resolved = getTemplateById('user-custom-1', [userTpl]);
+    expect(resolved.id).toBe('user-custom-1');
+    expect(resolved.name).toBe('Mi Módulo Personalizado');
   });
 });
+
