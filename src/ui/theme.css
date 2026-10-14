@@ -1737,27 +1737,143 @@ body {
   align-items: center;
 }
 
+.machining-editor-mobile-tabs {
+  display: none;
+}
+
+.machining-tool-chips-scroll {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.machining-mobile-canvas-actions {
+  display: none;
+}
+
+.mobile-only-inline {
+  display: none !important;
+}
+
 @media (max-width: 768px) {
+  .m3-modal-overlay {
+    padding: 0 !important;
+  }
+
   .machining-editor-dialog {
-    width: 100%;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
-    margin: 0;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .machining-editor-dialog .m3-modal-header {
+    padding: 0.65rem 0.85rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .machining-editor-dialog .m3-modal-title {
+    font-size: 0.95rem !important;
+  }
+
+  .machining-editor-dialog .m3-modal-subtitle {
+    font-size: 0.75rem !important;
+  }
+
+  .machining-editor-dialog .m3-modal-body {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    padding: 0.5rem !important;
+    max-height: none !important;
+  }
+
+  .machining-editor-mobile-tabs {
+    display: block;
+    padding: 0.4rem 0.6rem 0.2rem;
+    background-color: var(--md-sys-color-surface-container-low);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    flex-shrink: 0;
   }
 
   .machining-editor-layout {
-    display: flex;
-    flex-direction: column-reverse; /* Canvas first, then controls */
-    gap: 1rem;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
   }
 
-  .machining-editor-canvas-column {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: var(--md-sys-color-surface);
-    padding-bottom: 0.5rem;
+  .machining-tool-chips-scroll {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding-bottom: 0.35rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .machining-tool-chips-scroll > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .desktop-only-control {
+    display: none !important;
+  }
+
+  .mobile-only-inline {
+    display: inline-flex !important;
+  }
+
+  /* Mobile Tabs View Switching */
+  .machining-editor-layout.mobile-tab--canvas .machining-editor-sidebar {
+    display: none !important;
+  }
+
+  .machining-editor-layout.mobile-tab--canvas .machining-editor-canvas-column {
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  .machining-editor-layout.mobile-tab--controls .machining-editor-canvas-column {
+    display: none !important;
+  }
+
+  .machining-editor-layout.mobile-tab--controls .machining-editor-sidebar {
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  .machining-editor-layout.mobile-tab--list .machining-editor-canvas-column {
+    display: none !important;
+  }
+
+  .machining-editor-layout.mobile-tab--list .machining-editor-sidebar > :not(.machining-custom-ops-section) {
+    display: none !important;
+  }
+
+  .machining-editor-layout.mobile-tab--list .machining-editor-sidebar {
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  .machining-editor-layout.mobile-tab--list .machining-custom-ops-section {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .machining-mobile-canvas-actions {
+    display: flex !important;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+
+  .m3-modal-svg-canvas {
+    height: calc(100dvh - 290px) !important;
+    min-height: 260px;
+    padding: 0.25rem !important;
   }
 }
 

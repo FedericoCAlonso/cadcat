@@ -3,6 +3,7 @@ import type { CustomPieceOperation } from '../model';
 import {
   type ResolvedPieceWithCutSize,
   type SpatialPieceBox,
+  getFaceSemanticLabel,
 } from '../resolver';
 import { NumericInput } from './NumericInput';
 import { useMachiningEditorViewModel } from './useMachiningEditorViewModel';
@@ -21,6 +22,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   const { piece } = props;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'canvas' | 'controls' | 'list'>('canvas');
 
   const vm = useMachiningEditorViewModel(props);
   const panZoom = usePanZoom({ minZoom: 0.35, maxZoom: 6.0, zoomStep: 1.25 });
@@ -139,7 +141,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
           <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
             <button
               type="button"
-              className="m3-btn m3-btn--small m3-btn--outlined"
+              className="m3-btn m3-btn--small m3-btn--outlined desktop-only-control"
               onClick={() => setIsMaximized(!isMaximized)}
               title="Alternar Pantalla Completa CAD"
               aria-label="Maximizar o restaurar modal"
@@ -158,13 +160,40 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
           </div>
         </div>
 
+        {/* Mobile View Switcher (Tabs) */}
+        <div className="machining-editor-mobile-tabs" role="tablist" aria-label="Vistas del editor de mecanizados">
+          <div className="m3-segmented-button" style={{ width: '100%' }}>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'canvas' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('canvas')}
+            >
+              📐 Plano 2D
+            </button>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'controls' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('controls')}
+            >
+              ⚙️ Parámetros
+            </button>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'list' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('list')}
+            >
+              📋 Lista ({vm.pieceCustomOps.length})
+            </button>
+          </div>
+        </div>
+
         {/* Modal Body */}
         <div className="m3-modal-body">
-          <div className="machining-editor-layout">
+          <div className={`machining-editor-layout mobile-tab--${mobileTab}`}>
             {/* Controls & Operations Column */}
             <div className="machining-editor-sidebar">
               {/* Tool Selection Chips */}
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <div className="machining-tool-chips-scroll" style={{ display: 'flex', gap: '0.4rem' }}>
                 <button
                   type="button"
                   className={`m3-btn m3-btn--small ${vm.opType === 'groove' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
@@ -211,14 +240,14 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     className={`m3-btn m3-btn--small ${vm.faceType === 'face-A' ? 'm3-btn--primary' : 'm3-btn--text'}`}
                     onClick={() => vm.setFaceType('face-A')}
                   >
-                    Cara A (Frente)
+                    Cara A ({getFaceSemanticLabel(piece.role, 'face-A')})
                   </button>
                   <button
                     type="button"
                     className={`m3-btn m3-btn--small ${vm.faceType === 'face-B' ? 'm3-btn--primary' : 'm3-btn--text'}`}
                     onClick={() => vm.setFaceType('face-B')}
                   >
-                    Cara B (Reverso)
+                    Cara B ({getFaceSemanticLabel(piece.role, 'face-B')})
                   </button>
                 </div>
 
@@ -598,11 +627,21 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 )}
 
                 {vm.opType !== 'fastener' && (
-                  <div style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="m3-btn m3-btn--tonal mobile-only-inline"
+                      onClick={() => setMobileTab('canvas')}
+                    >
+                      👁️ Ver en Dibujo 2D
+                    </button>
                     <button
                       type="button"
                       className="m3-btn m3-btn--primary"
-                      onClick={vm.handleAddOperation}
+                      onClick={() => {
+                        vm.handleAddOperation();
+                        setMobileTab('canvas');
+                      }}
                     >
                       ➕ Aplicar Mecanizado a la Placa
                     </button>
@@ -611,7 +650,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
               </div>
 
               {/* List of custom operations on this piece */}
-              <div>
+              <div className="machining-custom-ops-section">
                 <h5 style={{ margin: '0 0 0.4rem', fontSize: '0.85rem' }}>
                   Mecanizados Personalizados en esta placa ({vm.pieceCustomOps.length}):
                 </h5>
@@ -705,6 +744,15 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 >
                   <button
                     type="button"
+                    className={`m3-btn m3-btn--small ${panZoom.mode === 'pan' ? 'm3-btn--primary' : 'm3-btn--tonal'}`}
+                    style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+                    onClick={() => panZoom.setMode(panZoom.mode === 'pan' ? 'select' : 'pan')}
+                    title={panZoom.mode === 'pan' ? 'Modo Paneo activo (arrastrar)' : 'Cambiar a modo Paneo'}
+                  >
+                    {panZoom.mode === 'pan' ? '🖐️ Mover' : '📍 Ubicar'}
+                  </button>
+                  <button
+                    type="button"
                     className="m3-btn m3-btn--small m3-btn--tonal"
                     style={{ padding: '0.15rem 0.45rem', minWidth: '28px', fontSize: '0.8rem' }}
                     onClick={panZoom.zoomIn}
@@ -749,13 +797,16 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   height="100%"
                   style={{
                     backgroundColor: '#fafafa',
-                    cursor: panZoom.isPanning ? 'grabbing' : 'crosshair',
+                    cursor: panZoom.isPanning || panZoom.mode === 'pan' ? 'grabbing' : 'crosshair',
                     userSelect: 'none',
                     touchAction: 'none',
                   }}
                   onWheel={panZoom.handleWheel}
+                  onTouchStart={panZoom.handleTouchStart}
+                  onTouchMove={panZoom.handleTouchMove}
+                  onTouchEnd={panZoom.handleTouchEnd}
                   onPointerDown={(e) => {
-                    if (e.button === 1 || e.button === 2) {
+                    if (e.button === 1 || e.button === 2 || panZoom.mode === 'pan') {
                       panZoom.startPan(e.clientX, e.clientY);
                       return;
                     }
@@ -998,6 +1049,26 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   )}
                   </g>
                 </svg>
+              </div>
+
+              {/* Mobile Quick Action Bar */}
+              <div className="machining-mobile-canvas-actions">
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--primary"
+                  style={{ flex: 1, padding: '0.55rem', fontSize: '0.85rem' }}
+                  onClick={vm.handleAddOperation}
+                >
+                  ➕ Aplicar {vm.opType === 'drill' ? 'Perforación' : vm.opType === 'groove' ? 'Ranura' : vm.opType === 'rebate' ? 'Rebaje' : vm.opType === 'cutout' ? 'Calado' : 'Tornillos'}
+                </button>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--tonal"
+                  style={{ padding: '0.55rem 0.85rem', fontSize: '0.85rem' }}
+                  onClick={() => setMobileTab('controls')}
+                >
+                  ⚙️ Parámetros
+                </button>
               </div>
 
               <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>

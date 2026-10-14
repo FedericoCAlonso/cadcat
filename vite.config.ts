@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => ({
       manifest: pwaManifest,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,json}'],
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],

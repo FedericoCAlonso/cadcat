@@ -76,6 +76,40 @@
     }
   },
   {
+    "id": "preset-wardrobe-drawers-simple",
+    "name": "Cajonera Placard (Cajones Simples)",
+    "description": "3 cajones embutidos sin tapa doble de frente, con uñero superior de 30mm y laterales rebajados.",
+    "defaultDimensions": { "width": 500, "height": 720, "depth": 500 },
+    "carcass": {
+      "jointPriority": "lateral-over-bottom",
+      "roofType": "solid-panel",
+      "hasBacking": true
+    },
+    "bays": [
+      {
+        "type": "drawer-stack",
+        "drawerTracks": [
+          { "type": "fractional", "valueFr": 1 },
+          { "type": "fractional", "valueFr": 1 },
+          { "type": "fractional", "valueFr": 1 }
+        ],
+        "frontMount": "inset",
+        "drawerType": "simple-interior",
+        "bottomMount": "flush-thick",
+        "topPullGapMm": 30,
+        "boxSideHeightOffsetMm": 25,
+        "slideType": "telescopic",
+        "gapMm": 2.5
+      }
+    ],
+    "defaultMaterials": {
+      "carcassMaterialId": "mat-egger-white-18",
+      "frontsMaterialId": "mat-egger-white-18",
+      "drawerBoxesMaterialId": "mat-egger-white-18",
+      "backingsMaterialId": "mat-egger-white-18"
+    }
+  },
+  {
     "id": "preset-door-cabinet-2",
     "name": "Alacena / Mueble 2 Puertas",
     "description": "Mueble con techo macizo, 1 estante interior y 2 puertas batientes full-overlay.",

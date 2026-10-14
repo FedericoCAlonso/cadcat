@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useState, useEffect, type ReactElement } from 'react';
 import './theme.css';
 import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
@@ -8,6 +8,7 @@ import { MachiningSheetView } from './MachiningSheetView';
 import { ProjectSettingsView } from './ProjectSettingsView';
 import { AssemblySheetView } from './AssemblySheetView';
 import { MachiningEditorModal } from './MachiningEditorModal';
+import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 
 /**
  * Main application View component.
@@ -16,16 +17,51 @@ import { MachiningEditorModal } from './MachiningEditorModal';
 export function App(): ReactElement {
   const vm = useModuleViewModel();
   const [machiningPieceId, setMachiningPieceId] = useState<string | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      void navigator.serviceWorker.getRegistration().then((reg) => {
+        if (!reg) return;
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                setUpdateAvailable(true);
+              }
+            });
+          }
+        });
+      });
+    }
+  }, []);
 
   return (
     <div className="app-wrapper">
       <header className="m3-top-app-bar">
-        <div>
-          <h1 className="m3-top-app-bar__title">Mobilius</h1>
-          <p className="m3-top-app-bar__subtitle">
-            <span>Diseño paramétrico y despiece de muebles para taller.</span>
-            <span className="visually-hidden"> Furniture design progressive web application.</span>
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
+          <div>
+            <h1 className="m3-top-app-bar__title">Mobilius</h1>
+            <p className="m3-top-app-bar__subtitle">
+              <span>Diseño paramétrico y despiece de muebles para taller.</span>
+              <span className="visually-hidden"> Furniture design progressive web application.</span>
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="m3-button m3-button--tonal"
+              style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+              onClick={() => void forcePurgeCacheAndReload()}
+              title="Borra la caché y fuerza la recarga de la última versión"
+            >
+              🔄 Actualizar app
+            </button>
+            <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', opacity: 0.85 }}>
+              v0.2.2
+            </span>
+          </div>
         </div>
 
         <nav aria-label="Navegación principal" className="m3-tabs">
@@ -93,6 +129,19 @@ export function App(): ReactElement {
         )}
         {vm.error && <p className="error-state" role="alert">{vm.error}</p>}
         {vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
+        {updateAvailable && (
+          <div className="m3-banner m3-banner--warning" role="alert" style={{ margin: '0 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <span>🎉 ¡Nueva versión de Mobilius disponible con mejoras de cajones y CAD móvil!</span>
+            <button
+              type="button"
+              className="m3-button m3-button--primary"
+              style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}
+              onClick={() => void forcePurgeCacheAndReload()}
+            >
+              Actualizar ahora
+            </button>
+          </div>
+        )}
 
         {!vm.isLoading && (
           <div
