@@ -1,5 +1,5 @@
 import type { ReactElement, ChangeEvent } from 'react';
-import type { Material, EdgeBand } from '../model';
+import type { Material, EdgeBand, JointStrategy } from '../model';
 import type {
   TemplateDefinition,
   RoofType,
@@ -27,6 +27,7 @@ export interface ModuleFormProps {
   edgeBands: EdgeBand[];
   selectedMaterialId: string;
   selectedEdgeBandId: string;
+  jointStrategy?: JointStrategy;
   isSaving: boolean;
   onWidthChange: (val: number) => void;
   onHeightChange: (val: number) => void;
@@ -81,6 +82,7 @@ export interface ModuleFormProps {
   onFrontsMaterialChange?: (id: string) => void;
   onDrawerBoxesMaterialChange?: (id: string) => void;
   onBackingsMaterialChange?: (id: string) => void;
+  onJointStrategyChange?: (strategy: JointStrategy) => void;
   onView3dClick?: () => void;
 }
 
@@ -99,6 +101,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     edgeBands,
     selectedMaterialId,
     selectedEdgeBandId,
+    jointStrategy = 'confirmat',
     isSaving,
     onWidthChange,
     onHeightChange,
@@ -117,6 +120,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     activeBayIndex = 0,
     frontsMaterialId = '',
     drawerBoxesMaterialId = '',
+    backingsMaterialId = '',
     onRoofTypeChange,
     onJointPriorityChange,
     onHasBackingChange,
@@ -142,6 +146,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onBifoldDirectionChange,
     onFrontsMaterialChange,
     onDrawerBoxesMaterialChange,
+    onBackingsMaterialChange,
+    onJointStrategyChange,
     onView3dClick,
   } = props;
 
@@ -687,7 +693,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             {resolvedDrawerHeights.length > 0 && (
               <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
                 <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-                  📊 Proporción y alturas reales ({estimatedBayCavityHeight} mm luz libre):
+                  📊 Proporción y alturas reales (Alturas calculadas de frentes: {estimatedBayCavityHeight} mm luz libre):
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', borderRadius: '4px', overflow: 'hidden' }}>
                   {resolvedDrawerHeights.map((h, i) => {
@@ -711,7 +717,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                           fontWeight: 600,
                         }}
                       >
-                        <span>{`Cajón ${i + 1} (${trackLabel})`}</span>
+                        <span>{`Cajón ${i + 1}: (${trackLabel})`}</span>
                         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{`${h} mm`}</span>
                       </div>
                     );
@@ -875,30 +881,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </div>
             )}
 
-            {/* Frentes calculados en mm en vivo */}
-            {resolvedDrawerHeights.length > 0 && (
-              <div className="form-group">
-                <label>Alturas calculadas de frentes:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
-                  {resolvedDrawerHeights.map((h, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: 'var(--md-sys-shape-corner-full)',
-                        backgroundColor: 'var(--md-sys-color-secondary-container)',
-                        color: 'var(--md-sys-color-on-secondary-container)',
-                        font: 'var(--md-sys-typescale-label-small)',
-                        fontWeight: 600,
-                        border: '1px solid var(--md-sys-color-outline-variant)',
-                      }}
-                    >
-                      {`Cajón ${i + 1}: ${h} mm`}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div className="form-group">
               <label>Montaje de frentes:</label>
@@ -1223,6 +1205,27 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
 
+        {/* Material Fondos y Traseras */}
+        {onBackingsMaterialChange && (
+          <div className="form-group">
+            <label htmlFor="select-backings-material">
+              Placa para Fondos y Traseras:
+            </label>
+            <select
+              id="select-backings-material"
+              value={backingsMaterialId || selectedMaterialId}
+              onChange={(e) => onBackingsMaterialChange(e.target.value)}
+              className="m3-select"
+            >
+              {materials.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.thicknessMm} mm)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Tapacantos */}
         <div className="form-group">
           <label htmlFor="select-edgeband">
@@ -1243,6 +1246,26 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             ))}
           </select>
         </div>
+
+        {/* Fijaciones / Tipo de Uniones */}
+        {onJointStrategyChange && (
+          <div className="form-group">
+            <label htmlFor="select-joint-strategy">
+              Fijaciones / Tipo de Uniones:
+            </label>
+            <select
+              id="select-joint-strategy"
+              value={jointStrategy}
+              onChange={(e) => onJointStrategyChange(e.target.value as JointStrategy)}
+              className="m3-select"
+            >
+              <option value="confirmat">Confirmat (Tornillo soberbio Ø7 / Ø5 mm)</option>
+              <option value="dowel-and-confirmat">Tarugo + Confirmat (Tarugo Ø8 mm + Confirmat Ø7 mm)</option>
+              <option value="cam-dowel">Minifix + Tarugo (Caja excéntrica Ø15 mm + Tarugo Ø8 mm)</option>
+              <option value="screw">Tornillo Autorroscante (Spax 4x50 mm)</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Botones de acción */}

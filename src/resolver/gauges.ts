@@ -31,7 +31,7 @@ export interface DeriveGaugesInput {
   pieces: (Piece | ResolvedPiece)[];
   joints: Joint[];
   jointGraph?: JointGraph;
-  machiningConfig?: MachiningConfig;
+  machiningConfig?: Partial<MachiningConfig>;
 }
 
 interface SpatialPieceInfo {
@@ -81,7 +81,7 @@ function getPieceSpatialInfo(p: Piece | ResolvedPiece): SpatialPieceInfo {
  */
 export function deriveAssemblyGauges(
   input: DeriveGaugesInput | ResolvedModule,
-  config?: MachiningConfig,
+  config?: Partial<MachiningConfig>,
 ): AssemblyGauge[] {
   const pieces = 'pieces' in input ? input.pieces : [];
   const joints = 'joints' in input ? input.joints : [];
@@ -245,11 +245,36 @@ export function deriveAssemblyGauges(
 
 /**
  * Returns auxiliary gauge pieces to be included in shop cut lists and nesting.
+ * Workshop rule: at most 2 pieces per unique clear span measure to establish parallel reference guides.
  */
 export function deriveAuxiliaryGaugePieces(
   input: DeriveGaugesInput | ResolvedModule,
-  config?: MachiningConfig,
+  config?: Partial<MachiningConfig>,
+  options?: { duplicateForParallel?: boolean; maxPiecesPerSpan?: number },
 ): Piece[] {
   const gauges = deriveAssemblyGauges(input, config);
-  return gauges.map((g) => g.piece);
+  if (!options?.duplicateForParallel) {
+    return gauges.map((g) => g.piece);
+  }
+
+  const maxPerSpan = options.maxPiecesPerSpan ?? 2;
+  const result: Piece[] = [];
+
+  for (const g of gauges) {
+    const count = Math.min(maxPerSpan, Math.max(1, g.occurrences.length));
+    for (let i = 0; i < count; i++) {
+      if (i === 0) {
+        result.push(g.piece);
+      } else {
+        result.push(
+          createPiece({
+            ...g.piece,
+            id: `${g.piece.id}-${i + 1}`,
+          }),
+        );
+      }
+    }
+  }
+
+  return result;
 }

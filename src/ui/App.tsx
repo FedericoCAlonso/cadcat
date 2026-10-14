@@ -154,6 +154,8 @@ export function App(): ReactElement {
                 onFrontsMaterialChange={vm.setFrontsMaterialId}
                 onDrawerBoxesMaterialChange={vm.setDrawerBoxesMaterialId}
                 onBackingsMaterialChange={vm.setBackingsMaterialId}
+                jointStrategy={vm.jointStrategy}
+                onJointStrategyChange={vm.setJointStrategy}
                 onView3dClick={() => vm.setActiveTab('3d')}
               />
             </aside>

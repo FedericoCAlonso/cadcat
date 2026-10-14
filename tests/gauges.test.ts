@@ -362,4 +362,29 @@ describe('Assembly Gauges & Auxiliary Pieces (Phase 2 WP2)', () => {
     expect(pdfDoc).toBeDefined();
     expect(pdfDoc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
+
+  it('enforces workshop rule: maximum 2 gauge pieces of the same measure to establish a parallel', () => {
+    const { pieces, joints } = createTestCabinetPieces();
+
+    // Span G1 has 2 occurrences (bottom->shelf1 and shelf1->shelf2)
+    // When duplicateForParallel is enabled, exactly 2 pieces of G1 should be generated (one pair for parallel)
+    const auxGauges = deriveAuxiliaryGaugePieces({ pieces, joints }, undefined, {
+      duplicateForParallel: true,
+      maxPiecesPerSpan: 2,
+    });
+
+    const g1Pieces = auxGauges.filter((p) => p.id.startsWith('gauge-g1'));
+    expect(g1Pieces).toHaveLength(2);
+    expect(g1Pieces[0]!.id).toBe('gauge-g1');
+    expect(g1Pieces[1]!.id).toBe('gauge-g1-2');
+
+    // Never more than 2 pieces even if maxPiecesPerSpan is capped
+    const cappedGauges = deriveAuxiliaryGaugePieces({ pieces, joints }, undefined, {
+      duplicateForParallel: true,
+      maxPiecesPerSpan: 2,
+    });
+    for (const g of cappedGauges) {
+      expect(cappedGauges.filter((p) => p.contour.points[1]?.x === g.contour.points[1]?.x).length).toBeLessThanOrEqual(2);
+    }
+  });
 });

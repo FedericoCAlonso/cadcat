@@ -71,6 +71,7 @@ export {
 export {
   exportCutListCsv,
   exportCutPlanPdf,
+  translatePieceLabel,
   triggerBrowserDownload,
 } from './export';
 
@@ -126,6 +127,7 @@ export {
   type MachiningShopDefaults,
   DEFAULT_MACHINING_SHOP_VALUES,
   calculateJointDrillSpacings,
+  deriveContactGeometry,
   deriveFaceType,
   deriveModuleDrillOperations,
   groupOperationsByPiece,

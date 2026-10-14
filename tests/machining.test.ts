@@ -232,4 +232,142 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
     const shelfPinOps = ops.filter((o) => o.sourceJointKind === 'shelf-pin');
     expect(shelfPinOps.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('correctly places drill holes on side panel using exact 3D contact height Y and depth Z', () => {
+    // Left side panel: width (Z) 560mm, height (Y) 720mm, thickness 18mm
+    const sideLeft = {
+      ...createPiece({
+        id: 'side-left',
+        role: 'side-left',
+        materialId: testMaterial.id,
+        contour: createRectangularContour(560, 720),
+        thicknessMm: 18,
+      }),
+      positionMm: { x: 0, y: 0, z: 0 },
+      dimensionsMm: { width: 560, height: 720 },
+    };
+
+    // Bottom panel: contact at Y=0 to 18 (center Y=9), Z=0 to 560
+    const bottom = {
+      ...createPiece({
+        id: 'bottom',
+        role: 'bottom',
+        materialId: testMaterial.id,
+        contour: createRectangularContour(564, 560),
+        thicknessMm: 18,
+      }),
+      positionMm: { x: 18, y: 0, z: 0 },
+      dimensionsMm: { width: 564, height: 560 },
+    };
+
+    // Front top rail: 80mm deep, at Y=702 (center Y=711), Z=0 to 80
+    const railFront = {
+      ...createPiece({
+        id: 'rail-front',
+        role: 'rail-front',
+        materialId: testMaterial.id,
+        contour: createRectangularContour(564, 80),
+        thicknessMm: 18,
+      }),
+      positionMm: { x: 18, y: 702, z: 0 },
+      dimensionsMm: { width: 564, height: 80 },
+    };
+
+    // Back top rail: 80mm deep, at Y=702 (center Y=711), Z=480 to 560 (560 - 80)
+    const railBack = {
+      ...createPiece({
+        id: 'rail-back',
+        role: 'rail-back',
+        materialId: testMaterial.id,
+        contour: createRectangularContour(564, 80),
+        thicknessMm: 18,
+      }),
+      positionMm: { x: 18, y: 702, z: 480 },
+      dimensionsMm: { width: 564, height: 80 },
+    };
+
+    const joints = [
+      createJoint({ a: { pieceId: 'side-left', faceId: 'inner' }, b: { pieceId: 'bottom', faceId: 'left-edge' }, kind: 'confirmat' }),
+      createJoint({ a: { pieceId: 'side-left', faceId: 'inner' }, b: { pieceId: 'rail-front', faceId: 'left-edge' }, kind: 'confirmat' }),
+      createJoint({ a: { pieceId: 'side-left', faceId: 'inner' }, b: { pieceId: 'rail-back', faceId: 'left-edge' }, kind: 'confirmat' }),
+    ];
+
+    const ops = deriveModuleDrillOperations([sideLeft, bottom, railFront, railBack], joints);
+    const sideOps = ops.filter((o) => o.pieceId === 'side-left');
+
+    // 1. Bottom holes on side panel: Y must be 9mm, X at [50, 510]
+    const bottomHoles = sideOps.filter((o) => o.description?.includes('bottom'));
+    expect(bottomHoles).toHaveLength(2);
+    expect(bottomHoles[0]!.positionMm.y).toBe(9);
+    expect(bottomHoles[0]!.positionMm.x).toBe(50);
+    expect(bottomHoles[1]!.positionMm.x).toBe(510);
+
+    // 2. Front rail holes on side panel: Y must be 711mm, X at [25, 55] (Z_start = 0)
+    const frontRailHoles = sideOps.filter((o) => o.description?.includes('rail-front'));
+    expect(frontRailHoles).toHaveLength(2);
+    expect(frontRailHoles[0]!.positionMm.y).toBe(711);
+    expect(frontRailHoles[0]!.positionMm.x).toBe(25);
+    expect(frontRailHoles[1]!.positionMm.x).toBe(55);
+
+    // 3. Back rail holes on side panel: Y must be 711mm, X at [505, 535] (Z_start = 480 + 25, 480 + 55)
+    // CRITICAL: They must NOT be at X = 25 or 50 (the front of the cabinet)!
+    const backRailHoles = sideOps.filter((o) => o.description?.includes('rail-back'));
+    expect(backRailHoles).toHaveLength(2);
+    expect(backRailHoles[0]!.positionMm.y).toBe(711);
+    expect(backRailHoles[0]!.positionMm.x).toBe(505);
+    expect(backRailHoles[1]!.positionMm.x).toBe(535);
+  });
+
+  it('supports configurable joint strategies: dowel-and-confirmat and screw', () => {
+    const side = createPiece({
+      id: 'p-side',
+      role: 'side-left',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(560, 800),
+      thicknessMm: 18,
+    });
+    const bottom = createPiece({
+      id: 'p-bottom',
+      role: 'bottom',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(564, 560),
+      thicknessMm: 18,
+    });
+    const joint = createJoint({
+      a: { pieceId: 'p-side', faceId: 'inner' },
+      b: { pieceId: 'p-bottom', faceId: 'left-edge' },
+      kind: 'confirmat',
+    });
+
+    // 1. dowel-and-confirmat strategy
+    const dowelOps = deriveModuleDrillOperations(
+      [side, bottom],
+      [joint],
+      { jointStrategy: 'dowel-and-confirmat' },
+    );
+    const dowelSideOps = dowelOps.filter((o) => o.pieceId === 'p-side');
+    // 2 confirmat through holes + 2 dowel face holes = 4 holes on side
+    expect(dowelSideOps).toHaveLength(4);
+    const confirmatHoles = dowelSideOps.filter((o) => o.diameterMm === 7 && o.isThrough);
+    const woodenDowelHoles = dowelSideOps.filter((o) => o.diameterMm === 8 && !o.isThrough);
+    expect(confirmatHoles).toHaveLength(2);
+    expect(woodenDowelHoles).toHaveLength(2);
+
+    // 2. screw strategy (Spax 4x50)
+    const screwOps = deriveModuleDrillOperations(
+      [side, bottom],
+      [joint],
+      { jointStrategy: 'screw' },
+    );
+    const screwSideOps = screwOps.filter((o) => o.pieceId === 'p-side');
+    expect(screwSideOps).toHaveLength(2);
+    expect(screwSideOps[0]!.diameterMm).toBe(4);
+    expect(screwSideOps[0]!.description).toContain('Spax screw');
+
+    const screwEdgeOps = screwOps.filter((o) => o.pieceId === 'p-bottom');
+    expect(screwEdgeOps).toHaveLength(2);
+    expect(screwEdgeOps[0]!.diameterMm).toBe(3);
+    expect(screwEdgeOps[0]!.depthMm).toBe(35);
+  });
 });
+

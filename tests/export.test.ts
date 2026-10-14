@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   exportCutListCsv,
   exportCutPlanPdf,
+  translatePieceLabel,
   type ResolvedPieceWithCutSize,
 } from '../src/resolver';
 import type { NestingResult } from '../src/workers';
@@ -138,5 +139,21 @@ describe('Cut Plan PDF Export', () => {
     const doc = exportCutPlanPdf(emptyNesting);
     expect(doc).toBeDefined();
     expect(doc.getNumberOfPages()).toBe(1);
+  });
+
+  it('translates technical piece identifiers and roles into Argentine Spanish descriptions', () => {
+    expect(translatePieceLabel('base-side-left')).toBe('Lateral izquierdo');
+    expect(translatePieceLabel('base-side-right')).toBe('Lateral derecho');
+    expect(translatePieceLabel('base-bottom')).toBe('Piso');
+    expect(translatePieceLabel('base-roof')).toBe('Techo');
+    expect(translatePieceLabel('base-rail-front')).toBe('Faja sup. frontal');
+    expect(translatePieceLabel('base-rail-back')).toBe('Faja sup. trasera');
+    expect(translatePieceLabel('shelf-adj-1')).toBe('Estante móvil');
+    expect(translatePieceLabel('drawer-front-1')).toBe('Frente cajón');
+    expect(translatePieceLabel('drawer-box-side-left-1')).toBe('Lat. cajón izq');
+    expect(translatePieceLabel('drawer-box-back-1')).toBe('Contrafrente cajón');
+    expect(translatePieceLabel('gauge-g1')).toBe('Calibre G1');
+    expect(translatePieceLabel('door-left')).toBe('Puerta izq');
+    expect(translatePieceLabel('custom-piece-123')).toBe('custom-piece-123');
   });
 });

@@ -8,6 +8,8 @@ export const jointKindSchema = z.enum([
   'dowel',
   'cam-dowel',
   'confirmat',
+  'dowel-and-confirmat',
+  'screw',
   'rebate',
   'groove',
   'glue',

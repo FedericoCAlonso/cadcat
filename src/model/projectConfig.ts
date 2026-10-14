@@ -7,7 +7,16 @@ export const unitsConfigSchema = z.object({
 });
 export type UnitsConfig = z.infer<typeof unitsConfigSchema>;
 
+export const jointStrategySchema = z.enum([
+  'confirmat',
+  'dowel-and-confirmat',
+  'cam-dowel',
+  'screw',
+]).default('confirmat');
+export type JointStrategy = z.infer<typeof jointStrategySchema>;
+
 export const machiningConfigSchema = z.object({
+  jointStrategy: jointStrategySchema.default('confirmat'),
   confirmatThroughDiameterMm: z.number().positive(),
   confirmatCoreDiameterMm: z.number().positive(),
   confirmatCoreDepthMm: z.number().positive(),
@@ -41,6 +50,7 @@ export const nestingConfigSchema = z.object({
   sheetTrimMarginMm: z.number().min(0),
   respectGrain: z.boolean(),
   optimizationGoal: z.enum(['min-waste', 'min-passes']).default('min-waste'),
+  includeAssemblyGaugesInCutPlan: z.boolean().default(false),
 });
 export type NestingConfig = z.infer<typeof nestingConfigSchema>;
 

@@ -7,6 +7,7 @@ import {
   type DrillOperation,
   type PieceMachining,
   type ProjectConfig,
+  type JointStrategy,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -105,6 +106,7 @@ export interface ModuleViewModelState {
   frontsMaterialId: string;
   drawerBoxesMaterialId: string;
   backingsMaterialId: string;
+  jointStrategy: JointStrategy;
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
   setDepth: (depth: number) => void;
@@ -141,6 +143,7 @@ export interface ModuleViewModelState {
   setFrontsMaterialId: (id: string) => void;
   setDrawerBoxesMaterialId: (id: string) => void;
   setBackingsMaterialId: (id: string) => void;
+  setJointStrategy: (strategy: JointStrategy) => void;
   saveModule: () => Promise<void>;
   loadModule: (id: string) => Promise<void>;
   exportCsv: () => void;
@@ -801,14 +804,15 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (!currentModule) {
       return { machiningOperations: [], pieceMachiningList: [] };
     }
+    const piecesForMachining = resolvedPieces.length > 0 ? resolvedPieces : currentModule.pieces;
     const ops = deriveModuleDrillOperations(
-      currentModule.pieces,
+      piecesForMachining,
       currentModule.joints,
       projectConfig?.machining,
     );
     const list = groupOperationsByPiece(currentModule.pieces, ops);
     return { machiningOperations: ops, pieceMachiningList: list };
-  }, [currentModule, projectConfig]);
+  }, [currentModule, resolvedPieces, projectConfig]);
 
   // Builds machining sheets for workshop manual machines
   const machiningSheets = useMemo(() => {
@@ -867,15 +871,25 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const cost = useMemo(() => {
     if (!bom || !activeMaterial) return null;
     try {
-      const gaugePieces = (assemblySheet?.gauges ?? []).map((g) => ({
-        id: g.piece.id,
-        pieceId: g.piece.id,
-        materialId: activeMaterial.id,
-        cutWidthMm: g.clearSpanMm,
-        cutHeightMm: g.widthMm,
-        canRotate: true,
-        isAuxiliary: true,
-      }));
+      const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
+      const gaugePieces = includeGauges
+        ? (assemblySheet?.gauges ?? []).flatMap((g) => {
+            const count = Math.min(2, Math.max(1, g.occurrences.length));
+            const items = [];
+            for (let i = 0; i < count; i++) {
+              items.push({
+                id: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
+                pieceId: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
+                materialId: activeMaterial.id,
+                cutWidthMm: g.clearSpanMm,
+                cutHeightMm: g.widthMm,
+                canRotate: true,
+                isAuxiliary: true,
+              });
+            }
+            return items;
+          })
+        : [];
 
       const nestingItems = [
         ...resolvedPieces.map((p) => ({
@@ -979,15 +993,25 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   const exportPdf = useCallback(() => {
     if (resolvedPieces.length === 0 || !activeMaterial) return;
-    const gaugePieces = (assemblySheet?.gauges ?? []).map((g) => ({
-      id: g.piece.id,
-      pieceId: g.piece.id,
-      materialId: activeMaterial.id,
-      cutWidthMm: g.clearSpanMm,
-      cutHeightMm: g.widthMm,
-      canRotate: true,
-      isAuxiliary: true,
-    }));
+    const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
+    const gaugePieces = includeGauges
+      ? (assemblySheet?.gauges ?? []).flatMap((g) => {
+          const count = Math.min(2, Math.max(1, g.occurrences.length));
+          const items = [];
+          for (let i = 0; i < count; i++) {
+            items.push({
+              id: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
+              pieceId: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
+              materialId: activeMaterial.id,
+              cutWidthMm: g.clearSpanMm,
+              cutHeightMm: g.widthMm,
+              canRotate: true,
+              isAuxiliary: true,
+            });
+          }
+          return items;
+        })
+      : [];
 
     const nestingItems = [
       ...resolvedPieces.map((p) => ({
@@ -1116,6 +1140,20 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [projectConfig]);
 
+  const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
+  const setJointStrategy = useCallback((strategy: JointStrategy) => {
+    setProjectConfig((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        machining: {
+          ...prev.machining,
+          jointStrategy: strategy,
+        },
+      };
+    });
+  }, []);
+
   return {
     width,
     height,
@@ -1194,6 +1232,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setFrontsMaterialId,
     setDrawerBoxesMaterialId,
     setBackingsMaterialId,
+    jointStrategy,
+    setJointStrategy,
     saveModule,
     loadModule,
     exportCsv,

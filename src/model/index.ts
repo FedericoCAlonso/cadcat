@@ -90,6 +90,8 @@ export {
 export {
   unitsConfigSchema,
   type UnitsConfig,
+  jointStrategySchema,
+  type JointStrategy,
   machiningConfigSchema,
   type MachiningConfig,
   nestingConfigSchema,
