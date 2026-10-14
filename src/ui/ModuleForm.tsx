@@ -10,13 +10,10 @@ import type {
   DoorMountType,
   TrackSize,
 } from '../resolver';
-import {
-  resolveTracks,
-  formatTracksToGridString,
-  parseGridStringToTracks,
-} from '../resolver';
+import { resolveTracks } from '../resolver';
 import { translateTemplateName, translateEdgeBandKind, t } from './localization';
 import { NumericInput } from './NumericInput';
+import { DrawerTracksInput } from './DrawerTracksInput';
 import { DEFAULT_UI_CONFIG } from '../config';
 
 export interface ModuleFormProps {
@@ -749,19 +746,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               <label htmlFor="input-grid-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
                 📐 Medidas de cajones (mm, fr o mixto):
               </label>
-              <input
-                id="input-grid-tracks"
-                type="text"
-                className="m3-input"
-                style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem', margin: '0.25rem 0 0.5rem' }}
-                value={formatTracksToGridString(activeBay.drawerTracks)}
-                placeholder="ej. 140mm 1fr 1fr o 1fr 2fr 1fr"
-                onChange={(e) => {
-                  const parsed = parseGridStringToTracks(e.target.value);
-                  if (parsed && parsed.length > 0) {
-                    onDrawerTracksChange?.(currentActiveIndex, parsed);
-                  }
-                }}
+              <DrawerTracksInput
+                tracks={activeBay.drawerTracks}
+                onChange={(parsed) => onDrawerTracksChange?.(currentActiveIndex, parsed)}
               />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
