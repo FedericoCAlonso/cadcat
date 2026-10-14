@@ -238,3 +238,29 @@ export {
   getModularPresetById,
 } from './composition';
 
+export {
+  type PieceContactProjection,
+  type SnapGuide,
+  type SnapResult,
+  type FastenerDistributionConfig,
+} from './machining/snapTypes';
+
+export {
+  calculatePieceContactProjections,
+} from './machining/projectionSolver';
+
+export {
+  type SnapOptions,
+  generatePieceSnapGuides,
+  resolveMagneticSnap,
+} from './machining/snapSolver';
+
+export {
+  calculateFastenerDistributionPoints,
+  generateFastenerDrillOperations,
+} from './machining/fastenerDistributionSolver';
+
+export {
+  buildPieceMachining3DGroup,
+} from './machining/machining3d';
+

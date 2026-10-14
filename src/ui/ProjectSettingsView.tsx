@@ -175,6 +175,26 @@ export function ProjectSettingsView({
         </div>
       </div>
 
+      {/* Mobile Section Switcher */}
+      <div className="settings-section-selector-mobile">
+        <label htmlFor="settings-section-select" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+          Sección de Configuración:
+        </label>
+        <select
+          id="settings-section-select"
+          className="m3-select"
+          style={{ width: '100%', fontSize: '0.9rem', marginBottom: '0.75rem' }}
+          value={activeSection}
+          onChange={(e) => setActiveSection(e.target.value as 'general' | 'machining' | 'catalog' | 'nesting' | 'costs')}
+        >
+          <option value="machining">🛠️ Mecanizado del Proyecto</option>
+          <option value="catalog">🗄️ Insumos & Base de Datos</option>
+          <option value="nesting">🪚 Sierra & Nesting</option>
+          <option value="general">📋 Proyecto & Cliente</option>
+          <option value="costs">📐 Deflexión & Costos</option>
+        </select>
+      </div>
+
       {/* Navigation Sub-Tabs */}
       <nav aria-label="Secciones de Configuración" className="settings-subtabs">
         <button

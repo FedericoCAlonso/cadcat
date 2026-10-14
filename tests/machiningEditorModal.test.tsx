@@ -69,6 +69,45 @@ describe('MachiningEditorModal Component (Point 8)', () => {
     expect(html).toContain('Mecanizados Personalizados');
     expect(html).toContain('GROOVE');
     expect(html).toContain('DRILL');
+    expect(html).toContain('Snaps Magnéticos');
+    expect(html).toContain('Distribución de Tornillos');
+  });
+
+  it('renders contact projections and fastener wizard when spatialBoxes are provided', () => {
+    const sampleBoxes = [
+      {
+        pieceId: 'base-side-l',
+        role: 'side-left',
+        materialId: 'mat-melamina',
+        thicknessMm: 18,
+        positionMm: { x: 0, y: 0, z: 0 },
+        sizeMm: { x: 18, y: 700, z: 500 },
+        centerMm: { x: 9, y: 350, z: 250 },
+      },
+      {
+        pieceId: 'shelf-1',
+        role: 'shelf',
+        materialId: 'mat-melamina',
+        thicknessMm: 18,
+        positionMm: { x: 18, y: 300, z: 0 },
+        sizeMm: { x: 564, y: 18, z: 500 },
+        centerMm: { x: 300, y: 309, z: 250 },
+      },
+    ];
+
+    const html = renderToString(
+      <MachiningEditorModal
+        piece={mockPiece}
+        customOperations={mockOperations}
+        spatialBoxes={sampleBoxes}
+        onAddOperation={vi.fn()}
+        onRemoveOperation={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Estante 1 (18 mm)');
+    expect(html).toContain('Datum (0,0)');
   });
 
   it('returns null when piece is null', () => {

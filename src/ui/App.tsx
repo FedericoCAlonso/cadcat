@@ -205,6 +205,7 @@ export function App(): ReactElement {
                     onSetPieceThickness={vm.setPieceThickness}
                     onSetPieceEdgeBands={vm.setPieceEdgeBands}
                     onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                    machiningSheets={vm.machiningSheets}
                   />
                   <button
                     type="button"
@@ -366,6 +367,7 @@ export function App(): ReactElement {
         <MachiningEditorModal
           piece={vm.resolvedPieces.find((p) => p.id === machiningPieceId) ?? null}
           customOperations={Object.values(vm.customPieceOperations).flat()}
+          spatialBoxes={vm.spatialBoxes}
           onAddOperation={vm.addCustomPieceOperation}
           onRemoveOperation={vm.removeCustomPieceOperation}
           onClose={() => setMachiningPieceId(null)}

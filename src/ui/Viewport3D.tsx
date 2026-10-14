@@ -10,6 +10,8 @@ import {
   type KinematicPieceBox,
   type PieceEdgeBandOverride,
   type ExplodedPieceBox,
+  type PieceMachiningSheet,
+  buildPieceMachining3DGroup,
 } from '../resolver';
 import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
 import { translatePieceRole } from './localization';
@@ -42,6 +44,7 @@ export interface Viewport3DProps {
   onSetPieceEdgeBands?: (pieceId: string, overrides: PieceEdgeBandOverride | null) => void;
   // Custom Machinings (Point 8)
   onOpenMachiningModal?: (pieceId: string) => void;
+  machiningSheets?: PieceMachiningSheet[];
 }
 
 export function Viewport3D(props: Viewport3DProps): ReactElement {
@@ -70,6 +73,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     onSetPieceThickness,
     onSetPieceEdgeBands,
     onOpenMachiningModal,
+    machiningSheets,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -80,6 +84,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
   const [webGlSupported, setWebGlSupported] = useState<boolean>(true);
   const [wireframe, setWireframe] = useState<boolean>(false);
+  const [showMachining3D, setShowMachining3D] = useState<boolean>(true);
   const [activeMechId, setActiveMechId] = useState<string>('all');
 
   // Selected piece data lookup
@@ -335,18 +340,20 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const group = pieceGroupRef.current;
     if (!group) return;
 
-    // Clear existing meshes
+    // Clear existing meshes and their child geometries/materials
     while (group.children.length > 0) {
       const child = group.children[0];
       if (!child) break;
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        if (Array.isArray(child.material)) {
-          child.material.forEach((m) => m.dispose());
-        } else {
-          child.material.dispose();
+      child.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else if (obj.material) {
+            obj.material.dispose();
+          }
         }
-      }
+      });
       group.remove(child);
     }
 
@@ -404,9 +411,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       const wire = new THREE.LineSegments(edges, lineMat);
       mesh.add(wire);
 
+      // Visual 3D Machining features (holes, hinge cups, grooves, cutouts)
+      if (showMachining3D && machiningSheets) {
+        const sheet = machiningSheets.find((s) => s.pieceId === item.pieceId);
+        if (sheet && (sheet.totalOperations > 0 || (sheet.customOperations && sheet.customOperations.length > 0))) {
+          const mGroup = buildPieceMachining3DGroup(sheet, item.sizeMm);
+          mesh.add(mGroup);
+        }
+      }
+
       group.add(mesh);
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets]);
 
   // Camera presets
   const setCameraView = (type: 'iso' | 'front' | 'top' | 'side') => {
@@ -623,6 +639,14 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             onClick={() => setWireframe(!wireframe)}
           >
             {wireframe ? 'Sólido' : 'Líneas'}
+          </button>
+          <button
+            type="button"
+            className={`m3-btn ${showMachining3D ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+            onClick={() => setShowMachining3D(!showMachining3D)}
+            title="Visualizar mecanizados (agujeros, bisagras, ranuras) en las placas 3D"
+          >
+            ⚙️ Mecanizados {showMachining3D ? 'ON' : 'OFF'}
           </button>
         </div>
       </div>

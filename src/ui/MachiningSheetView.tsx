@@ -77,7 +77,26 @@ export function MachiningSheetView({
         </div>
       </div>
 
-      {/* Piece Selection Chips */}
+      {/* Piece Selection: Mobile Dropdown & Desktop Chips */}
+      <div className="machining-piece-selector-mobile" style={{ marginBottom: '0.75rem' }}>
+        <label htmlFor="machining-piece-select" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+          Seleccionar Pieza:
+        </label>
+        <select
+          id="machining-piece-select"
+          className="m3-select"
+          style={{ width: '100%', fontSize: '0.9rem' }}
+          value={activeSheet.pieceId}
+          onChange={(e) => onSelectPiece(e.target.value)}
+        >
+          {sheets.map((sheet) => (
+            <option key={sheet.pieceId} value={sheet.pieceId}>
+              {sheet.pieceId} ({sheet.role}) {sheet.requiresTurn ? '🔄 Giro' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="machining-chips-row" role="tablist" aria-label="Seleccionar Pieza">
         {sheets.map((sheet) => {
           const isSelected = sheet.pieceId === activeSheet.pieceId;
@@ -201,42 +220,70 @@ export function MachiningSheetView({
         {activeOps.length === 0 ? (
           <p className="empty-notice">No hay perforaciones en esta cara.</p>
         ) : (
-          <table className="m3-table" aria-label="Tabla de operaciones">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Descripción / Herraje</th>
-                <th>Diámetro</th>
-                <th>Profundidad</th>
-                <th>Pasante</th>
-                <th>Cota X (desde Izq.)</th>
-                <th>Cota Y (desde Inf.)</th>
-                <th>Margen Derecho</th>
-                <th>Margen Superior</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <div className="m3-machining-table-wrapper m3-table-responsive">
+              <table className="m3-table" aria-label="Tabla de operaciones">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Descripción / Herraje</th>
+                    <th>Diámetro</th>
+                    <th>Profundidad</th>
+                    <th>Pasante</th>
+                    <th>Cota X (desde Izq.)</th>
+                    <th>Cota Y (desde Inf.)</th>
+                    <th>Margen Derecho</th>
+                    <th>Margen Superior</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeOps.map((op, idx) => (
+                    <tr key={op.id}>
+                      <td>{idx + 1}</td>
+                      <td>
+                        <strong>{op.description}</strong>
+                      </td>
+                      <td>Ø{op.diameterMm} mm</td>
+                      <td>{op.depthMm} mm</td>
+                      <td>{op.isThrough ? 'Sí (Pasante)' : 'Ciego'}</td>
+                      <td>
+                        <span className="cota-badge">{op.distFromLeftMm} mm</span>
+                      </td>
+                      <td>
+                        <span className="cota-badge">{op.distFromBottomMm} mm</span>
+                      </td>
+                      <td>{op.distFromRightMm} mm</td>
+                      <td>{op.distFromTopMm} mm</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile M3 Cards View for Operations */}
+            <div className="m3-catalog-cards">
               {activeOps.map((op, idx) => (
-                <tr key={op.id}>
-                  <td>{idx + 1}</td>
-                  <td>
-                    <strong>{op.description}</strong>
-                  </td>
-                  <td>Ø{op.diameterMm} mm</td>
-                  <td>{op.depthMm} mm</td>
-                  <td>{op.isThrough ? 'Sí (Pasante)' : 'Ciego'}</td>
-                  <td>
-                    <span className="cota-badge">{op.distFromLeftMm} mm</span>
-                  </td>
-                  <td>
-                    <span className="cota-badge">{op.distFromBottomMm} mm</span>
-                  </td>
-                  <td>{op.distFromRightMm} mm</td>
-                  <td>{op.distFromTopMm} mm</td>
-                </tr>
+                <div key={op.id} className="m3-catalog-card">
+                  <div className="m3-catalog-card-header">
+                    <strong>#{idx + 1} {op.description}</strong>
+                    <span className="m3-badge m3-badge--neutral">Ø{op.diameterMm} mm</span>
+                  </div>
+                  <div className="m3-catalog-card-row">
+                    <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Profundidad:</span>
+                    <span>{op.depthMm} mm ({op.isThrough ? 'Pasante' : 'Ciego'})</span>
+                  </div>
+                  <div className="m3-catalog-card-row">
+                    <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Cotas Datum (0,0):</span>
+                    <span className="cota-badge">X: {op.distFromLeftMm} mm | Y: {op.distFromBottomMm} mm</span>
+                  </div>
+                  <div className="m3-catalog-card-row" style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                    <span>Márgenes:</span>
+                    <span>Der: {op.distFromRightMm} mm | Sup: {op.distFromTopMm} mm</span>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
 

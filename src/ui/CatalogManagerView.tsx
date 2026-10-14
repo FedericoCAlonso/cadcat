@@ -290,7 +290,7 @@ export function CatalogManagerView({
             </div>
           )}
 
-          <div className="m3-table-responsive">
+          <div className="m3-catalog-table-wrapper m3-table-responsive">
             <table className="m3-table">
               <thead>
                 <tr>
@@ -345,6 +345,63 @@ export function CatalogManagerView({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile M3 Cards View for Materials */}
+          <div className="m3-catalog-cards">
+            {materials.map((m) => (
+              <div key={m.id} className="m3-catalog-card">
+                <div className="m3-catalog-card-header">
+                  <div>
+                    <strong style={{ fontSize: '1rem', color: 'var(--md-sys-color-on-surface)' }}>{m.name}</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                      <code>{m.id}</code>
+                    </div>
+                  </div>
+                  <span className="m3-badge m3-badge--neutral">
+                    {m.thicknessMm} mm
+                  </span>
+                </div>
+                <div className="m3-catalog-card-row">
+                  <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Dimensiones:</span>
+                  <span>
+                    {typeof m.sheetSizeMm.length === 'number' ? m.sheetSizeMm.length : '—'} ×{' '}
+                    {typeof m.sheetSizeMm.width === 'number' ? m.sheetSizeMm.width : '—'} mm
+                  </span>
+                </div>
+                <div className="m3-catalog-card-row">
+                  <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Veta:</span>
+                  <span>{m.hasGrain ? '✓ Sí (longitudinal)' : 'No (lisa)'}</span>
+                </div>
+                <div className="m3-catalog-card-row">
+                  <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Precio:</span>
+                  <strong style={{ color: 'var(--md-sys-color-primary)' }}>
+                    {typeof m.pricePerSheet === 'number' ? `$ ${m.pricePerSheet}` : 'A confirmar'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    onClick={() => handleEditMat(m)}
+                  >
+                    ✏️ {t('catalog.edit')}
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--outlined"
+                    style={{ color: 'var(--md-sys-color-error)' }}
+                    onClick={async () => {
+                      if (window.confirm(t('catalog.deleteConfirm'))) {
+                        await onDeleteMaterial(m.id);
+                      }
+                    }}
+                  >
+                    🗑️ {t('catalog.delete')}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -437,7 +494,7 @@ export function CatalogManagerView({
             </div>
           )}
 
-          <div className="m3-table-responsive">
+          <div className="m3-catalog-table-wrapper m3-table-responsive">
             <table className="m3-table">
               <thead>
                 <tr>
@@ -485,6 +542,52 @@ export function CatalogManagerView({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile M3 Cards View for EdgeBands */}
+          <div className="m3-catalog-cards">
+            {edgeBands.map((b) => (
+              <div key={b.id} className="m3-catalog-card">
+                <div className="m3-catalog-card-header">
+                  <div>
+                    <strong style={{ fontSize: '1rem', color: 'var(--md-sys-color-on-surface)' }}>{b.kind.toUpperCase()}</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                      <code>{b.id}</code>
+                    </div>
+                  </div>
+                  <span className="m3-badge m3-badge--neutral">
+                    {b.thicknessMm} mm
+                  </span>
+                </div>
+                <div className="m3-catalog-card-row">
+                  <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Precio / Metro:</span>
+                  <strong style={{ color: 'var(--md-sys-color-primary)' }}>
+                    {typeof b.pricePerMeter === 'number' ? `$ ${b.pricePerMeter}` : 'A confirmar'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    onClick={() => handleEditEb(b)}
+                  >
+                    ✏️ {t('catalog.edit')}
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--outlined"
+                    style={{ color: 'var(--md-sys-color-error)' }}
+                    onClick={async () => {
+                      if (window.confirm(t('catalog.deleteConfirm'))) {
+                        await onDeleteEdgeBand(b.id);
+                      }
+                    }}
+                  >
+                    🗑️ {t('catalog.delete')}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -568,7 +671,7 @@ export function CatalogManagerView({
             </div>
           )}
 
-          <div className="m3-table-responsive">
+          <div className="m3-catalog-table-wrapper m3-table-responsive">
             <table className="m3-table">
               <thead>
                 <tr>
@@ -618,6 +721,52 @@ export function CatalogManagerView({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile M3 Cards View for Hardware */}
+          <div className="m3-catalog-cards">
+            {hardware.map((h) => (
+              <div key={h.id} className="m3-catalog-card">
+                <div className="m3-catalog-card-header">
+                  <div>
+                    <strong style={{ fontSize: '1rem', color: 'var(--md-sys-color-on-surface)' }}>{h.name}</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                      <code>{h.id}</code>
+                    </div>
+                  </div>
+                  <span className="m3-badge m3-badge--neutral">
+                    {h.jointKind}
+                  </span>
+                </div>
+                <div className="m3-catalog-card-row">
+                  <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Precio Unitario:</span>
+                  <strong style={{ color: 'var(--md-sys-color-primary)' }}>
+                    {typeof h.pricePerUnit === 'number' ? `$ ${h.pricePerUnit}` : 'A confirmar'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    onClick={() => handleEditHw(h)}
+                  >
+                    ✏️ {t('catalog.edit')}
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--outlined"
+                    style={{ color: 'var(--md-sys-color-error)' }}
+                    onClick={async () => {
+                      if (window.confirm(t('catalog.deleteConfirm'))) {
+                        await onDeleteHardware(h.id);
+                      }
+                    }}
+                  >
+                    🗑️ {t('catalog.delete')}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
