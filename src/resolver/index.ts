@@ -296,6 +296,9 @@ export {
   type SinkCabinetAdaptationResult,
   calculateCountertop,
   adaptCabinetForEquipment,
+  generateMarmoleriaSheetSvg,
+  exportMarmoleriaPdf,
 } from './countertop';
+
 
 

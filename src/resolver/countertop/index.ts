@@ -12,3 +12,9 @@ export {
 export {
   adaptCabinetForEquipment,
 } from './sinkCabinetAdapter';
+
+export {
+  generateMarmoleriaSheetSvg,
+  exportMarmoleriaPdf,
+} from './marmoleriaSheet';
+
