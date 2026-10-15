@@ -43,7 +43,8 @@
     "tray-lip-front": "Faja frontal de bandeja",
     "tray-lip-back": "Faja trasera de bandeja",
     "shelf-brace": "Refuerzo anti-flexión de estante",
-    "bifold-leaf": "Hoja articulada (Bi-Fold)"
+    "bifold-leaf": "Hoja articulada (Bi-Fold)",
+    "wall-shelf": "Estante de pared amurado"
   },
   "templates": {
     "base-cabinet": "Bajo mesada (1 estante)",
@@ -55,7 +56,8 @@
     "modular-door-cabinet": "Alacena 2 puertas",
     "modular-partition-combo": "Mueble combinado (Estantes + Cajones)",
     "modular-pullout-tray": "Módulo con bandeja extraíble",
-    "modular-bifold-closure": "Alacena con puerta plegable elevable"
+    "modular-bifold-closure": "Alacena con puerta plegable elevable",
+    "wall-shelves": "Estantería de pared con ménsulas"
   },
   "edgebands": {
     "adhesive": "Melamínico / Adhesivo",

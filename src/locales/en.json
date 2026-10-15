@@ -43,7 +43,8 @@
     "tray-lip-front": "Pull-out tray front lip",
     "tray-lip-back": "Pull-out tray rear lip",
     "shelf-brace": "Shelf anti-deflection stiffener",
-    "bifold-leaf": "Articulated leaf (Bi-Fold)"
+    "bifold-leaf": "Articulated leaf (Bi-Fold)",
+    "wall-shelf": "Wall-mounted shelf"
   },
   "templates": {
     "base-cabinet": "Base cabinet (1 shelf)",
@@ -55,7 +56,8 @@
     "modular-door-cabinet": "2-door wall cabinet",
     "modular-partition-combo": "Combined cabinet (Shelves + Drawers)",
     "modular-pullout-tray": "Pull-out tray module",
-    "modular-bifold-closure": "Bi-fold lift-up cabinet"
+    "modular-bifold-closure": "Bi-fold lift-up cabinet",
+    "wall-shelves": "Wall Shelving on Brackets"
   },
   "edgebands": {
     "adhesive": "Melamine / Iron-on",

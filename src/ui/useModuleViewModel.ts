@@ -50,6 +50,7 @@ import {
   type ModuleCostSummary,
   type TemplateDefinition,
   BASE_EMPTY_TEMPLATE,
+  WALL_SHELVING_TEMPLATE,
   createUserTemplateDefinition,
   getTemplateById,
   resolveModuleSpatialBoxes,
@@ -350,10 +351,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   // Interactive Kinematics state (Point 11)
   const [kinematicsState, setKinematicsState] = useState<Record<string, number>>({});
 
-  // Templates list exposed to UI: single base empty carcass + user templates
+  // Templates list exposed to UI: single base empty carcass + wall shelves + user templates
   const templates = useMemo<TemplateDefinition[]>(() => {
     return [
       BASE_EMPTY_TEMPLATE,
+      WALL_SHELVING_TEMPLATE,
       ...userTemplates.map(createUserTemplateDefinition),
     ];
   }, [userTemplates]);
@@ -364,7 +366,26 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setIsCustomModular(false);
     setActiveBayIndex(0);
 
-    if (id === 'base-cabinet' || id === 'modular-empty') {
+    if (id === 'wall-shelves') {
+      setWidth(1200);
+      setHeight(960);
+      setDepth(250);
+      setRoofTypeState('none');
+      setJointPriorityState('lateral-over-bottom');
+      setHasBackingState(false);
+      setRailOrientation('horizontal');
+      setHasMiddleBrace(false);
+      setHasWallHangingRail(false);
+      setHasPlinth(false);
+      setGridTypeState('1-bay');
+      setBaysState([{ type: 'empty' }]);
+      setPieceJointOverrides({});
+      setPieceMaterialOverrides({});
+      setPieceThicknessOverrides({});
+      setPieceEdgeBandOverrides({});
+      setCustomPieceOperations({});
+      setKinematicsState({});
+    } else if (id === 'base-cabinet' || id === 'modular-empty') {
       setRoofTypeState('front-back-rails');
       setJointPriorityState('lateral-over-bottom');
       setHasBackingState(true);

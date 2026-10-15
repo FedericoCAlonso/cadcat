@@ -6,6 +6,9 @@ import {
   type ResolvedPieceWithCutSize,
   determinePieceSpatialSize,
   exportAssemblyGuidePdf,
+  buildWallShelving,
+  generateInstallationSheetSvg,
+  type WallShelvingDefinition,
 } from '../resolver';
 
 export interface AssemblySheetViewProps {
@@ -488,6 +491,115 @@ export function AssemblySheetView({
   onExportPdf,
 }: AssemblySheetViewProps): ReactElement {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
+  const wallShelfPieces = pieces?.filter((p) => p.role === 'wall-shelf');
+  if (wallShelfPieces && wallShelfPieces.length > 0) {
+    const first = wallShelfPieces[0]!;
+    const widthMm = first.contour.points[1]?.x ?? 1200;
+    const depthMm = first.contour.points[2]?.y ?? 250;
+    const thicknessMm = first.thicknessMm ?? 18;
+    const shelfCount = wallShelfPieces.length;
+    const verticalSpacingMm =
+      wallShelfPieces.length > 1
+        ? Math.round(
+            Math.abs(
+              (wallShelfPieces[1]!.positionMm?.y ?? 320) -
+                (wallShelfPieces[0]!.positionMm?.y ?? 0),
+            ),
+          ) || 320
+        : 320;
+
+    const wallDef: WallShelvingDefinition = {
+      id: 'wall-shelves-active',
+      widthMm,
+      depthMm,
+      thicknessMm,
+      shelfCount,
+      verticalSpacingMm,
+      bracketType: 'l-bracket',
+      wallType: 'solid-brick',
+      loadCategory: 'medium',
+      boundaryCondition: 'free-ends',
+      overhangMode: 'balanced-cantilever',
+      materialId: first.materialId,
+      baseElevationYMm: 800,
+    };
+
+    const wallOutput = buildWallShelving(wallDef);
+    const svgHtml = generateInstallationSheetSvg(wallOutput, wallDef);
+
+    return (
+      <section aria-labelledby="wall-assembly-heading" className="m3-card assembly-sheet-card">
+        <div className="m3-card__header">
+          <div>
+            <h2 id="wall-assembly-heading" className="m3-card__title">
+              📐 Plano de Replanteo y Perforaciones en Pared
+            </h2>
+            <p className="m3-card__subtitle">
+              Cálculo estructural de ménsulas, cotas de taladrado milimétricas y recomendaciones de anclaje según pared.
+            </p>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: '16px',
+            overflowX: 'auto',
+            background: '#ffffff',
+            borderRadius: '8px',
+            padding: '8px',
+            border: '1px solid #e2e8f0',
+          }}
+        >
+          <div dangerouslySetInnerHTML={{ __html: svgHtml }} />
+        </div>
+
+        <div
+          style={{
+            marginTop: '20px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '12px',
+          }}
+        >
+          <div
+            className="m3-card"
+            style={{ padding: '12px', background: '#f8fafc', border: '1px solid #cbd5e1' }}
+          >
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: '#0f172a' }}>
+              🔩 Taco y Anclaje Sugerido
+            </h4>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>
+              <strong>{wallOutput.bracketCalculation.recommendedAnchor.brandModel}</strong>
+              <br />
+              Tornillo: {wallOutput.bracketCalculation.recommendedAnchor.screwDiameterMm}x
+              {wallOutput.bracketCalculation.recommendedAnchor.screwLengthMm} mm
+              <br />
+              Tracción est.: ~{wallOutput.bracketCalculation.pullOutForceKg} kg/ménsula
+            </p>
+          </div>
+
+          <div
+            className="m3-card"
+            style={{ padding: '12px', background: '#f8fafc', border: '1px solid #cbd5e1' }}
+          >
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: '#0f172a' }}>
+              ⚖️ Análisis de Flecha (Sagulator)
+            </h4>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>
+              Ménsulas por estante: <strong>{wallOutput.bracketCalculation.bracketCountPerShelf}</strong> (Luz:{' '}
+              {wallOutput.bracketCalculation.maxSpanMm} mm)
+              <br />
+              Flecha calculada: <strong>{wallOutput.bracketCalculation.calculatedDeflectionMm} mm</strong>{' '}
+              (Límite: {wallOutput.bracketCalculation.allowableDeflectionMm} mm)
+              <br />
+              Carga máxima: {wallOutput.bracketCalculation.totalShelfLoadKg} kg / estante
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (!assemblySheet) {
     return (

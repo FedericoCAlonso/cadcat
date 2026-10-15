@@ -120,6 +120,65 @@ export function createUserTemplateDefinition(userTemplate: UserTemplate): Templa
   };
 }
 
+import { buildWallShelving } from '../wallShelves/wallShelvesBuilder';
+import { calculatePieceCutSize } from '../edgeBand';
+import { createRectangularContour } from '../piece';
+
+export const WALL_SHELVING_TEMPLATE: TemplateDefinition = {
+  id: 'wall-shelves',
+  name: 'Estantería de Pared con Ménsulas',
+  description: 'Estantes de pared calculados con distribución óptima de ménsulas, flecha admisible y plano de replanteo.',
+  build: (params, mat, bands = [], ebId) => {
+    const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
+    const shelfCount = Math.max(1, Math.round(params.height / 320)) || 3;
+    const wallOutput = buildWallShelving({
+      id: 'wall-shelves-module',
+      widthMm: params.width,
+      depthMm: params.depth,
+      thicknessMm: thickness,
+      shelfCount,
+      verticalSpacingMm: 320,
+      bracketType: 'l-bracket',
+      wallType: 'solid-brick',
+      loadCategory: 'medium',
+      boundaryCondition: 'free-ends',
+      overhangMode: 'balanced-cantilever',
+      materialId: mat.id,
+      edgeBandId: ebId,
+    });
+
+    const positions = wallOutput.placementTree.resolvePositions();
+    const resolvedPieces: ResolvedPieceWithCutSize[] = wallOutput.module.pieces.map((p) => {
+      const cut = calculatePieceCutSize(p, bands);
+      const pos = positions.get(p.id) ?? { x: 0, y: 0, z: 0 };
+      const bandedList = [
+        cut.bandedEdges.bottom,
+        cut.bandedEdges.right,
+        cut.bandedEdges.top,
+        cut.bandedEdges.left,
+      ].filter((b): b is NonNullable<typeof b> => Boolean(b));
+
+      return {
+        ...p,
+        positionMm: pos,
+        dimensionsMm: {
+          width: p.contour.points[1]!.x,
+          height: p.contour.points[2]!.y,
+        },
+        cutDimensionsMm: cut.cutDimensionsMm,
+        cutContour: createRectangularContour(cut.cutDimensionsMm.width, cut.cutDimensionsMm.height),
+        bandedEdges: bandedList,
+      };
+    });
+
+    return {
+      module: wallOutput.module,
+      placementTree: wallOutput.placementTree,
+      resolvedPieces,
+    };
+  },
+};
+
 /**
  * Single base template as requested: only "Estructura Hueco Libre".
  * All other designs are saved and managed as user templates.
@@ -131,6 +190,9 @@ export const ALL_TEMPLATES: TemplateDefinition[] = [BASE_EMPTY_TEMPLATE];
 export function getTemplateById(templateId: string, userTemplates?: UserTemplate[]): TemplateDefinition {
   if (templateId === BASE_EMPTY_TEMPLATE.id) {
     return BASE_EMPTY_TEMPLATE;
+  }
+  if (templateId === WALL_SHELVING_TEMPLATE.id) {
+    return WALL_SHELVING_TEMPLATE;
   }
   if (userTemplates) {
     const foundUser = userTemplates.find((t) => t.id === templateId);

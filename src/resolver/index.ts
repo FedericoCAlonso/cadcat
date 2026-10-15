@@ -79,6 +79,7 @@ export {
   type TemplateDefinition,
   type TemplateBuildResult,
   BASE_EMPTY_TEMPLATE,
+  WALL_SHELVING_TEMPLATE,
   createUserTemplateDefinition,
   TEMPLATES,
   MODULAR_TEMPLATES,
@@ -267,4 +268,23 @@ export {
 export {
   buildPieceMachining3DGroup,
 } from './machining/machining3d';
+
+export {
+  type BracketType,
+  type WallType,
+  type LoadCategory,
+  type BoundaryCondition,
+  type OverhangMode,
+  type WallShelvingDefinition,
+  type RecommendedAnchor,
+  type BracketCalculationResult,
+  type WallShelvingHardwareItem,
+  type InstallationPoint,
+  type WallShelvingOutput,
+  LOAD_CATEGORY_KG_M2,
+  getRecommendedAnchor,
+  solveBrackets,
+  buildWallShelving,
+  generateInstallationSheetSvg,
+} from './wallShelves';
 
