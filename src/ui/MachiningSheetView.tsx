@@ -11,6 +11,7 @@ export interface MachiningSheetViewProps {
   selectedPieceId: string | null;
   onSelectPiece: (pieceId: string) => void;
   onExportPdf: (pieceId?: string) => void;
+  onExportDxf?: (pieceId?: string) => void;
 }
 
 /**
@@ -22,6 +23,7 @@ export function MachiningSheetView({
   selectedPieceId,
   onSelectPiece,
   onExportPdf,
+  onExportDxf,
 }: MachiningSheetViewProps): ReactElement {
   const [activeFace, setActiveFace] = useState<'face-A' | 'face-B'>('face-A');
   const panZoom = usePanZoom({ minZoom: 0.4, maxZoom: 5.0, zoomStep: 1.25 });
@@ -62,7 +64,7 @@ export function MachiningSheetView({
           </p>
         </div>
 
-        <div className="machining-actions">
+        <div className="machining-actions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="m3-button m3-button--tonal"
@@ -77,6 +79,28 @@ export function MachiningSheetView({
           >
             📑 PDF Todas ({sheets.length})
           </button>
+          {onExportDxf && (
+            <>
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                onClick={() => onExportDxf(activeSheet.pieceId)}
+                title="Exportar archivo AutoCAD DXF R12 para esta pieza"
+                aria-label="Descargar DXF de esta pieza"
+              >
+                📐 DXF Esta Pieza
+              </button>
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                onClick={() => onExportDxf()}
+                title="Exportar archivos AutoCAD DXF R12 para todas las piezas"
+                aria-label="Descargar DXF de todas las piezas"
+              >
+                📐 DXF Todas ({sheets.length})
+              </button>
+            </>
+          )}
         </div>
       </div>
 

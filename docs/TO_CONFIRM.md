@@ -97,6 +97,24 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | Backsplash height | `backsplash.heightMm` | `60.0 mm (TO_CONFIRM)` | | Standard wall upstand/zocalín height in stone. |
 | Faucet hole diameter | `faucetHole.diameterMm` | `35.0 mm (TO_CONFIRM)` | | Standard single-lever mixer tap borehole diameter. |
 
+### Workshop Machining Tools (Phase 4 Task 1)
+
+| Tool ID | Field | Current Default | Confirmed Value | Notes |
+|---|---|---|---|---|
+| `tool-drill-3` | `price` | `TO_CONFIRM` | | Ø3mm screw guide drill bit unit price. |
+| `tool-drill-5` | `price` | `TO_CONFIRM` | | Ø5mm system 32 drill bit unit price. |
+| `tool-drill-8` | `price` | `TO_CONFIRM` | | Ø8mm dowel drill bit unit price. |
+| `tool-drill-10` | `price` | `TO_CONFIRM` | | Ø10mm connector drill bit unit price. |
+| `tool-forstner-15` | `price` | `TO_CONFIRM` | | Ø15mm Minifix cam forstner bit unit price. |
+| `tool-forstner-35` | `price` | `TO_CONFIRM` | | Ø35mm hinge cup forstner bit unit price. |
+| `tool-router-straight-3` | `price` | `TO_CONFIRM` | | Ø3mm straight bit for 3mm back grooves. |
+| `tool-router-straight-6` | `price` | `TO_CONFIRM` | | Ø6mm straight bit for 5.5mm grooves/cables. |
+| `tool-router-straight-10` | `price` | `TO_CONFIRM` | | Ø10mm straight bit for hardware pockets. |
+| `tool-router-straight-12` | `price` | `TO_CONFIRM` | | Ø12mm perimeter cutter for CNC. |
+| `tool-router-chamfer-45` | `price` | `TO_CONFIRM` | | 45° chamfer profile router bit. |
+| `tool-router-roundover-r3`| `price` | `TO_CONFIRM` | | R3mm roundover profile router bit. |
+| `tool-router-jpull` | `price` | `TO_CONFIRM` | | J-Pull integrated grip router bit. |
+
 ## 2. General Shop Values (from Plan Section 12)
 
 1. **Sheet sizes and thicknesses.** Confirm actual board dimensions in local shop stock.

@@ -151,6 +151,15 @@ export {
   HingeJointStrategy,
   ShelfPinJointStrategy,
   SlideJointStrategy,
+  type PocketDimensions,
+  type CornerLocation,
+  type CornerReliefPoint,
+  type PocketContourResult,
+  calculatePocketCornerRelief,
+  type MachiningValidationIssue,
+  type MachiningValidationContext,
+  extractPieceDimensions,
+  validatePieceMachiningRules,
 } from './machining';
 
 export {
@@ -302,3 +311,4 @@ export {
 
 
 
+export * from './dxf';

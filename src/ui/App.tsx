@@ -326,6 +326,7 @@ export function App(): ReactElement {
                   selectedPieceId={vm.selectedMachiningPieceId}
                   onSelectPiece={vm.setSelectedMachiningPieceId}
                   onExportPdf={vm.exportMachiningPdf}
+                  onExportDxf={vm.exportMachiningDxf}
                 />
               )}
 
@@ -544,6 +545,9 @@ export function App(): ReactElement {
           piece={vm.resolvedPieces.find((p) => p.id === machiningPieceId) ?? null}
           customOperations={Object.values(vm.customPieceOperations).flat()}
           spatialBoxes={vm.spatialBoxes}
+          materials={vm.materials}
+          config={vm.projectConfig?.machining}
+          derivedOperations={vm.machiningOperations}
           onAddOperation={vm.addCustomPieceOperation}
           onRemoveOperation={vm.removeCustomPieceOperation}
           onClose={() => setMachiningPieceId(null)}

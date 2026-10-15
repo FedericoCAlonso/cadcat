@@ -64,13 +64,17 @@ describe('MachiningEditorModal Component (Point 8)', () => {
     expect(html).toContain('<svg');
     expect(html).toContain('Ranura');
     expect(html).toContain('Rebaje en Canto');
-    expect(html).toContain('Fresado / Pasacables');
+    expect(html).toContain('Cajeado / Pasacables');
     expect(html).toContain('Perforación');
+    expect(html).toContain('Cremallera Sist. 32');
+    expect(html).toContain('Moldura / Perfil');
     expect(html).toContain('Mecanizados Personalizados');
     expect(html).toContain('GROOVE');
     expect(html).toContain('DRILL');
     expect(html).toContain('Snaps Magnéticos');
-    expect(html).toContain('Distribución de Tornillos');
+    expect(html).toContain('Distribución Ensambles');
+    expect(html).toContain('Reglas OK');
+    expect(html).toContain('DXF');
   });
 
   it('renders contact projections and fastener wizard when spatialBoxes are provided', () => {

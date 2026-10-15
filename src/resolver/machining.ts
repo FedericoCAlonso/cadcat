@@ -41,6 +41,7 @@ export {
 };
 
 export * from './machining/strategies';
+export * from './machining/rules';
 
 /**
  * Derives drill operations for all pieces in a module from its joints.

@@ -51,6 +51,7 @@ import {
   JointGraph,
   exportCutListCsv,
   exportCutPlanPdf,
+  exportMachiningSheetToDxf,
   triggerBrowserDownload,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
@@ -213,6 +214,7 @@ export interface ModuleViewModelState {
   exportCsv: () => void;
   exportPdf: () => void;
   exportMachiningPdf: (pieceId?: string) => void;
+  exportMachiningDxf: (pieceId?: string) => void;
   exportAssemblyPdf: () => void;
   updateProjectConfig: (config: ProjectConfig) => void;
   saveProjectConfig: () => Promise<void>;
@@ -2016,6 +2018,35 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     [machiningSheets, currentModule],
   );
 
+  // Export workshop machining sheets as AutoCAD R12 DXF (single piece or full module)
+  const exportMachiningDxf = useCallback(
+    (pieceId?: string) => {
+      if (machiningSheets.length === 0) return;
+      if (pieceId) {
+        const targetSheet = machiningSheets.find((s) => s.pieceId === pieceId);
+        if (!targetSheet) return;
+        const dxfContent = exportMachiningSheetToDxf(targetSheet, {
+          face: 'face-A',
+          includeGrooveCenterline: true,
+        });
+        const fileName = `${targetSheet.pieceId}-face-A.dxf`;
+        triggerBrowserDownload(fileName, dxfContent, 'application/dxf');
+        setStatusMessage(`Archivo DXF exportado: ${fileName}`);
+      } else {
+        for (const sheet of machiningSheets) {
+          const dxfContent = exportMachiningSheetToDxf(sheet, {
+            face: 'face-A',
+            includeGrooveCenterline: true,
+          });
+          const fileName = `${sheet.pieceId}-face-A.dxf`;
+          triggerBrowserDownload(fileName, dxfContent, 'application/dxf');
+        }
+        setStatusMessage(`Se exportaron ${machiningSheets.length} archivos DXF.`);
+      }
+    },
+    [machiningSheets],
+  );
+
   // Update in-memory project configuration
   const updateProjectConfig = useCallback((newConfig: ProjectConfig) => {
     setProjectConfig(newConfig);
@@ -2198,6 +2229,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     exportCsv,
     exportPdf,
     exportMachiningPdf,
+    exportMachiningDxf,
     exportAssemblyPdf,
     updateProjectConfig,
     saveProjectConfig,

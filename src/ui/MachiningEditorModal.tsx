@@ -1,9 +1,18 @@
 import { useRef, useState, useEffect, type ReactElement } from 'react';
-import type { CustomPieceOperation } from '../model';
+import type {
+  CustomPieceOperation,
+  ToolItem,
+  Material,
+  MachiningConfig,
+  DrillOperation,
+  CornerTreatment,
+  EdgeProfileKind,
+} from '../model';
 import {
   type ResolvedPieceWithCutSize,
   type SpatialPieceBox,
   getFaceSemanticLabel,
+  calculatePocketCornerRelief,
 } from '../resolver';
 import { NumericInput } from './NumericInput';
 import { useMachiningEditorViewModel } from './useMachiningEditorViewModel';
@@ -13,6 +22,11 @@ export interface MachiningEditorModalProps {
   piece: ResolvedPieceWithCutSize | null;
   customOperations: CustomPieceOperation[];
   spatialBoxes?: SpatialPieceBox[];
+  tools?: ToolItem[];
+  material?: Material | null;
+  materials?: Material[];
+  derivedOperations?: DrillOperation[];
+  config?: Partial<MachiningConfig>;
   onAddOperation: (pieceId: string, op: CustomPieceOperation) => void;
   onRemoveOperation: (pieceId: string, opId: string) => void;
   onClose: () => void;
@@ -27,7 +41,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   const vm = useMachiningEditorViewModel(props);
   const panZoom = usePanZoom({ minZoom: 0.35, maxZoom: 6.0, zoomStep: 1.25 });
 
-  // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, T=Fasteners, Esc=Close
+  // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, S=Series, P=Profile, T=Fasteners, Esc=Close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -47,6 +61,10 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
         vm.setOpType('cutout');
       } else if (key === 'd') {
         vm.setOpType('drill');
+      } else if (key === 's') {
+        vm.setOpType('hole-series');
+      } else if (key === 'p') {
+        vm.setOpType('edge-profile');
       } else if (key === 't') {
         vm.setOpType('fastener');
       } else if (e.key === 'Escape') {
@@ -139,9 +157,55 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
             <p className="m3-modal-subtitle">
               <span className="machining-header-dim-badge">{`${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} × ${piece.thicknessMm} mm`}</span>
               <span className="desktop-only-text">{` | Rol: ${piece.role}`}</span>
+              {vm.validationIssues.length === 0 ? (
+                <span
+                  style={{
+                    marginLeft: '0.5rem',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    color: '#15803d',
+                  }}
+                  title="Sin observaciones de taller"
+                >
+                  ✓ Reglas OK
+                </span>
+              ) : (
+                <span
+                  style={{
+                    marginLeft: '0.5rem',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    backgroundColor: vm.validationIssues.some((i) => i.level === 'error')
+                      ? 'var(--md-sys-color-error-container)'
+                      : '#fef08a',
+                    color: vm.validationIssues.some((i) => i.level === 'error')
+                      ? 'var(--md-sys-color-on-error-container)'
+                      : '#854d0e',
+                  }}
+                  title={`${vm.validationIssues.length} observaciones`}
+                >
+                  {vm.validationIssues.some((i) => i.level === 'error') ? '⛔' : '⚠️'}{' '}
+                  {vm.validationIssues.length} {vm.validationIssues.some((i) => i.level === 'error') ? 'Error(es)' : 'Aviso(s)'}
+                </span>
+              )}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="m3-btn m3-btn--small m3-btn--tonal"
+              onClick={vm.handleExportDxf}
+              title="Descargar archivo AutoCAD R12 DXF para mecanizado CNC"
+              aria-label="Descargar DXF de la pieza"
+              style={{ minHeight: '44px', fontWeight: 600 }}
+            >
+              📐 DXF
+            </button>
             <button
               type="button"
               className="m3-btn m3-btn--small m3-btn--outlined desktop-only-control"
@@ -196,7 +260,21 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
             {/* Controls & Operations Column */}
             <div className="machining-editor-sidebar">
               {/* Tool Selection Chips */}
-              <div className="machining-tool-chips-scroll" style={{ display: 'flex', gap: '0.4rem' }}>
+              <div className="machining-tool-chips-scroll" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${vm.opType === 'drill' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                  onClick={() => vm.setOpType('drill')}
+                >
+                  🔘 Perforación
+                </button>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${vm.opType === 'hole-series' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                  onClick={() => vm.setOpType('hole-series')}
+                >
+                  📏 Cremallera Sist. 32
+                </button>
                 <button
                   type="button"
                   className={`m3-btn m3-btn--small ${vm.opType === 'groove' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
@@ -216,21 +294,21 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   className={`m3-btn m3-btn--small ${vm.opType === 'cutout' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
                   onClick={() => vm.setOpType('cutout')}
                 >
-                  ⏹️ Fresado / Pasacables
+                  ⏹️ Cajeado / Pasacables
                 </button>
                 <button
                   type="button"
-                  className={`m3-btn m3-btn--small ${vm.opType === 'drill' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-                  onClick={() => vm.setOpType('drill')}
+                  className={`m3-btn m3-btn--small ${vm.opType === 'edge-profile' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                  onClick={() => vm.setOpType('edge-profile')}
                 >
-                  🔘 Perforación
+                  📐 Moldura / Perfil
                 </button>
                 <button
                   type="button"
                   className={`m3-btn m3-btn--small ${vm.opType === 'fastener' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
                   onClick={() => vm.setOpType('fastener')}
                 >
-                  ⚡ Distribución de Tornillos
+                  ⚡ Distribución Ensambles
                 </button>
               </div>
 
@@ -266,193 +344,25 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
 
               {/* Dynamic Inputs according to opType */}
               <div className="m3-modal-panel">
-                {vm.opType === 'groove' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Orientación:
-                      </label>
-                      <select
-                        className="m3-select"
-                        style={{ width: '100%', fontSize: '0.85rem' }}
-                        value={vm.grooveAxis}
-                        onChange={(e) => vm.setGrooveAxis(e.target.value as 'x' | 'y')}
-                      >
-                        <option value="x">Horizontal (Eje X)</option>
-                        <option value="y">Vertical (Eje Y)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Distancia al Canto (mm):
-                      </label>
-                      <NumericInput
-                        id="groove-offset"
-                        value={vm.grooveOffset}
-                        onChange={vm.setGrooveOffset}
-                        min={0}
-                        max={vm.grooveAxis === 'x' ? vm.pieceHeight : vm.pieceWidth}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Ancho Ranura (mm):
-                      </label>
-                      <NumericInput
-                        id="groove-width"
-                        value={vm.grooveWidth}
-                        onChange={vm.setGrooveWidth}
-                        min={1}
-                        max={20}
-                        step={0.5}
-                        unit="mm"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Profundidad (mm):
-                      </label>
-                      <NumericInput
-                        id="groove-depth"
-                        value={vm.grooveDepth}
-                        onChange={vm.setGrooveDepth}
-                        min={1}
-                        max={vm.pieceThickness}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {vm.opType === 'rebate' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Canto a Rebajar:
-                      </label>
-                      <select
-                        className="m3-select"
-                        style={{ width: '100%', fontSize: '0.85rem' }}
-                        value={vm.rebateEdge}
-                        onChange={(e) => vm.setRebateEdge(e.target.value as 'top' | 'bottom' | 'left' | 'right')}
-                      >
-                        <option value="top">Superior (Y máx)</option>
-                        <option value="bottom">Inferior (Y=0)</option>
-                        <option value="left">Izquierdo (X=0)</option>
-                        <option value="right">Derecho (X máx)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Pestaña / Ancho (mm):
-                      </label>
-                      <NumericInput
-                        id="rebate-width"
-                        value={vm.rebateWidth}
-                        onChange={vm.setRebateWidth}
-                        min={1}
-                        max={100}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Profundidad (mm):
-                      </label>
-                      <NumericInput
-                        id="rebate-depth"
-                        value={vm.rebateDepth}
-                        onChange={vm.setRebateDepth}
-                        min={1}
-                        max={vm.pieceThickness}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {vm.opType === 'cutout' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Posición X (mm):
-                      </label>
-                      <NumericInput
-                        id="cutout-x"
-                        value={vm.cutoutX}
-                        onChange={vm.setCutoutX}
-                        min={0}
-                        max={vm.pieceWidth}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Posición Y (mm):
-                      </label>
-                      <NumericInput
-                        id="cutout-y"
-                        value={vm.cutoutY}
-                        onChange={vm.setCutoutY}
-                        min={0}
-                        max={vm.pieceHeight}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Ancho Calado (mm):
-                      </label>
-                      <NumericInput
-                        id="cutout-w"
-                        value={vm.cutoutW}
-                        onChange={vm.setCutoutW}
-                        min={5}
-                        max={vm.pieceWidth}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        Alto Calado (mm):
-                      </label>
-                      <NumericInput
-                        id="cutout-h"
-                        value={vm.cutoutH}
-                        onChange={vm.setCutoutH}
-                        min={5}
-                        max={vm.pieceHeight}
-                        step={1}
-                        unit="mm"
-                      />
-                    </div>
-                    <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={vm.cutoutThrough}
-                          onChange={(e) => vm.setCutoutThrough(e.target.checked)}
-                        />
-                        <span>Pasante (Atraviesa todo el grosor {vm.pieceThickness}mm)</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
+                {/* 1. DRILL FORM */}
                 {vm.opType === 'drill' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div style={{ gridColumn: 'span 2' }}>
-                      <p style={{ margin: '0 0 0.4rem', fontSize: '0.75rem', color: 'var(--md-sys-color-primary)' }}>
-                        💡 <em>Tip: Hacé clic directamente sobre el dibujo para fijar la perforación con snap magnético.</em>
-                      </p>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Broca / Herramienta:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.drillToolId}
+                        onChange={(e) => vm.handleSelectDrillTool(e.target.value)}
+                      >
+                        {vm.drillTools.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} (Ø{t.diameterMm}mm)
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
@@ -520,6 +430,473 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                         />
                         <span>Agujero Pasante (Atraviesa {vm.pieceThickness}mm)</span>
                       </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. HOLE-SERIES FORM (SYSTEM 32) */}
+                {vm.opType === 'hole-series' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Herramienta de Taladrado:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.seriesToolId}
+                        onChange={(e) => vm.handleSelectSeriesTool(e.target.value)}
+                      >
+                        {vm.drillTools.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} (Ø{t.diameterMm}mm)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Eje de la Serie:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.seriesAxis}
+                        onChange={(e) => vm.setSeriesAxis(e.target.value as 'x' | 'y')}
+                      >
+                        <option value="y">Vertical (Eje Y - Cremallera)</option>
+                        <option value="x">Horizontal (Eje X)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Cantidad de Agujeros:
+                      </label>
+                      <NumericInput
+                        id="series-count"
+                        value={vm.seriesCount}
+                        onChange={vm.setSeriesCount}
+                        min={2}
+                        max={50}
+                        step={1}
+                        unit="u"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Setback X (mm):
+                      </label>
+                      <NumericInput
+                        id="series-start-x"
+                        value={vm.seriesStartX}
+                        onChange={vm.setSeriesStartX}
+                        min={5}
+                        max={vm.pieceWidth}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Inicio Y (mm):
+                      </label>
+                      <NumericInput
+                        id="series-start-y"
+                        value={vm.seriesStartY}
+                        onChange={vm.setSeriesStartY}
+                        min={5}
+                        max={vm.pieceHeight}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Paso entre agujeros (mm):
+                      </label>
+                      <NumericInput
+                        id="series-pitch"
+                        value={vm.seriesPitch}
+                        onChange={vm.setSeriesPitch}
+                        min={8}
+                        max={128}
+                        step={32}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Profundidad (mm):
+                      </label>
+                      <NumericInput
+                        id="series-dep"
+                        value={vm.seriesDepth}
+                        onChange={vm.setSeriesDepth}
+                        min={1}
+                        max={vm.pieceThickness}
+                        step={1}
+                        unit="mm"
+                        disabled={vm.seriesThrough}
+                      />
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={vm.seriesThrough}
+                          onChange={(e) => vm.setSeriesThrough(e.target.checked)}
+                        />
+                        <span>Pasante (Atraviesa {vm.pieceThickness}mm)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. GROOVE FORM */}
+                {vm.opType === 'groove' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Fresa de Ranurado:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.grooveToolId}
+                        onChange={(e) => vm.handleSelectGrooveTool(e.target.value)}
+                      >
+                        {vm.routerStraightTools.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} (Ancho: {t.diameterMm}mm)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Orientación:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.grooveAxis}
+                        onChange={(e) => vm.setGrooveAxis(e.target.value as 'x' | 'y')}
+                      >
+                        <option value="x">Horizontal (Eje X)</option>
+                        <option value="y">Vertical (Eje Y)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Distancia al Canto (mm):
+                      </label>
+                      <NumericInput
+                        id="groove-offset"
+                        value={vm.grooveOffset}
+                        onChange={vm.setGrooveOffset}
+                        min={0}
+                        max={vm.grooveAxis === 'x' ? vm.pieceHeight : vm.pieceWidth}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Ancho Ranura (mm):
+                      </label>
+                      <NumericInput
+                        id="groove-width"
+                        value={vm.grooveWidth}
+                        onChange={vm.setGrooveWidth}
+                        min={1}
+                        max={20}
+                        step={0.5}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Profundidad (mm):
+                      </label>
+                      <NumericInput
+                        id="groove-depth"
+                        value={vm.grooveDepth}
+                        onChange={vm.setGrooveDepth}
+                        min={1}
+                        max={vm.pieceThickness}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. REBATE FORM */}
+                {vm.opType === 'rebate' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Canto a Rebajar:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.rebateEdge}
+                        onChange={(e) => vm.setRebateEdge(e.target.value as 'top' | 'bottom' | 'left' | 'right')}
+                      >
+                        <option value="top">Superior (Y máx)</option>
+                        <option value="bottom">Inferior (Y=0)</option>
+                        <option value="left">Izquierdo (X=0)</option>
+                        <option value="right">Derecho (X máx)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Pestaña / Ancho (mm):
+                      </label>
+                      <NumericInput
+                        id="rebate-width"
+                        value={vm.rebateWidth}
+                        onChange={vm.setRebateWidth}
+                        min={1}
+                        max={100}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Profundidad (mm):
+                      </label>
+                      <NumericInput
+                        id="rebate-depth"
+                        value={vm.rebateDepth}
+                        onChange={vm.setRebateDepth}
+                        min={1}
+                        max={vm.pieceThickness}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. CUTOUT FORM WITH CORNER RELIEF */}
+                {vm.opType === 'cutout' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Fresa Recta CNC:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.cutoutToolId}
+                        onChange={(e) => vm.handleSelectCutoutTool(e.target.value)}
+                      >
+                        {vm.routerStraightTools.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} (Radio R{t.diameterMm / 2}mm)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Posición X (mm):
+                      </label>
+                      <NumericInput
+                        id="cutout-x"
+                        value={vm.cutoutX}
+                        onChange={vm.setCutoutX}
+                        min={0}
+                        max={vm.pieceWidth}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Posición Y (mm):
+                      </label>
+                      <NumericInput
+                        id="cutout-y"
+                        value={vm.cutoutY}
+                        onChange={vm.setCutoutY}
+                        min={0}
+                        max={vm.pieceHeight}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Ancho Calado (mm):
+                      </label>
+                      <NumericInput
+                        id="cutout-w"
+                        value={vm.cutoutW}
+                        onChange={vm.setCutoutW}
+                        min={5}
+                        max={vm.pieceWidth}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Alto Calado (mm):
+                      </label>
+                      <NumericInput
+                        id="cutout-h"
+                        value={vm.cutoutH}
+                        onChange={vm.setCutoutH}
+                        min={5}
+                        max={vm.pieceHeight}
+                        step={1}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Radio Esquinas R (mm):
+                      </label>
+                      <NumericInput
+                        id="cutout-radius"
+                        value={vm.cutoutCornerRadius}
+                        onChange={vm.setCutoutCornerRadius}
+                        min={0}
+                        max={Math.min(vm.cutoutW, vm.cutoutH) / 2}
+                        step={0.5}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Alivio de Esquinas:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.cutoutCornerTreatment}
+                        onChange={(e) => vm.setCutoutCornerTreatment(e.target.value as CornerTreatment)}
+                      >
+                        <option value="dog-bone">Hueso de Perro 45° (Dog-Bone)</option>
+                        <option value="natural-radius">Radio Natural de Fresa</option>
+                        <option value="t-bone">Alivio en T (T-Bone)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Profundidad (mm):
+                      </label>
+                      <NumericInput
+                        id="cutout-dep"
+                        value={vm.cutoutDep}
+                        onChange={vm.setCutoutDep}
+                        min={1}
+                        max={vm.pieceThickness}
+                        step={1}
+                        unit="mm"
+                        disabled={vm.cutoutThrough}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={vm.cutoutThrough}
+                          onChange={(e) => vm.setCutoutThrough(e.target.checked)}
+                        />
+                        <span>Pasante ({vm.pieceThickness}mm)</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. EDGE-PROFILE FORM */}
+                {vm.opType === 'edge-profile' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Fresa de Moldurado / Perfilado:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.profileToolId}
+                        onChange={(e) => vm.handleSelectProfileTool(e.target.value)}
+                      >
+                        {vm.routerProfileTools.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Canto a Moldurar:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.profileEdge}
+                        onChange={(e) =>
+                          vm.setProfileEdge(e.target.value as 'top' | 'bottom' | 'left' | 'right' | 'all-edges')
+                        }
+                      >
+                        <option value="top">Superior (Y máx)</option>
+                        <option value="bottom">Inferior (Y=0)</option>
+                        <option value="left">Izquierdo (X=0)</option>
+                        <option value="right">Derecho (X máx)</option>
+                        <option value="all-edges">Todos los cantos (Perimetral)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Tipo de Moldura:
+                      </label>
+                      <select
+                        className="m3-select"
+                        style={{ width: '100%', fontSize: '0.85rem' }}
+                        value={vm.profileKind}
+                        onChange={(e) => vm.setProfileKind(e.target.value as EdgeProfileKind)}
+                      >
+                        <option value="chamfer-45">Bisel a 45 grados</option>
+                        <option value="roundover">Redondeo (Roundover)</option>
+                        <option value="j-pull">Tirador J-Pull integrado</option>
+                        <option value="cove">Media caña (Cove)</option>
+                        <option value="ogee">Pecho de Paloma (Ogee)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Ancho del Perfil (mm):
+                      </label>
+                      <NumericInput
+                        id="profile-w"
+                        value={vm.profileWidth}
+                        onChange={vm.setProfileWidth}
+                        min={1}
+                        max={50}
+                        step={0.5}
+                        unit="mm"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                        Profundidad (mm):
+                      </label>
+                      <NumericInput
+                        id="profile-dep"
+                        value={vm.profileDepth}
+                        onChange={vm.setProfileDepth}
+                        min={1}
+                        max={vm.pieceThickness}
+                        step={0.5}
+                        unit="mm"
+                      />
                     </div>
                   </div>
                 )}
@@ -652,6 +1029,64 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 )}
               </div>
 
+              {/* Real-time Workshop Rules & Validation Issues */}
+              {vm.validationIssues.length > 0 && (
+                <div
+                  style={{
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                    backgroundColor: 'var(--md-sys-color-surface-container)',
+                    marginBottom: '0.8rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: vm.validationIssues.some((i) => i.level === 'error')
+                        ? 'var(--md-sys-color-error)'
+                        : '#854d0e',
+                      marginBottom: '0.4rem',
+                    }}
+                  >
+                    <span>
+                      {vm.validationIssues.some((i) => i.level === 'error') ? '⛔' : '⚠️'} Observaciones de Taller y Reglas ({vm.validationIssues.length})
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '130px', overflowY: 'auto' }}>
+                    {vm.validationIssues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.3rem 0.5rem',
+                          borderRadius: '4px',
+                          backgroundColor:
+                            issue.level === 'error'
+                              ? 'var(--md-sys-color-error-container)'
+                              : '#fef9c3',
+                          color:
+                            issue.level === 'error'
+                              ? 'var(--md-sys-color-on-error-container)'
+                              : '#713f12',
+                          borderLeft:
+                            issue.level === 'error'
+                              ? '3px solid var(--md-sys-color-error)'
+                              : '3px solid #ca8a04',
+                        }}
+                      >
+                        <strong>{issue.level === 'error' ? 'Error: ' : 'Aviso: '}</strong>
+                        {issue.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* List of custom operations on this piece */}
               <div className="machining-custom-ops-section">
                 <h5 style={{ margin: '0 0 0.4rem', fontSize: '0.85rem' }}>
@@ -685,6 +1120,10 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                             ? `Canto ${op.edge}, Pestaña: ${op.widthMm}mm, Prof: ${op.depthMm}mm`
                             : op.kind === 'cutout'
                             ? `X:${op.xMm}, Y:${op.yMm}, ${op.widthMm}x${op.heightMm}x${op.depthMm}mm`
+                            : op.kind === 'hole-series'
+                            ? `${op.count}x Ø${op.diameterMm}mm (Paso ${op.pitchMm}mm) desde (${op.startXMm}, ${op.startYMm})`
+                            : op.kind === 'edge-profile'
+                            ? `Perfil ${op.profileKind} en ${op.edge} (${op.widthMm}x${op.depthMm}mm)`
                             : `Ø${op.diameterMm}x${op.depthMm}mm en (${op.xMm}, ${op.yMm})`}
                         </span>
                         <button
@@ -977,10 +1416,85 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     );
                   })}
 
-                  {/* Custom Grooves & Cutouts preview */}
+                  {/* Custom Machining Operations Preview */}
                   {vm.pieceCustomOps
                     .filter((op) => op.faceType === vm.faceType)
                     .map((op) => {
+                      if (op.kind === 'drill') {
+                        const cx = toSvgX(op.xMm);
+                        const cy = toSvgY(op.yMm);
+                        const r = Math.max(3, (op.diameterMm / 2) * scale);
+                        return (
+                          <g key={op.id}>
+                            <circle
+                              cx={cx}
+                              cy={cy}
+                              r={r}
+                              fill="rgba(11, 87, 208, 0.25)"
+                              stroke="#0b57d0"
+                              strokeWidth="1.5"
+                            />
+                            <line x1={cx - r - 2} y1={cy} x2={cx + r + 2} y2={cy} stroke="#0b57d0" strokeWidth="1" />
+                            <line x1={cx} y1={cy - r - 2} x2={cx} y2={cy + r + 2} stroke="#0b57d0" strokeWidth="1" />
+                            <text x={cx + r + 4} y={cy + 3} fontSize="9" fontWeight="bold" fill="#0b57d0">
+                              Ø{op.diameterMm}
+                            </text>
+                          </g>
+                        );
+                      }
+
+                      if (op.kind === 'hole-series') {
+                        const startSvgX = toSvgX(op.startXMm);
+                        const startSvgY = toSvgY(op.startYMm);
+                        const endSvgX = toSvgX(
+                          op.axis === 'x' ? op.startXMm + (op.count - 1) * op.pitchMm : op.startXMm,
+                        );
+                        const endSvgY = toSvgY(
+                          op.axis === 'y' ? op.startYMm + (op.count - 1) * op.pitchMm : op.startYMm,
+                        );
+
+                        return (
+                          <g key={op.id}>
+                            {/* Pitch centerline */}
+                            <line
+                              x1={startSvgX}
+                              y1={startSvgY}
+                              x2={endSvgX}
+                              y2={endSvgY}
+                              stroke="#0b57d0"
+                              strokeWidth="1"
+                              strokeDasharray="3 3"
+                            />
+                            {/* Individual series holes */}
+                            {Array.from({ length: op.count }).map((_, i) => {
+                              const hx = toSvgX(op.axis === 'x' ? op.startXMm + i * op.pitchMm : op.startXMm);
+                              const hy = toSvgY(op.axis === 'y' ? op.startYMm + i * op.pitchMm : op.startYMm);
+                              const hr = Math.max(2.5, (op.diameterMm / 2) * scale);
+                              return (
+                                <circle
+                                  key={i}
+                                  cx={hx}
+                                  cy={hy}
+                                  r={hr}
+                                  fill="#0b57d0"
+                                  stroke="#ffffff"
+                                  strokeWidth="1"
+                                />
+                              );
+                            })}
+                            <text
+                              x={startSvgX + 6}
+                              y={startSvgY - 4}
+                              fontSize="9"
+                              fontWeight="bold"
+                              fill="#0b57d0"
+                            >
+                              {op.count}x Ø{op.diameterMm} Sist. 32 ({op.pitchMm}mm)
+                            </text>
+                          </g>
+                        );
+                      }
+
                       if (op.kind === 'groove') {
                         const isX = op.axis === 'x';
                         const gx = isX ? originX : toSvgX(op.offsetMm);
@@ -988,32 +1502,135 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                         const gw = isX ? drawW : op.widthMm * scale;
                         const gh = isX ? op.widthMm * scale : drawH;
                         return (
-                          <rect
-                            key={op.id}
-                            x={gx}
-                            y={gy}
-                            width={gw}
-                            height={gh}
-                            fill="rgba(68, 71, 70, 0.3)"
-                            stroke="#444746"
-                            strokeWidth="1"
-                          />
+                          <g key={op.id}>
+                            <rect
+                              x={gx}
+                              y={gy}
+                              width={gw}
+                              height={gh}
+                              fill="rgba(68, 71, 70, 0.3)"
+                              stroke="#444746"
+                              strokeWidth="1"
+                            />
+                            <text x={gx + 4} y={gy + 10} fontSize="8" fill="#444746">
+                              Ranura {op.axis.toUpperCase()} ({op.widthMm}x{op.depthMm}mm)
+                            </text>
+                          </g>
                         );
                       }
-                      if (op.kind === 'cutout') {
+
+                      if (op.kind === 'rebate') {
+                        const isTop = op.edge === 'top';
+                        const isBottom = op.edge === 'bottom';
+                        const isLeft = op.edge === 'left';
+                        const rx = isLeft ? originX : isBottom || isTop ? originX : originX + drawW - op.widthMm * scale;
+                        const ry = isTop ? originY : isLeft || op.edge === 'right' ? originY : originY + drawH - op.widthMm * scale;
+                        const rw = isTop || isBottom ? drawW : op.widthMm * scale;
+                        const rh = isTop || isBottom ? op.widthMm * scale : drawH;
                         return (
-                          <rect
-                            key={op.id}
-                            x={toSvgX(op.xMm)}
-                            y={toSvgY(op.yMm + op.heightMm)}
-                            width={op.widthMm * scale}
-                            height={op.heightMm * scale}
-                            fill="rgba(186, 26, 26, 0.25)"
-                            stroke="#ba1a1a"
-                            strokeWidth="1.5"
-                          />
+                          <g key={op.id}>
+                            <rect
+                              x={rx}
+                              y={ry}
+                              width={rw}
+                              height={rh}
+                              fill="rgba(217, 119, 6, 0.25)"
+                              stroke="#d97706"
+                              strokeWidth="1.5"
+                              strokeDasharray="4 2"
+                            />
+                            <text x={rx + 4} y={ry + 11} fontSize="8" fontWeight="bold" fill="#b45309">
+                              Rebaje {op.edge} ({op.widthMm}x{op.depthMm}mm)
+                            </text>
+                          </g>
                         );
                       }
+
+                      if (op.kind === 'cutout') {
+                        const px = toSvgX(op.xMm);
+                        const py = toSvgY(op.yMm + op.heightMm);
+                        const pw = op.widthMm * scale;
+                        const ph = op.heightMm * scale;
+
+                        const pocketRelief = calculatePocketCornerRelief({
+                          xMm: op.xMm,
+                          yMm: op.yMm,
+                          widthMm: op.widthMm,
+                          heightMm: op.heightMm,
+                          cornerRadiusMm: op.cornerRadiusMm ?? 0,
+                          cornerTreatment: op.cornerTreatment,
+                        });
+
+                        return (
+                          <g key={op.id}>
+                            <rect
+                              x={px}
+                              y={py}
+                              width={pw}
+                              height={ph}
+                              fill="rgba(186, 26, 26, 0.25)"
+                              stroke="#ba1a1a"
+                              strokeWidth="1.5"
+                            />
+                            {/* Render Corner Relief circles (dog-bone or natural-radius) */}
+                            {pocketRelief.corners.map((c, i) => {
+                              const cx = toSvgX(c.reliefCenterMm.x);
+                              const cy = toSvgY(c.reliefCenterMm.y);
+                              const cr = Math.max(2, c.reliefRadiusMm * scale);
+                              return (
+                                <circle
+                                  key={i}
+                                  cx={cx}
+                                  cy={cy}
+                                  r={cr}
+                                  fill="rgba(186, 26, 26, 0.35)"
+                                  stroke="#ba1a1a"
+                                  strokeWidth="1"
+                                />
+                              );
+                            })}
+                            <text
+                              x={px + 4}
+                              y={py + 12}
+                              fontSize="9"
+                              fontWeight="bold"
+                              fill="#ba1a1a"
+                            >
+                              {op.widthMm}x{op.heightMm} ({op.cornerTreatment ?? 'R' + op.cornerRadiusMm})
+                            </text>
+                          </g>
+                        );
+                      }
+
+                      if (op.kind === 'edge-profile') {
+                        const isAll = op.edge === 'all-edges';
+                        const isTop = op.edge === 'top' || isAll;
+                        const isBottom = op.edge === 'bottom' || isAll;
+                        const isLeft = op.edge === 'left' || isAll;
+                        const isRight = op.edge === 'right' || isAll;
+                        const pw = op.widthMm * scale;
+
+                        return (
+                          <g key={op.id}>
+                            {isTop && (
+                              <rect x={originX} y={originY} width={drawW} height={pw} fill="rgba(147, 51, 234, 0.25)" stroke="#9333ea" strokeWidth="1" strokeDasharray="2 2" />
+                            )}
+                            {isBottom && (
+                              <rect x={originX} y={originY + drawH - pw} width={drawW} height={pw} fill="rgba(147, 51, 234, 0.25)" stroke="#9333ea" strokeWidth="1" strokeDasharray="2 2" />
+                            )}
+                            {isLeft && (
+                              <rect x={originX} y={originY} width={pw} height={drawH} fill="rgba(147, 51, 234, 0.25)" stroke="#9333ea" strokeWidth="1" strokeDasharray="2 2" />
+                            )}
+                            {isRight && (
+                              <rect x={originX + drawW - pw} y={originY} width={pw} height={drawH} fill="rgba(147, 51, 234, 0.25)" stroke="#9333ea" strokeWidth="1" strokeDasharray="2 2" />
+                            )}
+                            <text x={originX + 8} y={originY + 16} fontSize="9" fontWeight="bold" fill="#7e22ce">
+                              Perfil {op.profileKind} ({op.edge})
+                            </text>
+                          </g>
+                        );
+                      }
+
                       return null;
                     })}
 
