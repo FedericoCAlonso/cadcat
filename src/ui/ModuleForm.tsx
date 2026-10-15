@@ -13,6 +13,12 @@ import type {
   DrawerBottomMount,
   DoorMountType,
   TrackSize,
+  BracketType,
+  WallType,
+  LoadCategory,
+  BoundaryCondition,
+  OverhangMode,
+  WallShelvingOutput,
 } from '../resolver';
 import { resolveTracks } from '../resolver';
 import { translateTemplateName, translateEdgeBandKind, t } from './localization';
@@ -117,6 +123,25 @@ export interface ModuleFormProps {
   onIsIslandCabinetChange?: (val: boolean) => void;
   onRearStructuralRailsChange?: (val: RearStructuralRails) => void;
   onRearStructuralRailsWidthChange?: (val: number) => void;
+  // Wall Shelves props
+  wallShelvesBracketType?: BracketType;
+  wallShelvesWallType?: WallType;
+  wallShelvesLoadCategory?: LoadCategory;
+  wallShelvesBoundaryCondition?: BoundaryCondition;
+  wallShelvesOverhangMode?: OverhangMode;
+  wallShelvesShelfCount?: number;
+  wallShelvesVerticalSpacingMm?: number;
+  wallShelvesBaseElevationYMm?: number;
+  wallShelvingOutput?: WallShelvingOutput | null;
+  onWallShelvesBracketTypeChange?: (type: BracketType) => void;
+  onWallShelvesWallTypeChange?: (type: WallType) => void;
+  onWallShelvesLoadCategoryChange?: (cat: LoadCategory) => void;
+  onWallShelvesBoundaryConditionChange?: (cond: BoundaryCondition) => void;
+  onWallShelvesOverhangModeChange?: (mode: OverhangMode) => void;
+  onWallShelvesShelfCountChange?: (count: number) => void;
+  onWallShelvesVerticalSpacingMmChange?: (spacing: number) => void;
+  onWallShelvesBaseElevationYMmChange?: (elev: number) => void;
+  onViewAssemblyClick?: () => void;
 }
 
 /**
@@ -213,7 +238,27 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onIsIslandCabinetChange,
     onRearStructuralRailsChange,
     onRearStructuralRailsWidthChange,
+    wallShelvesBracketType = 'l-bracket',
+    wallShelvesWallType = 'solid-brick',
+    wallShelvesLoadCategory = 'medium',
+    wallShelvesBoundaryCondition = 'free-ends',
+    wallShelvesOverhangMode = 'balanced-cantilever',
+    wallShelvesShelfCount = 3,
+    wallShelvesVerticalSpacingMm = 320,
+    wallShelvesBaseElevationYMm = 800,
+    wallShelvingOutput,
+    onWallShelvesBracketTypeChange,
+    onWallShelvesWallTypeChange,
+    onWallShelvesLoadCategoryChange,
+    onWallShelvesBoundaryConditionChange,
+    onWallShelvesOverhangModeChange,
+    onWallShelvesShelfCountChange,
+    onWallShelvesVerticalSpacingMmChange,
+    onWallShelvesBaseElevationYMmChange,
+    onViewAssemblyClick,
   } = props;
+
+  const isWallShelves = selectedTemplateId === 'wall-shelves';
 
   const currentBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '1-bay' ? 1 : 2;
   const currentActiveIndex = Math.min(activeBayIndex, currentBayCount - 1);
@@ -369,8 +414,349 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </div>
       )}
 
-      {/* Ancho */}
-      <div className="form-group">
+      {isWallShelves ? (
+        <>
+          {/* Dimensiones y Cantidad de Estantes */}
+          <div className="builder-section">
+            <h3 className="builder-section-title">
+              <span>📏 Dimensiones y Niveles</span>
+            </h3>
+
+            {/* Ancho */}
+            <div className="form-group">
+              <label htmlFor="input-shelf-width">Ancho del estante (Largo):</label>
+              <NumericInput
+                id="input-shelf-width"
+                min={DEFAULT_UI_CONFIG.dimensions.width.min}
+                max={DEFAULT_UI_CONFIG.dimensions.width.max}
+                step={DEFAULT_UI_CONFIG.dimensions.width.step}
+                value={width}
+                showStepper={true}
+                unit="mm"
+                onChange={onWidthChange}
+              />
+            </div>
+
+            {/* Profundidad */}
+            <div className="form-group">
+              <label htmlFor="input-shelf-depth">Profundidad del estante:</label>
+              <NumericInput
+                id="input-shelf-depth"
+                min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+                max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+                step={DEFAULT_UI_CONFIG.dimensions.depth.step}
+                value={depth}
+                showStepper={true}
+                unit="mm"
+                onChange={onDepthChange}
+              />
+            </div>
+
+            {/* Cantidad de estantes */}
+            <div className="form-group">
+              <label>Cantidad de estantes:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{ width: '40px', height: '40px', fontSize: '1.2rem', padding: 0 }}
+                  onClick={() => onWallShelvesShelfCountChange?.(Math.max(1, (wallShelvesShelfCount ?? 3) - 1))}
+                  disabled={(wallShelvesShelfCount ?? 3) <= 1}
+                >
+                  -
+                </button>
+                <span style={{ fontSize: '1.2rem', fontWeight: 700, minWidth: '40px', textAlign: 'center' }}>
+                  {wallShelvesShelfCount ?? 3}
+                </span>
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{ width: '40px', height: '40px', fontSize: '1.2rem', padding: 0 }}
+                  onClick={() => onWallShelvesShelfCountChange?.(Math.min(8, (wallShelvesShelfCount ?? 3) + 1))}
+                  disabled={(wallShelvesShelfCount ?? 3) >= 8}
+                >
+                  +
+                </button>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  ({wallShelvesShelfCount ?? 3} niveles verticales)
+                </span>
+              </div>
+            </div>
+
+            {/* Separación vertical */}
+            <div className="form-group">
+              <label htmlFor="input-shelf-spacing">Separación vertical entre estantes:</label>
+              <NumericInput
+                id="input-shelf-spacing"
+                min={150}
+                max={600}
+                step={20}
+                value={wallShelvesVerticalSpacingMm ?? 320}
+                showStepper={true}
+                unit="mm"
+                onChange={(val) => onWallShelvesVerticalSpacingMmChange?.(val)}
+              />
+            </div>
+
+            {/* Altura sobre piso */}
+            <div className="form-group">
+              <label htmlFor="input-shelf-elevation">Altura base sobre piso (NPT):</label>
+              <NumericInput
+                id="input-shelf-elevation"
+                min={100}
+                max={2000}
+                step={50}
+                value={wallShelvesBaseElevationYMm ?? 800}
+                showStepper={true}
+                unit="mm"
+                onChange={(val) => onWallShelvesBaseElevationYMmChange?.(val)}
+              />
+            </div>
+          </div>
+
+          {/* Sistema de Fijación y Ménsulas */}
+          <div className="builder-section">
+            <h3 className="builder-section-title">
+              <span>🔩 Sistema de Ménsulas y Fijación</span>
+            </h3>
+
+            {/* Tipo de Ménsula */}
+            <div className="form-group">
+              <label>Tipo de soporte / Ménsula:</label>
+              <div className="builder-segmented-group" role="group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesBracketType === 'l-bracket' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesBracketTypeChange?.('l-bracket')}
+                >
+                  📐 Ménsula L
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesBracketType === 'floating-pin' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesBracketTypeChange?.('floating-pin')}
+                >
+                  🔩 Perno Flotante
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesBracketType === 'track-bracket' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesBracketTypeChange?.('track-bracket')}
+                >
+                  🪜 Cremallera
+                </button>
+              </div>
+            </div>
+
+            {/* Tipo de Pared */}
+            <div className="form-group">
+              <label>Tipo de pared:</label>
+              <div className="builder-segmented-group" role="group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesWallType === 'solid-brick' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesWallTypeChange?.('solid-brick')}
+                >
+                  🧱 Maciza / Hormigón
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesWallType === 'hollow-brick' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesWallTypeChange?.('hollow-brick')}
+                >
+                  🕳️ Ladrillo Hueco
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesWallType === 'drywall' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesWallTypeChange?.('drywall')}
+                >
+                  📄 Durlock / Yeso
+                </button>
+              </div>
+            </div>
+
+            {/* Carga esperada */}
+            <div className="form-group">
+              <label>Carga esperada:</label>
+              <div className="builder-segmented-group" role="group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesLoadCategory === 'light' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesLoadCategoryChange?.('light')}
+                >
+                  🪴 Liviana (15 kg/m²)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesLoadCategory === 'medium' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesLoadCategoryChange?.('medium')}
+                >
+                  👕 Media (30 kg/m²)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesLoadCategory === 'heavy' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesLoadCategoryChange?.('heavy')}
+                >
+                  📚 Pesada / Libros (60 kg/m²)
+                </button>
+              </div>
+            </div>
+
+            {/* Distribución de apoyos */}
+            <div className="form-group">
+              <label>Distribución de apoyos:</label>
+              <div className="builder-segmented-group" role="group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesOverhangMode === 'balanced-cantilever' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesOverhangModeChange?.('balanced-cantilever')}
+                >
+                  ⚖️ Voladizo estético
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesOverhangMode === 'flush-ends' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesOverhangModeChange?.('flush-ends')}
+                >
+                  ⏹️ A las puntas
+                </button>
+                {wallShelvesWallType === 'drywall' && (
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${wallShelvesOverhangMode === 'stud-aligned' ? 'selected' : ''}`}
+                    onClick={() => onWallShelvesOverhangModeChange?.('stud-aligned')}
+                  >
+                    📏 A montantes (400mm)
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Condición de colocación */}
+            <div className="form-group">
+              <label>Condición de colocación:</label>
+              <div className="builder-segmented-group" role="group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesBoundaryCondition === 'free-ends' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesBoundaryConditionChange?.('free-ends')}
+                >
+                  ↔️ Extremos libres
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${wallShelvesBoundaryCondition === 'between-walls' ? 'selected' : ''}`}
+                  onClick={() => onWallShelvesBoundaryConditionChange?.('between-walls')}
+                >
+                  🚪 Entre paredes / Nicho
+                </button>
+              </div>
+              <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                {wallShelvesBoundaryCondition === 'free-ends'
+                  ? 'Frente y laterales aplacados con tapacantos; fondo contra pared crudo.'
+                  : 'Solo frente aplacado; laterales crudos con descuento de 3 mm de holgura total.'}
+              </small>
+            </div>
+          </div>
+
+          {/* Material y Tapacantos */}
+          <div className="builder-section">
+            <h3 className="builder-section-title">
+              <span>🎨 Materiales y Tapacantos</span>
+            </h3>
+
+            <div className="form-group">
+              <label htmlFor="select-shelf-material">Placa para Estantes:</label>
+              <select
+                id="select-shelf-material"
+                value={selectedMaterialId}
+                onChange={(e) => onMaterialChange(e.target.value)}
+                className="m3-select"
+              >
+                {materials.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.thicknessMm} mm)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="select-shelf-edgeband">Tapacantos para bordes vistos:</label>
+              <select
+                id="select-shelf-edgeband"
+                value={selectedEdgeBandId}
+                onChange={(e) => onEdgeBandChange(e.target.value)}
+                className="m3-select"
+              >
+                {edgeBands.map((eb) => (
+                  <option key={eb.id} value={eb.id}>
+                    {eb.id} ({translateEdgeBandKind(eb.kind)}, {eb.thicknessMm} mm)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Tarjeta de Diagnóstico Estructural en Tiempo Real */}
+          {wallShelvingOutput && (
+            <div
+              className="m3-card"
+              style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                background: wallShelvingOutput.bracketCalculation.warning ? '#fffbeb' : '#f0fdf4',
+                border: wallShelvingOutput.bracketCalculation.warning ? '1px solid #fde68a' : '1px solid #bbf7d0',
+                borderRadius: '8px',
+              }}
+            >
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {wallShelvingOutput.bracketCalculation.warning ? '⚠️ Advertencia Estructural' : '✅ Diagnóstico Estructural (Sagulator)'}
+              </h4>
+
+              {wallShelvingOutput.bracketCalculation.warning && (
+                <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#b45309', fontWeight: 500 }}>
+                  {wallShelvingOutput.bracketCalculation.warning}
+                </p>
+              )}
+
+              <div style={{ fontSize: '0.85rem', color: '#374151', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div>
+                  <strong>Ménsulas sugeridas:</strong> {wallShelvingOutput.bracketCalculation.bracketCountPerShelf} por estante ({wallShelvingOutput.bracketCalculation.totalBrackets} totales)
+                </div>
+                <div>
+                  <strong>Separación entre ménsulas:</strong> {wallShelvingOutput.bracketCalculation.maxSpanMm} mm
+                </div>
+                <div>
+                  <strong>Flecha calculada:</strong> {wallShelvingOutput.bracketCalculation.calculatedDeflectionMm} mm (Límite: {wallShelvingOutput.bracketCalculation.allowableDeflectionMm} mm)
+                </div>
+                <div>
+                  <strong>Taco sugerido:</strong> {wallShelvingOutput.bracketCalculation.recommendedAnchor.brandModel}
+                </div>
+                <div>
+                  <strong>Tornillo pared:</strong> {wallShelvingOutput.bracketCalculation.recommendedAnchor.screwDiameterMm}x{wallShelvingOutput.bracketCalculation.recommendedAnchor.screwLengthMm} mm (Tracción: ~{wallShelvingOutput.bracketCalculation.pullOutForceKg} kg/soporte)
+                </div>
+              </div>
+
+              {onViewAssemblyClick && (
+                <button
+                  type="button"
+                  className="m3-button m3-button--filled"
+                  style={{ width: '100%', marginTop: '0.75rem', fontSize: '0.85rem' }}
+                  onClick={onViewAssemblyClick}
+                >
+                  📐 Ver Plano de Replanteo en Pared ➔
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Ancho */}
+          <div className="form-group">
         <label htmlFor="input-width">
           {t('form.dimensions.width')}
           <span className="visually-hidden">Width (mm):</span>
@@ -1476,6 +1862,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
       </div>
+      </>
+    )}
 
       {/* Botones de acción */}
       <div className="form-actions m3-button-row">

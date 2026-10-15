@@ -212,6 +212,51 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('Regulables (Pitagones 5mm)');
     expect(html).toContain('Con faja de refuerzo');
   });
+
+  it('renders contextual wall shelving controls and hides carcass options when selectedTemplateId is wall-shelves', () => {
+    const html = renderToString(
+      <ModuleForm
+        width={1200}
+        height={658}
+        depth={250}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        selectedMaterialId="mat-1"
+        selectedEdgeBandId="eb-1"
+        isSaving={false}
+        selectedTemplateId="wall-shelves"
+        wallShelvesBracketType="l-bracket"
+        wallShelvesWallType="solid-brick"
+        wallShelvesLoadCategory="medium"
+        wallShelvesBoundaryCondition="free-ends"
+        wallShelvesShelfCount={3}
+        wallShelvesVerticalSpacingMm={320}
+        wallShelvesBaseElevationYMm={800}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        onMaterialChange={vi.fn()}
+        onEdgeBandChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    // Wall shelving specific controls MUST be present
+    expect(html).toContain('Dimensiones y Niveles');
+    expect(html).toContain('Sistema de Ménsulas y Fijación');
+    expect(html).toContain('Ménsula L');
+    expect(html).toContain('Perno Flotante');
+    expect(html).toContain('Maciza / Hormigón');
+    expect(html).toContain('Separación vertical entre estantes:');
+    expect(html).toContain('Altura base sobre piso (NPT):');
+
+    // Carcass / bay controls MUST NOT be present
+    expect(html).not.toContain('Tapa superior / Techo');
+    expect(html).not.toContain('Unión de Carcasa');
+    expect(html).not.toContain('Distribución de Vanos');
+    expect(html).not.toContain('Zócalo / Plinto Estructural');
+    expect(html).not.toContain('Fondo de Módulo (Ranurado 3mm)');
+  });
 });
 
 describe('PieceListView Component', () => {

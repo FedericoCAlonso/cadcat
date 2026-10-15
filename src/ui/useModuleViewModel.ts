@@ -84,6 +84,15 @@ import {
   type KinematicPieceBox,
   identifyKinematicMechanisms,
   calculateKinematicBoxes,
+  type BracketType,
+  type WallType,
+  type LoadCategory,
+  type BoundaryCondition,
+  type OverhangMode,
+  type WallShelvingOutput,
+  buildWallShelving,
+  calculatePieceCutSize,
+  createRectangularContour,
   buildModularModule,
 } from '../resolver';
 import { runMultiMaterialGuillotineNesting } from '../workers';
@@ -245,6 +254,24 @@ export interface ModuleViewModelState {
   kinematicMechanisms: KinematicMechanism[];
   kinematicBoxes: KinematicPieceBox[];
   setMechanismOpenRatio: (mechanismId: string | null, ratio: number) => void;
+  // Wall Shelving state
+  wallShelvesBracketType: BracketType;
+  wallShelvesWallType: WallType;
+  wallShelvesLoadCategory: LoadCategory;
+  wallShelvesBoundaryCondition: BoundaryCondition;
+  wallShelvesOverhangMode: OverhangMode;
+  wallShelvesShelfCount: number;
+  wallShelvesVerticalSpacingMm: number;
+  wallShelvesBaseElevationYMm: number;
+  wallShelvingOutput: WallShelvingOutput | null;
+  setWallShelvesBracketType: (type: BracketType) => void;
+  setWallShelvesWallType: (type: WallType) => void;
+  setWallShelvesLoadCategory: (cat: LoadCategory) => void;
+  setWallShelvesBoundaryCondition: (cond: BoundaryCondition) => void;
+  setWallShelvesOverhangMode: (mode: OverhangMode) => void;
+  setWallShelvesShelfCount: (count: number) => void;
+  setWallShelvesVerticalSpacingMm: (spacing: number) => void;
+  setWallShelvesBaseElevationYMm: (elev: number) => void;
 }
 
 /**
@@ -350,6 +377,28 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   // Interactive Kinematics state (Point 11)
   const [kinematicsState, setKinematicsState] = useState<Record<string, number>>({});
+
+  // Wall Shelves state
+  const [wallShelvesBracketType, setWallShelvesBracketType] = useState<BracketType>('l-bracket');
+  const [wallShelvesWallType, setWallShelvesWallType] = useState<WallType>('solid-brick');
+  const [wallShelvesLoadCategory, setWallShelvesLoadCategory] = useState<LoadCategory>('medium');
+  const [wallShelvesBoundaryCondition, setWallShelvesBoundaryCondition] = useState<BoundaryCondition>('free-ends');
+  const [wallShelvesOverhangMode, setWallShelvesOverhangMode] = useState<OverhangMode>('balanced-cantilever');
+  const [wallShelvesShelfCount, setWallShelvesShelfCountState] = useState<number>(3);
+  const [wallShelvesVerticalSpacingMm, setWallShelvesVerticalSpacingMmState] = useState<number>(320);
+  const [wallShelvesBaseElevationYMm, setWallShelvesBaseElevationYMm] = useState<number>(800);
+
+  const setWallShelvesShelfCount = useCallback((count: number) => {
+    const validCount = Math.max(1, Math.min(8, Math.round(count)));
+    setWallShelvesShelfCountState(validCount);
+    setHeight((validCount - 1) * wallShelvesVerticalSpacingMm + 18);
+  }, [wallShelvesVerticalSpacingMm, setHeight]);
+
+  const setWallShelvesVerticalSpacingMm = useCallback((spacing: number) => {
+    const validSpacing = Math.max(150, Math.min(800, Math.round(spacing)));
+    setWallShelvesVerticalSpacingMmState(validSpacing);
+    setHeight((wallShelvesShelfCount - 1) * validSpacing + 18);
+  }, [wallShelvesShelfCount, setHeight]);
 
   // Templates list exposed to UI: single base empty carcass + wall shelves + user templates
   const templates = useMemo<TemplateDefinition[]>(() => {
@@ -1145,6 +1194,42 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     [materials, selectedMaterialId],
   );
 
+  // Wall Shelving calculation
+  const wallShelvingOutput = useMemo<WallShelvingOutput | null>(() => {
+    if (selectedTemplateId !== 'wall-shelves' || !activeMaterial) return null;
+    const thickness = typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18;
+    return buildWallShelving({
+      id: 'wall-shelves-module',
+      widthMm: width,
+      depthMm: depth,
+      thicknessMm: thickness,
+      shelfCount: wallShelvesShelfCount,
+      verticalSpacingMm: wallShelvesVerticalSpacingMm,
+      bracketType: wallShelvesBracketType,
+      wallType: wallShelvesWallType,
+      loadCategory: wallShelvesLoadCategory,
+      boundaryCondition: wallShelvesBoundaryCondition,
+      overhangMode: wallShelvesOverhangMode,
+      materialId: activeMaterial.id,
+      edgeBandId: selectedEdgeBandId || undefined,
+      baseElevationYMm: wallShelvesBaseElevationYMm,
+    });
+  }, [
+    selectedTemplateId,
+    activeMaterial,
+    width,
+    depth,
+    wallShelvesShelfCount,
+    wallShelvesVerticalSpacingMm,
+    wallShelvesBracketType,
+    wallShelvesWallType,
+    wallShelvesLoadCategory,
+    wallShelvesBoundaryCondition,
+    wallShelvesOverhangMode,
+    selectedEdgeBandId,
+    wallShelvesBaseElevationYMm,
+  ]);
+
   // Resolves pieces dynamically whenever parameters, template, or materials change
   const { currentModule, resolvedPieces, placementTree } = useMemo(() => {
     if (!activeMaterial || width <= 0 || height <= 0 || depth <= 0) {
@@ -1152,6 +1237,41 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
 
     try {
+      if (selectedTemplateId === 'wall-shelves') {
+        if (!wallShelvingOutput) {
+          return { currentModule: null, resolvedPieces: [], placementTree: null };
+        }
+        const positions = wallShelvingOutput.placementTree.resolvePositions();
+        const resolvedPieces: ResolvedPieceWithCutSize[] = wallShelvingOutput.module.pieces.map((p) => {
+          const cut = calculatePieceCutSize(p, edgeBands);
+          const pos = positions.get(p.id) ?? { x: 0, y: 0, z: 0 };
+          const bandedList = [
+            cut.bandedEdges.bottom,
+            cut.bandedEdges.right,
+            cut.bandedEdges.top,
+            cut.bandedEdges.left,
+          ].filter((b): b is NonNullable<typeof b> => Boolean(b));
+
+          return {
+            ...p,
+            positionMm: pos,
+            dimensionsMm: {
+              width: p.contour.points[1]!.x,
+              height: p.contour.points[2]!.y,
+            },
+            cutDimensionsMm: cut.cutDimensionsMm,
+            cutContour: createRectangularContour(cut.cutDimensionsMm.width, cut.cutDimensionsMm.height),
+            bandedEdges: bandedList,
+          };
+        });
+
+        return {
+          currentModule: wallShelvingOutput.module,
+          resolvedPieces,
+          placementTree: wallShelvingOutput.placementTree,
+        };
+      }
+
       if (isCustomModular || selectedTemplateId.startsWith('modular-') || selectedTemplateId.startsWith('user-')) {
         const gridDef: BayGridDefinition | undefined =
           gridType === '2-bays-vertical'
@@ -1288,6 +1408,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     drawerBoxesMaterialId,
     backingsMaterialId,
     userTemplates,
+    wallShelvingOutput,
   ]);
 
   // Resolves 3D spatial boxes and bounding box
@@ -1841,5 +1962,22 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     kinematicMechanisms,
     kinematicBoxes,
     setMechanismOpenRatio,
+    wallShelvesBracketType,
+    wallShelvesWallType,
+    wallShelvesLoadCategory,
+    wallShelvesBoundaryCondition,
+    wallShelvesOverhangMode,
+    wallShelvesShelfCount,
+    wallShelvesVerticalSpacingMm,
+    wallShelvesBaseElevationYMm,
+    wallShelvingOutput,
+    setWallShelvesBracketType,
+    setWallShelvesWallType,
+    setWallShelvesLoadCategory,
+    setWallShelvesBoundaryCondition,
+    setWallShelvesOverhangMode,
+    setWallShelvesShelfCount,
+    setWallShelvesVerticalSpacingMm,
+    setWallShelvesBaseElevationYMm,
   };
 }

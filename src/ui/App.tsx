@@ -247,7 +247,25 @@ export function App(): ReactElement {
                 onPlinthHeightChange={vm.setPlinthHeightMm}
                 plinthSetbackMm={vm.plinthSetbackMm}
                 onPlinthSetbackChange={vm.setPlinthSetbackMm}
+                wallShelvesBracketType={vm.wallShelvesBracketType}
+                wallShelvesWallType={vm.wallShelvesWallType}
+                wallShelvesLoadCategory={vm.wallShelvesLoadCategory}
+                wallShelvesBoundaryCondition={vm.wallShelvesBoundaryCondition}
+                wallShelvesOverhangMode={vm.wallShelvesOverhangMode}
+                wallShelvesShelfCount={vm.wallShelvesShelfCount}
+                wallShelvesVerticalSpacingMm={vm.wallShelvesVerticalSpacingMm}
+                wallShelvesBaseElevationYMm={vm.wallShelvesBaseElevationYMm}
+                wallShelvingOutput={vm.wallShelvingOutput}
+                onWallShelvesBracketTypeChange={vm.setWallShelvesBracketType}
+                onWallShelvesWallTypeChange={vm.setWallShelvesWallType}
+                onWallShelvesLoadCategoryChange={vm.setWallShelvesLoadCategory}
+                onWallShelvesBoundaryConditionChange={vm.setWallShelvesBoundaryCondition}
+                onWallShelvesOverhangModeChange={vm.setWallShelvesOverhangMode}
+                onWallShelvesShelfCountChange={vm.setWallShelvesShelfCount}
+                onWallShelvesVerticalSpacingMmChange={vm.setWallShelvesVerticalSpacingMm}
+                onWallShelvesBaseElevationYMmChange={vm.setWallShelvesBaseElevationYMm}
                 onView3dClick={() => vm.setActiveTab('3d')}
+                onViewAssemblyClick={() => vm.setActiveTab('assembly')}
               />
             </aside>
 
