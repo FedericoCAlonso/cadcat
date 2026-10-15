@@ -12,11 +12,13 @@ export class DowelJointStrategy implements IJointMachiningStrategy {
 
   public generateOperations(context: JointMachiningContext): DrillOperation[] {
     const { pieceA, pieceB, joint, config, generateOpId } = context;
-    const { yContact, zStart, contactLen } = deriveContactGeometry(pieceA, pieceB, joint);
+    const geom = deriveContactGeometry(pieceA, pieceB, joint);
+    const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
 
     for (const off of offsets) {
+      const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -26,7 +28,7 @@ export class DowelJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.dowelFaceDiameterMm,
         depthMm: config.dowelFaceDepthMm,
         isThrough: false,
-        positionMm: { x: zStart + off, y: yContact },
+        positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'dowel',
         description: `Wooden dowel face hole Ø${config.dowelFaceDiameterMm}x${config.dowelFaceDepthMm}mm`,

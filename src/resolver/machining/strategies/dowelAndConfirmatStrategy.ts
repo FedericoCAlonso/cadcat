@@ -12,12 +12,14 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
 
   public generateOperations(context: JointMachiningContext): DrillOperation[] {
     const { pieceA, pieceB, joint, config, generateOpId } = context;
-    const { yContact, zStart, contactLen } = deriveContactGeometry(pieceA, pieceB, joint);
+    const geom = deriveContactGeometry(pieceA, pieceB, joint);
+    const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
 
     // 1. Confirmat clamping screws
     for (const off of offsets) {
+      const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -27,7 +29,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.confirmatThroughDiameterMm,
         depthMm: pieceA.thicknessMm,
         isThrough: true,
-        positionMm: { x: zStart + off, y: yContact },
+        positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
         description: `Confirmat through hole Ø${config.confirmatThroughDiameterMm}mm for ${pieceB.id}`,
@@ -61,6 +63,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         : [];
 
     for (const dOff of dowelOffsets) {
+      const dPosA = geom.getPieceAPosition ? geom.getPieceAPosition(dOff) : { x: zStart + dOff, y: yContact };
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -70,7 +73,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.dowelFaceDiameterMm,
         depthMm: config.dowelFaceDepthMm,
         isThrough: false,
-        positionMm: { x: zStart + dOff, y: yContact },
+        positionMm: dPosA,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
         description: `Dowel face hole Ø${config.dowelFaceDiameterMm}x${config.dowelFaceDepthMm}mm`,

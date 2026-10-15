@@ -12,11 +12,14 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
 
   public generateOperations(context: JointMachiningContext): DrillOperation[] {
     const { pieceA, pieceB, joint, config, generateOpId } = context;
-    const { yContact, zStart, contactLen } = deriveContactGeometry(pieceA, pieceB, joint);
+    const geom = deriveContactGeometry(pieceA, pieceB, joint);
+    const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
 
     for (const off of offsets) {
+      const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
+
       // Operation on Piece A (Face through hole)
       operations.push({
         schemaVersion: 1,
@@ -27,7 +30,7 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.confirmatThroughDiameterMm,
         depthMm: pieceA.thicknessMm,
         isThrough: true,
-        positionMm: { x: zStart + off, y: yContact },
+        positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'confirmat',
         description: `Confirmat through hole Ø${config.confirmatThroughDiameterMm}mm for ${pieceB.id}`,

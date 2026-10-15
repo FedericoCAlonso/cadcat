@@ -49,17 +49,28 @@ export function calculateDrillSpacingsFromConfig(
   );
 }
 
+export interface ContactGeometry {
+  yContact: number;
+  zStart: number;
+  contactLen: number;
+  axis: 'along-x' | 'along-y';
+  getPieceAPosition: (offset: number) => { x: number; y: number };
+}
+
 /**
  * Derives the spatial contact line between two joined pieces:
- * - yContact: contact height on pieceA's local face coordinate
- * - zStart: starting offset on pieceA's local depth coordinate
- * - contactLen: length of contact interface along depth
+ * - Computes orientation-aware 2D coordinates on pieceA's local face coordinate
+ * - Supports both horizontal contacts (along-x) and vertical contacts (along-y)
+ * - yContact / zStart preserved for backwards compatibility
+ * - contactLen: length of contact interface along contact axis
+ * - getPieceAPosition(offset): exact 2D (x, y) coordinates on pieceA
  */
 export function deriveContactGeometry(
   pieceA: Piece | ResolvedPiece,
   pieceB: Piece | ResolvedPiece,
   joint: Joint,
-): { yContact: number; zStart: number; contactLen: number } {
+): ContactGeometry {
+  const sizeA = determinePieceSpatialSize(pieceA);
   const sizeB = determinePieceSpatialSize(pieceB);
 
   const posA = 'positionMm' in pieceA && pieceA.positionMm ? pieceA.positionMm : undefined;
@@ -68,40 +79,138 @@ export function deriveContactGeometry(
   let yContact: number;
   let zStart: number;
   let contactLen: number;
+  let axis: 'along-x' | 'along-y' = 'along-x';
+  let getPieceAPosition: (offset: number) => { x: number; y: number };
 
   if (posA && posB) {
-    // Exact 3D spatial positions from ResolvedPiece
-    yContact = Math.round(posB.y - posA.y + sizeB.y / 2);
-    zStart = Math.max(0, Math.round(posB.z - posA.z));
-    contactLen = Math.round(sizeB.z);
-    if (contactLen <= 0) {
-      contactLen = Math.round(sizeB.x > 0 ? sizeB.x : 500);
+    // Determine 3D face axes for Piece A
+    const { x: sxA, y: syA, z: szA } = sizeA;
+    let uAxis: 'x' | 'y' | 'z';
+    let vAxis: 'x' | 'y' | 'z';
+
+    if (sxA <= syA && sxA <= szA) {
+      // Standing in YZ plane (vertical side / partition)
+      uAxis = 'z'; // 2D X is depth along Z
+      vAxis = 'y'; // 2D Y is height along Y
+    } else if (syA <= sxA && syA <= szA) {
+      // Lying in XZ plane (shelf / bottom / roof)
+      uAxis = 'x'; // 2D X is width along X
+      vAxis = 'z'; // 2D Y is depth along Z
+    } else {
+      // Standing in XY plane (doors, back panel, plinth, drawer-front, drawer-box-front)
+      uAxis = 'x'; // 2D X is width along X
+      vAxis = 'y'; // 2D Y is height along Y
+    }
+
+    const dimB_U = sizeB[uAxis];
+    const dimB_V = sizeB[vAxis];
+
+    // Check whether the contact interface extends along Piece A's horizontal axis (uAxis)
+    // or vertical axis (vAxis).
+    if (dimB_V > dimB_U) {
+      // Joint runs along Piece A's vertical face axis (vAxis)
+      axis = 'along-y';
+      contactLen = Math.round(dimB_V);
+      const startV = Math.max(0, Math.round(posB[vAxis] - posA[vAxis]));
+      const centerU = Math.round(posB[uAxis] - posA[uAxis] + dimB_U / 2);
+
+      yContact = startV;
+      zStart = centerU;
+      getPieceAPosition = (off: number) => ({
+        x: centerU,
+        y: startV + off,
+      });
+    } else {
+      // Joint runs along Piece A's horizontal face axis (uAxis)
+      axis = 'along-x';
+      contactLen = Math.round(dimB_U);
+      if (contactLen <= 0) {
+        contactLen = Math.round(sizeB.z > 0 ? sizeB.z : sizeB.x);
+      }
+      const startU = Math.max(0, Math.round(posB[uAxis] - posA[uAxis]));
+      const centerV = Math.round(posB[vAxis] - posA[vAxis] + dimB_V / 2);
+
+      yContact = centerV;
+      zStart = startU;
+      getPieceAPosition = (off: number) => ({
+        x: startU + off,
+        y: centerV,
+      });
     }
   } else {
     // Fallback derivation based on piece contour points and semantic roles
     const aPoints = pieceA.contour.points;
-    const aHeight = Math.abs(aPoints[2]?.y ?? 800);
-    const aWidth = Math.abs(aPoints[1]?.x ?? 560);
+    const aHeight = Math.abs(aPoints[2]?.y ?? 0);
+    const aWidth = Math.abs(aPoints[1]?.x ?? 0);
 
     const bPoints = pieceB.contour.points;
-    const bWidth = Math.abs(bPoints[1]?.x ?? 500);
-    const bHeight = Math.abs(bPoints[2]?.y ?? 500);
-    contactLen = joint.b.faceId.includes('edge') ? bHeight : bWidth;
+    const bWidth = Math.abs(bPoints[1]?.x ?? 0);
+    const bHeight = Math.abs(bPoints[2]?.y ?? 0);
 
+    const aRole = pieceA.role.toLowerCase();
     const bRole = pieceB.role.toLowerCase();
-    if (bRole.includes('roof') || bRole.includes('top')) {
-      yContact = Math.round(aHeight - pieceB.thicknessMm / 2);
-      zStart = bRole.includes('rail-back') ? Math.max(0, Math.round(aWidth - contactLen)) : 0;
-    } else if (bRole.includes('shelf')) {
-      yContact = joint.offsetMm ?? Math.round(aHeight / 2);
-      zStart = 0;
+    const bId = pieceB.id.toLowerCase();
+
+    if (aRole.includes('front') || aRole.includes('door') || aRole.includes('back')) {
+      // Piece A in XY plane
+      if (bRole.includes('side')) {
+        // Vertical side piece contacting drawer front or back panel
+        axis = 'along-y';
+        contactLen = bHeight > 0 ? bHeight : Math.round(pieceA.thicknessMm * 8);
+        const isRight = bId.includes('-r-') || bId.includes('right') || bRole.includes('right');
+        const sideT = pieceB.thicknessMm > 0 ? pieceB.thicknessMm : 18;
+        const centerU = isRight
+          ? Math.round(aWidth - sideT * 1.5)
+          : Math.round(sideT * 1.5);
+        const startV = 0;
+        yContact = startV;
+        zStart = centerU;
+        getPieceAPosition = (off: number) => ({
+          x: centerU,
+          y: startV + off,
+        });
+      } else {
+        // Horizontal piece (rail, bottom, shelf, roof) contacting back panel
+        axis = 'along-x';
+        contactLen = bWidth > 0 ? bWidth : aWidth;
+        const startU = 0;
+        const isTop = bRole.includes('roof') || bRole.includes('top') || bRole.includes('rail-back');
+        const centerV = isTop
+          ? Math.round(aHeight - pieceB.thicknessMm / 2)
+          : Math.round(pieceB.thicknessMm / 2);
+        yContact = centerV;
+        zStart = startU;
+        getPieceAPosition = (off: number) => ({
+          x: startU + off,
+          y: centerV,
+        });
+      }
     } else {
-      yContact = Math.round(pieceB.thicknessMm / 2);
-      zStart = 0;
+      // Piece A in YZ plane (carcase side / vertical partition)
+      contactLen = joint.b.faceId.includes('edge') ? bHeight : bWidth;
+      if (contactLen <= 0) {
+        contactLen = Math.max(bWidth, bHeight, aWidth, aHeight, pieceB.thicknessMm);
+      }
+
+      if (bRole.includes('roof') || bRole.includes('top')) {
+        yContact = Math.round(aHeight - pieceB.thicknessMm / 2);
+        zStart = bRole.includes('rail-back') ? Math.max(0, Math.round(aWidth - contactLen)) : 0;
+      } else if (bRole.includes('shelf')) {
+        yContact = joint.offsetMm ?? Math.round(aHeight / 2);
+        zStart = 0;
+      } else {
+        yContact = Math.round(pieceB.thicknessMm / 2);
+        zStart = 0;
+      }
+      axis = 'along-x';
+      getPieceAPosition = (off: number) => ({
+        x: zStart + off,
+        y: yContact,
+      });
     }
   }
 
-  return { yContact, zStart, contactLen };
+  return { yContact, zStart, contactLen, axis, getPieceAPosition };
 }
 
 /**

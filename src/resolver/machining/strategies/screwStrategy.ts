@@ -12,7 +12,8 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
 
   public generateOperations(context: JointMachiningContext): DrillOperation[] {
     const { pieceA, pieceB, joint, config, generateOpId } = context;
-    const { yContact, zStart, contactLen } = deriveContactGeometry(pieceA, pieceB, joint);
+    const geom = deriveContactGeometry(pieceA, pieceB, joint);
+    const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
 
@@ -21,6 +22,7 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
     const coreDepth = config.screwCoreDepthMm ?? 35.0;
 
     for (const off of offsets) {
+      const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -30,7 +32,7 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
         diameterMm: throughDiameter,
         depthMm: pieceA.thicknessMm,
         isThrough: true,
-        positionMm: { x: zStart + off, y: yContact },
+        positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'screw',
         description: `Spax screw through hole Ø${throughDiameter}mm for ${pieceB.id}`,

@@ -12,11 +12,13 @@ export class CamDowelJointStrategy implements IJointMachiningStrategy {
 
   public generateOperations(context: JointMachiningContext): DrillOperation[] {
     const { pieceA, pieceB, joint, config, generateOpId } = context;
-    const { yContact, zStart, contactLen } = deriveContactGeometry(pieceA, pieceB, joint);
+    const geom = deriveContactGeometry(pieceA, pieceB, joint);
+    const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
 
     for (const off of offsets) {
+      const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
       // On Piece A: dowel anchor hole
       operations.push({
         schemaVersion: 1,
@@ -27,7 +29,7 @@ export class CamDowelJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.minifixDowelDiameterMm,
         depthMm: config.minifixDowelDepthMm,
         isThrough: false,
-        positionMm: { x: zStart + off, y: yContact },
+        positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'cam-dowel',
         description: `Minifix connecting bolt anchor hole Ø${config.minifixDowelDiameterMm}x${config.minifixDowelDepthMm}mm`,

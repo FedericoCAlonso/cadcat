@@ -5,6 +5,9 @@ import {
   groupOperationsByPiece,
   buildBaseCabinet,
   buildDoorCabinet,
+  buildDrawerSubAssembly,
+  PlacementTree,
+  resolveModule,
   createPiece,
   createJoint,
   createRectangularContour,
@@ -388,5 +391,91 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
     expect(pocketOps.length).toBeGreaterThan(0);
   });
 });
+
+describe('Machining Derivation - Drawer Front Screws Dynamic Positioning', () => {
+  it('dynamically positions drawer front right column screws relative to cabinet width without hardcoding', () => {
+    const widths = [400, 600, 800, 1000, 1200];
+    const prevRightX: number[] = [];
+
+    for (const w of widths) {
+      const res = buildDrawerSubAssembly(
+        {
+          idPrefix: 'test-drawer',
+          index: 1,
+          openingWidthMm: w,
+          depthMm: 550,
+          frontHeightMm: 200,
+          boxHeightMm: 150,
+          baseYMm: 18,
+          carcaseThicknessMm: 18,
+          materialId: testMaterial.id,
+          slideType: 'telescopic',
+          drawerType: 'simple-interior',
+        },
+        'side-left',
+      );
+
+      const tree = new PlacementTree('side-left');
+      for (const n of res.placementNodes) {
+        tree.setNode(n);
+      }
+      const resolved = resolveModule({
+        module: {
+          schemaVersion: 1,
+          id: 'mod-drawer',
+          parameters: { width: w, height: 720, depth: 550 },
+          rootPieceId: 'side-left',
+          pieces: res.pieces,
+          joints: res.joints,
+          subAssemblies: [res.subAssembly],
+          overrides: {},
+        },
+        placementTree: tree,
+      });
+
+      const ops = deriveModuleDrillOperations(resolved.pieces, res.joints);
+      const frontPiece = resolved.pieces.find((p) => p.role === 'drawer-front')!;
+      const frontOps = ops.filter((o) => o.pieceId === frontPiece.id);
+
+      // 2 left screws and 2 right screws
+      expect(frontOps).toHaveLength(4);
+
+      const leftHoles = frontOps.filter((o) => o.description?.includes('box-side-l'));
+      const rightHoles = frontOps.filter((o) => o.description?.includes('box-side-r'));
+      expect(leftHoles).toHaveLength(2);
+      expect(rightHoles).toHaveLength(2);
+
+      // Left holes share the same X near the left edge (~20mm)
+      expect(leftHoles[0]!.positionMm.x).toBe(leftHoles[1]!.positionMm.x);
+      const leftX = leftHoles[0]!.positionMm.x;
+      expect(leftX).toBeLessThan(35);
+
+      // Right holes share the same X near the right edge
+      expect(rightHoles[0]!.positionMm.x).toBe(rightHoles[1]!.positionMm.x);
+      const rightX = rightHoles[0]!.positionMm.x;
+
+      // Right holes MUST change dynamically with cabinet width
+      expect(prevRightX).not.toContain(rightX);
+      prevRightX.push(rightX);
+
+      // Right holes must be near the right edge of the front
+      const frontWidth = frontPiece.dimensionsMm?.width ?? 0;
+      expect(rightX).toBeGreaterThan(frontWidth - 35);
+      expect(rightX).toBeLessThan(frontWidth);
+
+      // Symmetrical margin from left and right edges
+      const leftMargin = leftX;
+      const rightMargin = frontWidth - rightX;
+      expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(2);
+
+      // Vertical alignment along Y (height 150mm: at 63mm and 113mm)
+      expect(leftHoles[0]!.positionMm.y).not.toBe(leftHoles[1]!.positionMm.y);
+      expect(rightHoles[0]!.positionMm.y).not.toBe(rightHoles[1]!.positionMm.y);
+      expect(leftHoles[0]!.positionMm.y).toBe(rightHoles[0]!.positionMm.y);
+      expect(leftHoles[1]!.positionMm.y).toBe(rightHoles[1]!.positionMm.y);
+    }
+  });
+});
+
 
 
