@@ -91,6 +91,8 @@ export const hardwareConfigSchema = z.object({
   drawerFrontGapMm: z.number().min(0).default(3.0),
   drawerBoxFrontOffsetMm: z.number().min(0).default(0.0),
   drawerBoxBottomClearanceMm: z.number().min(0).default(15.0),
+  drawerBottomScrewedDeductionWidthMm: z.number().min(0).default(2.0),
+  drawerBottomScrewedDeductionDepthMm: z.number().min(0).default(2.0),
   doorOverlayRevealMm: z.number().min(0).default(1.5),
   doorHalfOverlayRevealMm: z.number().min(0).default(1.5),
   doorInsetGapMm: z.number().min(0).default(2.0),

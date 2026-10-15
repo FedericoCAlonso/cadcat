@@ -477,6 +477,26 @@ export function ProjectSettingsView({
                 />
               </div>
               <div className="input-field">
+                <label htmlFor="drawerBottomDeductionW">Descuento Ancho Fondo Clavado (mm):</label>
+                <input
+                  id="drawerBottomDeductionW"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.drawerBottomScrewedDeductionWidthMm ?? 2.0}
+                  onChange={(e) => updateHardware('drawerBottomScrewedDeductionWidthMm', parseFloat(e.target.value) ?? 2.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="drawerBottomDeductionD">Descuento Profundidad Fondo Clavado (mm):</label>
+                <input
+                  id="drawerBottomDeductionD"
+                  type="number"
+                  step="0.5"
+                  value={config.hardware?.drawerBottomScrewedDeductionDepthMm ?? 2.0}
+                  onChange={(e) => updateHardware('drawerBottomScrewedDeductionDepthMm', parseFloat(e.target.value) ?? 2.0)}
+                />
+              </div>
+              <div className="input-field">
                 <label htmlFor="doorOverlayReveal">Luz Puerta Solapada (mm):</label>
                 <input
                   id="doorOverlayReveal"

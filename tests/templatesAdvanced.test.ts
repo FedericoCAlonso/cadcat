@@ -350,7 +350,7 @@ describe('Drawer Customizations: Simple Interior, Bottom Mounts, and Flush Align
     // Box width: 500 - 25.4 = 475. Inner span: 475 - 36 = 439. Grooved width (with 1mm insertion tolerance): 439 + 2*7 - 1 = 452.
     expect(groovedBottom.contour.points[1]!.x).toBe(452);
 
-    // 2. Bottom-screwed (covers full box width & depth underneath)
+    // 2. Bottom-screwed (applies safety deduction: default 2mm width, 2mm depth)
     const screwed = buildDrawerSubAssembly(
       {
         idPrefix: 'test-screw',
@@ -362,15 +362,43 @@ describe('Drawer Customizations: Simple Interior, Bottom Mounts, and Flush Align
         baseYMm: 18,
         carcaseThicknessMm: 18,
         materialId: testMaterial.id,
+        backingMaterialId: 'mat-mdf-white-3',
+        backingThicknessMm: 3,
         slideType: 'telescopic',
         bottomMount: 'bottom-screwed',
       },
       'side-left',
     );
     const screwedBottom = screwed.pieces.find((p) => p.role === 'drawer-bottom')!;
-    expect(screwedBottom.contour.points[1]!.x).toBe(475); // Full box width
+    expect(screwedBottom.contour.points[1]!.x).toBe(473); // 475 - 2mm
+    expect(screwedBottom.contour.points[2]!.y).toBe(498); // 500 - 2mm
+    expect(screwedBottom.materialId).toBe('mat-mdf-white-3');
+    expect(screwedBottom.thicknessMm).toBe(3);
 
-    // 3. Flush-thick (fits inside sides)
+    // 2b. Bottom-screwed with custom deductions
+    const customScrewed = buildDrawerSubAssembly(
+      {
+        idPrefix: 'test-screw-custom',
+        index: 1,
+        openingWidthMm: 500,
+        depthMm: 550,
+        frontHeightMm: 200,
+        boxHeightMm: 150,
+        baseYMm: 18,
+        carcaseThicknessMm: 18,
+        materialId: testMaterial.id,
+        slideType: 'telescopic',
+        bottomMount: 'bottom-screwed',
+        bottomScrewedDeductionWidthMm: 4,
+        bottomScrewedDeductionDepthMm: 4,
+      },
+      'side-left',
+    );
+    const customScrewedBottom = customScrewed.pieces.find((p) => p.role === 'drawer-bottom')!;
+    expect(customScrewedBottom.contour.points[1]!.x).toBe(471); // 475 - 4mm
+    expect(customScrewedBottom.contour.points[2]!.y).toBe(496); // 500 - 4mm
+
+    // 3. Flush-thick (uses drawer box material and fits inside box sides)
     const thick = buildDrawerSubAssembly(
       {
         idPrefix: 'test-thick',
@@ -382,13 +410,17 @@ describe('Drawer Customizations: Simple Interior, Bottom Mounts, and Flush Align
         baseYMm: 18,
         carcaseThicknessMm: 18,
         materialId: testMaterial.id,
+        boxMaterialId: 'mat-box-15',
+        boxThicknessMm: 15,
         slideType: 'telescopic',
         bottomMount: 'flush-thick',
       },
       'side-left',
     );
     const thickBottom = thick.pieces.find((p) => p.role === 'drawer-bottom')!;
-    expect(thickBottom.contour.points[1]!.x).toBe(439); // 475 - 36
+    expect(thickBottom.contour.points[1]!.x).toBe(445); // 475 - 2*15
+    expect(thickBottom.materialId).toBe('mat-box-15');
+    expect(thickBottom.thicknessMm).toBe(15);
   });
 });
 

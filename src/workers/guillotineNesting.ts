@@ -137,16 +137,48 @@ function countSheetCutPasses(
   return passes;
 }
 
-function sortNestingItems(
+interface PackingStrategyConfig {
+  name: string;
+  sortOrder: 'height-desc' | 'width-desc' | 'area-desc' | 'max-dim-desc' | 'strip-grouped';
+  splitMode: 'horizontal' | 'vertical' | 'adaptive';
+  preferExactFit: boolean;
+}
+
+function sortNestingItemsWithStrategy(
   items: NestingItem[],
-  optimizationGoal: 'min-waste' | 'min-passes',
+  strategy: PackingStrategyConfig,
 ): NestingItem[] {
-  return [...items].sort((a, b) => {
-    if (optimizationGoal === 'min-passes') {
-      const heightDiff = b.cutHeightMm - a.cutHeightMm;
-      if (Math.abs(heightDiff) > 0.001) return heightDiff;
+  if (strategy.sortOrder === 'strip-grouped') {
+    return [...items].sort((a, b) => {
+      const hd = b.cutHeightMm - a.cutHeightMm;
+      if (Math.abs(hd) > 0.001) return hd;
       return b.cutWidthMm - a.cutWidthMm;
-    }
+    });
+  }
+  if (strategy.sortOrder === 'height-desc') {
+    return [...items].sort((a, b) => {
+      const hd = b.cutHeightMm - a.cutHeightMm;
+      if (Math.abs(hd) > 0.001) return hd;
+      return b.cutWidthMm - a.cutWidthMm;
+    });
+  }
+  if (strategy.sortOrder === 'width-desc') {
+    return [...items].sort((a, b) => {
+      const wd = b.cutWidthMm - a.cutWidthMm;
+      if (Math.abs(wd) > 0.001) return wd;
+      return b.cutHeightMm - a.cutHeightMm;
+    });
+  }
+  if (strategy.sortOrder === 'max-dim-desc') {
+    return [...items].sort((a, b) => {
+      const maxA = Math.max(a.cutWidthMm, a.cutHeightMm);
+      const maxB = Math.max(b.cutWidthMm, b.cutHeightMm);
+      if (maxB !== maxA) return maxB - maxA;
+      return b.cutWidthMm * b.cutHeightMm - a.cutWidthMm * a.cutHeightMm;
+    });
+  }
+  // area-desc (default)
+  return [...items].sort((a, b) => {
     const areaA = a.cutWidthMm * a.cutHeightMm;
     const areaB = b.cutWidthMm * b.cutHeightMm;
     if (areaB !== areaA) return areaB - areaA;
@@ -154,51 +186,76 @@ function sortNestingItems(
   });
 }
 
-function tryPlaceItem(
+function scorePlacement(
+  pieceW: number,
+  pieceH: number,
+  freeRect: FreeRectangle,
+  preferExactFit: boolean,
+): number {
+  if (pieceW > freeRect.width || pieceH > freeRect.height) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const remW = freeRect.width - pieceW;
+  const remH = freeRect.height - pieceH;
+
+  if (preferExactFit) {
+    // Perfect match in both dimensions: 0 cuts, 0 kerf consumed
+    if (remW === 0 && remH === 0) return 0;
+    // Exact strip height match: 1 cut across strip, no leftover strip height
+    if (remH === 0) return 1 + remW / 10000;
+    // Exact column width match: 1 cut across column, no leftover column width
+    if (remW === 0) return 1 + remH / 10000;
+  }
+
+  // Best Short Side Fit (BSSF)
+  return 100 + Math.min(remW, remH);
+}
+
+function tryPlaceItemWithStrategy(
   item: NestingItem,
   freeRectangles: FreeRectangle[],
   sawKerf: number,
-  optimizationGoal: 'min-waste' | 'min-passes',
+  strategy: PackingStrategyConfig,
   rawCutSegments: CutSegment[],
   isOffcut: boolean,
 ): PlacedPiece | null {
   let bestRectIndex = -1;
   let bestRotated = false;
-  let bestShortSideFit = Number.POSITIVE_INFINITY;
+  let bestScore = Number.POSITIVE_INFINITY;
 
   for (let r = 0; r < freeRectangles.length; r++) {
     const freeRect = freeRectangles[r]!;
 
-    if (item.cutWidthMm <= freeRect.width && item.cutHeightMm <= freeRect.height) {
-      const shortSideFit = Math.min(
-        freeRect.width - item.cutWidthMm,
-        freeRect.height - item.cutHeightMm,
-      );
-      if (shortSideFit < bestShortSideFit) {
-        bestShortSideFit = shortSideFit;
-        bestRectIndex = r;
-        bestRotated = false;
-      }
+    // Non-rotated orientation
+    const normalScore = scorePlacement(
+      item.cutWidthMm,
+      item.cutHeightMm,
+      freeRect,
+      strategy.preferExactFit,
+    );
+    if (normalScore < bestScore) {
+      bestScore = normalScore;
+      bestRectIndex = r;
+      bestRotated = false;
     }
 
-    if (
-      item.canRotate &&
-      item.cutHeightMm <= freeRect.width &&
-      item.cutWidthMm <= freeRect.height
-    ) {
-      const shortSideFit = Math.min(
-        freeRect.width - item.cutHeightMm,
-        freeRect.height - item.cutWidthMm,
+    // Rotated orientation (if allowed by grain / material)
+    if (item.canRotate) {
+      const rotScore = scorePlacement(
+        item.cutHeightMm,
+        item.cutWidthMm,
+        freeRect,
+        strategy.preferExactFit,
       );
-      if (shortSideFit < bestShortSideFit) {
-        bestShortSideFit = shortSideFit;
+      if (rotScore < bestScore) {
+        bestScore = rotScore;
         bestRectIndex = r;
         bestRotated = true;
       }
     }
   }
 
-  if (bestRectIndex === -1) return null;
+  if (bestRectIndex === -1 || !Number.isFinite(bestScore)) return null;
 
   const freeRect = freeRectangles[bestRectIndex]!;
   const pieceW = bestRotated ? item.cutHeightMm : item.cutWidthMm;
@@ -209,8 +266,15 @@ function tryPlaceItem(
   const remainW = freeRect.width - pieceW - sawKerf;
   const remainH = freeRect.height - pieceH - sawKerf;
 
-  const splitHorizontally =
-    optimizationGoal === 'min-passes' ? true : remainW >= remainH;
+  let splitHorizontally: boolean;
+  if (strategy.splitMode === 'horizontal') {
+    splitHorizontally = true;
+  } else if (strategy.splitMode === 'vertical') {
+    splitHorizontally = false;
+  } else {
+    // adaptive
+    splitHorizontally = remainW >= remainH;
+  }
 
   if (splitHorizontally) {
     if (remainH > 0) {
@@ -284,17 +348,14 @@ function tryPlaceItem(
   };
 }
 
-/**
- * Run guillotine 2D bin packing algorithm.
- * Implements two-step nesting: primary pieces first, then auxiliary gauge pieces into unused offcuts.
- */
-export function runGuillotineNesting(input: NestingInput): NestingResult {
+function executeSingleStrategy(
+  input: NestingInput,
+  strategy: PackingStrategyConfig,
+): NestingResult {
   const { sheet } = input;
   const sawKerf = sheet.sawKerfMm ?? DEFAULT_SAW_KERF_MM;
   const trimMargin = sheet.trimMarginMm ?? DEFAULT_TRIM_MARGIN_MM;
-  const optimizationGoal = input.optimizationGoal ?? 'min-waste';
 
-  // Usable sheet area inside trim margin
   const usableLength = sheet.lengthMm - 2 * trimMargin;
   const usableWidth = sheet.widthMm - 2 * trimMargin;
 
@@ -302,14 +363,13 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     throw new Error('Sheet trim margin exceeds sheet dimensions');
   }
 
-  // Split into primary and auxiliary items
-  const primaryItems = sortNestingItems(
+  const primaryItems = sortNestingItemsWithStrategy(
     input.items.filter((it) => !it.isAuxiliary),
-    optimizationGoal,
+    strategy,
   );
-  const auxiliaryItems = sortNestingItems(
+  const auxiliaryItems = sortNestingItemsWithStrategy(
     input.items.filter((it) => it.isAuxiliary),
-    optimizationGoal,
+    strategy,
   );
 
   interface SheetState {
@@ -339,11 +399,11 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
 
     for (let i = 0; i < primaryItems.length; ) {
       const item = primaryItems[i]!;
-      const placed = tryPlaceItem(
+      const placed = tryPlaceItemWithStrategy(
         item,
         freeRectangles,
         sawKerf,
-        optimizationGoal,
+        strategy,
         rawCutSegments,
         false,
       );
@@ -370,17 +430,17 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     sheetIndex++;
   }
 
-  // Step 2: Pack auxiliary pieces into unused offcut areas of existing boards
+  // Step 2: Pack auxiliary pieces into unused offcuts
   for (const sheetState of sheetStates) {
     for (let i = 0; i < auxiliaryItems.length; ) {
       const auxItem = auxiliaryItems[i]!;
-      const placed = tryPlaceItem(
+      const placed = tryPlaceItemWithStrategy(
         auxItem,
         sheetState.freeRectangles,
         sawKerf,
-        optimizationGoal,
+        strategy,
         sheetState.rawCutSegments,
-        true, // fits in offcut!
+        true,
       );
 
       if (placed) {
@@ -392,7 +452,7 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     }
   }
 
-  // If auxiliary items remain (e.g. no primary sheets or offcuts full), pack into new sheets
+  // Step 3: Remaining auxiliary pieces into new sheets if needed
   const unplacedPrimary = [...primaryItems];
   while (auxiliaryItems.length > 0) {
     const placedOnCurrentSheet: PlacedPiece[] = [];
@@ -410,11 +470,11 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
 
     for (let i = 0; i < auxiliaryItems.length; ) {
       const auxItem = auxiliaryItems[i]!;
-      const placed = tryPlaceItem(
+      const placed = tryPlaceItemWithStrategy(
         auxItem,
         freeRectangles,
         sawKerf,
-        optimizationGoal,
+        strategy,
         rawCutSegments,
         false,
       );
@@ -441,7 +501,6 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     sheetIndex++;
   }
 
-  // Build sheetsResult
   const sheetTotalAreaM2 = (sheet.lengthMm * sheet.widthMm) / 1_000_000;
   const sheetsResult: NestingSheetResult[] = sheetStates.map((s) => {
     const usedAreaM2 = s.placedPieces.reduce(
@@ -487,6 +546,94 @@ export function runGuillotineNesting(input: NestingInput): NestingResult {
     overallUtilizationPercentage,
     totalCutPasses,
   };
+}
+
+function isCandidateBetter(
+  candidate: NestingResult,
+  current: NestingResult,
+  goal: 'min-waste' | 'min-passes',
+): boolean {
+  // 1. Fewer unplaced pieces
+  if (candidate.unplacedPieces.length !== current.unplacedPieces.length) {
+    return candidate.unplacedPieces.length < current.unplacedPieces.length;
+  }
+  // 2. Fewer total sheets
+  if (candidate.totalSheets !== current.totalSheets) {
+    return candidate.totalSheets < current.totalSheets;
+  }
+  // 3. Goal specific:
+  if (goal === 'min-passes') {
+    if (candidate.totalCutPasses !== current.totalCutPasses) {
+      return candidate.totalCutPasses < current.totalCutPasses;
+    }
+    return candidate.overallUtilizationPercentage > current.overallUtilizationPercentage;
+  } else {
+    // min-waste
+    if (Math.abs(candidate.overallUtilizationPercentage - current.overallUtilizationPercentage) > 0.05) {
+      return candidate.overallUtilizationPercentage > current.overallUtilizationPercentage;
+    }
+    return candidate.totalCutPasses < current.totalCutPasses;
+  }
+}
+
+/**
+ * Run guillotine 2D bin packing algorithm using multi-heuristic ensemble optimization.
+ * Evaluates strip grouping, rip/cross splitting, exact-match priorities, and area packing,
+ * selecting the optimal layout that minimizes sheets, waste, and saw cut passes.
+ * Implements two-step nesting: primary pieces first, then auxiliary gauge pieces into unused offcuts.
+ */
+export function runGuillotineNesting(input: NestingInput): NestingResult {
+  const optimizationGoal = input.optimizationGoal ?? 'min-waste';
+
+  const candidateStrategies: PackingStrategyConfig[] = [
+    {
+      name: 'strip-grouped-h',
+      sortOrder: 'strip-grouped',
+      splitMode: 'horizontal',
+      preferExactFit: true,
+    },
+    {
+      name: 'height-desc-h',
+      sortOrder: 'height-desc',
+      splitMode: 'horizontal',
+      preferExactFit: true,
+    },
+    {
+      name: 'width-desc-v',
+      sortOrder: 'width-desc',
+      splitMode: 'vertical',
+      preferExactFit: true,
+    },
+    {
+      name: 'area-desc-adaptive',
+      sortOrder: 'area-desc',
+      splitMode: 'adaptive',
+      preferExactFit: true,
+    },
+    {
+      name: 'max-dim-desc-adaptive',
+      sortOrder: 'max-dim-desc',
+      splitMode: 'adaptive',
+      preferExactFit: true,
+    },
+  ];
+
+  let bestResult: NestingResult | null = null;
+
+  for (const strategy of candidateStrategies) {
+    const result = executeSingleStrategy(input, strategy);
+
+    if (!bestResult) {
+      bestResult = result;
+      continue;
+    }
+
+    if (isCandidateBetter(result, bestResult, optimizationGoal)) {
+      bestResult = result;
+    }
+  }
+
+  return bestResult!;
 }
 
 /**

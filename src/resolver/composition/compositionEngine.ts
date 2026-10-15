@@ -20,6 +20,9 @@ export interface ModularBuildOptions {
   carcassThicknessMm?: number;
   frontThicknessMm?: number;
   boxThicknessMm?: number;
+  backingThicknessMm?: number;
+  drawerBottomScrewedDeductionWidthMm?: number;
+  drawerBottomScrewedDeductionDepthMm?: number;
   edgeBands?: EdgeBand[];
 }
 
@@ -41,6 +44,9 @@ export function buildModularModule(
     carcassThicknessMm = 18,
     frontThicknessMm = 18,
     boxThicknessMm = 15,
+    backingThicknessMm = definition.carcass.backingThicknessMm ?? 3,
+    drawerBottomScrewedDeductionWidthMm,
+    drawerBottomScrewedDeductionDepthMm,
     edgeBands = [],
   } = options;
 
@@ -119,6 +125,9 @@ export function buildModularModule(
         carcassThicknessMm,
         frontThicknessMm,
         boxThicknessMm,
+        backingThicknessMm,
+        drawerBottomScrewedDeductionWidthMm,
+        drawerBottomScrewedDeductionDepthMm,
         edgeBandId,
         rootPieceId,
         idPrefix: `${id}-bay-${i + 1}`,

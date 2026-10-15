@@ -42,6 +42,10 @@ export interface DrawerConfig {
   topPullGapMm?: number;
   boxSideHeightOffsetMm?: number;
   bottomThicknessMm?: number;
+  backingMaterialId?: string;
+  backingThicknessMm?: number;
+  bottomScrewedDeductionWidthMm?: number;
+  bottomScrewedDeductionDepthMm?: number;
   grooveOffsetMm?: number;
   grooveDepthMm?: number;
 }
@@ -90,6 +94,10 @@ export function buildDrawerSubAssembly(
     topPullGapMm = 0,
     boxSideHeightOffsetMm = 0,
     bottomThicknessMm,
+    backingMaterialId,
+    backingThicknessMm,
+    bottomScrewedDeductionWidthMm,
+    bottomScrewedDeductionDepthMm,
     grooveOffsetMm = 10,
     grooveDepthMm = 7,
   } = config;
@@ -97,6 +105,14 @@ export function buildDrawerSubAssembly(
   const actualFrontMaterialId = frontMaterialId ?? materialId;
   const actualBoxMaterialId = boxMaterialId ?? materialId;
   const actualBoxT = boxThicknessMm ?? T;
+
+  const isThickBottom = bottomMount === 'flush-thick';
+  const actualBottomMaterialId = isThickBottom
+    ? actualBoxMaterialId
+    : (backingMaterialId ?? materialId);
+  const actualBottomThickness = isThickBottom
+    ? (bottomThicknessMm ?? actualBoxT)
+    : (bottomThicknessMm ?? backingThicknessMm ?? 3);
 
   const slideClearance = customSlideClearanceMm ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? 25.4;
   const innerWidth = openingWidthMm;
@@ -228,28 +244,30 @@ export function buildDrawerSubAssembly(
   // 4. Drawer Bottom Construction
   let bottomWidth: number;
   let bottomDepth: number;
-  let bottomThickness: number;
+  let bottomThickness = actualBottomThickness;
   let bottomOffsetX: number;
   let bottomOffsetY: number;
   let bottomOffsetZ: number;
 
   if (bottomMount === 'grooved') {
-    bottomThickness = bottomThicknessMm ?? 3;
     bottomWidth = Math.round(drawerBoxWidth - 2 * actualBoxT + 2 * grooveDepthMm - 1);
     bottomDepth = Math.round(boxDepth - 2 * actualBoxT + 2 * grooveDepthMm - 1);
     bottomOffsetX = boxX + actualBoxT - grooveDepthMm + 0.5;
     bottomOffsetY = boxY + grooveOffsetMm;
     bottomOffsetZ = boxOffsetZ + (isSimpleInterior ? 0 : actualBoxT) - grooveDepthMm + 0.5;
   } else if (bottomMount === 'bottom-screwed') {
-    bottomThickness = bottomThicknessMm ?? 3;
-    bottomWidth = drawerBoxWidth;
-    bottomDepth = boxDepth;
-    bottomOffsetX = boxX;
+    const defaultDeductionW = defaultProjectConfigJson.hardware.drawerBottomScrewedDeductionWidthMm ?? 2.0;
+    const defaultDeductionD = defaultProjectConfigJson.hardware.drawerBottomScrewedDeductionDepthMm ?? 2.0;
+    const dedW = bottomScrewedDeductionWidthMm ?? defaultDeductionW;
+    const dedD = bottomScrewedDeductionDepthMm ?? defaultDeductionD;
+
+    bottomWidth = Math.round(drawerBoxWidth - dedW);
+    bottomDepth = Math.round(boxDepth - dedD);
+    bottomOffsetX = boxX + Math.round(dedW / 2);
     bottomOffsetY = boxY - bottomThickness;
-    bottomOffsetZ = boxOffsetZ;
+    bottomOffsetZ = boxOffsetZ + Math.round(dedD / 2);
   } else {
     // flush-thick (default, 15/18mm)
-    bottomThickness = bottomThicknessMm ?? actualBoxT;
     bottomWidth = drawerBoxWidth - 2 * actualBoxT;
     bottomDepth = boxDepth;
     bottomOffsetX = boxX + actualBoxT;
@@ -260,7 +278,7 @@ export function buildDrawerSubAssembly(
   const boxBottom = createPiece({
     id: `${idPrefix}-box-bottom-${index}`,
     role: 'drawer-bottom',
-    materialId: actualBoxMaterialId,
+    materialId: actualBottomMaterialId,
     contour: createRectangularContour(bottomWidth, bottomDepth),
     thicknessMm: bottomThickness,
     structural: false,

@@ -76,6 +76,8 @@
     "drawerFrontGapMm": 3.0,
     "drawerBoxFrontOffsetMm": 0.0,
     "drawerBoxBottomClearanceMm": 15.0,
+    "drawerBottomScrewedDeductionWidthMm": 2.0,
+    "drawerBottomScrewedDeductionDepthMm": 2.0,
     "doorOverlayRevealMm": 1.5,
     "doorHalfOverlayRevealMm": 1.5,
     "doorInsetGapMm": 2.0,

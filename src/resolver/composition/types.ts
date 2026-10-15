@@ -112,6 +112,8 @@ export type BayContent =
       bottomMount?: DrawerBottomMount;
       topPullGapMm?: number;
       boxSideHeightOffsetMm?: number;
+      bottomScrewedDeductionWidthMm?: number;
+      bottomScrewedDeductionDepthMm?: number;
     }
   | {
       type: 'pull-out-tray';

@@ -1472,10 +1472,26 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           edgeBandId: selectedEdgeBandId || undefined,
         };
 
+        const backingMat = materials.find((m) => m.id === backingsMaterialId);
+        const resolvedBackingThickness = typeof backingMat?.thicknessMm === 'number'
+          ? backingMat.thicknessMm
+          : backingThicknessMm;
+        const boxMat = materials.find((m) => m.id === drawerBoxesMaterialId);
+        const resolvedBoxThickness = typeof boxMat?.thicknessMm === 'number'
+          ? boxMat.thicknessMm
+          : 15;
+        const frontMat = materials.find((m) => m.id === frontsMaterialId);
+        const resolvedFrontThickness = typeof frontMat?.thicknessMm === 'number'
+          ? frontMat.thicknessMm
+          : 18;
+
         const built = buildModularModule(modularDef, {
           carcassThicknessMm: typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18,
-          frontThicknessMm: 18,
-          boxThicknessMm: 15,
+          frontThicknessMm: resolvedFrontThickness,
+          boxThicknessMm: resolvedBoxThickness,
+          backingThicknessMm: resolvedBackingThickness,
+          drawerBottomScrewedDeductionWidthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionWidthMm,
+          drawerBottomScrewedDeductionDepthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionDepthMm,
           edgeBands,
         });
 
@@ -1799,15 +1815,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         : [];
 
       const nestingItems = [
-        ...resolvedPieces.map((p) => ({
-          id: p.id,
-          pieceId: p.id,
-          materialId: p.materialId,
-          cutWidthMm: p.cutDimensionsMm.width,
-          cutHeightMm: p.cutDimensionsMm.height,
-          canRotate: !activeMaterial.hasGrain,
-          isAuxiliary: p.isAuxiliary,
-        })),
+        ...resolvedPieces.map((p) => {
+          const pieceMat = materials.find((m) => m.id === p.materialId);
+          return {
+            id: p.id,
+            pieceId: p.id,
+            materialId: p.materialId,
+            cutWidthMm: p.cutDimensionsMm.width,
+            cutHeightMm: p.cutDimensionsMm.height,
+            canRotate: pieceMat ? !pieceMat.hasGrain : !activeMaterial.hasGrain,
+            isAuxiliary: p.isAuxiliary,
+          };
+        }),
         ...gaugePieces,
       ];
 
@@ -1921,15 +1940,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       : [];
 
     const nestingItems = [
-      ...resolvedPieces.map((p) => ({
-        id: p.id,
-        pieceId: p.id,
-        materialId: p.materialId,
-        cutWidthMm: p.cutDimensionsMm.width,
-        cutHeightMm: p.cutDimensionsMm.height,
-        canRotate: !activeMaterial.hasGrain,
-        isAuxiliary: p.isAuxiliary,
-      })),
+      ...resolvedPieces.map((p) => {
+        const pieceMat = materials.find((m) => m.id === p.materialId);
+        return {
+          id: p.id,
+          pieceId: p.id,
+          materialId: p.materialId,
+          cutWidthMm: p.cutDimensionsMm.width,
+          cutHeightMm: p.cutDimensionsMm.height,
+          canRotate: pieceMat ? !pieceMat.hasGrain : !activeMaterial.hasGrain,
+          isAuxiliary: p.isAuxiliary,
+        };
+      }),
       ...gaugePieces,
     ];
 

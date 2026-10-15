@@ -10,6 +10,9 @@ export interface ComponentSolverOptions {
   carcassThicknessMm: number;
   frontThicknessMm?: number;
   boxThicknessMm?: number;
+  backingThicknessMm?: number;
+  drawerBottomScrewedDeductionWidthMm?: number;
+  drawerBottomScrewedDeductionDepthMm?: number;
   edgeBandId?: string;
   rootPieceId: string;
   idPrefix?: string;
