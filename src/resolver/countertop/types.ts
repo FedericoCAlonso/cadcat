@@ -1,11 +1,9 @@
 import type {
   CountertopDefinition,
   CountertopMaterial,
-  EquipmentItem,
   EquipmentKind,
-  CountertopEquipmentPlacement,
 } from '../../model';
-import type { ResolvedPiece } from '../piece';
+import type { ResolvedPiece } from '../resolver';
 
 /**
  * Geometric bounds and safety verification of a countertop cutout.

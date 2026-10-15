@@ -21,13 +21,11 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
   const singleSink = DEFAULT_EQUIPMENT_ITEMS.find(
     (e) => e.id === 'eq-sink-johnson-luxon-ln50',
   )!;
-  const gasCooktop = DEFAULT_EQUIPMENT_ITEMS.find(
-    (e) => e.id === 'eq-cooktop-domec-gas-4',
-  )!;
 
   describe('1. Physical and Structural Countertop Calculations', () => {
     it('calculates physical area, weight, and perimeter accurately', () => {
       const definition: CountertopDefinition = {
+        schemaVersion: 1,
         id: 'ct-main',
         name: 'Mesada Principal',
         materialId: graniteMaterial.id,
@@ -61,6 +59,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
 
     it('warns when cantilever overhang exceeds material structural limit', () => {
       const definition: CountertopDefinition = {
+        schemaVersion: 1,
         id: 'ct-breakfast-bar',
         name: 'Barra Desayunadora en Voladizo',
         materialId: graniteMaterial.id,
@@ -90,6 +89,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
   describe('2. Cutouts, Safety Bridges and Seam Crossing', () => {
     it('computes cutout dimensions, faucet hole, and verifies stone bridge safety', () => {
       const definition: CountertopDefinition = {
+        schemaVersion: 1,
         id: 'ct-sink-test',
         name: 'Mesada con Bacha Simple',
         materialId: graniteMaterial.id,
@@ -109,6 +109,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
           {
             equipmentId: singleSink.id,
             centerXMm: 600,
+            centerOffsetYMm: 0,
             sinkDrawerAdaptation: 'false-front',
             frontRailOrientation: 'vertical',
           },
@@ -129,6 +130,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
 
     it('detects when equipment crosses a cabinet joint seam', () => {
       const definition: CountertopDefinition = {
+        schemaVersion: 1,
         id: 'ct-crossing-test',
         name: 'Mesada con Bacha Desplazada',
         materialId: graniteMaterial.id,
@@ -149,6 +151,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
             equipmentId: singleSink.id,
             // Placed at X=800, right across the seam of two 800mm cabinets!
             centerXMm: 800,
+            centerOffsetYMm: 0,
             sinkDrawerAdaptation: 'false-front',
             frontRailOrientation: 'vertical',
           },
@@ -275,6 +278,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
         {
           equipmentId: singleSink.id,
           centerXMm: 400,
+          centerOffsetYMm: 0,
           sinkDrawerAdaptation: 'false-front',
           frontRailOrientation: 'vertical',
         },
@@ -310,6 +314,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
         {
           equipmentId: singleSink.id,
           centerXMm: 400,
+          centerOffsetYMm: 0,
           sinkDrawerAdaptation: 'u-shape-drawer',
           frontRailOrientation: 'vertical',
         },
@@ -326,6 +331,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
   describe('4. Marmolería Workshop Drawing and PDF Export', () => {
     it('generates technical SVG drawing with dimensions, cutouts and polished edge markings', () => {
       const definition: CountertopDefinition = {
+        schemaVersion: 1,
         id: 'ct-marmoleria',
         name: 'Mesada Isla Central',
         materialId: graniteMaterial.id,
@@ -345,6 +351,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
           {
             equipmentId: singleSink.id,
             centerXMm: 900,
+            centerOffsetYMm: 0,
             sinkDrawerAdaptation: 'false-front',
             frontRailOrientation: 'vertical',
           },
@@ -368,6 +375,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
 
     it('exports technical PDF ready for stone fabricator', () => {
       const definition: CountertopDefinition = {
+        schemaVersion: 1,
         id: 'ct-pdf-test',
         name: 'Mesada Cocina PDF',
         materialId: graniteMaterial.id,
@@ -387,6 +395,7 @@ describe('Phase 3: Countertop & Built-In Equipment Solver', () => {
           {
             equipmentId: singleSink.id,
             centerXMm: 900,
+            centerOffsetYMm: 0,
             sinkDrawerAdaptation: 'false-front',
             frontRailOrientation: 'vertical',
           },

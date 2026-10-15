@@ -6,8 +6,8 @@ import type {
 import {
   createPiece,
   createRectangularContour,
-  type ResolvedPiece,
 } from '../piece';
+import type { ResolvedPiece } from '../resolver';
 import type {
   CountertopCalculationResult,
   CountertopCutoutResult,

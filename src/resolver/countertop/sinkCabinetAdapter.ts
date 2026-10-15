@@ -3,10 +3,9 @@ import type {
   CountertopEquipmentPlacement,
 } from '../../model';
 import {
-  createPiece,
   createRectangularContour,
-  type ResolvedPiece,
 } from '../piece';
+import type { ResolvedPiece } from '../resolver';
 import type { SinkCabinetAdaptationResult } from './types';
 
 /**
@@ -23,7 +22,7 @@ export function adaptCabinetForEquipment(
   cabinetPieces: ResolvedPiece[],
   equipment: EquipmentItem,
   placement: CountertopEquipmentPlacement,
-  cabinetOriginXMm = 0,
+  _cabinetOriginXMm = 0,
 ): SinkCabinetAdaptationResult {
   const summary: string[] = [];
   const removedPieceIds: string[] = [];
@@ -40,7 +39,6 @@ export function adaptCabinetForEquipment(
       if (!isFrontRail) return piece;
 
       railModified = true;
-      const thickness = piece.thicknessMm ?? 18;
       // Stretcher width (e.g. 70mm) becomes the vertical standing height
       const railWidthMm = piece.dimensionsMm.height > 30 ? piece.dimensionsMm.height : 70;
       const spanLengthMm = piece.dimensionsMm.width;
@@ -139,7 +137,6 @@ export function adaptCabinetForEquipment(
 
   // 3. Interior Shelf Collisions Check
   let shelfCollisionsResolved = 0;
-  const reservedHeight = equipment.reservedVolumeMm.heightMm;
   const reservedDepth = equipment.reservedVolumeMm.depthMm;
 
   modifiedPieces = modifiedPieces.map((piece) => {

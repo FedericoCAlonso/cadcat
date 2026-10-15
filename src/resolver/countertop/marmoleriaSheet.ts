@@ -215,7 +215,6 @@ export function exportMarmoleriaPdf(
   });
 
   const pageWidth = doc.internal.pageSize.getWidth(); // 297 mm
-  const pageHeight = doc.internal.pageSize.getHeight(); // 210 mm
   const margin = 14;
 
   // Header Title & Logo Box

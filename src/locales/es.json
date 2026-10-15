@@ -44,7 +44,9 @@
     "tray-lip-back": "Faja trasera de bandeja",
     "shelf-brace": "Refuerzo anti-flexión de estante",
     "bifold-leaf": "Hoja articulada (Bi-Fold)",
-    "wall-shelf": "Estante de pared amurado"
+    "wall-shelf": "Estante de pared amurado",
+    "countertop": "Mesada de piedra / granito",
+    "countertop-backsplash": "Zócalo / Trasera de mesada"
   },
   "templates": {
     "base-cabinet": "Bajo mesada (1 estante)",

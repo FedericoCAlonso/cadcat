@@ -9,6 +9,7 @@ import { ProjectSettingsView } from './ProjectSettingsView';
 import { AssemblySheetView } from './AssemblySheetView';
 import { CatalogManagerView } from './CatalogManagerView';
 import { MachiningEditorModal } from './MachiningEditorModal';
+import { CountertopEditorView } from './CountertopEditorView';
 import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 
 /**
@@ -100,6 +101,15 @@ export function App(): ReactElement {
             <span aria-hidden="true">📖 </span>
             <span>Guía de Armado</span>
             <span className="visually-hidden"> Assembly Guide</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-tab-button ${vm.activeTab === 'countertop' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('countertop')}
+          >
+            <span aria-hidden="true">🪨 </span>
+            <span>Mesada</span>
+            <span className="visually-hidden"> Countertop and Stone Shop Drawing</span>
           </button>
           <button
             type="button"
@@ -350,6 +360,34 @@ export function App(): ReactElement {
                 />
               )}
 
+              {vm.activeTab === 'countertop' && (
+                <CountertopEditorView
+                  countertopEnabled={vm.countertopEnabled}
+                  onToggleCountertop={vm.setCountertopEnabled}
+                  countertopCalculation={vm.countertopCalculation}
+                  countertopDefinition={vm.countertopDefinition}
+                  countertopMaterials={vm.countertopMaterials}
+                  equipmentCatalog={vm.equipmentCatalog}
+                  selectedMaterialId={vm.countertopMaterialId}
+                  onSelectMaterial={vm.setCountertopMaterialId}
+                  selectedEquipmentId={vm.selectedEquipmentId}
+                  onSelectEquipment={vm.setSelectedEquipmentId}
+                  sinkDrawerAdaptation={vm.sinkDrawerAdaptation}
+                  onSelectSinkDrawerAdaptation={vm.setSinkDrawerAdaptation}
+                  frontRailOrientation={vm.countertopFrontRailOrientation}
+                  onSelectFrontRailOrientation={vm.setCountertopFrontRailOrientation}
+                  frontOverhangMm={vm.countertopFrontOverhangMm}
+                  onFrontOverhangChange={vm.setCountertopFrontOverhangMm}
+                  edgeFinish={vm.countertopEdgeFinish}
+                  onEdgeFinishChange={vm.setCountertopEdgeFinish}
+                  hasBacksplash={vm.countertopHasBacksplash}
+                  onToggleBacksplash={vm.setCountertopHasBacksplash}
+                  backsplashHeightMm={vm.countertopBacksplashHeightMm}
+                  onBacksplashHeightChange={vm.setCountertopBacksplashHeightMm}
+                  onExportPdf={vm.exportMarmoleriaPdfReport}
+                />
+              )}
+
               {vm.activeTab === 'settings' && (
                 <ProjectSettingsView
                   config={vm.projectConfig}
@@ -467,6 +505,16 @@ export function App(): ReactElement {
             <span className="m3-bottom-nav__icon" aria-hidden="true">📖</span>
           </div>
           <span className="m3-bottom-nav__label">Armado</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'countertop' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('countertop')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">🪨</span>
+          </div>
+          <span className="m3-bottom-nav__label">Mesada</span>
         </button>
         <button
           type="button"

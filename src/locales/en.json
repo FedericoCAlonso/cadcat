@@ -44,7 +44,9 @@
     "tray-lip-back": "Pull-out tray rear lip",
     "shelf-brace": "Shelf anti-deflection stiffener",
     "bifold-leaf": "Articulated leaf (Bi-Fold)",
-    "wall-shelf": "Wall-mounted shelf"
+    "wall-shelf": "Wall-mounted shelf",
+    "countertop": "Countertop slab",
+    "countertop-backsplash": "Backsplash / Upstand"
   },
   "templates": {
     "base-cabinet": "Base cabinet (1 shelf)",

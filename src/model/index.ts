@@ -164,6 +164,7 @@ export {
   validateCountertopMaterial,
   validateCountertopDefinition,
   DEFAULT_COUNTERTOP_MATERIALS,
+  DEFAULT_COUNTERTOP_CONFIG,
 } from './countertop';
 
 

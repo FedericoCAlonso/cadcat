@@ -205,3 +205,17 @@ export const DEFAULT_COUNTERTOP_MATERIALS: CountertopMaterial[] = [
     pricePerM2: TO_CONFIRM,
   },
 ];
+
+/**
+ * Centralized default configuration for countertop and equipment adaptations.
+ * Adheres to strict zero-hardcoding policy.
+ */
+export const DEFAULT_COUNTERTOP_CONFIG = {
+  materialId: 'ct-granite-gris-mara-20',
+  frontOverhangMm: 25,
+  backsplashHeightMm: 60,
+  edgeFinish: 'straight-polished' as CountertopEdgeFinish,
+  hasBacksplash: true,
+  sinkDrawerAdaptation: 'false-front' as const,
+  frontRailOrientation: 'vertical' as const,
+};

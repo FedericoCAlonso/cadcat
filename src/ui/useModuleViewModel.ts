@@ -11,6 +11,13 @@ import {
   type UserTemplate,
   type JointKind,
   type CustomPieceOperation,
+  DEFAULT_COUNTERTOP_MATERIALS,
+  DEFAULT_EQUIPMENT_ITEMS,
+  DEFAULT_COUNTERTOP_CONFIG,
+  type CountertopDefinition,
+  type CountertopMaterial,
+  type CountertopEdgeFinish,
+  type EquipmentItem,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -96,6 +103,10 @@ import {
   calculatePieceCutSize,
   createRectangularContour,
   buildModularModule,
+  type CountertopCalculationResult,
+  calculateCountertop,
+  adaptCabinetForEquipment,
+  exportMarmoleriaPdf,
 } from '../resolver';
 import { runMultiMaterialGuillotineNesting } from '../workers';
 
@@ -118,7 +129,7 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
-  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs';
+  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs' | 'countertop';
   selectedPieceId: string | null;
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
@@ -149,7 +160,7 @@ export interface ModuleViewModelState {
   setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
-  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs') => void;
+  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs' | 'countertop') => void;
   setSelectedPieceId: (id: string | null) => void;
   setSelectedMachiningPieceId: (id: string | null) => void;
   setExplodedRatio: (ratio: number) => void;
@@ -275,6 +286,30 @@ export interface ModuleViewModelState {
   setWallShelvesShelfCount: (count: number) => void;
   setWallShelvesVerticalSpacingMm: (spacing: number) => void;
   setWallShelvesBaseElevationYMm: (elev: number) => void;
+  // Countertop & Built-in Equipment (Phase 3)
+  countertopEnabled: boolean;
+  countertopMaterialId: string;
+  countertopMaterials: CountertopMaterial[];
+  equipmentCatalog: EquipmentItem[];
+  selectedEquipmentId: string;
+  countertopFrontOverhangMm: number;
+  countertopEdgeFinish: CountertopEdgeFinish;
+  countertopHasBacksplash: boolean;
+  countertopBacksplashHeightMm: number;
+  sinkDrawerAdaptation: 'false-front' | 'u-shape-drawer' | 'none';
+  countertopFrontRailOrientation: 'vertical' | 'horizontal' | 'suppressed';
+  countertopDefinition: CountertopDefinition;
+  countertopCalculation: CountertopCalculationResult | null;
+  setCountertopEnabled: (enabled: boolean) => void;
+  setCountertopMaterialId: (id: string) => void;
+  setSelectedEquipmentId: (id: string) => void;
+  setCountertopFrontOverhangMm: (val: number) => void;
+  setCountertopEdgeFinish: (finish: CountertopEdgeFinish) => void;
+  setCountertopHasBacksplash: (has: boolean) => void;
+  setCountertopBacksplashHeightMm: (h: number) => void;
+  setSinkDrawerAdaptation: (mode: 'false-front' | 'u-shape-drawer' | 'none') => void;
+  setCountertopFrontRailOrientation: (orientation: 'vertical' | 'horizontal' | 'suppressed') => void;
+  exportMarmoleriaPdfReport: () => void;
 }
 
 /**
@@ -323,7 +358,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       return '';
     }
   });
-  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs'>('3d');
+  const [activeTab, setActiveTab] = useState<ModuleViewModelState['activeTab']>('3d');
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [selectedMachiningPieceId, setSelectedMachiningPieceId] = useState<string | null>(null);
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
@@ -402,6 +437,17 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setWallShelvesVerticalSpacingMmState(validSpacing);
     setHeight((wallShelvesShelfCount - 1) * validSpacing + 18);
   }, [wallShelvesShelfCount, setHeight]);
+
+  // Countertop & Built-in Equipment state (Phase 3)
+  const [countertopEnabled, setCountertopEnabled] = useState<boolean>(false);
+  const [countertopMaterialId, setCountertopMaterialId] = useState<string>(DEFAULT_COUNTERTOP_CONFIG.materialId);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>('none');
+  const [countertopFrontOverhangMm, setCountertopFrontOverhangMm] = useState<number>(DEFAULT_COUNTERTOP_CONFIG.frontOverhangMm);
+  const [countertopEdgeFinish, setCountertopEdgeFinish] = useState<CountertopEdgeFinish>(DEFAULT_COUNTERTOP_CONFIG.edgeFinish);
+  const [countertopHasBacksplash, setCountertopHasBacksplash] = useState<boolean>(DEFAULT_COUNTERTOP_CONFIG.hasBacksplash);
+  const [countertopBacksplashHeightMm, setCountertopBacksplashHeightMm] = useState<number>(DEFAULT_COUNTERTOP_CONFIG.backsplashHeightMm);
+  const [sinkDrawerAdaptation, setSinkDrawerAdaptation] = useState<'false-front' | 'u-shape-drawer' | 'none'>(DEFAULT_COUNTERTOP_CONFIG.sinkDrawerAdaptation);
+  const [countertopFrontRailOrientation, setCountertopFrontRailOrientation] = useState<'vertical' | 'horizontal' | 'suppressed'>(DEFAULT_COUNTERTOP_CONFIG.frontRailOrientation);
 
   // Templates list exposed to UI: single base empty carcass + wall shelves + user templates
   const templates = useMemo<TemplateDefinition[]>(() => {
@@ -1238,6 +1284,74 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     return buildWallShelving(wallShelvingDefinition);
   }, [wallShelvingDefinition]);
 
+  // Active Countertop Material and Definition (Phase 3)
+  const activeCountertopMaterial = useMemo<CountertopMaterial>(() => {
+    return (
+      DEFAULT_COUNTERTOP_MATERIALS.find((m) => m.id === countertopMaterialId) ??
+      DEFAULT_COUNTERTOP_MATERIALS[0]!
+    );
+  }, [countertopMaterialId]);
+
+  const countertopDefinition = useMemo<CountertopDefinition>(() => {
+    const placements = [];
+    if (selectedEquipmentId !== 'none') {
+      placements.push({
+        equipmentId: selectedEquipmentId,
+        centerXMm: width / 2,
+        centerOffsetYMm: 0,
+        sinkDrawerAdaptation,
+        frontRailOrientation: countertopFrontRailOrientation,
+      });
+    }
+
+    return {
+      schemaVersion: 1,
+      id: `${selectedTemplateId}-countertop`,
+      name: `Mesada ${activeCountertopMaterial.name}`,
+      materialId: activeCountertopMaterial.id,
+      widthMm: width,
+      depthMm: depth + countertopFrontOverhangMm,
+      frontOverhangMm: countertopFrontOverhangMm,
+      leftOverhangMm: 0,
+      rightOverhangMm: 0,
+      backOverhangMm: 0,
+      edgeFinish: countertopEdgeFinish,
+      miteredSkirtHeightMm: 0,
+      cornerRadii: { frontLeftMm: 0, frontRightMm: 0, backLeftMm: 0, backRightMm: 0 },
+      backsplash: {
+        hasSplash: countertopHasBacksplash,
+        heightMm: countertopBacksplashHeightMm,
+        thicknessMm: activeCountertopMaterial.thicknessMm,
+      },
+      leftSplash: { hasSplash: false, heightMm: 60, thicknessMm: 20 },
+      rightSplash: { hasSplash: false, heightMm: 60, thicknessMm: 20 },
+      placements,
+    };
+  }, [
+    selectedTemplateId,
+    activeCountertopMaterial,
+    width,
+    depth,
+    countertopFrontOverhangMm,
+    countertopEdgeFinish,
+    countertopHasBacksplash,
+    countertopBacksplashHeightMm,
+    selectedEquipmentId,
+    sinkDrawerAdaptation,
+    countertopFrontRailOrientation,
+  ]);
+
+  const countertopCalculation = useMemo<CountertopCalculationResult | null>(() => {
+    if (!countertopEnabled) return null;
+    return calculateCountertop(
+      countertopDefinition,
+      activeCountertopMaterial,
+      DEFAULT_EQUIPMENT_ITEMS,
+      [width],
+    );
+  }, [countertopEnabled, countertopDefinition, activeCountertopMaterial, width]);
+
+
   // Resolves pieces dynamically whenever parameters, template, or materials change
   const { currentModule, resolvedPieces, placementTree } = useMemo(() => {
     if (!activeMaterial || width <= 0 || height <= 0 || depth <= 0) {
@@ -1363,9 +1477,28 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           edgeBands,
         });
 
+        let finalPieces = built.resolvedPieces;
+        if (countertopEnabled && selectedEquipmentId !== 'none') {
+          const eq = DEFAULT_EQUIPMENT_ITEMS.find((e) => e.id === selectedEquipmentId);
+          if (eq) {
+            const placement = {
+              equipmentId: eq.id,
+              centerXMm: width / 2,
+              centerOffsetYMm: 0,
+              sinkDrawerAdaptation,
+              frontRailOrientation: countertopFrontRailOrientation,
+            };
+            const adapted = adaptCabinetForEquipment(finalPieces, eq, placement, 0);
+            finalPieces = adapted.cabinetPieces as ResolvedPieceWithCutSize[];
+          }
+        }
+
         return {
-          currentModule: built.module,
-          resolvedPieces: built.resolvedPieces,
+          currentModule: {
+            ...built.module,
+            pieces: finalPieces,
+          },
+          resolvedPieces: finalPieces,
           placementTree: built.placementTree,
         };
       }
@@ -1378,9 +1511,29 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         selectedEdgeBandId || undefined,
         projectConfig ?? undefined,
       );
+
+      let finalPieces = built.resolvedPieces;
+      if (countertopEnabled && selectedEquipmentId !== 'none') {
+        const eq = DEFAULT_EQUIPMENT_ITEMS.find((e) => e.id === selectedEquipmentId);
+        if (eq) {
+          const placement = {
+            equipmentId: eq.id,
+            centerXMm: width / 2,
+            centerOffsetYMm: 0,
+            sinkDrawerAdaptation,
+            frontRailOrientation: countertopFrontRailOrientation,
+          };
+          const adapted = adaptCabinetForEquipment(finalPieces, eq, placement, 0);
+          finalPieces = adapted.cabinetPieces as ResolvedPieceWithCutSize[];
+        }
+      }
+
       return {
-        currentModule: built.module,
-        resolvedPieces: built.resolvedPieces,
+        currentModule: {
+          ...built.module,
+          pieces: finalPieces,
+        },
+        resolvedPieces: finalPieces,
         placementTree: built.placementTree,
       };
     } catch {
@@ -1422,6 +1575,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     backingsMaterialId,
     userTemplates,
     wallShelvingOutput,
+    countertopEnabled,
+    selectedEquipmentId,
+    sinkDrawerAdaptation,
+    countertopFrontRailOrientation,
   ]);
 
   // Resolves 3D spatial boxes and bounding box
@@ -1433,8 +1590,83 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         bounds: { min: zero, max: zero, center: zero, size: zero },
       };
     }
-    return resolveModuleSpatialBoxes(currentModule.pieces, placementTree);
-  }, [currentModule, placementTree]);
+    const resolved = resolveModuleSpatialBoxes(currentModule.pieces, placementTree);
+    if (!countertopEnabled || !countertopCalculation) {
+      return resolved;
+    }
+
+    const extraBoxes: SpatialPieceBox[] = [];
+    const slabThick = activeCountertopMaterial.thicknessMm;
+    const slabW = countertopDefinition.widthMm;
+    const slabD = countertopDefinition.depthMm;
+    const slabX = -countertopDefinition.leftOverhangMm;
+    const slabY = height;
+    const slabZ = -countertopDefinition.frontOverhangMm;
+
+    extraBoxes.push({
+      pieceId: `${countertopDefinition.id}-slab`,
+      role: 'countertop',
+      materialId: activeCountertopMaterial.id,
+      thicknessMm: slabThick,
+      positionMm: { x: slabX, y: slabY, z: slabZ },
+      sizeMm: { x: slabW, y: slabThick, z: slabD },
+      centerMm: { x: slabX + slabW / 2, y: slabY + slabThick / 2, z: slabZ + slabD / 2 },
+    });
+
+    if (countertopDefinition.backsplash.hasSplash) {
+      const splashH = countertopDefinition.backsplash.heightMm;
+      const splashThick = countertopDefinition.backsplash.thicknessMm;
+      const splashX = 0;
+      const splashY = height + slabThick;
+      const splashZ = depth - splashThick;
+      extraBoxes.push({
+        pieceId: `${countertopDefinition.id}-splash-back`,
+        role: 'countertop-backsplash',
+        materialId: activeCountertopMaterial.id,
+        thicknessMm: splashThick,
+        positionMm: { x: splashX, y: splashY, z: splashZ },
+        sizeMm: { x: width, y: splashH, z: splashThick },
+        centerMm: { x: splashX + width / 2, y: splashY + splashH / 2, z: splashZ + splashThick / 2 },
+      });
+    }
+
+    const allBoxes = [...resolved.boxes, ...extraBoxes];
+    let minX = resolved.bounds.min.x;
+    let minY = resolved.bounds.min.y;
+    let minZ = resolved.bounds.min.z;
+    let maxX = resolved.bounds.max.x;
+    let maxY = resolved.bounds.max.y;
+    let maxZ = resolved.bounds.max.z;
+
+    for (const b of extraBoxes) {
+      minX = Math.min(minX, b.positionMm.x);
+      minY = Math.min(minY, b.positionMm.y);
+      minZ = Math.min(minZ, b.positionMm.z);
+      maxX = Math.max(maxX, b.positionMm.x + b.sizeMm.x);
+      maxY = Math.max(maxY, b.positionMm.y + b.sizeMm.y);
+      maxZ = Math.max(maxZ, b.positionMm.z + b.sizeMm.z);
+    }
+
+    return {
+      boxes: allBoxes,
+      bounds: {
+        min: { x: minX, y: minY, z: minZ },
+        max: { x: maxX, y: maxY, z: maxZ },
+        center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2, z: (minZ + maxZ) / 2 },
+        size: { x: maxX - minX, y: maxY - minY, z: maxZ - minZ },
+      },
+    };
+  }, [
+    currentModule,
+    placementTree,
+    countertopEnabled,
+    countertopCalculation,
+    activeCountertopMaterial,
+    countertopDefinition,
+    height,
+    depth,
+    width,
+  ]);
 
   // Custom operations flattened list
   const customOperationsList = useMemo(() => {
@@ -1745,6 +1977,20 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setStatusMessage(`Guía de armado exportada a ${fileName}.`);
   }, [selectedTemplateId, wallShelvingOutput, wallShelvingDefinition, assemblySheet, currentModule]);
 
+  // Export technical countertop / marmoleria drawing as PDF
+  const exportMarmoleriaPdfReport = useCallback(() => {
+    if (!countertopCalculation) return;
+    const doc = exportMarmoleriaPdf(
+      countertopCalculation,
+      `Plano de Marmolería — ${currentModule?.id ?? 'Mesada'}`,
+    );
+    const pdfBlob = doc.output('blob');
+    const fileName = `plano-marmoleria-${currentModule?.id ?? 'mesada'}.pdf`;
+    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+    setStatusMessage(`Plano de marmolería exportado a ${fileName}.`);
+  }, [countertopCalculation, currentModule]);
+
+
   // Export workshop machining sheets as PDF (single piece or full module)
   const exportMachiningPdf = useCallback(
     (pieceId?: string) => {
@@ -2005,5 +2251,29 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setWallShelvesShelfCount,
     setWallShelvesVerticalSpacingMm,
     setWallShelvesBaseElevationYMm,
+    // Countertop & Equipment
+    countertopEnabled,
+    countertopMaterialId,
+    countertopMaterials: DEFAULT_COUNTERTOP_MATERIALS,
+    equipmentCatalog: DEFAULT_EQUIPMENT_ITEMS,
+    selectedEquipmentId,
+    countertopFrontOverhangMm,
+    countertopEdgeFinish,
+    countertopHasBacksplash,
+    countertopBacksplashHeightMm,
+    sinkDrawerAdaptation,
+    countertopFrontRailOrientation,
+    countertopDefinition,
+    countertopCalculation,
+    setCountertopEnabled,
+    setCountertopMaterialId,
+    setSelectedEquipmentId,
+    setCountertopFrontOverhangMm,
+    setCountertopEdgeFinish,
+    setCountertopHasBacksplash,
+    setCountertopBacksplashHeightMm,
+    setSinkDrawerAdaptation,
+    setCountertopFrontRailOrientation,
+    exportMarmoleriaPdfReport,
   };
 }
