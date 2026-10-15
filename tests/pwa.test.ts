@@ -1,15 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { pwaManifest } from '../src/pwaConfig';
+import { pwaManifest, createPwaManifest } from '../src/pwaConfig';
 import { registerServiceWorker } from '../src/registerServiceWorker';
 
 describe('PWA Manifest configuration', () => {
   it('has required PWA manifest fields', () => {
     expect(pwaManifest.name).toBe('Mobilius - Furniture Design');
     expect(pwaManifest.short_name).toBe('Mobilius');
+    expect(pwaManifest.id).toBe('/');
     expect(pwaManifest.start_url).toBe('/');
+    expect(pwaManifest.scope).toBe('/');
     expect(pwaManifest.display).toBe('standalone');
     expect(pwaManifest.icons.length).toBeGreaterThan(0);
     expect(pwaManifest.icons[0]?.src).toBe('/icon.svg');
+  });
+
+  it('generates unique id, scope, start_url, and icon paths for GitHub Pages subpath isolation', () => {
+    const ghManifest = createPwaManifest('/mobilius/');
+
+    // Crucial for allowing multiple PWAs on the same domain (e.g. *.github.io):
+    expect(ghManifest.id).toBe('/mobilius/');
+    expect(ghManifest.scope).toBe('/mobilius/');
+    expect(ghManifest.start_url).toBe('/mobilius/');
+
+    // Icons must be served from the subpath without double slashes
+    for (const icon of ghManifest.icons) {
+      expect(icon.src.startsWith('/mobilius/')).toBe(true);
+      expect(icon.src).not.toContain('//');
+    }
+
+    // Different subpaths on same domain have independent IDs and scopes (no collision)
+    const otherManifest = createPwaManifest('/other-app/');
+    expect(otherManifest.id).not.toBe(ghManifest.id);
+    expect(otherManifest.scope).not.toBe(ghManifest.scope);
+    expect(otherManifest.start_url).not.toBe(ghManifest.start_url);
   });
 });
 

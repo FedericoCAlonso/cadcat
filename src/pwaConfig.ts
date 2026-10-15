@@ -6,6 +6,7 @@ export interface ManifestIcon {
 }
 
 export interface WebAppManifest {
+  id?: string;
   name: string;
   short_name: string;
   description: string;
@@ -19,24 +20,49 @@ export interface WebAppManifest {
 }
 
 /**
- * Web application manifest configuration for PWA.
+ * Creates a unique, scope-isolated PWA manifest.
+ * Crucial for hosting multiple PWAs under the same origin (e.g. GitHub Pages https://<username>.github.io/<repo>/)
+ * so that the browser treats each app as a distinct, installable PWA without conflicting identities or scopes.
  */
-export const pwaManifest: WebAppManifest = {
-  name: 'Mobilius - Furniture Design',
-  short_name: 'Mobilius',
-  description: 'Progressive Web App for panel furniture design',
-  theme_color: '#2c3e50',
-  background_color: '#ffffff',
-  display: 'standalone',
-  orientation: 'any',
-  scope: '/',
-  start_url: '/',
-  icons: [
-    {
-      src: '/icon.svg',
-      sizes: '512x512',
-      type: 'image/svg+xml',
-      purpose: 'any maskable',
-    },
-  ],
-};
+export function createPwaManifest(base: string = '/'): WebAppManifest {
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const cleanPath = (file: string) => `${normalizedBase}${file}`.replace(/\/{2,}/g, '/');
+
+  return {
+    id: normalizedBase,
+    name: 'Mobilius - Furniture Design',
+    short_name: 'Mobilius',
+    description: 'Progressive Web App for panel furniture design',
+    theme_color: '#2c3e50',
+    background_color: '#ffffff',
+    display: 'standalone',
+    orientation: 'any',
+    scope: normalizedBase,
+    start_url: normalizedBase,
+    icons: [
+      {
+        src: cleanPath('icon.svg'),
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any maskable',
+      },
+      {
+        src: cleanPath('pwa-192x192.png'),
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: cleanPath('pwa-512x512.png'),
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+    ],
+  };
+}
+
+/**
+ * Web application manifest configuration for PWA (defaults to '/' for development and tests).
+ */
+export const pwaManifest: WebAppManifest = createPwaManifest('/');
