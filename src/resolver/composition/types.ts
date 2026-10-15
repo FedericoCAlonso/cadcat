@@ -5,6 +5,7 @@
 export type JointPriority = 'lateral-over-bottom' | 'bottom-over-lateral' | 'miter-45';
 export type RoofType = 'solid-panel' | 'front-back-rails' | 'none';
 export type BackingType = 'groove' | 'rebate' | 'overlay' | 'none';
+export type RearStructuralRails = 'none' | 'top-and-bottom' | 'top-only';
 
 export interface CarcassDefinition {
   width: number;
@@ -26,6 +27,9 @@ export interface CarcassDefinition {
   backingGrooveDistanceMm?: number;  // Distance from back edge to groove (default: 15mm)
   backingGrooveDepthMm?: number;     // Groove depth into carcase sides (default: 8mm)
   backingThicknessMm?: number;       // Thickness of back panel (default: 3mm)
+  isIslandCabinet?: boolean;         // Point 4: Island cabinet without back, rear edges banded
+  rearStructuralRails?: RearStructuralRails; // Point 6: Structural stretchers when open or without back
+  rearStructuralRailsWidthMm?: number; // Width of rear stretchers (default: 80mm)
 }
 
 export interface InteriorBounds {
@@ -114,12 +118,18 @@ export type BayContent =
       count: 1 | 2;
       hingeSide?: 'left' | 'right';
       mountType: DoorMountType;
+      interiorShelvesCount?: number;
+      shelfType?: 'adjustable' | 'fixed';
+      shelvesSetbackMm?: number;
     }
   | {
       type: 'bi-fold-closure';
       leafTracks?: TrackSize[]; // Default: [ { type: 'fractional', valueFr: 1 }, { type: 'fractional', valueFr: 1 } ]
       hingeType: 'bifold-center' | 'piano' | 'aventos';
       openingDirection: 'vertical-lift' | 'horizontal-book';
+      interiorShelvesCount?: number;
+      shelfType?: 'adjustable' | 'fixed';
+      shelvesSetbackMm?: number;
     };
 
 export type BayContentEmpty = Extract<BayContent, { type: 'empty' }>;

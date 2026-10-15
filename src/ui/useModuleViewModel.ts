@@ -67,6 +67,8 @@ import {
   type AssemblySheet,
   type JointPriority,
   type RoofType,
+  type BackingType,
+  type RearStructuralRails,
   type BayContent,
   type DrawerSlideType,
   type DrawerFrontMount,
@@ -104,7 +106,7 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
-  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly';
+  activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs';
   selectedPieceId: string | null;
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
@@ -135,7 +137,7 @@ export interface ModuleViewModelState {
   setSelectedTemplateId: (id: string) => void;
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
-  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly') => void;
+  setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs') => void;
   setSelectedPieceId: (id: string | null) => void;
   setSelectedMachiningPieceId: (id: string | null) => void;
   setExplodedRatio: (ratio: number) => void;
@@ -165,7 +167,20 @@ export interface ModuleViewModelState {
   setDrawerBoxSideHeightOffset: (bayIndex: number, offsetMm: number) => void;
   setDoorCount: (bayIndex: number, count: 1 | 2) => void;
   setDoorMountType: (bayIndex: number, mount: DoorMountType) => void;
+  setDoorInteriorShelvesCount: (bayIndex: number, count: number) => void;
+  setDoorShelfType: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
   setBifoldDirection: (bayIndex: number, dir: 'vertical-lift' | 'horizontal-book') => void;
+  // Backing, island cabinet, and structural rails
+  backingType: BackingType;
+  backingThicknessMm: number;
+  isIslandCabinet: boolean;
+  rearStructuralRails: RearStructuralRails;
+  rearStructuralRailsWidthMm: number;
+  setBackingType: (type: BackingType) => void;
+  setBackingThicknessMm: (thickness: number) => void;
+  setIsIslandCabinet: (val: boolean) => void;
+  setRearStructuralRails: (val: RearStructuralRails) => void;
+  setRearStructuralRailsWidthMm: (val: number) => void;
   setFrontsMaterialId: (id: string) => void;
   setDrawerBoxesMaterialId: (id: string) => void;
   setBackingsMaterialId: (id: string) => void;
@@ -277,7 +292,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       return '';
     }
   });
-  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly'>('3d');
+  const [activeTab, setActiveTab] = useState<'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs'>('3d');
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [selectedMachiningPieceId, setSelectedMachiningPieceId] = useState<string | null>(null);
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
@@ -316,6 +331,13 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [hasPlinth, setHasPlinth] = useState<boolean>(false);
   const [plinthHeightMm, setPlinthHeightMm] = useState<number>(100);
   const [plinthSetbackMm, setPlinthSetbackMm] = useState<number>(50);
+
+  // Backing, Island, and Structural Rails (Points 4, 5, 6)
+  const [backingType, setBackingTypeState] = useState<BackingType>('groove');
+  const [backingThicknessMm, setBackingThicknessMmState] = useState<number>(3);
+  const [isIslandCabinet, setIsIslandCabinetState] = useState<boolean>(false);
+  const [rearStructuralRails, setRearStructuralRailsState] = useState<RearStructuralRails>('none');
+  const [rearStructuralRailsWidthMm, setRearStructuralRailsWidthMmState] = useState<number>(80);
 
   // Piece-level overrides (Point 10)
   const [pieceMaterialOverrides, setPieceMaterialOverrides] = useState<Record<string, string>>({});
@@ -375,6 +397,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         if (userTpl.carcassSettings.hasPlinth !== undefined) setHasPlinth(userTpl.carcassSettings.hasPlinth);
         if (userTpl.carcassSettings.plinthHeightMm) setPlinthHeightMm(userTpl.carcassSettings.plinthHeightMm);
         if (userTpl.carcassSettings.plinthSetbackMm) setPlinthSetbackMm(userTpl.carcassSettings.plinthSetbackMm);
+        if (userTpl.carcassSettings.backingType) setBackingTypeState(userTpl.carcassSettings.backingType);
+        if (userTpl.carcassSettings.backingThicknessMm) setBackingThicknessMmState(userTpl.carcassSettings.backingThicknessMm);
+        if (userTpl.carcassSettings.isIslandCabinet !== undefined) setIsIslandCabinetState(userTpl.carcassSettings.isIslandCabinet);
+        if (userTpl.carcassSettings.rearStructuralRails) setRearStructuralRailsState(userTpl.carcassSettings.rearStructuralRails);
+        if (userTpl.carcassSettings.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMmState(userTpl.carcassSettings.rearStructuralRailsWidthMm);
         setGridTypeState(userTpl.gridType);
         setBaysState(userTpl.bays);
         if (userTpl.materials?.carcassMaterialId) setSelectedMaterialId(userTpl.materials.carcassMaterialId);
@@ -767,6 +794,55 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     });
   }, []);
 
+  const setDoorInteriorShelvesCount = useCallback((bayIndex: number, count: number) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'doors' || current?.type === 'bi-fold-closure') {
+        next[bayIndex] = { ...current, interiorShelvesCount: Math.max(0, Math.min(8, Math.round(count))) };
+      }
+      return next;
+    });
+  }, []);
+
+  const setDoorShelfType = useCallback((bayIndex: number, shelfType: 'adjustable' | 'fixed') => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'doors' || current?.type === 'bi-fold-closure') {
+        next[bayIndex] = { ...current, shelfType };
+      }
+      return next;
+    });
+  }, []);
+
+  const setBackingType = useCallback((type: BackingType) => {
+    setBackingTypeState(type);
+    setIsCustomModular(true);
+  }, []);
+
+  const setBackingThicknessMm = useCallback((thickness: number) => {
+    setBackingThicknessMmState(thickness);
+    setIsCustomModular(true);
+  }, []);
+
+  const setIsIslandCabinet = useCallback((val: boolean) => {
+    setIsIslandCabinetState(val);
+    setIsCustomModular(true);
+  }, []);
+
+  const setRearStructuralRails = useCallback((val: RearStructuralRails) => {
+    setRearStructuralRailsState(val);
+    setIsCustomModular(true);
+  }, []);
+
+  const setRearStructuralRailsWidthMm = useCallback((val: number) => {
+    setRearStructuralRailsWidthMmState(val);
+    setIsCustomModular(true);
+  }, []);
+
   // Load catalogs, user templates, and project config from IndexedDB on startup
   useEffect(() => {
     let isMounted = true;
@@ -836,6 +912,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             hasPlinth,
             plinthHeightMm,
             plinthSetbackMm,
+            backingType,
+            backingThicknessMm,
+            isIslandCabinet,
+            rearStructuralRails,
+            rearStructuralRailsWidthMm,
           },
           gridType,
           bays,
@@ -1103,6 +1184,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             plinthHeightMm,
             plinthSetbackMm,
             hasBacking,
+            backingType,
+            backingThicknessMm: (() => {
+              const raw = materials.find((m) => m.id === backingsMaterialId)?.thicknessMm;
+              return typeof raw === 'number' ? raw : backingThicknessMm;
+            })(),
+            isIslandCabinet,
+            rearStructuralRails,
+            rearStructuralRailsWidthMm,
           },
           grid: gridDef,
           bays: normalizedBays,
@@ -1673,7 +1762,19 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setDrawerBoxSideHeightOffset,
     setDoorCount,
     setDoorMountType,
+    setDoorInteriorShelvesCount,
+    setDoorShelfType,
     setBifoldDirection,
+    backingType,
+    backingThicknessMm,
+    isIslandCabinet,
+    rearStructuralRails,
+    rearStructuralRailsWidthMm,
+    setBackingType,
+    setBackingThicknessMm,
+    setIsIslandCabinet,
+    setRearStructuralRails,
+    setRearStructuralRailsWidthMm,
     setFrontsMaterialId,
     setDrawerBoxesMaterialId,
     setBackingsMaterialId,

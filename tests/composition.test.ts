@@ -438,4 +438,220 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
       expect(parseGridStringToTracks('')).toBeNull();
     });
   });
+
+  describe('1.6 Puertas con Estantes Interiores (Punto 3)', () => {
+    it('genera estantes interiores detrás de las puertas batientes', () => {
+      const res = buildModularModule(
+        {
+          id: 'test-doors-with-shelves',
+          carcass: {
+            width: 800,
+            height: 900,
+            depth: 600,
+            jointPriority: 'lateral-over-bottom',
+            roofType: 'solid-panel',
+            hasBacking: true,
+          },
+          bays: [
+            {
+              type: 'doors',
+              count: 2,
+              mountType: 'full-overlay',
+              interiorShelvesCount: 2,
+              shelfType: 'adjustable',
+              shelvesSetbackMm: 25,
+            },
+          ],
+          materials,
+          edgeBandId: 'band-pvc-0.45',
+        },
+        {
+          carcassThicknessMm: 18,
+          frontThicknessMm: 18,
+          boxThicknessMm: 15,
+          edgeBands: [{ id: 'band-pvc-0.45', kind: 'veneer', thicknessMm: 0.45, pricePerMeter: 1 }],
+        },
+      );
+
+      const doors = res.module.pieces.filter((p) => p.role.includes('door'));
+      const shelves = res.module.pieces.filter((p) => p.role.includes('shelf'));
+
+      expect(doors.length).toBe(2);
+      expect(shelves.length).toBe(2);
+
+      // Verify setback: bay.depth = 600, setback = 25 -> shelf depth = 575
+      expect(shelves[0]!.contour.points[2]!.y).toBe(575);
+
+      // Verify shelf-pin joints for adjustable shelves
+      const shelfJoints = res.module.joints.filter((j) => j.kind === 'shelf-pin');
+      expect(shelfJoints.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('genera estantes interiores fijos con confirmat detrás de puertas', () => {
+      const res = buildModularModule(
+        {
+          id: 'test-doors-fixed-shelves',
+          carcass: {
+            width: 600,
+            height: 800,
+            depth: 500,
+            jointPriority: 'lateral-over-bottom',
+            roofType: 'solid-panel',
+            hasBacking: true,
+          },
+          bays: [
+            {
+              type: 'doors',
+              count: 1,
+              mountType: 'inset',
+              interiorShelvesCount: 1,
+              shelfType: 'fixed',
+            },
+          ],
+          materials,
+        },
+        { carcassThicknessMm: 18, frontThicknessMm: 18, boxThicknessMm: 15 },
+      );
+
+      const shelves = res.module.pieces.filter((p) => p.role.includes('shelf'));
+      expect(shelves.length).toBe(1);
+
+      // Fixed shelf has confirmat joints
+      const confirmatJoints = res.module.joints.filter(
+        (j) => j.kind === 'confirmat' && (j.a.pieceId.includes('shelf') || j.b.pieceId.includes('shelf')),
+      );
+      expect(confirmatJoints.length).toBe(2);
+    });
+  });
+
+  describe('1.7 Muebles Isla, Fondos Inteligentes y Tirantes Estructurales (Puntos 4, 5, 6)', () => {
+    it('Punto 4: resuelve mueble tipo isla sin fondo y con cantos traseros aplacados', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 900,
+          height: 850,
+          depth: 600,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: true, // Should be overridden by isIslandCabinet
+          isIslandCabinet: true,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+        edgeBandId: 'band-pvc-island',
+      });
+
+      // No back panel
+      const back = res.pieces.find((p) => p.role === 'back');
+      expect(back).toBeUndefined();
+
+      // Rear edges of sides have edge banding applied
+      const sideL = res.pieces.find((p) => p.role === 'side-left')!;
+      const rearFaceL = sideL.faces.find((f) => f.id === 'left-edge');
+      expect(rearFaceL?.edgeBandId).toBe('band-pvc-island');
+
+      const sideR = res.pieces.find((p) => p.role === 'side-right')!;
+      const rearFaceR = sideR.faces.find((f) => f.id === 'left-edge');
+      expect(rearFaceR?.edgeBandId).toBe('band-pvc-island');
+    });
+
+    it('Punto 5: fondo fino (3mm) no se atornilla por cantos (ranurado con joint groove)', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 600,
+          height: 720,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: true,
+          backingThicknessMm: 3,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+      });
+
+      const back = res.pieces.find((p) => p.role === 'back')!;
+      expect(back).toBeDefined();
+      expect(back.structural).toBe(false);
+
+      // Verify no confirmat joints into the 3mm back piece
+      const backConfirmat = res.joints.filter(
+        (j) => j.kind === 'confirmat' && (j.a.pieceId === back.id || j.b.pieceId === back.id),
+      );
+      expect(backConfirmat.length).toBe(0);
+
+      // Verify groove joints
+      const backGroove = res.joints.filter(
+        (j) => j.kind === 'groove' && (j.a.pieceId === back.id || j.b.pieceId === back.id),
+      );
+      expect(backGroove.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('Punto 5: fondo grueso estructural (18mm) se atornilla con confirmat a los laterales', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 600,
+          height: 720,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: true,
+          backingThicknessMm: 18,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+      });
+
+      const back = res.pieces.find((p) => p.role === 'back')!;
+      expect(back).toBeDefined();
+      expect(back.structural).toBe(true);
+      expect(back.thicknessMm).toBe(18);
+
+      // Verify confirmat joints into the 18mm structural back piece
+      const backConfirmat = res.joints.filter(
+        (j) => j.kind === 'confirmat' && (j.a.pieceId === back.id || j.b.pieceId === back.id),
+      );
+      expect(backConfirmat.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('Punto 6: mueble sin fondo con tirantes estructurales superior e inferior para escuadra', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 700,
+          height: 800,
+          depth: 500,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'front-back-rails',
+          hasBacking: false,
+          rearStructuralRails: 'top-and-bottom',
+          rearStructuralRailsWidthMm: 90,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+      });
+
+      // No back piece
+      expect(res.pieces.find((p) => p.role === 'back')).toBeUndefined();
+
+      // Top and bottom rear structural rails exist
+      const railTop = res.pieces.find((p) => p.id.includes('rear-rail-top'));
+      const railBottom = res.pieces.find((p) => p.id.includes('rear-rail-bottom'));
+
+      expect(railTop).toBeDefined();
+      expect(railBottom).toBeDefined();
+      expect(railTop!.contour.points[2]!.y).toBe(90);
+      expect(railBottom!.contour.points[2]!.y).toBe(90);
+
+      // Confirmat joints connecting rails to left and right sides
+      const topRailJoints = res.joints.filter(
+        (j) => j.kind === 'confirmat' && (j.a.pieceId === railTop!.id || j.b.pieceId === railTop!.id),
+      );
+      const bottomRailJoints = res.joints.filter(
+        (j) => j.kind === 'confirmat' && (j.a.pieceId === railBottom!.id || j.b.pieceId === railBottom!.id),
+      );
+
+      expect(topRailJoints.length).toBe(2);
+      expect(bottomRailJoints.length).toBe(2);
+    });
+  });
 });

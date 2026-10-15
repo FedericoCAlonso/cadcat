@@ -2,6 +2,7 @@ import { type Piece, type Joint } from '../../../model';
 import { createJoint } from '../../joint';
 import { type PlacementNode } from '../../tree';
 import { buildDoorSubAssembly } from '../../templates/door';
+import { buildShelf } from '../../templates/shelf';
 import {
   type IBayContentResolver,
   type BayResolutionContext,
@@ -30,7 +31,57 @@ export class DoorsBayResolver implements IBayContentResolver<BayContentDoors> {
       count = 1,
       hingeSide = 'left',
       mountType = 'full-overlay',
+      interiorShelvesCount = 0,
+      shelfType = 'adjustable',
+      shelvesSetbackMm = 20,
     } = content;
+
+    // Resolve interior shelves behind the doors
+    if (interiorShelvesCount > 0) {
+      const stepY = bay.height / (interiorShelvesCount + 1);
+      for (let i = 0; i < interiorShelvesCount; i++) {
+        const shelfElevationY = bay.y + Math.round((i + 1) * stepY - T / 2);
+        const shelfId = `${idPrefix}-door-shelf-${i + 1}`;
+
+        const shelfRes = buildShelf(
+          {
+            id: shelfId,
+            openingWidthMm: bay.width,
+            depthMm: bay.depth,
+            elevationYMm: shelfElevationY,
+            carcaseThicknessMm: T,
+            materialId: materials.carcassMaterialId,
+            thicknessMm: T,
+            mountType: shelfType,
+            edgeBandId,
+            setbackMm: shelvesSetbackMm,
+          },
+          rootPieceId,
+        );
+
+        shelfRes.placementNode.relativeOffset.x =
+          bay.x + (shelfType === 'adjustable' ? 1 : 0);
+
+        pieces.push(shelfRes.piece);
+        placementNodes.push(shelfRes.placementNode);
+
+        const jointKind = shelfType === 'fixed' ? 'confirmat' : 'shelf-pin';
+        joints.push(
+          createJoint({
+            a: { pieceId: bay.leftPieceId, faceId: 'inner' },
+            b: { pieceId: shelfId, faceId: 'left-edge' },
+            kind: jointKind,
+            offsetMm: shelfElevationY,
+          }),
+          createJoint({
+            a: { pieceId: bay.rightPieceId, faceId: 'inner' },
+            b: { pieceId: shelfId, faceId: 'right-edge' },
+            kind: jointKind,
+            offsetMm: shelfElevationY,
+          }),
+        );
+      }
+    }
 
     if (count === 1) {
       const doorResult = buildDoorSubAssembly(

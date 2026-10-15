@@ -51,15 +51,15 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   // 1. Preparation Step
   const gaugeSummary = gauges.length > 0
     ? gauges.map((g) => `${g.label} (${g.clearSpanMm} mm)`).join(', ')
-    : 'None required';
+    : 'Ninguno requerido';
 
   steps.push({
     stepNumber: stepNumber++,
-    title: 'Preparation & Gauge Verification',
-    instruction: `Lay out all cut panels on workbench. Verify assembly gauges: ${gaugeSummary}. Inspect edges and drill patterns.`,
+    title: 'Preparación y Verificación de Calibres',
+    instruction: `Disponer todos los paneles cortados sobre el banco de trabajo. Verificar calibres de montaje: ${gaugeSummary}. Inspeccionar cantos y perforaciones.`,
     piecesInvolved: pieces.map((p) => p.id),
     gaugesInvolved: gauges.map((g) => g.label),
-    notes: 'Ensure workbench is clean and flat to prevent panel surface scratches.',
+    notes: 'Asegurar que el banco de trabajo esté limpio y plano para prevenir rayaduras en las superficies.',
   });
 
   // Identify key carcass pieces
@@ -79,12 +79,12 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     const sideIds = [sideLeft?.id, sideRight?.id].filter((id): id is string => Boolean(id));
     steps.push({
       stepNumber: stepNumber++,
-      title: 'Pre-drill & Hardware Insertion',
-      instruction: 'Insert dowels, cam pins, and drawer runners or hinge plates on side panels while flat on workbench.',
+      title: 'Pre-mecanizado e Inserción de Herrajes',
+      instruction: 'Colocar tarugos, pernos minifix y guías de cajón o bases de bisagra en los laterales en plano sobre el banco de trabajo.',
       piecesInvolved: sideIds,
       gaugesInvolved: [],
-      hardwareSummary: `${hardwareCount} joint connections planned`,
-      notes: 'Mounting hardware on flat panels is faster and prevents drill misalignment during carcass assembly.',
+      hardwareSummary: `${hardwareCount} conexiones de unión planificadas`,
+      notes: 'Montar herrajes sobre paneles en plano es más rápido y previene desalineaciones durante el ensamble del casco.',
     });
   }
 
@@ -92,22 +92,22 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   if (bottom && sideLeft) {
     steps.push({
       stepNumber: stepNumber++,
-      title: 'Assemble Bottom to Left Side',
-      instruction: `Position bottom panel (${bottom.id}) against left side (${sideLeft.id}). Align edges flush and secure joints.`,
+      title: 'Ensamblar Base con Lateral Izquierdo',
+      instruction: `Posicionar la base (${bottom.id}) contra el lateral izquierdo (${sideLeft.id}). Enrasar cantos y fijar uniones.`,
       piecesInvolved: [bottom.id, sideLeft.id],
       gaugesInvolved: [],
-      hardwareSummary: 'Confirmat / Cam Lock screws',
+      hardwareSummary: 'Tornillos Confirmat / Minifix',
     });
   }
 
   if (bottom && sideRight) {
     steps.push({
       stepNumber: stepNumber++,
-      title: 'Assemble Bottom to Right Side',
-      instruction: `Position right side (${sideRight.id}) against bottom panel (${bottom.id}). Align edges flush and secure joints.`,
+      title: 'Ensamblar Base con Lateral Derecho',
+      instruction: `Posicionar el lateral derecho (${sideRight.id}) contra la base (${bottom.id}). Enrasar cantos y fijar uniones.`,
       piecesInvolved: [bottom.id, sideRight.id],
       gaugesInvolved: [],
-      hardwareSummary: 'Confirmat / Cam Lock screws',
+      hardwareSummary: 'Tornillos Confirmat / Minifix',
     });
   }
 
@@ -116,8 +116,8 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
   for (let i = 0; i < shelves.length; i++) {
     const shelf = shelves[i]!;
-    const shelfName = `shelf ${i + 1} (${shelf.id})`;
-    const prevName = previousHorizontalPiece ? previousHorizontalPiece.id : 'bottom panel';
+    const shelfName = `estante ${i + 1} (${shelf.id})`;
+    const prevName = previousHorizontalPiece ? previousHorizontalPiece.id : 'panel inferior (piso)';
 
     let matchedGaugeLabel: string | undefined;
     if (previousHorizontalPiece) {
@@ -136,21 +136,21 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     if (matchedGaugeLabel) {
       steps.push({
         stepNumber: stepNumber++,
-        title: `Install ${shelfName} with Gauge ${matchedGaugeLabel}`,
-        instruction: `Place gauge ${matchedGaugeLabel} on ${prevName}. Place ${shelfName} on gauge ${matchedGaugeLabel}. Secure joints.`,
+        title: `Instalar ${shelfName} con Calibre ${matchedGaugeLabel}`,
+        instruction: `Apoyar el calibre (gauge ${matchedGaugeLabel}) sobre ${prevName}. Colocar ${shelfName} sobre el calibre (gauge ${matchedGaugeLabel}). Fijar uniones.`,
         piecesInvolved: [shelf.id, ...(previousHorizontalPiece ? [previousHorizontalPiece.id] : [])],
         gaugesInvolved: [matchedGaugeLabel],
-        hardwareSummary: 'Fasten confirmat screws or shelf supports',
-        notes: `Gauge ${matchedGaugeLabel} guarantees exact parallel alignment without measuring tape.`,
+        hardwareSummary: 'Tornillos confirmat o soportes de estante',
+        notes: `El calibre ${matchedGaugeLabel} garantiza paralelismo exacto sin usar cinta métrica.`,
       });
     } else {
       steps.push({
         stepNumber: stepNumber++,
-        title: `Install ${shelfName}`,
-        instruction: `Position ${shelfName} at design height above ${prevName}. Check level and secure joints.`,
+        title: `Instalar ${shelfName}`,
+        instruction: `Posicionar ${shelfName} a la altura proyectada sobre ${prevName}. Verificar nivel y fijar uniones.`,
         piecesInvolved: [shelf.id],
         gaugesInvolved: [],
-        hardwareSummary: 'Fasten confirmat screws',
+        hardwareSummary: 'Fijar tornillos confirmat',
       });
     }
 
@@ -162,20 +162,20 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     const railIds = rails.map((r) => r.id);
     steps.push({
       stepNumber: stepNumber++,
-      title: 'Install Top Rails',
-      instruction: `Position top stretchers/rails (${railIds.join(', ')}). Clamp flush with top edge of side panels and fasten joints.`,
+      title: 'Instalar Fajas / Travesaños Superiores',
+      instruction: `Posicionar las fajas superiores (${railIds.join(', ')}). Enrasar con el borde superior de los laterales y asegurar uniones.`,
       piecesInvolved: railIds,
       gaugesInvolved: [],
-      hardwareSummary: 'Confirmat screws',
+      hardwareSummary: 'Tornillos confirmat',
     });
   } else if (top) {
     steps.push({
       stepNumber: stepNumber++,
-      title: 'Install Top Panel',
-      instruction: `Position top panel (${top.id}) flush with carcass upper edges. Secure joints.`,
+      title: 'Instalar Tapa Superior',
+      instruction: `Posicionar la tapa superior (${top.id}) enrasada con el borde superior del mueble. Asegurar uniones.`,
       piecesInvolved: [top.id],
       gaugesInvolved: [],
-      hardwareSummary: 'Confirmat / Cam Lock screws',
+      hardwareSummary: 'Tornillos Confirmat / Minifix',
     });
   }
 
@@ -183,27 +183,27 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   if (back) {
     steps.push({
       stepNumber: stepNumber++,
-      title: 'Square Carcass & Attach Back Panel',
-      instruction: `Measure both diagonal dimensions across cabinet corners. Verify diagonals match within 1 mm. Position back panel (${back.id}) into grooves/rebates and fasten.`,
+      title: 'Escuadrar Casco y Colocar Fondo',
+      instruction: `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm. Insertar o atornillar el fondo (${back.id}) en ranuras o solape y fijar.`,
       piecesInvolved: [back.id],
       gaugesInvolved: [],
-      notes: 'Carcase must be perfectly square before fixing the back panel.',
+      notes: 'El casco debe estar perfectamente a escuadra antes de fijar el fondo.',
     });
   }
 
   // 7. Final Inspection
   steps.push({
     stepNumber: stepNumber++,
-    title: 'Final Quality Check',
-    instruction: 'Remove all auxiliary gauge strips from carcass interior. Inspect joint tightness and clean surfaces.',
+    title: 'Inspección Final de Calidad',
+    instruction: 'Retirar todas las tiras de calibre auxiliares del interior del mueble. Verificar apriete de tornillos y limpiar superficies.',
     piecesInvolved: [],
     gaugesInvolved: gauges.map((g) => g.label),
-    notes: 'Confirm module exterior width, height, and depth meet specification.',
+    notes: 'Confirmar que el ancho, alto y profundidad exteriores del módulo cumplan con las especificaciones del diseño.',
   });
 
   return {
     moduleId: module.moduleId,
-    title: `Assembly Guide - ${module.moduleId}`,
+    title: `Guía de Armado - ${module.moduleId}`,
     steps,
     gauges,
     totalSteps: steps.length,
@@ -235,30 +235,30 @@ export function exportAssemblyGuidePdf(
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Module: ${sheet.moduleId} | Sequential Assembly Sheet | Mobilius Workshop System`, margin, y);
+  doc.text(`Módulo: ${sheet.moduleId} | Hoja de Armado Secuencial | Mobilius Workshop System`, margin, y);
   y += 10;
 
   // Assembly Gauges Section
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Assembly Gauges (Auxiliary Workshop Strips)', margin, y);
+  doc.text('Calibres de Montaje (Tiras Auxiliares de Taller)', margin, y);
   y += 6;
 
   if (sheet.gauges.length === 0) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
-    doc.text('No specialized assembly gauges required for this module.', margin, y);
+    doc.text('No se requieren calibres de montaje especiales para este módulo.', margin, y);
     y += 8;
   } else {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setFillColor(240, 240, 240);
     doc.rect(margin, y - 4, pageWidth - 2 * margin, 6, 'F');
-    doc.text('Gauge', margin + 2, y);
-    doc.text('Clear Span', margin + 25, y);
-    doc.text('Width', margin + 55, y);
-    doc.text('Usage Count', margin + 80, y);
-    doc.text('Material / Role', margin + 115, y);
+    doc.text('Calibre', margin + 2, y);
+    doc.text('Luz Libre', margin + 25, y);
+    doc.text('Ancho Tira', margin + 55, y);
+    doc.text('Cantidad Usos', margin + 80, y);
+    doc.text('Material / Rol', margin + 115, y);
     y += 6;
 
     doc.setFont('helvetica', 'normal');
@@ -266,8 +266,8 @@ export function exportAssemblyGuidePdf(
       doc.text(g.label, margin + 2, y);
       doc.text(`${g.clearSpanMm} mm`, margin + 25, y);
       doc.text(`${g.widthMm} mm`, margin + 55, y);
-      doc.text(`${g.spansCount} joint(s)`, margin + 80, y);
-      doc.text('Auxiliary Offcut (role: assembly-gauge)', margin + 115, y);
+      doc.text(`${g.spansCount} unión(es)`, margin + 80, y);
+      doc.text('Retazo Auxiliar (assembly-gauge)', margin + 115, y);
       y += 5;
     }
     y += 5;
@@ -276,7 +276,7 @@ export function exportAssemblyGuidePdf(
   // Sequential Steps Section
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Sequential Assembly Steps', margin, y);
+  doc.text('Pasos Secuenciales de Armado', margin, y);
   y += 7;
 
   for (const step of sheet.steps) {
@@ -289,7 +289,7 @@ export function exportAssemblyGuidePdf(
     // Step Header
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text(`[ ] Step ${step.stepNumber}: ${step.title}`, margin, y);
+    doc.text(`[ ] Paso ${step.stepNumber}: ${step.title}`, margin, y);
     y += 5;
 
     // Step Instruction
@@ -302,7 +302,7 @@ export function exportAssemblyGuidePdf(
     if (step.gaugesInvolved.length > 0) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(30, 100, 30);
-      doc.text(`→ Required Gauges: ${step.gaugesInvolved.join(', ')}`, margin + 5, y);
+      doc.text(`→ Calibres Requeridos: ${step.gaugesInvolved.join(', ')}`, margin + 5, y);
       doc.setTextColor(0, 0, 0);
       y += 4.5;
     }
@@ -310,7 +310,7 @@ export function exportAssemblyGuidePdf(
     if (step.notes) {
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(90, 90, 90);
-      doc.text(`Note: ${step.notes}`, margin + 5, y);
+      doc.text(`Nota: ${step.notes}`, margin + 5, y);
       doc.setTextColor(0, 0, 0);
       y += 4.5;
     }

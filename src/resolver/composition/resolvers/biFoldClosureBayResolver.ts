@@ -3,6 +3,7 @@ import { createPiece, createRectangularContour } from '../../piece';
 import { createJoint } from '../../joint';
 import { type PlacementNode } from '../../tree';
 import { resolveTracks } from '../gridSolver';
+import { buildShelf } from '../../templates/shelf';
 import {
   type IBayContentResolver,
   type BayResolutionContext,
@@ -18,6 +19,7 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
     const {
       carcassThicknessMm: T,
       frontThicknessMm = T,
+      edgeBandId,
       rootPieceId,
       idPrefix = `bay-${bay.bayIndex}`,
     } = options;
@@ -32,7 +34,57 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
         { type: 'fractional', valueFr: 1 },
       ],
       openingDirection = 'vertical-lift',
+      interiorShelvesCount = 0,
+      shelfType = 'adjustable',
+      shelvesSetbackMm = 20,
     } = content;
+
+    // Resolve interior shelves behind the folding leaves
+    if (interiorShelvesCount > 0) {
+      const stepY = bay.height / (interiorShelvesCount + 1);
+      for (let i = 0; i < interiorShelvesCount; i++) {
+        const shelfElevationY = bay.y + Math.round((i + 1) * stepY - T / 2);
+        const shelfId = `${idPrefix}-bifold-shelf-${i + 1}`;
+
+        const shelfRes = buildShelf(
+          {
+            id: shelfId,
+            openingWidthMm: bay.width,
+            depthMm: bay.depth,
+            elevationYMm: shelfElevationY,
+            carcaseThicknessMm: T,
+            materialId: materials.carcassMaterialId,
+            thicknessMm: T,
+            mountType: shelfType,
+            edgeBandId,
+            setbackMm: shelvesSetbackMm,
+          },
+          rootPieceId,
+        );
+
+        shelfRes.placementNode.relativeOffset.x =
+          bay.x + (shelfType === 'adjustable' ? 1 : 0);
+
+        pieces.push(shelfRes.piece);
+        placementNodes.push(shelfRes.placementNode);
+
+        const jointKind = shelfType === 'fixed' ? 'confirmat' : 'shelf-pin';
+        joints.push(
+          createJoint({
+            a: { pieceId: bay.leftPieceId, faceId: 'inner' },
+            b: { pieceId: shelfId, faceId: 'left-edge' },
+            kind: jointKind,
+            offsetMm: shelfElevationY,
+          }),
+          createJoint({
+            a: { pieceId: bay.rightPieceId, faceId: 'inner' },
+            b: { pieceId: shelfId, faceId: 'right-edge' },
+            kind: jointKind,
+            offsetMm: shelfElevationY,
+          }),
+        );
+      }
+    }
 
     const isVertical = openingDirection === 'vertical-lift';
     const availableSpan = isVertical ? bay.height : bay.width;

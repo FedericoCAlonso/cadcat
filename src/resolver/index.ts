@@ -194,6 +194,7 @@ export {
   type JointPriority,
   type RoofType,
   type BackingType,
+  type RearStructuralRails,
   type CarcassDefinition,
   type InteriorBounds,
   type TrackSize,

@@ -4,6 +4,8 @@ import type {
   TemplateDefinition,
   RoofType,
   JointPriority,
+  BackingType,
+  RearStructuralRails,
   BayContent,
   DrawerSlideType,
   DrawerFrontMount,
@@ -101,6 +103,20 @@ export interface ModuleFormProps {
   onHasPlinthChange?: (val: boolean) => void;
   onPlinthHeightChange?: (val: number) => void;
   onPlinthSetbackChange?: (val: number) => void;
+  // Door interior shelves (Point 3)
+  onDoorInteriorShelvesCountChange?: (bayIndex: number, count: number) => void;
+  onDoorShelfTypeChange?: (bayIndex: number, shelfType: 'adjustable' | 'fixed') => void;
+  // Backing, Island & Rear Rails (Points 4, 5, 6)
+  backingType?: BackingType;
+  backingThicknessMm?: number;
+  isIslandCabinet?: boolean;
+  rearStructuralRails?: RearStructuralRails;
+  rearStructuralRailsWidthMm?: number;
+  onBackingTypeChange?: (val: BackingType) => void;
+  onBackingThicknessChange?: (val: number) => void;
+  onIsIslandCabinetChange?: (val: boolean) => void;
+  onRearStructuralRailsChange?: (val: RearStructuralRails) => void;
+  onRearStructuralRailsWidthChange?: (val: number) => void;
 }
 
 /**
@@ -185,6 +201,18 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onHasPlinthChange,
     onPlinthHeightChange,
     onPlinthSetbackChange,
+    onDoorInteriorShelvesCountChange,
+    onDoorShelfTypeChange,
+    backingType = 'groove',
+    backingThicknessMm = 3,
+    isIslandCabinet = false,
+    rearStructuralRails = 'none',
+    rearStructuralRailsWidthMm = 80,
+    onBackingTypeChange,
+    onBackingThicknessChange,
+    onIsIslandCabinetChange,
+    onRearStructuralRailsChange,
+    onRearStructuralRailsWidthChange,
   } = props;
 
   const currentBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '1-bay' ? 1 : 2;
@@ -452,26 +480,90 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         </div>
 
-        {/* Fondo */}
+        {/* Fondo y Módulo Isla (Puntos 4, 5, 6) */}
         <div className="form-group">
-          <label>Fondo posterior:</label>
-          <div className="builder-segmented-group" role="group" aria-label="Fondo posterior del módulo">
-            <button
-              type="button"
-              className={`builder-segmented-btn ${hasBacking ? 'selected' : ''}`}
-              onClick={() => onHasBackingChange?.(true)}
-            >
-              Con fondo (ranurado 3mm)
-            </button>
-            <button
-              type="button"
-              className={`builder-segmented-btn ${!hasBacking ? 'selected' : ''}`}
-              onClick={() => onHasBackingChange?.(false)}
-            >
-              Sin fondo
-            </button>
-          </div>
+          <label htmlFor="form-backing-type">Fondo posterior / Módulo Isla:</label>
+          <select
+            id="form-backing-type"
+            className="m3-select"
+            style={{ width: '100%', fontSize: '0.85rem' }}
+            value={
+              isIslandCabinet
+                ? 'island'
+                : !hasBacking
+                ? 'none'
+                : backingThicknessMm >= 15
+                ? 'solid-thick'
+                : backingType === 'overlay'
+                ? 'overlay'
+                : 'groove'
+            }
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === 'island') {
+                onIsIslandCabinetChange?.(true);
+                onHasBackingChange?.(false);
+              } else if (val === 'none') {
+                onIsIslandCabinetChange?.(false);
+                onHasBackingChange?.(false);
+              } else if (val === 'solid-thick') {
+                onIsIslandCabinetChange?.(false);
+                onHasBackingChange?.(true);
+                onBackingThicknessChange?.(18);
+                onBackingTypeChange?.('groove');
+              } else if (val === 'overlay') {
+                onIsIslandCabinetChange?.(false);
+                onHasBackingChange?.(true);
+                onBackingThicknessChange?.(3);
+                onBackingTypeChange?.('overlay');
+              } else {
+                // groove
+                onIsIslandCabinetChange?.(false);
+                onHasBackingChange?.(true);
+                onBackingThicknessChange?.(3);
+                onBackingTypeChange?.('groove');
+              }
+            }}
+          >
+            <option value="groove">Con fondo (ranurado 3mm)</option>
+            <option value="overlay">Fondo fino clavado / atornillado posterior (3mm)</option>
+            <option value="solid-thick">Fondo grueso estructural (18mm con confirmat)</option>
+            <option value="island">🏝️ Mueble tipo Isla (Sin fondo, cantos traseros aplacados)</option>
+            <option value="none">Sin fondo (Abierto)</option>
+          </select>
         </div>
+
+        {/* Tirantes Estructurales de Amarre (Punto 6) */}
+        <div className="form-group">
+          <label htmlFor="form-rear-rails">Tirantes estructurales de amarre / escuadra:</label>
+          <select
+            id="form-rear-rails"
+            className="m3-select"
+            style={{ width: '100%', fontSize: '0.85rem' }}
+            value={rearStructuralRails}
+            onChange={(e) => onRearStructuralRailsChange?.(e.target.value as RearStructuralRails)}
+          >
+            <option value="none">Sin tirantes traseros</option>
+            <option value="top-and-bottom">Superior e Inferior (Rigidez y escuadra)</option>
+            <option value="top-only">Solo Superior</option>
+          </select>
+        </div>
+
+        {rearStructuralRails !== 'none' && (
+          <div className="form-group" style={{ marginTop: '0.25rem' }}>
+            <label htmlFor="form-rear-rails-width" style={{ fontSize: '0.8rem', display: 'block' }}>
+              Ancho de tirantes traseros (mm):
+            </label>
+            <NumericInput
+              id="form-rear-rails-width"
+              value={rearStructuralRailsWidthMm}
+              min={50}
+              max={200}
+              step={10}
+              onChange={(val) => onRearStructuralRailsWidthChange?.(val)}
+            />
+          </div>
+        )}
 
         {/* Refuerzos Avanzados de Estructura y Zócalo (Punto 7) */}
         {roofType === 'front-back-rails' && (
@@ -1118,6 +1210,50 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 </button>
               </div>
             </div>
+
+            {/* Estantes interiores detrás de puertas (Punto 3) */}
+            <div className="form-group" style={{ marginTop: '0.25rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                <span>📚 Estantes interiores:</span>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 'normal' }}>
+                  ({activeBay.interiorShelvesCount ?? 0} estante{(activeBay.interiorShelvesCount ?? 0) === 1 ? '' : 's'})
+                </span>
+              </label>
+              <div className="builder-segmented-group">
+                {[0, 1, 2, 3].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    className={`builder-segmented-btn ${(activeBay.interiorShelvesCount ?? 0) === num ? 'selected' : ''}`}
+                    onClick={() => onDoorInteriorShelvesCountChange?.(currentActiveIndex, num)}
+                  >
+                    {num === 0 ? 'Sin estantes' : `${num} est.`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(activeBay.interiorShelvesCount ?? 0) > 0 && (
+              <div className="form-group">
+                <label>Fijación de estantes interiores:</label>
+                <div className="builder-segmented-group">
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${(activeBay.shelfType ?? 'adjustable') === 'adjustable' ? 'selected' : ''}`}
+                    onClick={() => onDoorShelfTypeChange?.(currentActiveIndex, 'adjustable')}
+                  >
+                    Ajustables (Pernos)
+                  </button>
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${activeBay.shelfType === 'fixed' ? 'selected' : ''}`}
+                    onClick={() => onDoorShelfTypeChange?.(currentActiveIndex, 'fixed')}
+                  >
+                    Fijos (Confirmats)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1133,24 +1269,70 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
         {/* Controles para Bi-Fold */}
         {activeBay.type === 'bi-fold-closure' && (
-          <div className="form-group">
-            <label>Dirección de apertura:</label>
-            <div className="builder-segmented-group">
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.openingDirection === 'vertical-lift' ? 'selected' : ''}`}
-                onClick={() => onBifoldDirectionChange?.(currentActiveIndex, 'vertical-lift')}
-              >
-                Elevable Vertical (Aventos)
-              </button>
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.openingDirection === 'horizontal-book' ? 'selected' : ''}`}
-                onClick={() => onBifoldDirectionChange?.(currentActiveIndex, 'horizontal-book')}
-              >
-                Libro Horizontal
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="form-group">
+              <label>Dirección de apertura:</label>
+              <div className="builder-segmented-group">
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.openingDirection === 'vertical-lift' ? 'selected' : ''}`}
+                  onClick={() => onBifoldDirectionChange?.(currentActiveIndex, 'vertical-lift')}
+                >
+                  Elevable Vertical (Aventos)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.openingDirection === 'horizontal-book' ? 'selected' : ''}`}
+                  onClick={() => onBifoldDirectionChange?.(currentActiveIndex, 'horizontal-book')}
+                >
+                  Libro Horizontal
+                </button>
+              </div>
             </div>
+
+            {/* Estantes interiores para bi-fold */}
+            <div className="form-group" style={{ marginTop: '0.25rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                <span>📚 Estantes interiores:</span>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 'normal' }}>
+                  ({activeBay.interiorShelvesCount ?? 0} estante{(activeBay.interiorShelvesCount ?? 0) === 1 ? '' : 's'})
+                </span>
+              </label>
+              <div className="builder-segmented-group">
+                {[0, 1, 2, 3].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    className={`builder-segmented-btn ${(activeBay.interiorShelvesCount ?? 0) === num ? 'selected' : ''}`}
+                    onClick={() => onDoorInteriorShelvesCountChange?.(currentActiveIndex, num)}
+                  >
+                    {num === 0 ? 'Sin estantes' : `${num} est.`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(activeBay.interiorShelvesCount ?? 0) > 0 && (
+              <div className="form-group">
+                <label>Fijación de estantes interiores:</label>
+                <div className="builder-segmented-group">
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${(activeBay.shelfType ?? 'adjustable') === 'adjustable' ? 'selected' : ''}`}
+                    onClick={() => onDoorShelfTypeChange?.(currentActiveIndex, 'adjustable')}
+                  >
+                    Ajustables (Pernos)
+                  </button>
+                  <button
+                    type="button"
+                    className={`builder-segmented-btn ${activeBay.shelfType === 'fixed' ? 'selected' : ''}`}
+                    onClick={() => onDoorShelfTypeChange?.(currentActiveIndex, 'fixed')}
+                  >
+                    Fijos (Confirmats)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

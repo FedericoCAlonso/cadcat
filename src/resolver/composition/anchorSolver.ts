@@ -58,10 +58,16 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     hasPlinth = false,
     plinthHeightMm = 100,
     plinthSetbackMm = 50,
-    hasBacking = true,
+    hasBacking: rawHasBacking = true,
+    backingType = 'groove',
     backingGrooveDistanceMm = 15,
     backingGrooveDepthMm = 8,
+    isIslandCabinet = false,
+    rearStructuralRails = 'none',
+    rearStructuralRailsWidthMm = 80,
   } = carcass;
+
+  const hasBacking = isIslandCabinet ? false : rawHasBacking;
 
   const pieces: Piece[] = [];
   const joints: Joint[] = [];
@@ -111,6 +117,11 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
       applyFrontEdgeBand(sideLeft, edgeBandId);
       applyFrontEdgeBand(sideRight, edgeBandId);
       applyFrontEdgeBand(bottom, edgeBandId);
+      if (isIslandCabinet) {
+        applyRearEdgeBand(sideLeft, edgeBandId);
+        applyRearEdgeBand(sideRight, edgeBandId);
+        applyRearEdgeBand(bottom, edgeBandId);
+      }
     }
 
     pieces.push(sideLeft, sideRight, bottom);
@@ -174,6 +185,11 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
       applyFrontEdgeBand(sideLeft, edgeBandId);
       applyFrontEdgeBand(sideRight, edgeBandId);
       applyFrontEdgeBand(bottom, edgeBandId);
+      if (isIslandCabinet) {
+        applyRearEdgeBand(sideLeft, edgeBandId);
+        applyRearEdgeBand(sideRight, edgeBandId);
+        applyRearEdgeBand(bottom, edgeBandId);
+      }
     }
 
     pieces.push(sideLeft, sideRight, bottom);
@@ -265,7 +281,12 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
       structural: true,
     });
 
-    if (edgeBandId) applyFrontEdgeBand(roof, edgeBandId);
+    if (edgeBandId) {
+      applyFrontEdgeBand(roof, edgeBandId);
+      if (isIslandCabinet) {
+        applyRearEdgeBand(roof, edgeBandId);
+      }
+    }
     pieces.push(roof);
 
     placementNodes.push({
@@ -470,50 +491,220 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     depth: interiorDepth,
   };
 
-  // 4. Backing Panel (Fondos ranurados)
+  // 4. Backing Panel (Smart: Thin grooved/overlay vs Thick structural confirmat)
   if (hasBacking) {
     const backPieceId = `${idPrefix}-back`;
-    const backWidth = interiorWidth + 2 * backingGrooveDepthMm;
-    const backHeight = interiorHeight + 2 * backingGrooveDepthMm;
+    const isThickBack = backingThicknessMm >= 15;
 
-    const backPiece = createPiece({
-      id: backPieceId,
-      role: 'back',
-      materialId: backingMaterialId ?? carcassMaterialId,
-      contour: createRectangularContour(backWidth, backHeight),
-      thicknessMm: backingThicknessMm,
-      structural: false,
+    if (isThickBack) {
+      // Point 5: Thick structural backing (15mm - 18mm)
+      // Confirmat screws from sides & bottom into backing edges for structural rigidity
+      const backWidth = interiorWidth;
+      const backHeight = interiorHeight;
+
+      const backPiece = createPiece({
+        id: backPieceId,
+        role: 'back',
+        materialId: backingMaterialId ?? carcassMaterialId,
+        contour: createRectangularContour(backWidth, backHeight),
+        thicknessMm: backingThicknessMm,
+        structural: true,
+      });
+      pieces.push(backPiece);
+
+      const backZ = depth - backingThicknessMm;
+      placementNodes.push({
+        pieceId: backPieceId,
+        parentPieceId: leftPieceId,
+        relativeOffset: {
+          x: T,
+          y: interiorY,
+          z: backZ,
+        },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: leftPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'left-edge' },
+          kind: 'confirmat',
+        }),
+        createJoint({
+          a: { pieceId: rightPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'right-edge' },
+          kind: 'confirmat',
+        }),
+        createJoint({
+          a: { pieceId: bottomPieceId, faceId: isBottomPass ? 'top' : 'inner' },
+          b: { pieceId: backPieceId, faceId: 'bottom-edge' },
+          kind: 'confirmat',
+        }),
+      );
+
+      if (roofType === 'solid-panel') {
+        joints.push(
+          createJoint({
+            a: { pieceId: topPieceId, faceId: 'bottom' },
+            b: { pieceId: backPieceId, faceId: 'top-edge' },
+            kind: 'confirmat',
+          }),
+        );
+      }
+    } else if (backingType === 'overlay') {
+      // Point 5: Thin overlay backing (3mm tacked/screwed onto rear face)
+      const backWidth = isBottomPass ? width : interiorWidth + 2 * T;
+      const backHeight = height - plinthY;
+
+      const backPiece = createPiece({
+        id: backPieceId,
+        role: 'back',
+        materialId: backingMaterialId ?? carcassMaterialId,
+        contour: createRectangularContour(backWidth, backHeight),
+        thicknessMm: backingThicknessMm,
+        structural: false,
+      });
+      pieces.push(backPiece);
+
+      placementNodes.push({
+        pieceId: backPieceId,
+        parentPieceId: leftPieceId,
+        relativeOffset: {
+          x: 0,
+          y: plinthY,
+          z: depth - backingThicknessMm,
+        },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: leftPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'left-edge' },
+          kind: 'groove',
+        }),
+        createJoint({
+          a: { pieceId: rightPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'right-edge' },
+          kind: 'groove',
+        }),
+      );
+    } else {
+      // Point 5: Thin grooved backing (default 3mm/5.5mm sliding into perimeter grooves)
+      const backWidth = interiorWidth + 2 * backingGrooveDepthMm;
+      const backHeight = interiorHeight + 2 * backingGrooveDepthMm;
+
+      const backPiece = createPiece({
+        id: backPieceId,
+        role: 'back',
+        materialId: backingMaterialId ?? carcassMaterialId,
+        contour: createRectangularContour(backWidth, backHeight),
+        thicknessMm: backingThicknessMm,
+        structural: false,
+      });
+      pieces.push(backPiece);
+
+      const backZ = depth - backingGrooveDistanceMm - backingThicknessMm;
+      placementNodes.push({
+        pieceId: backPieceId,
+        parentPieceId: leftPieceId,
+        relativeOffset: {
+          x: T - backingGrooveDepthMm,
+          y: interiorY - backingGrooveDepthMm,
+          z: backZ,
+        },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: leftPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'left-edge' },
+          kind: 'groove',
+        }),
+        createJoint({
+          a: { pieceId: rightPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'right-edge' },
+          kind: 'groove',
+        }),
+        createJoint({
+          a: { pieceId: bottomPieceId, faceId: isBottomPass ? 'top' : 'inner' },
+          b: { pieceId: backPieceId, faceId: 'bottom-edge' },
+          kind: 'groove',
+        }),
+      );
+    }
+  }
+
+  // Point 6: Rear structural rails / stretchers (tirantes estructurales traseros)
+  if (rearStructuralRails === 'top-and-bottom' || rearStructuralRails === 'top-only') {
+    const rearRailTopId = `${idPrefix}-rear-rail-top`;
+    const rearRailTop = createPiece({
+      id: rearRailTopId,
+      role: 'rail-vertical',
+      materialId: carcassMaterialId,
+      contour: createRectangularContour(interiorWidth, rearStructuralRailsWidthMm),
+      thicknessMm: T,
+      structural: true,
     });
-    pieces.push(backPiece);
+    pieces.push(rearRailTop);
 
-    const backZ = depth - backingGrooveDistanceMm - backingThicknessMm;
+    const topRailY = interiorY + interiorHeight - rearStructuralRailsWidthMm;
     placementNodes.push({
-      pieceId: backPieceId,
+      pieceId: rearRailTopId,
       parentPieceId: leftPieceId,
       relativeOffset: {
-        x: T - backingGrooveDepthMm,
-        y: interiorY - backingGrooveDepthMm,
-        z: backZ,
+        x: T,
+        y: topRailY,
+        z: depth - T,
       },
     });
 
     joints.push(
       createJoint({
         a: { pieceId: leftPieceId, faceId: 'inner' },
-        b: { pieceId: backPieceId, faceId: 'left-edge' },
-        kind: 'groove',
+        b: { pieceId: rearRailTopId, faceId: 'left-edge' },
+        kind: 'confirmat',
       }),
       createJoint({
         a: { pieceId: rightPieceId, faceId: 'inner' },
-        b: { pieceId: backPieceId, faceId: 'right-edge' },
-        kind: 'groove',
-      }),
-      createJoint({
-        a: { pieceId: bottomPieceId, faceId: isBottomPass ? 'top' : 'inner' },
-        b: { pieceId: backPieceId, faceId: 'bottom-edge' },
-        kind: 'groove',
+        b: { pieceId: rearRailTopId, faceId: 'right-edge' },
+        kind: 'confirmat',
       }),
     );
+
+    if (rearStructuralRails === 'top-and-bottom') {
+      const rearRailBottomId = `${idPrefix}-rear-rail-bottom`;
+      const rearRailBottom = createPiece({
+        id: rearRailBottomId,
+        role: 'rail-vertical',
+        materialId: carcassMaterialId,
+        contour: createRectangularContour(interiorWidth, rearStructuralRailsWidthMm),
+        thicknessMm: T,
+        structural: true,
+      });
+      pieces.push(rearRailBottom);
+
+      placementNodes.push({
+        pieceId: rearRailBottomId,
+        parentPieceId: leftPieceId,
+        relativeOffset: {
+          x: T,
+          y: interiorY,
+          z: depth - T,
+        },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: leftPieceId, faceId: 'inner' },
+          b: { pieceId: rearRailBottomId, faceId: 'left-edge' },
+          kind: 'confirmat',
+        }),
+        createJoint({
+          a: { pieceId: rightPieceId, faceId: 'inner' },
+          b: { pieceId: rearRailBottomId, faceId: 'right-edge' },
+          kind: 'confirmat',
+        }),
+      );
+    }
   }
 
   return {
@@ -533,5 +724,14 @@ function applyFrontEdgeBand(piece: Piece, edgeBandId: string): void {
   const frontFace = piece.faces.find((f) => f.id === 'right-edge');
   if (frontFace) {
     frontFace.edgeBandId = edgeBandId;
+  }
+}
+
+function applyRearEdgeBand(piece: Piece, edgeBandId: string): void {
+  const isVertical = piece.role.includes('side') || piece.role.includes('partition');
+  const targetFaceId = isVertical ? 'left-edge' : 'bottom-edge';
+  const rearFace = piece.faces.find((f) => f.id === targetFaceId) ?? piece.faces.find((f) => f.id === 'left-edge');
+  if (rearFace) {
+    rearFace.edgeBandId = edgeBandId;
   }
 }

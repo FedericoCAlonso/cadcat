@@ -7,6 +7,7 @@ import { Viewport3D } from './Viewport3D';
 import { MachiningSheetView } from './MachiningSheetView';
 import { ProjectSettingsView } from './ProjectSettingsView';
 import { AssemblySheetView } from './AssemblySheetView';
+import { CatalogManagerView } from './CatalogManagerView';
 import { MachiningEditorModal } from './MachiningEditorModal';
 import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 
@@ -99,6 +100,14 @@ export function App(): ReactElement {
             <span aria-hidden="true">📖 </span>
             <span>Guía de Armado</span>
             <span className="visually-hidden"> Assembly Guide</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-tab-button ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('catalogs')}
+          >
+            <span aria-hidden="true">🗄️ </span>
+            <span>Catálogos</span>
           </button>
           <button
             type="button"
@@ -204,7 +213,19 @@ export function App(): ReactElement {
                 onDrawerBoxSideHeightOffsetChange={vm.setDrawerBoxSideHeightOffset}
                 onDoorCountChange={vm.setDoorCount}
                 onDoorMountTypeChange={vm.setDoorMountType}
+                onDoorInteriorShelvesCountChange={vm.setDoorInteriorShelvesCount}
+                onDoorShelfTypeChange={vm.setDoorShelfType}
                 onBifoldDirectionChange={vm.setBifoldDirection}
+                backingType={vm.backingType}
+                backingThicknessMm={vm.backingThicknessMm}
+                isIslandCabinet={vm.isIslandCabinet}
+                rearStructuralRails={vm.rearStructuralRails}
+                rearStructuralRailsWidthMm={vm.rearStructuralRailsWidthMm}
+                onBackingTypeChange={vm.setBackingType}
+                onBackingThicknessChange={vm.setBackingThicknessMm}
+                onIsIslandCabinetChange={vm.setIsIslandCabinet}
+                onRearStructuralRailsChange={vm.setRearStructuralRails}
+                onRearStructuralRailsWidthChange={vm.setRearStructuralRailsWidthMm}
                 onFrontsMaterialChange={vm.setFrontsMaterialId}
                 onDrawerBoxesMaterialChange={vm.setDrawerBoxesMaterialId}
                 onBackingsMaterialChange={vm.setBackingsMaterialId}
@@ -304,6 +325,7 @@ export function App(): ReactElement {
               {vm.activeTab === 'assembly' && (
                 <AssemblySheetView
                   assemblySheet={vm.assemblySheet}
+                  pieces={vm.resolvedPieces}
                   onExportPdf={vm.exportAssemblyPdf}
                 />
               )}
@@ -328,6 +350,29 @@ export function App(): ReactElement {
                   onDeleteHardware={vm.deleteHardware}
                   onResetCatalogs={vm.resetCatalogs}
                 />
+              )}
+
+              {vm.activeTab === 'catalogs' && (
+                <div className="m3-card" style={{ width: '100%' }}>
+                  <h3 className="m3-card__title">
+                    <span>🗄️ Gestión de Catálogos e Insumos</span>
+                  </h3>
+                  <p className="m3-card__subtitle">
+                    Base de datos local (IndexedDB) de tableros/placas, tapacantos y herrajes de taller.
+                  </p>
+                  <CatalogManagerView
+                    materials={vm.materials}
+                    edgeBands={vm.edgeBands}
+                    hardware={vm.hardware}
+                    onSaveMaterial={vm.saveMaterial}
+                    onDeleteMaterial={vm.deleteMaterial}
+                    onSaveEdgeBand={vm.saveEdgeBand}
+                    onDeleteEdgeBand={vm.deleteEdgeBand}
+                    onSaveHardware={vm.saveHardware}
+                    onDeleteHardware={vm.deleteHardware}
+                    onResetCatalogs={vm.resetCatalogs}
+                  />
+                </div>
               )}
 
               {vm.activeTab === 'form' && (
@@ -402,6 +447,16 @@ export function App(): ReactElement {
             <span className="m3-bottom-nav__icon" aria-hidden="true">📖</span>
           </div>
           <span className="m3-bottom-nav__label">Armado</span>
+        </button>
+        <button
+          type="button"
+          className={`m3-bottom-nav__item ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
+          onClick={() => vm.setActiveTab('catalogs')}
+        >
+          <div className="m3-bottom-nav__indicator">
+            <span className="m3-bottom-nav__icon" aria-hidden="true">🗄️</span>
+          </div>
+          <span className="m3-bottom-nav__label">Catálogos</span>
         </button>
         <button
           type="button"

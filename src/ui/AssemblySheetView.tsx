@@ -1,228 +1,478 @@
 import { useState, type ReactElement } from 'react';
-import type { AssemblySheet, AssemblyGauge } from '../resolver';
-import { exportAssemblyGuidePdf } from '../resolver';
+import {
+  type AssemblySheet,
+  type AssemblyGauge,
+  type ResolvedPiece,
+  type ResolvedPieceWithCutSize,
+  determinePieceSpatialSize,
+  exportAssemblyGuidePdf,
+} from '../resolver';
 
 export interface AssemblySheetViewProps {
   assemblySheet: AssemblySheet | null;
+  pieces?: (ResolvedPieceWithCutSize | ResolvedPiece)[];
   onExportPdf?: () => void;
 }
 
 /**
- * Render an SVG elevation diagram showing the carcass panels and assembly gauge strips.
+ * Render an SVG elevation diagram showing the carcass panels and assembly gauge strips
+ * using real panel millimeter coordinates and exact clear spans.
  */
-function renderAssemblySvg(sheet: AssemblySheet): ReactElement {
-  const width = 640;
-  const height = 400;
-  const margin = 50;
+function renderAssemblySvg(
+  sheet: AssemblySheet,
+  pieces?: (ResolvedPieceWithCutSize | ResolvedPiece)[],
+): ReactElement {
+  const width = 720;
+  const height = 460;
+  const marginL = 75;
+  const marginR = 175;
+  const marginT = 40;
+  const marginB = 55;
 
-  // Carcass dimensions inside SVG
-  const carcassW = 280;
-  const carcassH = 320;
-  const carcassX = margin + 40;
-  const carcassY = margin;
+  const drawW = width - marginL - marginR;
+  const drawH = height - marginT - marginB;
 
-  const panelThickness = 12;
+  // Filter out auxiliary pieces and front doors / drawer fronts for structural elevation
+  const nonAuxPieces = (pieces ?? []).filter((p) => !p.isAuxiliary);
+  const structuralPieces = nonAuxPieces.filter(
+    (p) =>
+      !p.role.includes('door') &&
+      !p.role.includes('bifold') &&
+      !p.role.includes('drawer-front') &&
+      !p.role.includes('drawer-box'),
+  );
 
-  // Collect unique gauges
+  const displayPieces = structuralPieces.length > 0 ? structuralPieces : nonAuxPieces;
+
+  // Calculate actual bounding box in XY plane
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  if (displayPieces.length > 0) {
+    for (const p of displayPieces) {
+      const pos = p.positionMm ?? { x: 0, y: 0, z: 0 };
+      const size = determinePieceSpatialSize(p);
+      minX = Math.min(minX, pos.x);
+      maxX = Math.max(maxX, pos.x + size.x);
+      minY = Math.min(minY, pos.y);
+      maxY = Math.max(maxY, pos.y + size.y);
+    }
+  }
+
+  const hasRealPieces = Number.isFinite(minX) && maxX > minX && maxY > minY;
+  const modW = hasRealPieces ? maxX - minX : 600;
+  const modH = hasRealPieces ? maxY - minY : 800;
+
+  const scale = Math.min(drawW / modW, drawH / modH);
+  const actualDrawW = modW * scale;
+  const actualDrawH = modH * scale;
+
+  const originX = marginL + (drawW - actualDrawW) / 2;
+  const originY = marginT + (drawH - actualDrawH) / 2;
+
+  // Map millimeter to SVG coords (SVG Y goes down)
+  const toSvgX = (mmX: number) => originX + (mmX - (hasRealPieces ? minX : 0)) * scale;
+  const toSvgY = (mmY: number, sizeH: number) => originY + (modH - (mmY - (hasRealPieces ? minY : 0) + sizeH)) * scale;
+
   const gauges = sheet.gauges;
 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       className="assembly-svg"
-      style={{ width: '100%', height: 'auto', maxHeight: '420px', background: '#fafafa', borderRadius: '12px' }}
-      aria-label="Carcass elevation diagram with assembly gauges"
+      style={{ width: '100%', height: 'auto', maxHeight: '460px', background: '#fafafa', borderRadius: '12px' }}
+      aria-label="Esquema de elevación del casco y calibres de taller"
     >
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#1b5e20" />
+        </marker>
+        <marker id="arrow-dim" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#546e7a" />
         </marker>
         <pattern id="gauge-hatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
           <line x1="0" y1="0" x2="0" y2="8" stroke="#81c784" strokeWidth="2" />
         </pattern>
       </defs>
 
-      {/* Carcass Sides */}
-      {/* Left side */}
-      <rect
-        x={carcassX}
-        y={carcassY}
-        width={panelThickness}
-        height={carcassH}
-        fill="#b0bec5"
-        stroke="#37474f"
-        strokeWidth="1.5"
-      />
-      <text x={carcassX - 5} y={carcassY + carcassH / 2} textAnchor="end" fontSize="10" fill="#37474f">
-        Side Left
-      </text>
+      {/* Render Real Pieces */}
+      {hasRealPieces ? (
+        <g id="carcass-pieces">
+          {displayPieces.map((p) => {
+            const pos = p.positionMm ?? { x: 0, y: 0, z: 0 };
+            const size = determinePieceSpatialSize(p);
+            const px = toSvgX(pos.x);
+            const py = toSvgY(pos.y, size.y);
+            const pw = Math.max(1.5, size.x * scale);
+            const ph = Math.max(1.5, size.y * scale);
 
-      {/* Right side */}
-      <rect
-        x={carcassX + carcassW - panelThickness}
-        y={carcassY}
-        width={panelThickness}
-        height={carcassH}
-        fill="#b0bec5"
-        stroke="#37474f"
-        strokeWidth="1.5"
-      />
-      <text x={carcassX + carcassW + 5} y={carcassY + carcassH / 2} textAnchor="start" fontSize="10" fill="#37474f">
-        Side Right
-      </text>
+            const isSide = p.role.includes('side');
+            const isBottom = p.role.includes('bottom');
+            const isTopOrRail = p.role.includes('top') || p.role.includes('rail');
+            const isShelf = p.role.includes('shelf');
+            const isPartition = p.role.includes('partition') || p.role.includes('divider');
+            const isBack = p.role.includes('back');
 
-      {/* Bottom Panel */}
-      <rect
-        x={carcassX + panelThickness}
-        y={carcassY + carcassH - panelThickness}
-        width={carcassW - 2 * panelThickness}
-        height={panelThickness}
-        fill="#90a4ae"
-        stroke="#37474f"
-        strokeWidth="1.5"
-      />
-      <text x={carcassX + carcassW / 2} y={carcassY + carcassH + 14} textAnchor="middle" fontSize="10" fill="#37474f">
-        Bottom Panel
-      </text>
+            let fill = '#90a4ae';
+            let stroke = '#37474f';
+            let strokeDasharray: string | undefined;
 
-      {/* Top Rail / Panel */}
-      <rect
-        x={carcassX + panelThickness}
-        y={carcassY}
-        width={carcassW - 2 * panelThickness}
-        height={panelThickness}
-        fill="#90a4ae"
-        stroke="#37474f"
-        strokeWidth="1.5"
-      />
-      <text x={carcassX + carcassW / 2} y={carcassY - 8} textAnchor="middle" fontSize="10" fill="#37474f">
-        Top Rails / Stretchers
-      </text>
+            if (isSide || isPartition) {
+              fill = '#b0bec5';
+            } else if (isShelf) {
+              fill = '#78909c';
+            } else if (isBottom) {
+              fill = '#90a4ae';
+            } else if (isBack) {
+              fill = '#eceff1';
+              stroke = '#b0bec5';
+              strokeDasharray = '3 3';
+            }
 
-      {/* Shelves and Gauges */}
-      {gauges.length > 0 ? (
-        gauges.map((g, idx) => {
-          const numGauges = Math.max(1, gauges.length);
-          const availableInteriorH = carcassH - 2 * panelThickness;
-          const sectionH = availableInteriorH / (numGauges + 1);
-          const shelfY = carcassY + carcassH - panelThickness - (idx + 1) * sectionH;
-          const gaugeH = sectionH - panelThickness;
-          const gaugeY = shelfY + panelThickness;
-
-          return (
-            <g key={g.id}>
-              {/* Shelf */}
-              <rect
-                x={carcassX + panelThickness}
-                y={shelfY}
-                width={carcassW - 2 * panelThickness}
-                height={panelThickness}
-                fill="#78909c"
-                stroke="#37474f"
-                strokeWidth="1.5"
-              />
-              <text x={carcassX + carcassW / 2} y={shelfY + panelThickness - 3} textAnchor="middle" fontSize="9" fill="#ffffff" fontWeight="bold">
-                Shelf {idx + 1}
-              </text>
-
-              {/* Gauge Block on Left */}
-              <rect
-                x={carcassX + panelThickness + 8}
-                y={gaugeY}
-                width={28}
-                height={gaugeH}
-                fill="url(#gauge-hatch)"
-                stroke="#2e7d32"
-                strokeWidth="2"
-                rx="2"
-              />
-              <rect
-                x={carcassX + panelThickness + 8}
-                y={gaugeY}
-                width={28}
-                height={gaugeH}
-                fill="#c8e6c9"
-                opacity="0.6"
-              />
-              <text
-                x={carcassX + panelThickness + 22}
-                y={gaugeY + gaugeH / 2 + 4}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="bold"
-                fill="#1b5e20"
-              >
-                {g.label}
-              </text>
-
-              {/* Gauge Block on Right */}
-              <rect
-                x={carcassX + carcassW - panelThickness - 36}
-                y={gaugeY}
-                width={28}
-                height={gaugeH}
-                fill="url(#gauge-hatch)"
-                stroke="#2e7d32"
-                strokeWidth="2"
-                rx="2"
-              />
-              <rect
-                x={carcassX + carcassW - panelThickness - 36}
-                y={gaugeY}
-                width={28}
-                height={gaugeH}
-                fill="#c8e6c9"
-                opacity="0.6"
-              />
-              <text
-                x={carcassX + carcassW - panelThickness - 22}
-                y={gaugeY + gaugeH / 2 + 4}
-                textAnchor="middle"
-                fontSize="11"
-                fontWeight="bold"
-                fill="#1b5e20"
-              >
-                {g.label}
-              </text>
-
-              {/* Dimension Line on Right */}
-              <line
-                x1={carcassX + carcassW + 45}
-                y1={gaugeY}
-                x2={carcassX + carcassW + 45}
-                y2={gaugeY + gaugeH}
-                stroke="#1b5e20"
-                strokeWidth="1.5"
-                markerStart="url(#arrow)"
-                markerEnd="url(#arrow)"
-              />
-              <text
-                x={carcassX + carcassW + 55}
-                y={gaugeY + gaugeH / 2 + 4}
-                fontSize="11"
-                fontWeight="bold"
-                fill="#1b5e20"
-              >
-                {g.label}: {g.clearSpanMm} mm
-              </text>
-            </g>
-          );
-        })
+            return (
+              <g key={p.id}>
+                <rect
+                  x={px}
+                  y={py}
+                  width={pw}
+                  height={ph}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth="1.2"
+                  strokeDasharray={strokeDasharray}
+                  rx="1"
+                />
+                {/* Piece label on larger elements */}
+                {pw >= 40 && ph >= 14 && (
+                  <text
+                    x={px + pw / 2}
+                    y={py + ph / 2 + 3.5}
+                    textAnchor="middle"
+                    fontSize="9"
+                    fill={isShelf ? '#ffffff' : '#263238'}
+                    fontWeight={isShelf ? 'bold' : 'normal'}
+                  >
+                    {isShelf ? 'Estante' : isBottom ? 'Piso' : isTopOrRail ? 'Techo/Faja' : p.id}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
       ) : (
-        <text x={carcassX + carcassW / 2} y={carcassY + carcassH / 2} textAnchor="middle" fontSize="12" fill="#78909c">
-          Standard carcass structure
-        </text>
+        /* Fallback wireframe when piece coordinates are unavailable */
+        <g id="carcass-fallback">
+          <rect
+            x={originX}
+            y={originY}
+            width={12}
+            height={actualDrawH}
+            fill="#b0bec5"
+            stroke="#37474f"
+            strokeWidth="1.5"
+          />
+          <rect
+            x={originX + actualDrawW - 12}
+            y={originY}
+            width={12}
+            height={actualDrawH}
+            fill="#b0bec5"
+            stroke="#37474f"
+            strokeWidth="1.5"
+          />
+          <rect
+            x={originX + 12}
+            y={originY + actualDrawH - 12}
+            width={actualDrawW - 24}
+            height={12}
+            fill="#90a4ae"
+            stroke="#37474f"
+            strokeWidth="1.5"
+          />
+          <rect
+            x={originX + 12}
+            y={originY}
+            width={actualDrawW - 24}
+            height={12}
+            fill="#90a4ae"
+            stroke="#37474f"
+            strokeWidth="1.5"
+          />
+        </g>
       )}
 
+      {/* Assembly Gauges Placement */}
+      {gauges.length > 0 && (
+        <g id="assembly-gauges">
+          {gauges.map((g, gIdx) => {
+            // Find occurrences or fallback to shelves
+            const occurrences = g.occurrences && g.occurrences.length > 0 ? g.occurrences : [];
+            const pieceMap = new Map(displayPieces.map((p) => [p.id, p]));
+
+            const renderedOccurrences = occurrences
+              .map((occ) => {
+                const lower = pieceMap.get(occ.lowerPieceId);
+                const upper = pieceMap.get(occ.upperPieceId);
+                if (!lower || !upper) return null;
+                const lowerSize = determinePieceSpatialSize(lower);
+                const upperSize = determinePieceSpatialSize(upper);
+                const startY = lower.positionMm.y + lowerSize.y;
+                const endY = upper.positionMm.y;
+                const minXSpan = Math.max(lower.positionMm.x, upper.positionMm.x);
+                const maxXSpan = Math.min(
+                  lower.positionMm.x + lowerSize.x,
+                  upper.positionMm.x + upperSize.x,
+                );
+                return { startY, endY, minXSpan, maxXSpan };
+              })
+              .filter((x): x is NonNullable<typeof x> => Boolean(x));
+
+            // If occurrences couldn't resolve piece positions directly, deduce from shelves
+            const spansToDraw =
+              renderedOccurrences.length > 0
+                ? renderedOccurrences
+                : (() => {
+                    const shelves = displayPieces
+                      .filter((p) => p.role.includes('shelf'))
+                      .sort((a, b) => a.positionMm.y - b.positionMm.y);
+                    const bottom = displayPieces.find((p) => p.role.includes('bottom'));
+                    const list: { startY: number; endY: number; minXSpan: number; maxXSpan: number }[] = [];
+
+                    let prevY = bottom ? bottom.positionMm.y + determinePieceSpatialSize(bottom).y : 0;
+                    for (const s of shelves) {
+                      const shelfY = s.positionMm.y;
+                      const span = shelfY - prevY;
+                      if (Math.abs(span - g.clearSpanMm) <= 4.0) {
+                        list.push({
+                          startY: prevY,
+                          endY: shelfY,
+                          minXSpan: s.positionMm.x,
+                          maxXSpan: s.positionMm.x + determinePieceSpatialSize(s).x,
+                        });
+                      }
+                      prevY = shelfY + determinePieceSpatialSize(s).y;
+                    }
+                    return list;
+                  })();
+
+            return (
+              <g key={g.id}>
+                {spansToDraw.map((span, occIdx) => {
+                  const gy = toSvgY(span.startY, span.endY - span.startY);
+                  const gh = Math.max(4, (span.endY - span.startY) * scale);
+                  const spanLeftSvg = toSvgX(span.minXSpan);
+                  const spanRightSvg = toSvgX(span.maxXSpan);
+                  const spanWidthSvg = spanRightSvg - spanLeftSvg;
+                  const blockW = Math.max(16, Math.min(26, spanWidthSvg * 0.16));
+
+                  const leftBlockX = spanLeftSvg + 6;
+                  const rightBlockX = spanRightSvg - blockW - 6;
+
+                  // Right dimension line
+                  const dimLineX = originX + actualDrawW + 20 + gIdx * 35;
+
+                  return (
+                    <g key={`${g.id}-${occIdx}`}>
+                      {/* Left gauge strip */}
+                      <rect
+                        x={leftBlockX}
+                        y={gy}
+                        width={blockW}
+                        height={gh}
+                        fill="url(#gauge-hatch)"
+                        stroke="#2e7d32"
+                        strokeWidth="1.5"
+                        rx="2"
+                      />
+                      <rect
+                        x={leftBlockX}
+                        y={gy}
+                        width={blockW}
+                        height={gh}
+                        fill="#c8e6c9"
+                        opacity="0.65"
+                      />
+                      <text
+                        x={leftBlockX + blockW / 2}
+                        y={gy + gh / 2 + 3.5}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fontWeight="bold"
+                        fill="#1b5e20"
+                      >
+                        {g.label}
+                      </text>
+
+                      {/* Right gauge strip */}
+                      <rect
+                        x={rightBlockX}
+                        y={gy}
+                        width={blockW}
+                        height={gh}
+                        fill="url(#gauge-hatch)"
+                        stroke="#2e7d32"
+                        strokeWidth="1.5"
+                        rx="2"
+                      />
+                      <rect
+                        x={rightBlockX}
+                        y={gy}
+                        width={blockW}
+                        height={gh}
+                        fill="#c8e6c9"
+                        opacity="0.65"
+                      />
+                      <text
+                        x={rightBlockX + blockW / 2}
+                        y={gy + gh / 2 + 3.5}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fontWeight="bold"
+                        fill="#1b5e20"
+                      >
+                        {g.label}
+                      </text>
+
+                      {/* Dimension line & cotas */}
+                      <line
+                        x1={spanRightSvg + 2}
+                        y1={gy}
+                        x2={dimLineX + 8}
+                        y2={gy}
+                        stroke="#81c784"
+                        strokeWidth="1"
+                        strokeDasharray="2 2"
+                      />
+                      <line
+                        x1={spanRightSvg + 2}
+                        y1={gy + gh}
+                        x2={dimLineX + 8}
+                        y2={gy + gh}
+                        stroke="#81c784"
+                        strokeWidth="1"
+                        strokeDasharray="2 2"
+                      />
+                      <line
+                        x1={dimLineX}
+                        y1={gy}
+                        x2={dimLineX}
+                        y2={gy + gh}
+                        stroke="#1b5e20"
+                        strokeWidth="1.5"
+                        markerStart="url(#arrow)"
+                        markerEnd="url(#arrow)"
+                      />
+                      <text
+                        x={dimLineX + 6}
+                        y={gy + gh / 2 + 3.5}
+                        fontSize="10"
+                        fontWeight="bold"
+                        fill="#1b5e20"
+                      >
+                        {g.label}: {g.clearSpanMm} mm
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+        </g>
+      )}
+
+      {/* Exterior Dimension Cotas (Overall Width & Height) */}
+      <g id="module-cotas">
+        {/* Height Cota on the Left */}
+        <line
+          x1={originX - 16}
+          y1={originY}
+          x2={originX - 16}
+          y2={originY + actualDrawH}
+          stroke="#546e7a"
+          strokeWidth="1.2"
+          markerStart="url(#arrow-dim)"
+          markerEnd="url(#arrow-dim)"
+        />
+        <line
+          x1={originX - 22}
+          y1={originY}
+          x2={originX}
+          y2={originY}
+          stroke="#90a4ae"
+          strokeWidth="1"
+        />
+        <line
+          x1={originX - 22}
+          y1={originY + actualDrawH}
+          x2={originX}
+          y2={originY + actualDrawH}
+          stroke="#90a4ae"
+          strokeWidth="1"
+        />
+        <text
+          x={originX - 22}
+          y={originY + actualDrawH / 2}
+          textAnchor="middle"
+          fontSize="10"
+          fontWeight="bold"
+          fill="#37474f"
+          transform={`rotate(-90, ${originX - 22}, ${originY + actualDrawH / 2})`}
+        >
+          {Math.round(modH)} mm
+        </text>
+
+        {/* Width Cota at the Bottom */}
+        <line
+          x1={originX}
+          y1={originY + actualDrawH + 18}
+          x2={originX + actualDrawW}
+          y2={originY + actualDrawH + 18}
+          stroke="#546e7a"
+          strokeWidth="1.2"
+          markerStart="url(#arrow-dim)"
+          markerEnd="url(#arrow-dim)"
+        />
+        <line
+          x1={originX}
+          y1={originY + actualDrawH + 4}
+          x2={originX}
+          y2={originY + actualDrawH + 24}
+          stroke="#90a4ae"
+          strokeWidth="1"
+        />
+        <line
+          x1={originX + actualDrawW}
+          y1={originY + actualDrawH + 4}
+          x2={originX + actualDrawW}
+          y2={originY + actualDrawH + 24}
+          stroke="#90a4ae"
+          strokeWidth="1"
+        />
+        <text
+          x={originX + actualDrawW / 2}
+          y={originY + actualDrawH + 34}
+          textAnchor="middle"
+          fontSize="10"
+          fontWeight="bold"
+          fill="#37474f"
+        >
+          {Math.round(modW)} mm
+        </text>
+      </g>
+
       {/* Legend Box */}
-      <g transform={`translate(${carcassX + carcassW + 40}, ${carcassY + 15})`}>
-        <rect x="0" y="0" width="130" height="65" fill="#ffffff" stroke="#e0e0e0" rx="4" />
-        <rect x="10" y="10" width="16" height="12" fill="#c8e6c9" stroke="#2e7d32" strokeWidth="1.5" />
-        <text x="32" y="20" fontSize="10" fill="#212121">Gauge Strip</text>
-        <rect x="10" y="28" width="16" height="6" fill="#90a4ae" stroke="#37474f" />
-        <text x="32" y="34" fontSize="10" fill="#212121">Panel (18mm)</text>
-        <line x1="10" y1="46" x2="26" y2="46" stroke="#1b5e20" strokeWidth="1.5" markerEnd="url(#arrow)" />
-        <text x="32" y="49" fontSize="10" fill="#212121">Clear Span</text>
+      <g transform={`translate(${width - 150}, 16)`}>
+        <rect x="0" y="0" width="138" height="74" fill="#ffffff" stroke="#e0e0e0" rx="6" />
+        <rect x="10" y="10" width="16" height="12" fill="#c8e6c9" stroke="#2e7d32" strokeWidth="1.5" rx="1" />
+        <text x="32" y="20" fontSize="9.5" fill="#212121" fontWeight="500">Tira Calibre</text>
+
+        <rect x="10" y="28" width="16" height="8" fill="#78909c" stroke="#37474f" rx="1" />
+        <text x="32" y="35" fontSize="9.5" fill="#212121" fontWeight="500">Paneles / Estante</text>
+
+        <line x1="10" y1="52" x2="26" y2="52" stroke="#1b5e20" strokeWidth="1.5" markerEnd="url(#arrow)" />
+        <text x="32" y="55" fontSize="9.5" fill="#212121" fontWeight="500">Luz Libre Vano</text>
       </g>
     </svg>
   );
@@ -234,6 +484,7 @@ function renderAssemblySvg(sheet: AssemblySheet): ReactElement {
  */
 export function AssemblySheetView({
   assemblySheet,
+  pieces,
   onExportPdf,
 }: AssemblySheetViewProps): ReactElement {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -349,7 +600,7 @@ export function AssemblySheetView({
         <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '8px', color: '#1f2937' }}>
           📐 Esquema de Posicionamiento de Calibres
         </h3>
-        {renderAssemblySvg(assemblySheet)}
+        {renderAssemblySvg(assemblySheet, pieces)}
       </div>
 
       {/* Sequential Assembly Checklist */}

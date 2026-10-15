@@ -1,5 +1,10 @@
 import { type ReactElement } from 'react';
-import { type JointPriority, type RoofType } from '../resolver';
+import {
+  type JointPriority,
+  type RoofType,
+  type BackingType,
+  type RearStructuralRails,
+} from '../resolver';
 import { NumericInput } from './NumericInput';
 
 export interface BaseStructureEditorProps {
@@ -15,6 +20,11 @@ export interface BaseStructureEditorProps {
   plinthHeightMm: number;
   plinthSetbackMm: number;
   hasBacking: boolean;
+  backingType?: BackingType;
+  backingThicknessMm?: number;
+  isIslandCabinet?: boolean;
+  rearStructuralRails?: RearStructuralRails;
+  rearStructuralRailsWidthMm?: number;
   onJointPriorityChange: (val: JointPriority) => void;
   onRoofTypeChange: (val: RoofType) => void;
   onRailOrientationChange: (val: 'horizontal' | 'vertical') => void;
@@ -26,6 +36,11 @@ export interface BaseStructureEditorProps {
   onPlinthHeightChange: (val: number) => void;
   onPlinthSetbackChange: (val: number) => void;
   onHasBackingChange: (val: boolean) => void;
+  onBackingTypeChange?: (val: BackingType) => void;
+  onBackingThicknessChange?: (val: number) => void;
+  onIsIslandCabinetChange?: (val: boolean) => void;
+  onRearStructuralRailsChange?: (val: RearStructuralRails) => void;
+  onRearStructuralRailsWidthChange?: (val: number) => void;
   onSaveAsBaseTemplate?: () => void;
 }
 
@@ -46,6 +61,11 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
     plinthHeightMm,
     plinthSetbackMm,
     hasBacking,
+    backingType = 'groove',
+    backingThicknessMm = 3,
+    isIslandCabinet = false,
+    rearStructuralRails = 'none',
+    rearStructuralRailsWidthMm = 80,
     onJointPriorityChange,
     onRoofTypeChange,
     onRailOrientationChange,
@@ -57,6 +77,11 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
     onPlinthHeightChange,
     onPlinthSetbackChange,
     onHasBackingChange,
+    onBackingTypeChange,
+    onBackingThicknessChange,
+    onIsIslandCabinetChange,
+    onRearStructuralRailsChange,
+    onRearStructuralRailsWidthChange,
     onSaveAsBaseTemplate,
   } = props;
 
@@ -227,15 +252,91 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
           </div>
 
           <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={hasBacking}
-                onChange={(e) => onHasBackingChange(e.target.checked)}
-              />
-              Fondo de Módulo (Ranurado 3mm)
+            <label htmlFor="base-backing-mode" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+              Configuración de Fondo:
             </label>
+            <select
+              id="base-backing-mode"
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+              value={
+                isIslandCabinet
+                  ? 'island'
+                  : !hasBacking
+                  ? 'none'
+                  : backingThicknessMm >= 15
+                  ? 'solid-thick'
+                  : backingType === 'overlay'
+                  ? 'overlay'
+                  : 'groove'
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'island') {
+                  onIsIslandCabinetChange?.(true);
+                  onHasBackingChange(false);
+                } else if (val === 'none') {
+                  onIsIslandCabinetChange?.(false);
+                  onHasBackingChange(false);
+                } else if (val === 'solid-thick') {
+                  onIsIslandCabinetChange?.(false);
+                  onHasBackingChange(true);
+                  onBackingThicknessChange?.(18);
+                  onBackingTypeChange?.('groove');
+                } else if (val === 'overlay') {
+                  onIsIslandCabinetChange?.(false);
+                  onHasBackingChange(true);
+                  onBackingThicknessChange?.(3);
+                  onBackingTypeChange?.('overlay');
+                } else {
+                  // groove
+                  onIsIslandCabinetChange?.(false);
+                  onHasBackingChange(true);
+                  onBackingThicknessChange?.(3);
+                  onBackingTypeChange?.('groove');
+                }
+              }}
+            >
+              <option value="groove">Fondo de Módulo (Ranurado 3mm)</option>
+              <option value="overlay">Fondo Fino Clavado / Atornillado (3mm)</option>
+              <option value="solid-thick">Fondo Grueso Estructural (18mm con confirmat)</option>
+              <option value="island">Mueble tipo Isla (Sin fondo, cantos traseros aplacados)</option>
+              <option value="none">Sin fondo (Abierto)</option>
+            </select>
           </div>
+
+          <div>
+            <label htmlFor="base-rear-rails" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+              Tirantes Estructurales Traseros:
+            </label>
+            <select
+              id="base-rear-rails"
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+              value={rearStructuralRails}
+              onChange={(e) => onRearStructuralRailsChange?.(e.target.value as RearStructuralRails)}
+            >
+              <option value="none">Sin tirantes traseros</option>
+              <option value="top-and-bottom">Superior e Inferior (Rigidez y escuadra)</option>
+              <option value="top-only">Solo Superior</option>
+            </select>
+          </div>
+
+          {rearStructuralRails !== 'none' && (
+            <div>
+              <label htmlFor="base-rear-rails-width" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                Ancho Tirantes Traseros (mm):
+              </label>
+              <NumericInput
+                id="base-rear-rails-width"
+                value={rearStructuralRailsWidthMm}
+                min={50}
+                max={200}
+                step={10}
+                onChange={(val) => onRearStructuralRailsWidthChange?.(val)}
+              />
+            </div>
+          )}
         </div>
       </div>
 
