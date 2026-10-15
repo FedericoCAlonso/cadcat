@@ -108,8 +108,16 @@ describe('Template 2: Drawer Unit (Section 9 Task 9)', () => {
 
     const drawerBottom = resolvedPieces.find((p) => p.id === 'drawer-box-bottom-1');
     expect(drawerBottom).toBeDefined();
-    // Bottom sits inside box sides (T = 18): 539 - 36 = 503 mm
-    expect(drawerBottom?.dimensionsMm.width).toBe(503);
+    // Default bottom is bottom-screwed with 1mm per side safety deduction: 539 - 2 = 537 mm
+    expect(drawerBottom?.dimensionsMm.width).toBe(537);
+
+    // If explicitly configured as flush-thick, bottom sits inside box sides (T = 18): 539 - 36 = 503 mm
+    const { resolvedPieces: thickPieces } = buildDrawerUnit(
+      { width: 600, height: 800, depth: 560, drawerCount: 3, bottomMount: 'flush-thick' },
+      sampleMaterial,
+    );
+    const thickBottom = thickPieces.find((p) => p.id === 'drawer-box-bottom-1');
+    expect(thickBottom?.dimensionsMm.width).toBe(503);
   });
 
   it('updates drawer box widths when drawer unit cabinet width changes', () => {

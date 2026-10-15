@@ -1369,14 +1369,14 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 </button>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.bottomMount === 'bottom-screwed' ? 'selected' : ''}`}
+                  className={`builder-segmented-btn ${!activeBay.bottomMount || activeBay.bottomMount === 'bottom-screwed' ? 'selected' : ''}`}
                   onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'bottom-screwed')}
                 >
                   Atornillado/Clavado por debajo
                 </button>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${!activeBay.bottomMount || activeBay.bottomMount === 'flush-thick' ? 'selected' : ''}`}
+                  className={`builder-segmented-btn ${activeBay.bottomMount === 'flush-thick' ? 'selected' : ''}`}
                   onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'flush-thick')}
                 >
                   Grueso embutido (15/18 mm)

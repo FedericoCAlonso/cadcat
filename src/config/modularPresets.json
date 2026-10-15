@@ -65,7 +65,8 @@
         ],
         "frontMount": "applied",
         "slideType": "telescopic",
-        "gapMm": 2.5
+        "gapMm": 2.5,
+        "bottomMount": "bottom-screwed"
       }
     ],
     "defaultMaterials": {
@@ -95,7 +96,7 @@
         ],
         "frontMount": "inset",
         "drawerType": "simple-interior",
-        "bottomMount": "flush-thick",
+        "bottomMount": "bottom-screwed",
         "topPullGapMm": 30,
         "boxSideHeightOffsetMm": 25,
         "slideType": "telescopic",
@@ -167,7 +168,8 @@
           { "type": "fractional", "valueFr": 1 }
         ],
         "frontMount": "applied",
-        "slideType": "telescopic"
+        "slideType": "telescopic",
+        "bottomMount": "bottom-screwed"
       }
     ],
     "defaultMaterials": {

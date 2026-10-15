@@ -90,7 +90,7 @@ export function buildDrawerSubAssembly(
     boxFrontOffsetMm = 0,
     boxBottomClearanceMm = 15,
     drawerType = 'standard',
-    bottomMount = 'flush-thick',
+    bottomMount = 'bottom-screwed',
     topPullGapMm = 0,
     boxSideHeightOffsetMm = 0,
     bottomThicknessMm,

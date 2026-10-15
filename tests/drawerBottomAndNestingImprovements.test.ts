@@ -237,6 +237,55 @@ describe('Drawer Bottom Calculations & Nesting Optimization Improvements', () =>
       // Must take drawer box thickness (15mm)
       expect(drawerBottom.thicknessMm).toBe(15);
     });
+
+    it('defaults to bottom-screwed with backing material and 1mm per side deduction when bottomMount is omitted', () => {
+      const def: ModularModuleDefinition = {
+        id: 'mod-drawer-default-bottom',
+        carcass: {
+          width: 600,
+          height: 800,
+          depth: 500,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: true,
+          backingThicknessMm: 3,
+        },
+        bays: [
+          {
+            type: 'drawer-stack',
+            drawerTracks: [{ type: 'fractional', valueFr: 1 }],
+            frontMount: 'applied',
+            slideType: 'telescopic',
+            // bottomMount omitted: MUST default to bottom-screwed
+          },
+        ],
+        materials: {
+          carcassMaterialId: testCarcassMat.id,
+          frontsMaterialId: testFrontMat.id,
+          drawerBoxesMaterialId: testBoxMat.id,
+          backingsMaterialId: testBackingMat.id,
+        },
+      };
+
+      const resolved = buildModularModule(def, {
+        carcassThicknessMm: 18,
+        boxThicknessMm: 15,
+        backingThicknessMm: 3,
+      });
+
+      const drawerBottom = resolved.module.pieces.find((p) => p.role === 'drawer-bottom')!;
+      expect(drawerBottom).toBeDefined();
+      // Default material: backing plate
+      expect(drawerBottom.materialId).toBe(testBackingMat.id);
+      expect(drawerBottom.thicknessMm).toBe(3);
+
+      // Default dimensions: reaches almost to the edge (-2mm total width, -2mm total depth = 1mm per side)
+      // Opening width = 600 - 36 = 564. Drawer box width = 564 - 25.4 = 539.
+      // Bottom width = 539 - 2 = 537mm (reaches within 1mm of lateral box edges).
+      expect(drawerBottom.contour.points[1]!.x).toBe(537);
+      // Box depth = 500 - 50 = 450. Bottom depth = 450 - 2 = 448mm (reaches within 1mm of front/back edges).
+      expect(drawerBottom.contour.points[2]!.y).toBe(448);
+    });
   });
 
   // -------------------------------------------------------------------------

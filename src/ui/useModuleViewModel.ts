@@ -589,6 +589,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             frontMount: 'applied',
             slideType: 'telescopic',
             gapMm: 2.5,
+            bottomMount: 'bottom-screwed',
           };
         } else if (type === 'doors') {
           next[bayIndex] = { type: 'doors', count: 2, mountType: 'full-overlay' };
@@ -678,6 +679,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           frontMount: 'applied',
           slideType: 'telescopic',
           gapMm: 2.5,
+          bottomMount: 'bottom-screwed',
         };
       }
       return next;

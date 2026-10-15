@@ -20,6 +20,7 @@ import {
   DRAWER_SLIDE_CLEARANCES_MM,
   type DrawerSlideType,
   type DrawerFrontMount,
+  type DrawerBottomMount,
 } from './drawer';
 import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
@@ -42,6 +43,9 @@ export interface DrawerUnitParams {
   drawerCount?: number;
   slideType?: DrawerSlideType;
   frontMount?: DrawerFrontMount;
+  bottomMount?: DrawerBottomMount;
+  backingMaterialId?: string;
+  backingThicknessMm?: number;
   slideClearanceMm?: number;
   gapMm?: number;
   boxFrontOffsetMm?: number;
@@ -332,12 +336,47 @@ export function buildDrawerUnit(
     });
 
     // Drawer Bottom
+    const bottomMount = params.bottomMount ?? 'bottom-screwed';
+    const isThickBottom = bottomMount === 'flush-thick';
+    const actualBottomMaterialId = isThickBottom
+      ? materialId
+      : (params.backingMaterialId ?? materialId);
+    const actualBottomThickness = isThickBottom
+      ? T
+      : (params.backingThicknessMm ?? 3);
+
+    let bottomWidth: number;
+    let bottomDepth: number;
+    let bottomOffsetX: number;
+    let bottomOffsetY: number;
+    let bottomOffsetZ: number;
+
+    if (bottomMount === 'bottom-screwed') {
+      const defaultDeductionW = defaultProjectConfigJson.hardware.drawerBottomScrewedDeductionWidthMm ?? 2.0;
+      const defaultDeductionD = defaultProjectConfigJson.hardware.drawerBottomScrewedDeductionDepthMm ?? 2.0;
+      const dedW = hw?.drawerBottomScrewedDeductionWidthMm ?? defaultDeductionW;
+      const dedD = hw?.drawerBottomScrewedDeductionDepthMm ?? defaultDeductionD;
+
+      bottomWidth = Math.round(drawerBoxWidth - dedW);
+      bottomDepth = Math.round(drawerBoxDepth - dedD);
+      bottomOffsetX = boxX + Math.round(dedW / 2);
+      bottomOffsetY = boxY - actualBottomThickness;
+      bottomOffsetZ = boxOffsetZ + Math.round(dedD / 2);
+    } else {
+      // flush-thick (fits inside box sides)
+      bottomWidth = drawerBoxWidth - 2 * T;
+      bottomDepth = drawerBoxDepth;
+      bottomOffsetX = boxX + T;
+      bottomOffsetY = boxY;
+      bottomOffsetZ = boxOffsetZ;
+    }
+
     const boxBottom = createPiece({
       id: `drawer-box-bottom-${drawerIndex}`,
       role: 'drawer-bottom',
-      materialId,
-      contour: createRectangularContour(drawerBoxWidth - 2 * T, drawerBoxDepth),
-      thicknessMm: T,
+      materialId: actualBottomMaterialId,
+      contour: createRectangularContour(bottomWidth, bottomDepth),
+      thicknessMm: actualBottomThickness,
     });
     drawerPieces.push(boxBottom);
     subPieceIds.push(boxBottom.id);
@@ -345,7 +384,7 @@ export function buildDrawerUnit(
     placementTree.setNode({
       pieceId: boxBottom.id,
       parentPieceId: 'drawer-side-left',
-      relativeOffset: { x: boxX + T, y: boxY, z: boxOffsetZ },
+      relativeOffset: { x: bottomOffsetX, y: bottomOffsetY, z: bottomOffsetZ },
     });
 
     // Sub-Assembly registration

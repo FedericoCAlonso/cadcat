@@ -36,7 +36,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       slideType,
       gapMm = 2.0,
       drawerType = 'standard',
-      bottomMount = 'flush-thick',
+      bottomMount = 'bottom-screwed',
       topPullGapMm = 0,
       boxSideHeightOffsetMm = 0,
     } = content;
