@@ -124,3 +124,46 @@ export {
   validateUserTemplate,
 } from './userTemplate';
 
+export {
+  equipmentKindSchema,
+  type EquipmentKind,
+  cutoutSpecificationSchema,
+  type CutoutSpecification,
+  faucetHoleSpecificationSchema,
+  type FaucetHoleSpecification,
+  drainSiphonVolumeSchema,
+  type DrainSiphonVolume,
+  ventilationRequirementsSchema,
+  type VentilationRequirements,
+  equipmentItemSchema,
+  type EquipmentItem,
+  equipmentCatalogSchema,
+  type EquipmentCatalog,
+  countertopEquipmentPlacementSchema,
+  type CountertopEquipmentPlacement,
+  validateEquipmentItem,
+  validateEquipmentCatalog,
+  DEFAULT_EQUIPMENT_ITEMS,
+} from './equipment';
+
+export {
+  countertopMaterialKindSchema,
+  type CountertopMaterialKind,
+  countertopMaterialSchema,
+  type CountertopMaterial,
+  countertopMaterialCatalogSchema,
+  type CountertopMaterialCatalog,
+  countertopBacksplashSchema,
+  type CountertopBacksplash,
+  countertopEdgeFinishSchema,
+  type CountertopEdgeFinish,
+  countertopCornerRadiiSchema,
+  type CountertopCornerRadii,
+  countertopDefinitionSchema,
+  type CountertopDefinition,
+  validateCountertopMaterial,
+  validateCountertopDefinition,
+  DEFAULT_COUNTERTOP_MATERIALS,
+} from './countertop';
+
+

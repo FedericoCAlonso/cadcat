@@ -94,3 +94,18 @@ Document language: ASD-STE100 (Simplified Technical English).
   5. Register modular presets in `MODULAR_PRESETS` and `TEMPLATES` for instant workshop composition.
 - **Consequence:** Mobilius supports arbitrary modular combinations and multi-material cabinetry, maintaining strict parametric recalculation when changing overall dimensions and delivering workshop-ready cut lists, nesting diagrams, and machining sheets.
 
+## ADR-011: Phase 3 Ensemble Level — Countertops and Built-In Equipment Models
+
+- **Status:** Accepted.
+- **Context:** Base kitchen and bathroom cabinets support heavy countertops (natural stone, quartz composite, sintered stone, solid wood, and HPL laminate) and house built-in equipment (undermount/topmount sinks, gas/induction cooktops, and built-in ovens). Countertops and equipment introduce physical cutouts, safety clearances to prevent stone cracking, heat dissipation requirements, and mechanical collisions with carcase rails and top drawer boxes.
+- **Decision:**
+  1. Define `CountertopMaterial` schema in `src/model/countertop.ts` with explicit physical properties: material category (`natural-stone`, `quartz-composite`, `sintered-stone`, `solid-wood`, `hpl-laminate`), thickness, surface density ($kg/m^2$), maximum cantilever overhang without brackets, maximum unsupported clear span (e.g. for dishwasher niches), and substrate requirements (`requiresSubtop`).
+  2. Define `EquipmentItem` schema in `src/model/equipment.ts` with explicit dimensions: overall size, cutout geometry (`widthMm`, `depthMm`, `cornerRadiusMm`), safety perimeter clearances (`minClearancesMm.frontMm`, `backMm`, `leftMm`, `rightMm`), 3D reserved interference volume (`reservedVolumeMm`), faucet hole boring specifications (Ø35mm), drain siphon bounding volume (`siphonVolume`), and cooking ventilation air gaps (`ventilationRequirements`).
+  3. Support flexible sink-cabinet adaptations:
+     - Front stretcher rail rotation: place front rail on edge (`vertical`), exponentially increasing flexural inertia under stone weight while providing open vertical clearance for sink basins and cooktop bodies.
+     - Top drawer adaptation: configurable by the user as either a fixed dummy front (`false-front`, default) or a U-shaped notched drawer box (`u-shape-drawer`) wrapping around the siphon and waste trap.
+  4. Define `CountertopDefinition` covering perimeter overhangs, edge finish profiles (`straight-polished`, `bevel-2mm`, `bullnose`, `mitered-skirt`), polished corner radii, and perimeter backsplashes/upstands.
+  5. Provide seed catalogs (`DEFAULT_COUNTERTOP_MATERIALS` and `DEFAULT_EQUIPMENT_ITEMS`) with verified dimensions, marking commercial prices as `TO_CONFIRM`.
+- **Consequence:** The ensemble level is fully formalized without hardcoded dimensions. Structural loads, cutouts, and cabinet adaptations can be resolved deterministically.
+
+

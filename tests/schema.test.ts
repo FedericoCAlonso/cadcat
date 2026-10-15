@@ -14,6 +14,12 @@ import {
   type Module,
   drillOperationSchema,
   pieceMachiningSchema,
+  validateEquipmentItem,
+  validateEquipmentCatalog,
+  DEFAULT_EQUIPMENT_ITEMS,
+  validateCountertopMaterial,
+  validateCountertopDefinition,
+  DEFAULT_COUNTERTOP_MATERIALS,
 } from '../src/model';
 
 describe('Model Schemas - Valid Data', () => {
@@ -262,4 +268,71 @@ describe('Model Schemas - Rejection of Wrong Data', () => {
     };
     expect(pieceMachiningSchema.parse(validMachining)).toEqual(validMachining);
   });
+
+  it('validates equipment item and seed catalog', () => {
+    expect(DEFAULT_EQUIPMENT_ITEMS.length).toBeGreaterThan(0);
+    const catalog = {
+      schemaVersion: 1,
+      items: DEFAULT_EQUIPMENT_ITEMS,
+    };
+    const parsedCatalog = validateEquipmentCatalog(catalog);
+    expect(parsedCatalog.items.length).toBe(DEFAULT_EQUIPMENT_ITEMS.length);
+
+    const first = DEFAULT_EQUIPMENT_ITEMS[0]!;
+    const parsedItem = validateEquipmentItem(first);
+    expect(parsedItem.id).toBe(first.id);
+    expect(parsedItem.cutout.widthMm).toBeGreaterThan(0);
+    expect(parsedItem.minClearancesMm.frontMm).toBeGreaterThanOrEqual(50);
+  });
+
+  it('validates countertop material and seed catalog', () => {
+    expect(DEFAULT_COUNTERTOP_MATERIALS.length).toBeGreaterThan(0);
+    for (const mat of DEFAULT_COUNTERTOP_MATERIALS) {
+      const parsed = validateCountertopMaterial(mat);
+      expect(parsed.thicknessMm).toBeGreaterThan(0);
+      expect(parsed.densityKgM2).toBeGreaterThan(0);
+      expect(parsed.maxOverhangWithoutBracketsMm).toBeGreaterThan(0);
+    }
+  });
+
+  it('validates countertop definition with sink placement and backsplash', () => {
+    const validCountertop = {
+      id: 'ct-1',
+      name: 'Mesada Cocina',
+      materialId: 'ct-granite-gris-mara-20',
+      widthMm: 1800,
+      depthMm: 620,
+      frontOverhangMm: 25,
+      leftOverhangMm: 10,
+      rightOverhangMm: 10,
+      backOverhangMm: 0,
+      edgeFinish: 'straight-polished' as const,
+      cornerRadii: {
+        frontLeftMm: 15,
+        frontRightMm: 15,
+        backLeftMm: 0,
+        backRightMm: 0,
+      },
+      backsplash: {
+        hasSplash: true,
+        heightMm: 60,
+        thicknessMm: 20,
+      },
+      placements: [
+        {
+          equipmentId: 'eq-sink-johnson-luxon-ln50',
+          centerXMm: 900,
+          sinkDrawerAdaptation: 'false-front' as const,
+          frontRailOrientation: 'vertical' as const,
+        },
+      ],
+    };
+
+    const parsed = validateCountertopDefinition(validCountertop);
+    expect(parsed.widthMm).toBe(1800);
+    expect(parsed.placements.length).toBe(1);
+    expect(parsed.placements[0]?.sinkDrawerAdaptation).toBe('false-front');
+    expect(parsed.placements[0]?.frontRailOrientation).toBe('vertical');
+  });
 });
+

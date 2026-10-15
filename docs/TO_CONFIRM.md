@@ -77,6 +77,26 @@ Keep the marker `TO_CONFIRM` until the domain expert confirms the value.
 | Maximum absolute deflection (`maxAbsoluteDeflectionMm`) | `3.0 mm (TO_CONFIRM)` | | Maximum absolute sag limit in millimeters. |
 | Design uniform load (`designUniformLoadKgM2`) | `30.0 kg/m² (TO_CONFIRM)` | | Standard storage load per square meter for kitchen cabinets. |
 
+### Countertop & Built-In Equipment (Phase 3)
+
+| Parameter / Item ID | Field | Current Default | Confirmed Value | Notes |
+|---|---|---|---|---|
+| `ct-granite-gris-mara-20` | `pricePerM2` | `TO_CONFIRM` | | Natural stone material cost per m². |
+| `ct-granite-negro-brasil-20` | `pricePerM2` | `TO_CONFIRM` | | Natural stone material cost per m². |
+| `ct-quartz-white-zeus-20` | `pricePerM2` | `TO_CONFIRM` | | Quartz composite material cost per m². |
+| `ct-sintered-dekton-12` | `pricePerM2` | `TO_CONFIRM` | | Sintered ultracompact stone material cost per m². |
+| `ct-wood-paraiso-30` | `pricePerM2` | `TO_CONFIRM` | | Finger-joint solid wood panel cost per m². |
+| `ct-hpl-laminate-postformed-30` | `pricePerM2` | `TO_CONFIRM` | | HPL postformed countertop cost per m². |
+| `eq-sink-johnson-luxon-ln50` | `price` | `TO_CONFIRM` | | Undermount single basin sink retail/trade price. |
+| `eq-sink-mipileta-420e` | `price` | `TO_CONFIRM` | | Undermount compact sink retail/trade price. |
+| `eq-sink-johnson-c37` | `price` | `TO_CONFIRM` | | Undermount double basin sink retail/trade price. |
+| `eq-cooktop-domec-gas-4` | `price` | `TO_CONFIRM` | | Built-in 4-burner gas cooktop price. |
+| `eq-cooktop-orbis-induction-4` | `price` | `TO_CONFIRM` | | Built-in 4-zone induction cooktop price. |
+| `eq-oven-ariston-builtin-60` | `price` | `TO_CONFIRM` | | Built-in 60cm electric oven price. |
+| Countertop front overhang | `frontOverhangMm` | `25.0 mm (TO_CONFIRM)` | | Standard countertop overhang beyond door/drawer front face. |
+| Backsplash height | `backsplash.heightMm` | `60.0 mm (TO_CONFIRM)` | | Standard wall upstand/zocalín height in stone. |
+| Faucet hole diameter | `faucetHole.diameterMm` | `35.0 mm (TO_CONFIRM)` | | Standard single-lever mixer tap borehole diameter. |
+
 ## 2. General Shop Values (from Plan Section 12)
 
 1. **Sheet sizes and thicknesses.** Confirm actual board dimensions in local shop stock.
