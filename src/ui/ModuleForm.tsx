@@ -1578,21 +1578,31 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
 
             <div className="form-group">
-              <label>Montaje de puerta:</label>
-              <div className="builder-segmented-group">
+              <label>Montaje de puerta (Bisagra cazoleta):</label>
+              <div className="builder-segmented-group" role="group" aria-label="Tipo de bisagra cazoleta">
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.mountType === 'full-overlay' ? 'selected' : ''}`}
-                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'full-overlay')}
+                  className={`builder-segmented-btn ${activeBay.mountType === 'codo-0' || activeBay.mountType === 'full-overlay' || activeBay.mountType === 'overlay' ? 'selected' : ''}`}
+                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'codo-0')}
+                  title="Bisagra recta / Solapado total. Tapa el canto lateral (Base a 37mm)"
                 >
-                  Solapada (Full Overlay)
+                  Codo 0 (Recta)
                 </button>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.mountType === 'inset' ? 'selected' : ''}`}
-                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'inset')}
+                  className={`builder-segmented-btn ${activeBay.mountType === 'codo-9' || activeBay.mountType === 'half-overlay' ? 'selected' : ''}`}
+                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'codo-9')}
+                  title="Bisagra acodada / Semi-solapada. Comparte tabique central (Base a 37mm)"
                 >
-                  Embutida (Inset)
+                  Codo 9 (Acodada)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.mountType === 'codo-18' || activeBay.mountType === 'inset' ? 'selected' : ''}`}
+                  onClick={() => onDoorMountTypeChange?.(currentActiveIndex, 'codo-18')}
+                  title="Bisagra superacodada / Embutida. Puerta dentro del vano (Base a 37mm + espesor)"
+                >
+                  Codo 18 (Embutida)
                 </button>
               </div>
             </div>

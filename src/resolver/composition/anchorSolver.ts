@@ -494,7 +494,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
   // 4. Backing Panel (Smart: Thin grooved/overlay vs Thick structural confirmat)
   if (hasBacking) {
     const backPieceId = `${idPrefix}-back`;
-    const isThickBack = backingThicknessMm >= 15;
+    const isThickBack = backingThicknessMm >= 15 && backingType !== 'overlay';
 
     if (isThickBack) {
       // Point 5: Thick structural backing (15mm - 18mm)
@@ -551,8 +551,8 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
         );
       }
     } else if (backingType === 'overlay') {
-      // Point 5: Thin overlay backing (3mm tacked/screwed onto rear face)
-      const backWidth = isBottomPass ? width : interiorWidth + 2 * T;
+      // Point 5: Thin overlay backing (3mm tacked/screwed onto rear cantos: lateral, top, and bottom)
+      const backWidth = width;
       const backHeight = height - plinthY;
 
       const backPiece = createPiece({
@@ -571,22 +571,45 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
         relativeOffset: {
           x: 0,
           y: plinthY,
-          z: depth - backingThicknessMm,
+          z: depth,
         },
       });
 
       joints.push(
         createJoint({
-          a: { pieceId: leftPieceId, faceId: 'inner' },
-          b: { pieceId: backPieceId, faceId: 'left-edge' },
-          kind: 'groove',
+          a: { pieceId: leftPieceId, faceId: 'rear-edge' },
+          b: { pieceId: backPieceId, faceId: 'inner' },
+          kind: 'screw',
         }),
         createJoint({
-          a: { pieceId: rightPieceId, faceId: 'inner' },
-          b: { pieceId: backPieceId, faceId: 'right-edge' },
-          kind: 'groove',
+          a: { pieceId: rightPieceId, faceId: 'rear-edge' },
+          b: { pieceId: backPieceId, faceId: 'inner' },
+          kind: 'screw',
+        }),
+        createJoint({
+          a: { pieceId: bottomPieceId, faceId: 'rear-edge' },
+          b: { pieceId: backPieceId, faceId: 'inner' },
+          kind: 'screw',
         }),
       );
+
+      if (roofType === 'solid-panel') {
+        joints.push(
+          createJoint({
+            a: { pieceId: topPieceId, faceId: 'rear-edge' },
+            b: { pieceId: backPieceId, faceId: 'inner' },
+            kind: 'screw',
+          }),
+        );
+      } else if (roofType === 'front-back-rails') {
+        joints.push(
+          createJoint({
+            a: { pieceId: `${idPrefix}-rail-back`, faceId: 'rear-edge' },
+            b: { pieceId: backPieceId, faceId: 'inner' },
+            kind: 'screw',
+          }),
+        );
+      }
     } else {
       // Point 5: Thin grooved backing (default 3mm/5.5mm sliding into perimeter grooves)
       const backWidth = interiorWidth + 2 * backingGrooveDepthMm;

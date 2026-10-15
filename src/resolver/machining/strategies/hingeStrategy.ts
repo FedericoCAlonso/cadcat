@@ -19,7 +19,18 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
     const spacing = config.hingePlateHoleSpacingMm ?? 32.0;
     const halfSpacing = spacing / 2;
 
-    // 1. On Door: cup hole
+    const doorWidth = Math.max(...pieceA.contour.points.map((p) => p.x));
+    const isRightDoor =
+      pieceA.role.includes('right') ||
+      pieceA.id.includes('right') ||
+      pieceA.id.endsWith('-r') ||
+      joint.b.pieceId.includes('right');
+
+    const cupX = isRightDoor
+      ? doorWidth - config.hingeCupEdgeSetbackMm
+      : config.hingeCupEdgeSetbackMm;
+
+    // 1. On Door: cup hole (Ø35mm)
     operations.push({
       schemaVersion: 1,
       id: generateOpId(),
@@ -29,13 +40,19 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
       diameterMm: config.hingeCupDiameterMm,
       depthMm: config.hingeCupDepthMm,
       isThrough: false,
-      positionMm: { x: config.hingeCupEdgeSetbackMm, y: hingeY },
+      positionMm: { x: cupX, y: hingeY },
       origin: 'derived',
       sourceJointKind: 'hinge',
-      description: `Concealed hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm`,
+      description: `Concealed hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (${isRightDoor ? 'right' : 'left'})`,
     });
 
     // 2. On Carcase Side: 2 mounting plate holes in System 32 line
+    // Codo 0 & Codo 9: 37mm setback. Codo 18 (Inset): 37mm + door thickness.
+    const isInset = joint.hingeCrank === 'codo-18';
+    const plateSetback = isInset
+      ? config.hingePlateSetbackMm + pieceA.thicknessMm
+      : config.hingePlateSetbackMm;
+
     operations.push(
       {
         schemaVersion: 1,
@@ -46,10 +63,10 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.hingePlateDiameterMm,
         depthMm: config.hingePlateDepthMm,
         isThrough: false,
-        positionMm: { x: config.hingePlateSetbackMm, y: hingeY - halfSpacing },
+        positionMm: { x: plateSetback, y: hingeY - halfSpacing },
         origin: 'derived',
         sourceJointKind: 'hinge',
-        description: `Hinge mounting plate hole 1 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm`,
+        description: `Hinge mounting plate hole 1 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm${isInset ? ' (Codo 18 / Inset)' : ''}`,
       },
       {
         schemaVersion: 1,
@@ -60,10 +77,10 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.hingePlateDiameterMm,
         depthMm: config.hingePlateDepthMm,
         isThrough: false,
-        positionMm: { x: config.hingePlateSetbackMm, y: hingeY + halfSpacing },
+        positionMm: { x: plateSetback, y: hingeY + halfSpacing },
         origin: 'derived',
         sourceJointKind: 'hinge',
-        description: `Hinge mounting plate hole 2 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm`,
+        description: `Hinge mounting plate hole 2 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm${isInset ? ' (Codo 18 / Inset)' : ''}`,
       },
     );
 

@@ -12,6 +12,7 @@ export interface CreateJointInput {
   kind: JointKind;
   offsetMm?: number;
   region?: Interval;
+  hingeCrank?: 'codo-0' | 'codo-9' | 'codo-18';
 }
 
 /**

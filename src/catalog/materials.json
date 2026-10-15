@@ -40,6 +40,25 @@
       "heatResistant": false,
       "elasticModulusMPa": "TO_CONFIRM",
       "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-mdf-white-3",
+      "name": "Fibrofácil / MDF Fondo Blanco 3mm",
+      "thicknessMm": 3,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": false,
+      "milling": {
+        "hidden": "no",
+        "visible": "no",
+        "onStructuralPiece": "no"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
     }
   ]
 }

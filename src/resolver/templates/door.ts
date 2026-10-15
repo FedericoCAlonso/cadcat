@@ -4,7 +4,26 @@ import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
 import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
-export type DoorMountType = 'full-overlay' | 'half-overlay' | 'inset' | 'overlay';
+export type DoorMountType =
+  | 'codo-0'
+  | 'codo-9'
+  | 'codo-18'
+  | 'full-overlay'
+  | 'half-overlay'
+  | 'inset'
+  | 'overlay';
+
+/**
+ * Normalizes European hinge crank types to canonical workshop types:
+ * - 'codo-0': Bisagra recta / Solapado total (Full Overlay)
+ * - 'codo-9': Bisagra acodada / Solapado parcial / gemelo (Half Overlay)
+ * - 'codo-18': Bisagra superacodada / Embutida / enrasada (Inset)
+ */
+export function normalizeDoorMountType(mount: DoorMountType): 'codo-0' | 'codo-9' | 'codo-18' {
+  if (mount === 'codo-18' || mount === 'inset') return 'codo-18';
+  if (mount === 'codo-9' || mount === 'half-overlay') return 'codo-9';
+  return 'codo-0';
+}
 
 export interface DoorConfig {
   id: string;
@@ -94,6 +113,7 @@ export function buildDoorSubAssembly(
   } = config;
 
   const doorT = doorThicknessMm ?? T;
+  const normMount = normalizeDoorMountType(mountType);
 
   let doorWidthMm: number;
   let doorHeightMm: number;
@@ -101,14 +121,14 @@ export function buildDoorSubAssembly(
   let posY: number;
   let posZ: number;
 
-  if (mountType === 'full-overlay' || mountType === 'overlay') {
+  if (normMount === 'codo-0') {
     // Sits in front of carcase covering side edges with small perimeter reveal
     doorWidthMm = Math.round(openingWidthMm + 2 * T - 2 * revealMm);
     doorHeightMm = Math.round(openingHeightMm + 2 * T - 2 * revealMm);
     posX = revealMm;
     posY = revealMm;
     posZ = -doorT;
-  } else if (mountType === 'half-overlay') {
+  } else if (normMount === 'codo-9') {
     // Overlays half carcase thickness on side panels (typical on shared center partition)
     doorWidthMm = Math.round(openingWidthMm + T - 2 * revealMm);
     doorHeightMm = Math.round(openingHeightMm + 2 * T - 2 * revealMm);
@@ -116,7 +136,7 @@ export function buildDoorSubAssembly(
     posY = revealMm;
     posZ = -doorT;
   } else {
-    // Inset door fits inside opening with perimeter clearance gap
+    // Inset door (codo-18) fits inside opening with perimeter clearance gap
     doorWidthMm = Math.round(openingWidthMm - 2 * gapMm);
     doorHeightMm = Math.round(openingHeightMm - 2 * gapMm);
     posX = T + gapMm;
@@ -152,6 +172,7 @@ export function buildDoorSubAssembly(
       b: { pieceId: parentPieceId, faceId: 'inner' },
       kind: 'hinge',
       offsetMm: pos,
+      hingeCrank: normMount,
     }),
   );
 

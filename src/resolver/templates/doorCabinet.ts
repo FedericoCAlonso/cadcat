@@ -23,6 +23,8 @@ export interface DoorCabinetParams {
   doorGapMm?: number;
   doorRevealMm?: number;
   hingeSetbackFromEndMm?: number;
+  backingType?: 'overlay' | 'groove' | 'rebate' | 'none';
+  backingThicknessMm?: number;
 }
 
 export const DEFAULT_DOOR_CABINET_PARAMS: DoorCabinetParams = {
@@ -121,12 +123,17 @@ export function buildDoorCabinet(
   });
 
   // 4. Back Panel
+  const isBackOverlay = params.backingType === 'overlay';
+  const backThickness = params.backingThicknessMm ?? (isBackOverlay ? 3 : T);
+  const backWidth = isBackOverlay ? widthMm : innerWidth;
+  const backHeight = isBackOverlay ? heightMm : heightMm - T;
+
   const back = createPiece({
     id: 'door-cab-back',
     role: 'back',
     materialId,
-    contour: createRectangularContour(innerWidth, heightMm - T),
-    thicknessMm: T,
+    contour: createRectangularContour(backWidth, backHeight),
+    thicknessMm: backThickness,
     structural: false,
   });
 
@@ -163,12 +170,40 @@ export function buildDoorCabinet(
       b: { pieceId: 'door-cab-rail-back', faceId: 'right-edge' },
       kind: 'confirmat',
     }),
-    createJoint({
-      a: { pieceId: 'door-cab-bottom', faceId: 'rear-edge' },
-      b: { pieceId: 'door-cab-back', faceId: 'bottom-edge' },
-      kind: 'rebate',
-    }),
   ];
+
+  if (isBackOverlay) {
+    joints.push(
+      createJoint({
+        a: { pieceId: 'door-cab-side-left', faceId: 'rear-edge' },
+        b: { pieceId: 'door-cab-back', faceId: 'inner' },
+        kind: 'screw',
+      }),
+      createJoint({
+        a: { pieceId: 'door-cab-side-right', faceId: 'rear-edge' },
+        b: { pieceId: 'door-cab-back', faceId: 'inner' },
+        kind: 'screw',
+      }),
+      createJoint({
+        a: { pieceId: 'door-cab-bottom', faceId: 'rear-edge' },
+        b: { pieceId: 'door-cab-back', faceId: 'inner' },
+        kind: 'screw',
+      }),
+      createJoint({
+        a: { pieceId: 'door-cab-rail-back', faceId: 'rear-edge' },
+        b: { pieceId: 'door-cab-back', faceId: 'inner' },
+        kind: 'screw',
+      }),
+    );
+  } else {
+    joints.push(
+      createJoint({
+        a: { pieceId: 'door-cab-bottom', faceId: 'rear-edge' },
+        b: { pieceId: 'door-cab-back', faceId: 'bottom-edge' },
+        kind: 'rebate',
+      }),
+    );
+  }
 
   const placementTree = new PlacementTree('door-cab-side-left');
   placementTree.setNode({
@@ -191,27 +226,42 @@ export function buildDoorCabinet(
     parentPieceId: 'door-cab-side-left',
     relativeOffset: { x: T, y: heightMm - T, z: depthMm - 100 },
   });
-  placementTree.setNode({
-    pieceId: 'door-cab-back',
-    parentPieceId: 'door-cab-side-left',
-    relativeOffset: { x: T, y: T, z: depthMm - T },
-  });
+
+  if (isBackOverlay) {
+    placementTree.setNode({
+      pieceId: 'door-cab-back',
+      parentPieceId: 'door-cab-side-left',
+      relativeOffset: { x: 0, y: 0, z: depthMm },
+    });
+  } else {
+    placementTree.setNode({
+      pieceId: 'door-cab-back',
+      parentPieceId: 'door-cab-side-left',
+      relativeOffset: { x: T, y: T, z: depthMm - T },
+    });
+  }
 
   // 5. Adjustable Shelf
   const shelfY = params.shelfOffset ?? Math.round(heightMm / 2);
+  const isInsetMount = mountType === 'inset' || mountType === 'codo-18';
+  const shelfFrontOffset = (isInsetMount ? T : 0) + 20;
+  const availableInteriorDepth = depthMm - (isBackOverlay ? 0 : T);
   const shelfRes = buildShelf(
     {
       id: 'door-cab-shelf-1',
       openingWidthMm: innerWidth,
-      depthMm: depthMm - 20,
+      depthMm: availableInteriorDepth,
       elevationYMm: shelfY,
       carcaseThicknessMm: T,
       materialId,
       mountType: 'adjustable',
       edgeBandId,
+      setbackMm: shelfFrontOffset,
+      frontOffsetMm: shelfFrontOffset,
     },
     'door-cab-side-left',
   );
+  shelfRes.placementNode.relativeOffset.z = shelfFrontOffset;
   pieces.push(shelfRes.piece);
   joints.push(...shelfRes.joints);
   placementTree.setNode(shelfRes.placementNode);
@@ -277,13 +327,16 @@ export function buildDoorCabinet(
         hingeSetbackFromEndMm,
         hingeCupEdgeSetbackMm,
       },
-      'door-cab-side-right',
+      'door-cab-side-left',
     );
+    for (const j of doorRightRes.joints) {
+      j.b.pieceId = 'door-cab-side-right';
+    }
 
     if (isInsetMount) {
       doorRightRes.placementNode.relativeOffset.x =
         widthMm - T - gapMm - doorRightRes.doorPiece.contour.points[1]!.x;
-    } else if (mountType === 'half-overlay') {
+    } else if (mountType === 'half-overlay' || mountType === 'codo-9') {
       doorRightRes.placementNode.relativeOffset.x =
         widthMm - doorRightRes.doorPiece.contour.points[1]!.x - (T / 2 + revealMm);
     } else {

@@ -6,7 +6,7 @@ describe('Seed Catalogs', () => {
     const catalog = getSeedMaterials();
 
     expect(catalog.schemaVersion).toBe(1);
-    expect(catalog.materials).toHaveLength(2);
+    expect(catalog.materials).toHaveLength(3);
 
     const whiteBoard = catalog.materials.find((m) => m.id === 'mat-egger-white-18');
     expect(whiteBoard).toBeDefined();
@@ -22,6 +22,10 @@ describe('Seed Catalogs', () => {
     expect(oakBoard?.name).toContain('Oak');
     expect(oakBoard?.hasGrain).toBe(true);
     expect(oakBoard?.pricePerSheet).toBe('TO_CONFIRM');
+
+    const mdfBacking = catalog.materials.find((m) => m.id === 'mat-mdf-white-3');
+    expect(mdfBacking).toBeDefined();
+    expect(mdfBacking?.thicknessMm).toBe(3);
   });
 
   it('loads and validates seed edge bands catalog', () => {

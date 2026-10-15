@@ -29,6 +29,7 @@ export const jointSchema = z.object({
   kind: jointKindSchema,
   offsetMm: z.number().optional(),
   region: intervalSchema.optional(),
+  hingeCrank: z.enum(['codo-0', 'codo-9', 'codo-18']).optional(),
 });
 export type Joint = z.infer<typeof jointSchema>;
 

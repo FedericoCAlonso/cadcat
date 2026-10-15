@@ -16,6 +16,7 @@ export interface ShelfConfig {
   mountType: ShelfMountType;
   edgeBandId?: string;
   setbackMm?: number;
+  frontOffsetMm?: number;
   lateralGapMm?: number;
 }
 
@@ -44,15 +45,17 @@ export function buildShelf(
     mountType,
     edgeBandId,
     setbackMm = 20.0,
+    frontOffsetMm,
     lateralGapMm = 2.0,
   } = config;
 
   const shelfT = thicknessMm ?? T;
+  const effectiveSetback = frontOffsetMm ?? setbackMm;
 
   // Adjustable shelf is slightly narrower to slide in/out onto shelf pins
   const widthDeduction = mountType === 'adjustable' ? lateralGapMm : 0;
   const shelfWidth = Math.round(openingWidthMm - widthDeduction);
-  const shelfDepth = Math.round(depthMm - setbackMm);
+  const shelfDepth = Math.round(depthMm - effectiveSetback);
 
   const piece = createPiece({
     id,
@@ -90,7 +93,7 @@ export function buildShelf(
     relativeOffset: {
       x: posX,
       y: elevationYMm,
-      z: 0,
+      z: effectiveSetback,
     },
   };
 
