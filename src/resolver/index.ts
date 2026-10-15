@@ -289,3 +289,13 @@ export {
   exportWallShelvesInstallationPdf,
 } from './wallShelves';
 
+export {
+  type CountertopCutoutResult,
+  type JointCrossingCheck,
+  type CountertopCalculationResult,
+  type SinkCabinetAdaptationResult,
+  calculateCountertop,
+  adaptCabinetForEquipment,
+} from './countertop';
+
+
