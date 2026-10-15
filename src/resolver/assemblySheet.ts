@@ -126,8 +126,9 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
     if (!matchedGaugeLabel && gauges.length > 0) {
       // Find gauge matching clear span along Y
+      const prevThickness = previousHorizontalPiece ? (previousHorizontalPiece.thicknessMm ?? 18) : 18;
       const spanMm = previousHorizontalPiece
-        ? shelf.positionMm.y - (previousHorizontalPiece.positionMm.y + previousHorizontalPiece.dimensionsMm.height)
+        ? shelf.positionMm.y - (previousHorizontalPiece.positionMm.y + prevThickness)
         : shelf.positionMm.y;
       const matched = gauges.find((g) => Math.abs(g.clearSpanMm - spanMm) <= 2.0);
       if (matched) matchedGaugeLabel = matched.label;

@@ -9,13 +9,31 @@ import {
   buildWallShelving,
   generateInstallationSheetSvg,
   type WallShelvingDefinition,
+  type WallShelvingOutput,
 } from '../resolver';
 
 export interface AssemblySheetViewProps {
   assemblySheet: AssemblySheet | null;
   pieces?: (ResolvedPieceWithCutSize | ResolvedPiece)[];
+  wallShelvingOutput?: WallShelvingOutput | null;
+  wallShelvingDefinition?: WallShelvingDefinition | null;
   onExportPdf?: () => void;
 }
+
+type DrawnSpan =
+  | {
+      axis: 'y';
+      startY: number;
+      endY: number;
+      minXSpan: number;
+      maxXSpan: number;
+    }
+  | {
+      axis: 'x';
+      startX: number;
+      endX: number;
+      floorY: number;
+    };
 
 /**
  * Render an SVG elevation diagram showing the carcass panels and assembly gauge strips
@@ -46,6 +64,11 @@ function renderAssemblySvg(
   );
 
   const displayPieces = structuralPieces.length > 0 ? structuralPieces : nonAuxPieces;
+
+  // Separate backing pieces from structural foreground panels
+  const backPieces = displayPieces.filter((p) => p.role.includes('back'));
+  const frontPieces = displayPieces.filter((p) => !p.role.includes('back'));
+  const sortedDisplayPieces = [...backPieces, ...frontPieces];
 
   // Calculate actual bounding box in XY plane
   let minX = Infinity;
@@ -100,10 +123,10 @@ function renderAssemblySvg(
         </pattern>
       </defs>
 
-      {/* Render Real Pieces */}
+      {/* Render Real Pieces: Backing first, then structural panels */}
       {hasRealPieces ? (
         <g id="carcass-pieces">
-          {displayPieces.map((p) => {
+          {sortedDisplayPieces.map((p) => {
             const pos = p.positionMm ?? { x: 0, y: 0, z: 0 };
             const size = determinePieceSpatialSize(p);
             const px = toSvgX(pos.x);
@@ -129,9 +152,9 @@ function renderAssemblySvg(
             } else if (isBottom) {
               fill = '#90a4ae';
             } else if (isBack) {
-              fill = '#eceff1';
-              stroke = '#b0bec5';
-              strokeDasharray = '3 3';
+              fill = '#f8fafc';
+              stroke = '#94a3b8';
+              strokeDasharray = '4 4';
             }
 
             return (
@@ -142,13 +165,14 @@ function renderAssemblySvg(
                   width={pw}
                   height={ph}
                   fill={fill}
+                  fillOpacity={isBack ? 0.6 : 1}
                   stroke={stroke}
                   strokeWidth="1.2"
                   strokeDasharray={strokeDasharray}
                   rx="1"
                 />
-                {/* Piece label on larger elements */}
-                {pw >= 40 && ph >= 14 && (
+                {/* Piece label on larger elements (skip back to keep interior uncluttered) */}
+                {!isBack && pw >= 40 && ph >= 14 && (
                   <text
                     x={px + pw / 2}
                     y={py + ph / 2 + 3.5}
@@ -210,30 +234,51 @@ function renderAssemblySvg(
       {gauges.length > 0 && (
         <g id="assembly-gauges">
           {gauges.map((g, gIdx) => {
-            // Find occurrences or fallback to shelves
             const occurrences = g.occurrences && g.occurrences.length > 0 ? g.occurrences : [];
             const pieceMap = new Map(displayPieces.map((p) => [p.id, p]));
 
-            const renderedOccurrences = occurrences
-              .map((occ) => {
-                const lower = pieceMap.get(occ.lowerPieceId);
-                const upper = pieceMap.get(occ.upperPieceId);
-                if (!lower || !upper) return null;
-                const lowerSize = determinePieceSpatialSize(lower);
-                const upperSize = determinePieceSpatialSize(upper);
-                const startY = lower.positionMm.y + lowerSize.y;
-                const endY = upper.positionMm.y;
-                const minXSpan = Math.max(lower.positionMm.x, upper.positionMm.x);
-                const maxXSpan = Math.min(
-                  lower.positionMm.x + lowerSize.x,
-                  upper.positionMm.x + upperSize.x,
-                );
-                return { startY, endY, minXSpan, maxXSpan };
-              })
-              .filter((x): x is NonNullable<typeof x> => Boolean(x));
+            const renderedOccurrences: DrawnSpan[] = occurrences
+              .map((occ): DrawnSpan | null => {
+                const pieceA = pieceMap.get(occ.lowerPieceId);
+                const pieceB = pieceMap.get(occ.upperPieceId);
+                if (!pieceA || !pieceB) return null;
+                const sizeA = determinePieceSpatialSize(pieceA);
+                const sizeB = determinePieceSpatialSize(pieceB);
 
-            // If occurrences couldn't resolve piece positions directly, deduce from shelves
-            const spansToDraw =
+                if (occ.axis === 'x') {
+                  const startX = Math.min(pieceA.positionMm.x + sizeA.x, pieceB.positionMm.x + sizeB.x);
+                  const endX = Math.max(pieceA.positionMm.x, pieceB.positionMm.x);
+                  if (endX <= startX) return null;
+                  const bottomPiece = displayPieces.find((p) => p.role.includes('bottom'));
+                  const floorY = bottomPiece ? bottomPiece.positionMm.y + determinePieceSpatialSize(bottomPiece).y : 0;
+                  return {
+                    axis: 'x',
+                    startX,
+                    endX,
+                    floorY,
+                  };
+                }
+
+                // Vertical span
+                const startY = pieceA.positionMm.y + sizeA.y;
+                const endY = pieceB.positionMm.y;
+                if (endY <= startY) return null;
+                const minXSpan = Math.max(pieceA.positionMm.x, pieceB.positionMm.x);
+                const maxXSpan = Math.min(
+                  pieceA.positionMm.x + sizeA.x,
+                  pieceB.positionMm.x + sizeB.x,
+                );
+                return {
+                  axis: 'y',
+                  startY,
+                  endY,
+                  minXSpan,
+                  maxXSpan,
+                };
+              })
+              .filter((x): x is DrawnSpan => Boolean(x));
+
+            const spansToDraw: DrawnSpan[] =
               renderedOccurrences.length > 0
                 ? renderedOccurrences
                 : (() => {
@@ -241,21 +286,34 @@ function renderAssemblySvg(
                       .filter((p) => p.role.includes('shelf'))
                       .sort((a, b) => a.positionMm.y - b.positionMm.y);
                     const bottom = displayPieces.find((p) => p.role.includes('bottom'));
-                    const list: { startY: number; endY: number; minXSpan: number; maxXSpan: number }[] = [];
+                    const top = displayPieces.find((p) => p.role.includes('top') || p.role.includes('rail'));
+                    const list: DrawnSpan[] = [];
 
-                    let prevY = bottom ? bottom.positionMm.y + determinePieceSpatialSize(bottom).y : 0;
-                    for (const s of shelves) {
-                      const shelfY = s.positionMm.y;
-                      const span = shelfY - prevY;
+                    const horizPanels = [
+                      ...(bottom ? [bottom] : []),
+                      ...shelves,
+                      ...(top ? [top] : []),
+                    ].sort((a, b) => a.positionMm.y - b.positionMm.y);
+
+                    for (let i = 0; i < horizPanels.length - 1; i++) {
+                      const lower = horizPanels[i]!;
+                      const upper = horizPanels[i + 1]!;
+                      const lowerSize = determinePieceSpatialSize(lower);
+                      const startY = lower.positionMm.y + lowerSize.y;
+                      const endY = upper.positionMm.y;
+                      const span = endY - startY;
                       if (Math.abs(span - g.clearSpanMm) <= 4.0) {
                         list.push({
-                          startY: prevY,
-                          endY: shelfY,
-                          minXSpan: s.positionMm.x,
-                          maxXSpan: s.positionMm.x + determinePieceSpatialSize(s).x,
+                          axis: 'y',
+                          startY,
+                          endY,
+                          minXSpan: Math.max(lower.positionMm.x, upper.positionMm.x),
+                          maxXSpan: Math.min(
+                            lower.positionMm.x + lowerSize.x,
+                            upper.positionMm.x + determinePieceSpatialSize(upper).x,
+                          ),
                         });
                       }
-                      prevY = shelfY + determinePieceSpatialSize(s).y;
                     }
                     return list;
                   })();
@@ -263,8 +321,71 @@ function renderAssemblySvg(
             return (
               <g key={g.id}>
                 {spansToDraw.map((span, occIdx) => {
-                  const gy = toSvgY(span.startY, span.endY - span.startY);
-                  const gh = Math.max(4, (span.endY - span.startY) * scale);
+                  if (span.axis === 'x') {
+                    const spanW = span.endX - span.startX;
+                    const gx = toSvgX(span.startX);
+                    const gw = spanW * scale;
+                    const gh = Math.min(22, Math.max(14, gw * 0.12));
+                    const gy = toSvgY(span.floorY, gh / scale);
+                    const dimY = gy - 12;
+
+                    return (
+                      <g key={`${g.id}-${occIdx}`}>
+                        <rect
+                          x={gx + 4}
+                          y={gy}
+                          width={Math.max(8, gw - 8)}
+                          height={gh}
+                          fill="url(#gauge-hatch)"
+                          stroke="#2e7d32"
+                          strokeWidth="1.5"
+                          rx="2"
+                        />
+                        <rect
+                          x={gx + 4}
+                          y={gy}
+                          width={Math.max(8, gw - 8)}
+                          height={gh}
+                          fill="#c8e6c9"
+                          opacity="0.65"
+                        />
+                        <text
+                          x={gx + gw / 2}
+                          y={gy + gh / 2 + 3.5}
+                          textAnchor="middle"
+                          fontSize="10"
+                          fontWeight="bold"
+                          fill="#1b5e20"
+                        >
+                          {g.label} ({g.clearSpanMm} mm)
+                        </text>
+                        <line
+                          x1={gx}
+                          y1={dimY}
+                          x2={gx + gw}
+                          y2={dimY}
+                          stroke="#1b5e20"
+                          strokeWidth="1.5"
+                          markerStart="url(#arrow)"
+                          markerEnd="url(#arrow)"
+                        />
+                        <text
+                          x={gx + gw / 2}
+                          y={dimY - 4}
+                          textAnchor="middle"
+                          fontSize="10"
+                          fontWeight="bold"
+                          fill="#1b5e20"
+                        >
+                          {g.label}: {g.clearSpanMm} mm
+                        </text>
+                      </g>
+                    );
+                  }
+
+                  const spanH = span.endY - span.startY;
+                  const gy = toSvgY(span.startY, spanH);
+                  const gh = Math.max(4, spanH * scale);
                   const spanLeftSvg = toSvgX(span.minXSpan);
                   const spanRightSvg = toSvgX(span.maxXSpan);
                   const spanWidthSvg = spanRightSvg - spanLeftSvg;
@@ -273,7 +394,6 @@ function renderAssemblySvg(
                   const leftBlockX = spanLeftSvg + 6;
                   const rightBlockX = spanRightSvg - blockW - 6;
 
-                  // Right dimension line
                   const dimLineX = originX + actualDrawW + 20 + gIdx * 35;
 
                   return (
@@ -464,19 +584,6 @@ function renderAssemblySvg(
           {Math.round(modW)} mm
         </text>
       </g>
-
-      {/* Legend Box */}
-      <g transform={`translate(${width - 150}, 16)`}>
-        <rect x="0" y="0" width="138" height="74" fill="#ffffff" stroke="#e0e0e0" rx="6" />
-        <rect x="10" y="10" width="16" height="12" fill="#c8e6c9" stroke="#2e7d32" strokeWidth="1.5" rx="1" />
-        <text x="32" y="20" fontSize="9.5" fill="#212121" fontWeight="500">Tira Calibre</text>
-
-        <rect x="10" y="28" width="16" height="8" fill="#78909c" stroke="#37474f" rx="1" />
-        <text x="32" y="35" fontSize="9.5" fill="#212121" fontWeight="500">Paneles / Estante</text>
-
-        <line x1="10" y1="52" x2="26" y2="52" stroke="#1b5e20" strokeWidth="1.5" markerEnd="url(#arrow)" />
-        <text x="32" y="55" fontSize="9.5" fill="#212121" fontWeight="500">Luz Libre Vano</text>
-      </g>
     </svg>
   );
 }
@@ -488,45 +595,54 @@ function renderAssemblySvg(
 export function AssemblySheetView({
   assemblySheet,
   pieces,
+  wallShelvingOutput,
+  wallShelvingDefinition,
   onExportPdf,
 }: AssemblySheetViewProps): ReactElement {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
-  const wallShelfPieces = pieces?.filter((p) => p.role === 'wall-shelf');
-  if (wallShelfPieces && wallShelfPieces.length > 0) {
-    const first = wallShelfPieces[0]!;
-    const widthMm = first.contour.points[1]?.x ?? 1200;
-    const depthMm = first.contour.points[2]?.y ?? 250;
-    const thicknessMm = first.thicknessMm ?? 18;
-    const shelfCount = wallShelfPieces.length;
-    const verticalSpacingMm =
-      wallShelfPieces.length > 1
-        ? Math.round(
-            Math.abs(
-              (wallShelfPieces[1]!.positionMm?.y ?? 320) -
-                (wallShelfPieces[0]!.positionMm?.y ?? 0),
-            ),
-          ) || 320
-        : 320;
+  // 1. Reactive Wall Shelving Mode (Zero Hardcoding)
+  const isWallShelving = Boolean(
+    (wallShelvingOutput && wallShelvingDefinition) ||
+    (pieces && pieces.some((p) => p.role === 'wall-shelf'))
+  );
 
-    const wallDef: WallShelvingDefinition = {
-      id: 'wall-shelves-active',
-      widthMm,
-      depthMm,
-      thicknessMm,
-      shelfCount,
-      verticalSpacingMm,
-      bracketType: 'l-bracket',
-      wallType: 'solid-brick',
-      loadCategory: 'medium',
-      boundaryCondition: 'free-ends',
-      overhangMode: 'balanced-cantilever',
-      materialId: first.materialId,
-      baseElevationYMm: 800,
-    };
+  if (isWallShelving) {
+    const wallDef: WallShelvingDefinition = wallShelvingDefinition ?? (() => {
+      const wallShelfPieces = pieces?.filter((p) => p.role === 'wall-shelf') ?? [];
+      const first = wallShelfPieces[0];
+      const widthMm = first?.contour.points[1]?.x ?? 1200;
+      const depthMm = first?.contour.points[2]?.y ?? 250;
+      const thicknessMm = first?.thicknessMm ?? 18;
+      const shelfCount = wallShelfPieces.length || 3;
+      const verticalSpacingMm =
+        wallShelfPieces.length > 1
+          ? Math.round(
+              Math.abs(
+                (wallShelfPieces[1]!.positionMm?.y ?? 320) -
+                  (wallShelfPieces[0]!.positionMm?.y ?? 0),
+              ),
+            ) || 320
+          : 320;
+      return {
+        id: 'wall-shelves-active',
+        widthMm,
+        depthMm,
+        thicknessMm,
+        shelfCount,
+        verticalSpacingMm,
+        bracketType: 'l-bracket',
+        wallType: 'solid-brick',
+        loadCategory: 'medium',
+        boundaryCondition: 'free-ends',
+        overhangMode: 'balanced-cantilever',
+        materialId: first?.materialId ?? 'mat-default',
+        baseElevationYMm: 800,
+      };
+    })();
 
-    const wallOutput = buildWallShelving(wallDef);
-    const svgHtml = generateInstallationSheetSvg(wallOutput, wallDef);
+    const activeOutput = wallShelvingOutput ?? buildWallShelving(wallDef);
+    const svgHtml = generateInstallationSheetSvg(activeOutput, wallDef);
 
     return (
       <section aria-labelledby="wall-assembly-heading" className="m3-card assembly-sheet-card">
@@ -539,6 +655,18 @@ export function AssemblySheetView({
               Cálculo estructural de ménsulas, cotas de taladrado milimétricas y recomendaciones de anclaje según pared.
             </p>
           </div>
+
+          {onExportPdf && (
+            <div className="assembly-actions">
+              <button
+                type="button"
+                className="m3-button m3-button--filled"
+                onClick={onExportPdf}
+              >
+                📄 Exportar Guía PDF
+              </button>
+            </div>
+          )}
         </div>
 
         <div
@@ -570,12 +698,14 @@ export function AssemblySheetView({
               🔩 Taco y Anclaje Sugerido
             </h4>
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>
-              <strong>{wallOutput.bracketCalculation.recommendedAnchor.brandModel}</strong>
+              <strong>{activeOutput.bracketCalculation.recommendedAnchor.brandModel}</strong>
               <br />
-              Tornillo: {wallOutput.bracketCalculation.recommendedAnchor.screwDiameterMm}x
-              {wallOutput.bracketCalculation.recommendedAnchor.screwLengthMm} mm
+              Tornillo: {activeOutput.bracketCalculation.recommendedAnchor.screwDiameterMm}x
+              {activeOutput.bracketCalculation.recommendedAnchor.screwLengthMm} mm
               <br />
-              Tracción est.: ~{wallOutput.bracketCalculation.pullOutForceKg} kg/ménsula
+              Tracción est.: ~{activeOutput.bracketCalculation.pullOutForceKg} kg/ménsula
+              <br />
+              Pared: <strong>{wallDef.wallType}</strong> | Soporte: <strong>{wallDef.bracketType}</strong>
             </p>
           </div>
 
@@ -587,13 +717,13 @@ export function AssemblySheetView({
               ⚖️ Análisis de Flecha (Sagulator)
             </h4>
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>
-              Ménsulas por estante: <strong>{wallOutput.bracketCalculation.bracketCountPerShelf}</strong> (Luz:{' '}
-              {wallOutput.bracketCalculation.maxSpanMm} mm)
+              Ménsulas por estante: <strong>{activeOutput.bracketCalculation.bracketCountPerShelf}</strong> (Luz:{' '}
+              {activeOutput.bracketCalculation.maxSpanMm} mm)
               <br />
-              Flecha calculada: <strong>{wallOutput.bracketCalculation.calculatedDeflectionMm} mm</strong>{' '}
-              (Límite: {wallOutput.bracketCalculation.allowableDeflectionMm} mm)
+              Flecha calculada: <strong>{activeOutput.bracketCalculation.calculatedDeflectionMm} mm</strong>{' '}
+              (Límite: {activeOutput.bracketCalculation.allowableDeflectionMm} mm)
               <br />
-              Carga máxima: {wallOutput.bracketCalculation.totalShelfLoadKg} kg / estante
+              Carga máxima: {activeOutput.bracketCalculation.totalShelfLoadKg} kg / estante ({activeOutput.bracketCalculation.designLoadKgM2} kg/m²)
             </p>
           </div>
         </div>
@@ -712,6 +842,24 @@ export function AssemblySheetView({
         <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '8px', color: '#1f2937' }}>
           📐 Esquema de Posicionamiento de Calibres
         </h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '4px 10px', borderRadius: '16px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#bae6fd', border: '1px solid #0284c7', display: 'inline-block' }}></span>
+            Paneles y Estructura
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '4px 10px', borderRadius: '16px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#c8e6c9', border: '1px solid #2e7d32', display: 'inline-block' }}></span>
+            Tiras Calibre ({assemblySheet.gauges.map((g) => g.label).join(', ') || 'N/A'})
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '4px 10px', borderRadius: '16px', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' }}>
+            <span style={{ width: '12px', height: '0px', borderTop: '2px dashed #94a3b8', display: 'inline-block' }}></span>
+            Fondo Ranurado
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '4px 10px', borderRadius: '16px', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1' }}>
+            <span style={{ width: '12px', height: '0px', borderTop: '2px solid #546e7a', display: 'inline-block' }}></span>
+            Cotas Generales (mm)
+          </span>
+        </div>
         {renderAssemblySvg(assemblySheet, pieces)}
       </div>
 

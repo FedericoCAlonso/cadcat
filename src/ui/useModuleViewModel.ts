@@ -89,8 +89,10 @@ import {
   type LoadCategory,
   type BoundaryCondition,
   type OverhangMode,
+  type WallShelvingDefinition,
   type WallShelvingOutput,
   buildWallShelving,
+  exportWallShelvesInstallationPdf,
   calculatePieceCutSize,
   createRectangularContour,
   buildModularModule,
@@ -263,6 +265,7 @@ export interface ModuleViewModelState {
   wallShelvesShelfCount: number;
   wallShelvesVerticalSpacingMm: number;
   wallShelvesBaseElevationYMm: number;
+  wallShelvingDefinition: WallShelvingDefinition | null;
   wallShelvingOutput: WallShelvingOutput | null;
   setWallShelvesBracketType: (type: BracketType) => void;
   setWallShelvesWallType: (type: WallType) => void;
@@ -1194,11 +1197,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     [materials, selectedMaterialId],
   );
 
-  // Wall Shelving calculation
-  const wallShelvingOutput = useMemo<WallShelvingOutput | null>(() => {
+  // Wall Shelving definition & calculation
+  const wallShelvingDefinition = useMemo<WallShelvingDefinition | null>(() => {
     if (selectedTemplateId !== 'wall-shelves' || !activeMaterial) return null;
     const thickness = typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18;
-    return buildWallShelving({
+    return {
       id: 'wall-shelves-module',
       widthMm: width,
       depthMm: depth,
@@ -1213,7 +1216,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       materialId: activeMaterial.id,
       edgeBandId: selectedEdgeBandId || undefined,
       baseElevationYMm: wallShelvesBaseElevationYMm,
-    });
+    };
   }, [
     selectedTemplateId,
     activeMaterial,
@@ -1229,6 +1232,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     selectedEdgeBandId,
     wallShelvesBaseElevationYMm,
   ]);
+
+  const wallShelvingOutput = useMemo<WallShelvingOutput | null>(() => {
+    if (!wallShelvingDefinition) return null;
+    return buildWallShelving(wallShelvingDefinition);
+  }, [wallShelvingDefinition]);
 
   // Resolves pieces dynamically whenever parameters, template, or materials change
   const { currentModule, resolvedPieces, placementTree } = useMemo(() => {
@@ -1391,6 +1399,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     roofType,
     jointPriority,
     hasBacking,
+    backingType,
+    backingThicknessMm,
+    isIslandCabinet,
+    rearStructuralRails,
+    rearStructuralRailsWidthMm,
     railOrientation,
     hasMiddleBrace,
     middleBraceWidthMm,
@@ -1712,13 +1725,25 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   // Export sequential assembly guide as PDF
   const exportAssemblyPdf = useCallback(() => {
+    if (selectedTemplateId === 'wall-shelves' && wallShelvingOutput && wallShelvingDefinition) {
+      const doc = exportWallShelvesInstallationPdf(
+        wallShelvingOutput,
+        wallShelvingDefinition,
+        `Plano de Replanteo en Pared - ${currentModule?.id ?? 'Estantería'}`,
+      );
+      const pdfBlob = doc.output('blob');
+      const fileName = `plano-replanteo-pared-${currentModule?.id ?? 'estanteria'}.pdf`;
+      triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+      setStatusMessage(`Plano de replanteo en pared exportado a ${fileName}.`);
+      return;
+    }
     if (!assemblySheet) return;
     const doc = exportAssemblyGuidePdf(assemblySheet, `Guía de Armado - ${currentModule?.id ?? 'Módulo'}`);
     const pdfBlob = doc.output('blob');
     const fileName = `guia-armado-${currentModule?.id ?? 'modulo'}.pdf`;
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
     setStatusMessage(`Guía de armado exportada a ${fileName}.`);
-  }, [assemblySheet, currentModule]);
+  }, [selectedTemplateId, wallShelvingOutput, wallShelvingDefinition, assemblySheet, currentModule]);
 
   // Export workshop machining sheets as PDF (single piece or full module)
   const exportMachiningPdf = useCallback(
@@ -1970,6 +1995,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     wallShelvesShelfCount,
     wallShelvesVerticalSpacingMm,
     wallShelvesBaseElevationYMm,
+    wallShelvingDefinition,
     wallShelvingOutput,
     setWallShelvesBracketType,
     setWallShelvesWallType,

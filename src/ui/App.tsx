@@ -344,6 +344,8 @@ export function App(): ReactElement {
                 <AssemblySheetView
                   assemblySheet={vm.assemblySheet}
                   pieces={vm.resolvedPieces}
+                  wallShelvingOutput={vm.wallShelvingOutput}
+                  wallShelvingDefinition={vm.wallShelvingDefinition}
                   onExportPdf={vm.exportAssemblyPdf}
                 />
               )}

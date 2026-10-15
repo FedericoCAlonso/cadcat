@@ -286,5 +286,6 @@ export {
   solveBrackets,
   buildWallShelving,
   generateInstallationSheetSvg,
+  exportWallShelvesInstallationPdf,
 } from './wallShelves';
 

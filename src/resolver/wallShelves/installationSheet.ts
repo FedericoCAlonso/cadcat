@@ -1,3 +1,4 @@
+import { jsPDF } from 'jspdf';
 import type { WallShelvingDefinition, WallShelvingOutput } from './types';
 
 /**
@@ -164,3 +165,113 @@ export function generateInstallationSheetSvg(
     </svg>
   `.trim();
 }
+
+/**
+ * Exports wall shelving installation and drilling guide as a clean workshop PDF.
+ */
+export function exportWallShelvesInstallationPdf(
+  output: WallShelvingOutput,
+  def: WallShelvingDefinition,
+  title?: string,
+): jsPDF {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  let y = 18;
+
+  // Header Title
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(title ?? 'Plano de Replanteo y Perforación en Pared', margin, y);
+  y += 7;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Estantería de pared con ménsulas | Mobilius Workshop System', margin, y);
+  y += 8;
+
+  // Parameter Summary Box
+  doc.setFillColor(248, 250, 252);
+  doc.rect(margin, y, pageWidth - 2 * margin, 26, 'F');
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(margin, y, pageWidth - 2 * margin, 26, 'S');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Parámetros de Diseño:', margin + 3, y + 6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`• Dimensiones estante: ${def.widthMm} x ${def.depthMm} x ${def.thicknessMm} mm`, margin + 3, y + 11);
+  doc.text(`• Niveles: ${def.shelfCount} estantes | Separación: ${def.verticalSpacingMm} mm`, margin + 3, y + 16);
+  doc.text(`• Cota base NPT: ${def.baseElevationYMm ?? 800} mm sobre piso`, margin + 3, y + 21);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Configuración de Montaje:', margin + 95, y + 6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`• Tipo de soporte: ${def.bracketType}`, margin + 95, y + 11);
+  doc.text(`• Tipo de pared: ${def.wallType}`, margin + 95, y + 16);
+  doc.text(`• Categoría de carga: ${def.loadCategory} (${output.bracketCalculation.designLoadKgM2} kg/m²)`, margin + 95, y + 21);
+
+  y += 32;
+
+  // Recommended Fasteners & Anchors Card
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Anclajes y Fijaciones Recomendadas', margin, y);
+  y += 6;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  const anchor = output.bracketCalculation.recommendedAnchor;
+  doc.text(`• Modelo de Taco: ${anchor.brandModel} (${anchor.notes})`, margin, y);
+  y += 5;
+  doc.text(`• Tornillo recomendado: Ø${anchor.screwDiameterMm} mm x ${anchor.screwLengthMm} mm de largo`, margin, y);
+  y += 5;
+  doc.text(`• Tracción máxima estimada: ~${output.bracketCalculation.pullOutForceKg} kg / soporte`, margin, y);
+  y += 5;
+  doc.text(`• Ménsulas sugeridas: ${output.bracketCalculation.bracketCountPerShelf} por estante (${output.bracketCalculation.totalBrackets} totales)`, margin, y);
+  y += 5;
+  doc.text(`• Luz libre entre soportes: ${output.bracketCalculation.maxSpanMm} mm | Voladizo: ${output.bracketCalculation.cantileverMm} mm`, margin, y);
+  y += 5;
+  doc.text(`• Flecha elástica calculada: ${output.bracketCalculation.calculatedDeflectionMm} mm (Límite admisible: ${output.bracketCalculation.allowableDeflectionMm} mm)`, margin, y);
+  y += 10;
+
+  // Laser Leveling and Drilling Table
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Tabla de Replanteo y Perforaciones en Pared (Coordenadas Láser)', margin, y);
+  y += 6;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, y - 4, pageWidth - 2 * margin, 6, 'F');
+  doc.text('Estante N°', margin + 3, y);
+  doc.text('Soporte N°', margin + 30, y);
+  doc.text('Cota X (desde izq.)', margin + 65, y);
+  doc.text('Altura Y (sobre NPT)', margin + 115, y);
+  doc.text('Referencia Láser', margin + 155, y);
+  y += 6;
+
+  doc.setFont('helvetica', 'normal');
+  output.installationPoints.forEach((pt) => {
+    if (y > 270) {
+      doc.addPage();
+      y = 18;
+    }
+    const elev = (def.baseElevationYMm ?? 800) + pt.shelfIndex * def.verticalSpacingMm;
+    doc.text(`Estante ${pt.shelfIndex + 1}`, margin + 3, y);
+    doc.text(`Soporte ${pt.bracketIndex + 1}`, margin + 30, y);
+    doc.text(`${pt.xMm} mm`, margin + 65, y);
+    doc.text(`${elev} mm`, margin + 115, y);
+    doc.text(`Línea horizontal ${pt.shelfIndex + 1}`, margin + 155, y);
+    y += 5;
+  });
+
+  return doc;
+}
+
