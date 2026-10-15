@@ -12,9 +12,11 @@ import {
   type ExplodedPieceBox,
   type PieceMachiningSheet,
   buildPieceMachining3DGroup,
+  type CountertopCalculationResult,
 } from '../resolver';
 import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
 import { translatePieceRole } from './localization';
+import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
 
 export interface Viewport3DProps {
   boxes: SpatialPieceBox[];
@@ -45,6 +47,8 @@ export interface Viewport3DProps {
   // Custom Machinings (Point 8)
   onOpenMachiningModal?: (pieceId: string) => void;
   machiningSheets?: PieceMachiningSheet[];
+  // Countertop cutouts and visualization (Phase 3 & 4)
+  countertopCalculation?: CountertopCalculationResult | null;
 }
 
 export function Viewport3D(props: Viewport3DProps): ReactElement {
@@ -74,6 +78,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     onSetPieceEdgeBands,
     onOpenMachiningModal,
     machiningSheets,
+    countertopCalculation,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -335,6 +340,139 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     };
   }, [bounds]);
 
+  // Helper: Extrude countertop slab geometry with cutouts and faucet holes
+  function buildCountertopSlabGeometry(
+    item: SpatialPieceBox,
+    calc?: CountertopCalculationResult | null,
+  ): THREE.BufferGeometry {
+    const slabW = item.sizeMm.x;
+    const slabThick = item.sizeMm.y;
+    const slabD = item.sizeMm.z;
+
+    if (!calc || !calc.cutouts || calc.cutouts.length === 0) {
+      return new THREE.BoxGeometry(slabW, slabThick, slabD);
+    }
+
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.lineTo(slabW, 0);
+    shape.lineTo(slabW, slabD);
+    shape.lineTo(0, slabD);
+    shape.closePath();
+
+    for (const c of calc.cutouts) {
+      const w = c.boundsMm.widthMm;
+      const d = c.boundsMm.depthMm;
+      const x0 = c.boundsMm.minXMm;
+      const x1 = c.boundsMm.maxXMm;
+      // Coordinate mapping: 0=front (frente), slabD=back (contrafrente).
+      // Since rotateX(-PI/2) maps (x, y, z) -> (x, z, -y), y_shape = slabD - y_model ensures
+      // 3D Z increases towards the back.
+      const y0 = Math.max(0, slabD - c.boundsMm.maxYMm);
+      const y1 = Math.min(slabD, slabD - c.boundsMm.minYMm);
+
+      const hole = new THREE.Path();
+      const r = Math.max(0, Math.min(c.cornerRadiusMm, w / 2, d / 2));
+      if (r > 0) {
+        hole.moveTo(x0 + r, y0);
+        hole.lineTo(x1 - r, y0);
+        hole.absarc(x1 - r, y0 + r, r, -Math.PI / 2, 0, false);
+        hole.lineTo(x1, y1 - r);
+        hole.absarc(x1 - r, y1 - r, r, 0, Math.PI / 2, false);
+        hole.lineTo(x0 + r, y1);
+        hole.absarc(x0 + r, y1 - r, r, Math.PI / 2, Math.PI, false);
+        hole.lineTo(x0, y0 + r);
+        hole.absarc(x0 + r, y0 + r, r, Math.PI, (3 * Math.PI) / 2, false);
+      } else {
+        hole.moveTo(x0, y0);
+        hole.lineTo(x1, y0);
+        hole.lineTo(x1, y1);
+        hole.lineTo(x0, y1);
+      }
+      hole.closePath();
+      shape.holes.push(hole);
+
+      // Single faucet hole for monocomando mixer tap
+      if (c.faucetHole) {
+        const fHole = new THREE.Path();
+        const fx = c.faucetHole.centerXMm;
+        const fy = slabD - c.faucetHole.centerYMm;
+        const fr = Math.max(5, c.faucetHole.diameterMm / 2);
+        fHole.absarc(fx, fy, fr, 0, Math.PI * 2, true);
+        fHole.closePath();
+        shape.holes.push(fHole);
+      }
+    }
+
+    const geom = new THREE.ExtrudeGeometry(shape, {
+      depth: slabThick,
+      bevelEnabled: false,
+      curveSegments: 24,
+    });
+    geom.rotateX(-Math.PI / 2);
+    geom.center();
+    geom.computeVertexNormals();
+    return geom;
+  }
+
+  // Helper: Build stainless steel undermount sink basin underneath cutout opening
+  function buildUndermountSinkGroup(
+    item: SpatialPieceBox,
+    calc: CountertopCalculationResult,
+  ): THREE.Group | null {
+    const sinks = calc.cutouts.filter((c) => c.kind === 'sink-undermount');
+    if (sinks.length === 0) return null;
+
+    const sGroup = new THREE.Group();
+    const slabW = item.sizeMm.x;
+    const slabThick = item.sizeMm.y;
+    const slabD = item.sizeMm.z;
+
+    const sinkMat = new THREE.MeshStandardMaterial({
+      color: STAINLESS_STEEL_SINK_STYLE.color,
+      roughness: STAINLESS_STEEL_SINK_STYLE.roughness,
+      metalness: STAINLESS_STEEL_SINK_STYLE.metalness,
+    });
+
+    const drainMat = new THREE.MeshStandardMaterial({
+      color: 0x475569,
+      roughness: 0.15,
+      metalness: 0.95,
+    });
+
+    for (const c of sinks) {
+      const w = c.boundsMm.widthMm;
+      const d = c.boundsMm.depthMm;
+      const bowlDepth = 190;
+
+      // Outer undermount bowl box
+      const bowlGeom = new THREE.BoxGeometry(w, bowlDepth, d);
+      const bowlMesh = new THREE.Mesh(bowlGeom, sinkMat);
+
+      const localX = c.boundsMm.minXMm + w / 2 - slabW / 2;
+      const localY = -slabThick / 2 - bowlDepth / 2;
+      const localZ = c.boundsMm.minYMm + d / 2 - slabD / 2;
+
+      bowlMesh.position.set(localX, localY, localZ);
+
+      // Subtle drain strainer disc at bottom of sink
+      const drainGeom = new THREE.CylinderGeometry(40, 40, 4, 24);
+      const drainMesh = new THREE.Mesh(drainGeom, drainMat);
+      drainMesh.position.set(localX, localY - bowlDepth / 2 + 2, localZ);
+
+      // Edge lines for crisp visual definition
+      const bowlEdges = new THREE.EdgesGeometry(bowlGeom);
+      const bowlLineMat = new THREE.LineBasicMaterial({ color: 0x64748b, linewidth: 1 });
+      const bowlWire = new THREE.LineSegments(bowlEdges, bowlLineMat);
+      bowlMesh.add(bowlWire);
+
+      sGroup.add(bowlMesh);
+      sGroup.add(drainMesh);
+    }
+
+    return sGroup;
+  }
+
   // Update piece meshes when boxes, explosion ratio, wireframe, selection, or kinematics change
   useEffect(() => {
     const group = pieceGroupRef.current;
@@ -363,22 +501,32 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       : calculateExplodedBoxes(boxes, bounds, explodedRatio);
 
     for (const item of activeBoxes) {
-      const geom = new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
+      const isCountertopSlab = item.role === 'countertop';
+      const geom = isCountertopSlab
+        ? buildCountertopSlabGeometry(item, countertopCalculation)
+        : new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
 
       const isSelected = item.pieceId === selectedPieceId;
-      const baseColor = isSelected ? 0x0b57d0 : 0xd8c8b8;
+      const pbrStyle = resolvePiecePbrStyle(item.role, item.materialId, isSelected);
       const emissiveColor = isSelected ? 0x0842a0 : 0x000000;
 
       const mat = new THREE.MeshStandardMaterial({
-        color: baseColor,
-        roughness: 0.55,
-        metalness: 0.1,
+        color: pbrStyle.color,
+        roughness: pbrStyle.roughness,
+        metalness: pbrStyle.metalness,
         wireframe,
         emissive: emissiveColor,
         emissiveIntensity: isSelected ? 0.35 : 0.0,
       });
 
       const mesh = new THREE.Mesh(geom, mat);
+
+      if (isCountertopSlab && countertopCalculation) {
+        const sinkGroup = buildUndermountSinkGroup(item, countertopCalculation);
+        if (sinkGroup) {
+          mesh.add(sinkGroup);
+        }
+      }
 
       if (useKinematics) {
         const kBox = item as KinematicPieceBox;
@@ -405,7 +553,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       // Edges helper for clear outline
       const edges = new THREE.EdgesGeometry(geom);
       const lineMat = new THREE.LineBasicMaterial({
-        color: isSelected ? 0xffffff : 0x444746,
+        color: isSelected ? 0xffffff : pbrStyle.wireframeColor,
         linewidth: 1,
       });
       const wire = new THREE.LineSegments(edges, lineMat);
@@ -422,7 +570,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
       group.add(mesh);
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation]);
 
   // Camera presets
   const setCameraView = (type: 'iso' | 'front' | 'top' | 'side') => {

@@ -5,6 +5,7 @@ export interface UsePanZoomOptions {
   minZoom?: number;
   maxZoom?: number;
   zoomStep?: number;
+  targetViewBox?: { width: number; height: number };
 }
 
 export interface UsePanZoomReturn {
@@ -20,7 +21,7 @@ export interface UsePanZoomReturn {
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
   handleWheel: (e: React.WheelEvent<Element>) => void;
-  startPan: (clientX: number, clientY: number) => void;
+  startPan: (clientX: number, clientY: number, targetElement?: Element | null) => void;
   updatePan: (clientX: number, clientY: number) => void;
   endPan: () => void;
   handleTouchStart: (e: React.TouchEvent<Element>) => void;
@@ -34,6 +35,7 @@ export interface UsePanZoomReturn {
  * - Focal wheel zoom centered around mouse cursor
  * - Drag-to-pan using middle-mouse button, spacebar+drag, or drag mode
  * - Multi-touch pinch-to-zoom and two-finger pan for mobile devices
+ * - Screen-pixel to SVG-viewBox coordinate scaling
  */
 export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
   const {
@@ -41,6 +43,7 @@ export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
     minZoom = 0.25,
     maxZoom = 8.0,
     zoomStep = 1.25,
+    targetViewBox,
   } = options;
 
   const [zoom, setZoom] = useState<number>(initialZoom);
@@ -48,8 +51,20 @@ export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [mode, setMode] = useState<'select' | 'pan'>('select');
 
-  const startDragRef = useRef<{ clientX: number; clientY: number; startPanX: number; startPanY: number } | null>(null);
-  const pinchRef = useRef<{ dist: number; startZoom: number; center: { x: number; y: number }; startPan: { x: number; y: number } } | null>(null);
+  const startDragRef = useRef<{
+    clientX: number;
+    clientY: number;
+    startPanX: number;
+    startPanY: number;
+    scaleX: number;
+    scaleY: number;
+  } | null>(null);
+  const pinchRef = useRef<{
+    dist: number;
+    startZoom: number;
+    center: { x: number; y: number };
+    startPan: { x: number; y: number };
+  } | null>(null);
 
   const zoomIn = useCallback(() => {
     setZoom((z) => Math.min(maxZoom, Math.round(z * zoomStep * 100) / 100));
@@ -74,8 +89,10 @@ export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
     (e: React.WheelEvent<Element>) => {
       e.preventDefault();
       const rect = e.currentTarget.getBoundingClientRect();
-      const cursorX = e.clientX - rect.left;
-      const cursorY = e.clientY - rect.top;
+      const scaleX = targetViewBox && rect.width > 0 ? targetViewBox.width / rect.width : 1;
+      const scaleY = targetViewBox && rect.height > 0 ? targetViewBox.height / rect.height : 1;
+      const cursorX = (e.clientX - rect.left) * scaleX;
+      const cursorY = (e.clientY - rect.top) * scaleY;
 
       const factor = e.deltaY < 0 ? zoomStep : 1 / zoomStep;
 
@@ -83,7 +100,7 @@ export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
         const nextZoom = Math.max(minZoom, Math.min(maxZoom, Math.round(prevZoom * factor * 100) / 100));
         if (nextZoom === prevZoom) return prevZoom;
 
-        // Shift pan so that point under cursor remains unchanged
+        // Shift pan so that point under cursor remains unchanged in viewBox units
         setPan((prevPan) => {
           const scaleChange = nextZoom / prevZoom;
           const newPanX = cursorX - (cursorX - prevPan.x) * scaleChange;
@@ -97,27 +114,32 @@ export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
         return nextZoom;
       });
     },
-    [minZoom, maxZoom, zoomStep],
+    [minZoom, maxZoom, zoomStep, targetViewBox],
   );
 
   const startPan = useCallback(
-    (clientX: number, clientY: number) => {
+    (clientX: number, clientY: number, targetElement?: Element | null) => {
       setIsPanning(true);
+      const rect = targetElement?.getBoundingClientRect();
+      const scaleX = targetViewBox && rect && rect.width > 0 ? targetViewBox.width / rect.width : 1;
+      const scaleY = targetViewBox && rect && rect.height > 0 ? targetViewBox.height / rect.height : 1;
       startDragRef.current = {
         clientX,
         clientY,
         startPanX: pan.x,
         startPanY: pan.y,
+        scaleX,
+        scaleY,
       };
     },
-    [pan],
+    [pan, targetViewBox],
   );
 
   const updatePan = useCallback(
     (clientX: number, clientY: number) => {
       if (!startDragRef.current) return;
-      const dx = clientX - startDragRef.current.clientX;
-      const dy = clientY - startDragRef.current.clientY;
+      const dx = (clientX - startDragRef.current.clientX) * startDragRef.current.scaleX;
+      const dy = (clientY - startDragRef.current.clientY) * startDragRef.current.scaleY;
       setPan({
         x: Math.round((startDragRef.current.startPanX + dx) * 10) / 10,
         y: Math.round((startDragRef.current.startPanY + dy) * 10) / 10,
@@ -132,23 +154,28 @@ export function usePanZoom(options: UsePanZoomOptions = {}): UsePanZoomReturn {
   }, []);
 
   // Multi-touch pinch-to-zoom and pan for mobile devices
-  const handleTouchStart = useCallback((e: React.TouchEvent<Element>) => {
-    if (e.touches.length === 2) {
-      const t1 = e.touches[0]!;
-      const t2 = e.touches[1]!;
-      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      const rect = e.currentTarget.getBoundingClientRect();
-      const centerX = (t1.clientX + t2.clientX) / 2 - rect.left;
-      const centerY = (t1.clientY + t2.clientY) / 2 - rect.top;
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent<Element>) => {
+      if (e.touches.length === 2) {
+        const t1 = e.touches[0]!;
+        const t2 = e.touches[1]!;
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const scaleX = targetViewBox && rect.width > 0 ? targetViewBox.width / rect.width : 1;
+        const scaleY = targetViewBox && rect.height > 0 ? targetViewBox.height / rect.height : 1;
+        const centerX = ((t1.clientX + t2.clientX) / 2 - rect.left) * scaleX;
+        const centerY = ((t1.clientY + t2.clientY) / 2 - rect.top) * scaleY;
 
-      pinchRef.current = {
-        dist,
-        startZoom: zoom,
-        center: { x: centerX, y: centerY },
-        startPan: { ...pan },
-      };
-    }
-  }, [zoom, pan]);
+        pinchRef.current = {
+          dist,
+          startZoom: zoom,
+          center: { x: centerX, y: centerY },
+          startPan: { ...pan },
+        };
+      }
+    },
+    [zoom, pan, targetViewBox],
+  );
 
   const handleTouchMove = useCallback((e: React.TouchEvent<Element>) => {
     if (e.touches.length === 2 && pinchRef.current) {

@@ -308,6 +308,7 @@ export function App(): ReactElement {
                     onSetPieceEdgeBands={vm.setPieceEdgeBands}
                     onOpenMachiningModal={(id) => setMachiningPieceId(id)}
                     machiningSheets={vm.machiningSheets}
+                    countertopCalculation={vm.countertopCalculation}
                   />
                   <button
                     type="button"

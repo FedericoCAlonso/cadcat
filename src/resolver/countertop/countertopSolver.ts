@@ -127,10 +127,18 @@ export function calculateCountertop(
 
     const isSafeStoneBridge = cutoutWarnings.length === 0;
 
-    // Faucet hole computation (centered behind sink cutout)
+    // Faucet hole computation (centered behind sink cutout towards contrafrente / back wall)
     let faucetHole: CountertopCutoutResult['faucetHole'] | undefined;
     if (equipment.faucetHole?.required) {
-      const faucetY = maxYMm + equipment.faucetHole.distanceBehindCutoutMm;
+      // Coordinate convention: Y=0 is front (frente pulido), Y=depthMm is back (contrafrente / pared).
+      // Cutout spans [minYMm, maxYMm]. Faucet sits behind the cutout (maxYMm < faucetY < depthMm).
+      const availableBackBridge = depthMm - maxYMm;
+      const desiredOffset = equipment.faucetHole.distanceBehindCutoutMm;
+      const faucetOffset = Math.min(
+        desiredOffset,
+        Math.max(25, Math.round(availableBackBridge / 2)),
+      );
+      const faucetY = Math.round(maxYMm + faucetOffset);
       faucetHole = {
         centerXMm,
         centerYMm: faucetY,

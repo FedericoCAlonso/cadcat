@@ -32,6 +32,9 @@ export interface MachiningEditorModalProps {
   onClose: () => void;
 }
 
+const DEFAULT_CANVAS_WIDTH = 800;
+const DEFAULT_CANVAS_HEIGHT = 520;
+
 export function MachiningEditorModal(props: MachiningEditorModalProps): ReactElement | null {
   const { piece } = props;
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -39,7 +42,12 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   const [mobileTab, setMobileTab] = useState<'canvas' | 'controls' | 'list'>('canvas');
 
   const vm = useMachiningEditorViewModel(props);
-  const panZoom = usePanZoom({ minZoom: 0.35, maxZoom: 6.0, zoomStep: 1.25 });
+  const panZoom = usePanZoom({
+    minZoom: 0.35,
+    maxZoom: 6.0,
+    zoomStep: 1.25,
+    targetViewBox: { width: DEFAULT_CANVAS_WIDTH, height: DEFAULT_CANVAS_HEIGHT },
+  });
 
   // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, S=Series, P=Profile, T=Fasteners, Esc=Close
   useEffect(() => {
@@ -85,8 +93,8 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   if (!piece) return null;
 
   // SVG Drawing Coordinate Geometry
-  const targetWidth = 640;
-  const targetHeight = 420;
+  const targetWidth = DEFAULT_CANVAS_WIDTH;
+  const targetHeight = DEFAULT_CANVAS_HEIGHT;
   const margin = 50;
   const turnOffset = vm.faceType === 'face-B' && vm.previewSheet?.requiresTurn ? 40 : 0;
   const availableDrawW = targetWidth - 2 * margin;
@@ -1260,7 +1268,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   onTouchEnd={panZoom.handleTouchEnd}
                   onPointerDown={(e) => {
                     if (e.button === 1 || e.button === 2 || panZoom.mode === 'pan') {
-                      panZoom.startPan(e.clientX, e.clientY);
+                      panZoom.startPan(e.clientX, e.clientY, svgRef.current);
                       return;
                     }
                     handleSvgPointer(e, true);

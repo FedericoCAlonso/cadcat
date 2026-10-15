@@ -27,7 +27,8 @@ export function generateMarmoleriaSheetSvg(calc: CountertopCalculationResult): s
   const originY = paddingY + (drawingAreaHeight - drawD) / 2;
 
   const toSvgX = (xMm: number) => originX + xMm * scale;
-  const toSvgY = (yMm: number) => originY + yMm * scale;
+  // SVG drawing convention: Contrafrente (Wall/Backsplash) at top (originY), Frente Pulido at bottom (originY + drawD)
+  const toSvgY = (yMm: number) => originY + (depthMm - yMm) * scale;
 
   let svgElements = '';
 
@@ -39,8 +40,16 @@ export function generateMarmoleriaSheetSvg(calc: CountertopCalculationResult): s
       <rect x="${originX}" y="${originY - splashH - 4}" width="${drawW}" height="${splashH}"
             fill="#e2e8f0" stroke="#475569" stroke-width="1.5" stroke-dasharray="3,3" rx="2" />
       <text x="${originX + drawW / 2}" y="${originY - splashH - 8}"
-            text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#475569">
-        Zócalo Trasero: ${widthMm} x ${definition.backsplash.heightMm} x ${definition.backsplash.thicknessMm} mm
+            text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#475569">
+        CONTRAFRENTE (PARED / ZÓCALO) — Zócalo Trasero: ${widthMm} x ${definition.backsplash.heightMm} x ${definition.backsplash.thicknessMm} mm
+      </text>
+    `;
+  } else {
+    svgElements += `
+      <!-- Rear wall edge marker -->
+      <text x="${originX + drawW / 2}" y="${originY - 8}"
+            text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#475569">
+        CONTRAFRENTE (PARED)
       </text>
     `;
   }
@@ -72,7 +81,8 @@ export function generateMarmoleriaSheetSvg(calc: CountertopCalculationResult): s
   for (let idx = 0; idx < cutouts.length; idx++) {
     const c = cutouts[idx]!;
     const cx = toSvgX(c.boundsMm.minXMm);
-    const cy = toSvgY(c.boundsMm.minYMm);
+    // In inverted Y (0=front, depth=back), maxYMm is closer to the wall (top of SVG)
+    const cy = toSvgY(c.boundsMm.maxYMm);
     const cw = c.boundsMm.widthMm * scale;
     const cd = c.boundsMm.depthMm * scale;
     const cr = c.cornerRadiusMm * scale;
@@ -107,34 +117,35 @@ export function generateMarmoleriaSheetSvg(calc: CountertopCalculationResult): s
           Calado: ${c.boundsMm.widthMm} x ${c.boundsMm.depthMm} (R${c.cornerRadiusMm})
         </text>
 
-        <!-- Bridge Cotas (Front & Back) -->
-        <line x1="${cx + cw / 2}" y1="${cy + cd}" x2="${cx + cw / 2}" y2="${originY + drawD}"
-              stroke="#0f766e" stroke-width="1.2" stroke-dasharray="2,2" />
-        <text x="${cx + cw / 2 + 5}" y="${cy + cd + (originY + drawD - (cy + cd)) / 2 + 4}"
-              font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#0f766e">
-          Puente Ant: ${c.remainingBridgesMm.frontMm} mm
-        </text>
-
+        <!-- Bridge Cotas (Back to Wall / Front to Frente Pulido) -->
         <line x1="${cx + cw / 2}" y1="${originY}" x2="${cx + cw / 2}" y2="${cy}"
               stroke="#0f766e" stroke-width="1.2" stroke-dasharray="2,2" />
         <text x="${cx + cw / 2 + 5}" y="${originY + (cy - originY) / 2 + 4}"
               font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#0f766e">
           Puente Post: ${c.remainingBridgesMm.backMm} mm
         </text>
+
+        <line x1="${cx + cw / 2}" y1="${cy + cd}" x2="${cx + cw / 2}" y2="${originY + drawD}"
+              stroke="#0f766e" stroke-width="1.2" stroke-dasharray="2,2" />
+        <text x="${cx + cw / 2 + 5}" y="${cy + cd + (originY + drawD - (cy + cd)) / 2 + 4}"
+              font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#0f766e">
+          Puente Ant: ${c.remainingBridgesMm.frontMm} mm
+        </text>
       </g>
     `;
 
-    // Faucet hole if present
+    // Faucet hole if present (single hole towards contrafrente / back wall)
     if (c.faucetHole) {
       const fx = toSvgX(c.faucetHole.centerXMm);
       const fy = toSvgY(c.faucetHole.centerYMm);
       const fr = (c.faucetHole.diameterMm / 2) * scale;
 
       svgElements += `
-        <!-- Faucet Hole Ø${c.faucetHole.diameterMm} mm -->
+        <!-- Single Faucet Hole Ø${c.faucetHole.diameterMm} mm for monocomando tap -->
         <circle cx="${fx}" cy="${fy}" r="${Math.max(6, fr)}"
                 fill="#dbeafe" stroke="#1d4ed8" stroke-width="2" />
-        <circle cx="${fx}" cy="${fy}" r="2" fill="#1d4ed8" />
+        <line x1="${fx - 5}" y1="${fy}" x2="${fx + 5}" y2="${fy}" stroke="#1d4ed8" stroke-width="1.2" />
+        <line x1="${fx}" y1="${fy - 5}" x2="${fx}" y2="${fy + 5}" stroke="#1d4ed8" stroke-width="1.2" />
         <text x="${fx}" y="${fy - 10}"
               text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#1e40af">
           Canilla Ø${c.faucetHole.diameterMm}mm
@@ -306,7 +317,8 @@ export function exportMarmoleriaPdf(
   // Draw cutouts
   for (const c of calc.cutouts) {
     const cx = slabX + c.boundsMm.minXMm * pdfScale;
-    const cy = slabY + c.boundsMm.minYMm * pdfScale;
+    // Align with Contrafrente (Wall) at top: maxYMm is closest to top (slabY)
+    const cy = slabY + (calc.depthMm - c.boundsMm.maxYMm) * pdfScale;
     const cw = c.boundsMm.widthMm * pdfScale;
     const cd = c.boundsMm.depthMm * pdfScale;
 
@@ -331,16 +343,20 @@ export function exportMarmoleriaPdf(
       { align: 'center' },
     );
 
-    // Faucet hole circle if present
+    // Single Faucet hole circle if present (towards contrafrente/back wall)
     if (c.faucetHole) {
       const fx = slabX + c.faucetHole.centerXMm * pdfScale;
-      const fy = slabY + c.faucetHole.centerYMm * pdfScale;
+      const fy = slabY + (calc.depthMm - c.faucetHole.centerYMm) * pdfScale;
       doc.setFillColor(219, 234, 254);
       doc.setDrawColor(29, 78, 216);
       doc.circle(fx, fy, 2, 'FD');
+      doc.setDrawColor(29, 78, 216);
+      doc.setLineWidth(0.15);
+      doc.line(fx - 1.5, fy, fx + 1.5, fy);
+      doc.line(fx, fy - 1.5, fx, fy + 1.5);
       doc.setFontSize(6);
       doc.setTextColor(30, 64, 175);
-      doc.text(`Ø${c.faucetHole.diameterMm}`, fx, fy - 3, { align: 'center' });
+      doc.text(`Ø${c.faucetHole.diameterMm} (1 boca)`, fx, fy - 3, { align: 'center' });
     }
   }
 

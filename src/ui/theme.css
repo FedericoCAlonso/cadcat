@@ -1517,6 +1517,9 @@ body {
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  min-height: 480px;
+  height: 540px;
+  box-sizing: border-box;
 }
 
 /* 2. Viewport 3D Floating Toolbars & Piece Inspector */
@@ -1807,9 +1810,10 @@ body {
 
 .machining-editor-layout {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: 1fr 1.3fr;
   gap: 1.25rem;
   align-items: start;
+  min-height: 540px;
 }
 
 .machining-editor-sidebar {
