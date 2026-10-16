@@ -526,6 +526,36 @@ export function ProjectSettingsView({
                   onChange={(e) => updateHardware('doorHingeMarginMm', parseFloat(e.target.value) || 100.0)}
                 />
               </div>
+              <div className="input-field">
+                <label htmlFor="maxDrawerSpan">Luz Máx. Cajón sin Refuerzo (mm):</label>
+                <input
+                  id="maxDrawerSpan"
+                  type="number"
+                  step="50"
+                  value={config.hardware?.maxDrawerSpanMm ?? 900.0}
+                  onChange={(e) => updateHardware('maxDrawerSpanMm', parseFloat(e.target.value) || 900.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="maxUnreinforcedSpan">Luz Máx. Vano/Tapa sin Apoyo (mm):</label>
+                <input
+                  id="maxUnreinforcedSpan"
+                  type="number"
+                  step="50"
+                  value={config.hardware?.maxUnreinforcedSpanMm ?? 900.0}
+                  onChange={(e) => updateHardware('maxUnreinforcedSpanMm', parseFloat(e.target.value) || 900.0)}
+                />
+              </div>
+              <div className="input-field">
+                <label htmlFor="backingGrooveTolerance">Holgura Ranura Fondo (mm):</label>
+                <input
+                  id="backingGrooveTolerance"
+                  type="number"
+                  step="0.1"
+                  value={config.hardware?.backingGrooveToleranceMm ?? 0.5}
+                  onChange={(e) => updateHardware('backingGrooveToleranceMm', parseFloat(e.target.value) ?? 0.5)}
+                />
+              </div>
             </div>
           </div>
         </div>

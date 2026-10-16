@@ -166,6 +166,17 @@ export function subdivideBay(
           kind: 'confirmat',
         }),
       );
+
+      // Joint with top panel
+      if (parentBay.topPieceId && parentBay.topPieceId !== parentBay.leftPieceId) {
+        dividerJoints.push(
+          createJoint({
+            a: { pieceId: parentBay.topPieceId, faceId: 'bottom' },
+            b: { pieceId: dividerId, faceId: 'top-edge' },
+            kind: 'confirmat',
+          }),
+        );
+      }
     } else {
       // Horizontal structural shelf dividing in Y
       const piece = createPiece({

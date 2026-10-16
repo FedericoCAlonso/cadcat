@@ -15,6 +15,8 @@ import {
 import { resolveCarcass } from './anchorSolver';
 import { subdivideBay } from './gridSolver';
 import { resolveBayContent } from './componentSolver';
+import { createPiece, createRectangularContour } from '../piece';
+import { createJoint } from '../joint';
 
 export interface ModularBuildOptions {
   carcassThicknessMm?: number;
@@ -59,9 +61,16 @@ export function buildModularModule(
     edgeBandId,
   } = definition;
 
+  const isMultiBay = Boolean(grid && grid.tracks.length > 1 && grid.axis === 'horizontal');
+  const splitBackingPerBay =
+    isMultiBay &&
+    carcass.hasBacking &&
+    carcass.backingType === 'groove' &&
+    carcass.backingMultiBayMode !== 'continuous';
+
   // 1. Solve Carcass Geometry & Boundary Cavity
   const carcassResult = resolveCarcass({
-    carcass,
+    carcass: splitBackingPerBay ? { ...carcass, hasBacking: false } : carcass,
     carcassMaterialId: materials.carcassMaterialId,
     carcassThicknessMm,
     backingMaterialId: materials.backingsMaterialId,
@@ -110,6 +119,69 @@ export function buildModularModule(
     joints.push(...subResult.dividerJoints);
     placementNodes.push(...subResult.dividerPlacements);
     resolvedBays = subResult.bayBoxes;
+  }
+
+  // 3.1 Multi-bay Per-Bay Backing Panels (Option A)
+  if (splitBackingPerBay) {
+    const backingDepthMm = carcass.backingGrooveDepthMm ?? 8;
+    const backingDistMm = carcass.backingGrooveDistanceMm ?? 15;
+    const backingThick = carcass.backingThicknessMm ?? 3;
+    const backZ = carcass.depth - backingDistMm - backingThick;
+
+    for (let i = 0; i < resolvedBays.length; i++) {
+      const b = resolvedBays[i]!;
+      const backPieceId = `${id}-bay-${i + 1}-back`;
+      const backWidth = b.width + 2 * backingDepthMm;
+      const backHeight = b.height + 2 * backingDepthMm;
+
+      const backPiece = createPiece({
+        id: backPieceId,
+        role: 'back',
+        materialId: materials.backingsMaterialId ?? materials.carcassMaterialId,
+        contour: createRectangularContour(backWidth, backHeight),
+        thicknessMm: backingThick,
+        structural: false,
+      });
+      pieces.push(backPiece);
+
+      placementNodes.push({
+        pieceId: backPieceId,
+        parentPieceId: rootPieceId,
+        relativeOffset: {
+          x: b.x - backingDepthMm,
+          y: b.y - backingDepthMm,
+          z: backZ,
+        },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: b.leftPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'left-edge' },
+          kind: 'groove',
+        }),
+        createJoint({
+          a: { pieceId: b.rightPieceId, faceId: 'inner' },
+          b: { pieceId: backPieceId, faceId: 'right-edge' },
+          kind: 'groove',
+        }),
+        createJoint({
+          a: { pieceId: b.bottomPieceId, faceId: 'top' },
+          b: { pieceId: backPieceId, faceId: 'bottom-edge' },
+          kind: 'groove',
+        }),
+      );
+
+      if (b.topPieceId && b.topPieceId !== b.leftPieceId) {
+        joints.push(
+          createJoint({
+            a: { pieceId: b.topPieceId, faceId: 'bottom' },
+            b: { pieceId: backPieceId, faceId: 'top-edge' },
+            kind: 'groove',
+          }),
+        );
+      }
+    }
   }
 
   // 4. Equipment of each Bay

@@ -100,6 +100,8 @@ export const userTemplateSchema = z.object({
     isIslandCabinet: z.boolean().optional(),
     rearStructuralRails: z.enum(['none', 'top-and-bottom', 'top-only']).optional(),
     rearStructuralRailsWidthMm: z.number().optional(),
+    partitionPassThroughRoof: z.boolean().optional(),
+    backingMultiBayMode: z.enum(['split-per-bay', 'continuous']).optional(),
   }),
   gridType: z.enum(['1-bay', '2-bays-vertical', '3-bays-vertical', '2-bays-horizontal']),
   bays: z.array(bayContentSchema),

@@ -441,8 +441,9 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
   }
 
   // 2.2 Rear Wall Hanging Rail (if enabled)
-  const interiorHeight =
-    (roofType === 'none' ? height - T : height - 2 * T) - plinthY;
+  const isVerticalRail = roofType === 'front-back-rails' && railOrientation === 'vertical';
+  const topObstructionMm = isVerticalRail ? railWidthMm : (roofType === 'none' ? 0 : T);
+  const interiorHeight = height - T - plinthY - topObstructionMm;
   const interiorDepth = depth;
 
   if (hasWallHangingRail) {
@@ -653,6 +654,24 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
           kind: 'groove',
         }),
       );
+
+      if (roofType === 'solid-panel') {
+        joints.push(
+          createJoint({
+            a: { pieceId: topPieceId, faceId: 'bottom' },
+            b: { pieceId: backPieceId, faceId: 'top-edge' },
+            kind: 'groove',
+          }),
+        );
+      } else if (roofType === 'front-back-rails') {
+        joints.push(
+          createJoint({
+            a: { pieceId: `${idPrefix}-rail-back`, faceId: 'inner' },
+            b: { pieceId: backPieceId, faceId: 'top-edge' },
+            kind: 'groove',
+          }),
+        );
+      }
     }
   }
 

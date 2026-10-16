@@ -11,6 +11,7 @@ import { CatalogManagerView } from './CatalogManagerView';
 import { MachiningEditorModal } from './MachiningEditorModal';
 import { CountertopEditorView } from './CountertopEditorView';
 import { forcePurgeCacheAndReload } from '../registerServiceWorker';
+import { APP_VERSION } from '../version';
 
 /**
  * Main application View component.
@@ -42,13 +43,26 @@ export function App(): ReactElement {
   return (
     <div className="app-wrapper">
       <header className="m3-top-app-bar">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', width: '100%' }}>
-          <div>
-            <h1 className="m3-top-app-bar__title">Mobilius</h1>
-            <p className="m3-top-app-bar__subtitle">
-              <span>Diseño paramétrico y despiece de muebles para taller.</span>
-              <span className="visually-hidden"> Furniture design progressive web application.</span>
-            </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <img
+              src={`${import.meta.env?.BASE_URL || '/'}icon.svg`}
+              alt="Mobilius Icon"
+              width="40"
+              height="40"
+              style={{
+                borderRadius: '8px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                flexShrink: 0,
+              }}
+            />
+            <div>
+              <h1 className="m3-top-app-bar__title">Mobilius</h1>
+              <p className="m3-top-app-bar__subtitle">
+                <span>Diseño paramétrico y despiece de muebles para taller.</span>
+                <span className="visually-hidden"> Furniture design progressive web application.</span>
+              </p>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
@@ -61,7 +75,7 @@ export function App(): ReactElement {
               🔄 Actualizar app
             </button>
             <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', opacity: 0.85 }}>
-              v0.2.2
+              {`v${APP_VERSION}`}
             </span>
           </div>
         </div>
@@ -221,6 +235,11 @@ export function App(): ReactElement {
                 onDrawerBottomMountChange={vm.setDrawerBottomMount}
                 onDrawerTopPullGapChange={vm.setDrawerTopPullGap}
                 onDrawerBoxSideHeightOffsetChange={vm.setDrawerBoxSideHeightOffset}
+                onDrawerSlideClearanceChange={vm.setDrawerSlideClearance}
+                partitionPassThroughRoof={vm.partitionPassThroughRoof}
+                onPartitionPassThroughRoofChange={vm.setPartitionPassThroughRoof}
+                structuralSpanWarnings={vm.structuralSpanWarnings}
+                maxDrawerSpanMm={vm.projectConfig?.hardware?.maxDrawerSpanMm ?? 900}
                 onDoorCountChange={vm.setDoorCount}
                 onDoorMountTypeChange={vm.setDoorMountType}
                 onDoorInteriorShelvesCountChange={vm.setDoorInteriorShelvesCount}

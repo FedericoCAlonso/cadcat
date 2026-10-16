@@ -52,6 +52,16 @@ Este documento establece las directivas de calidad, diseño y arquitectura **est
   - Administran el estado reactivo, memoizan cálculos pesados (`useMemo`), y exponen acciones estables (`useCallback`).
   - **Integridad de dependencias:** Ningún valor reactivo puede omitirse del array de dependencias de `useMemo` o `useCallback`.
 
+### 5. Versionado Continuo Pre-Producción (Semantic Versioning 0.y.z)
+- **Incremento obligatorio de versión:** En cada ciclo de cambios o nuevas funcionalidades, es mandatorio actualizar los números de versión:
+  - Mantener la versión mayor en `0` (ej: `0.y.z`), dado que el producto está en fase de desarrollo activo pre-producción.
+  - Incrementar el índice menor `y` (`0.y.0`) ante nuevas características, resolutores o módulos funcionales.
+  - Incrementar el índice de parche `z` (`0.y.z`) ante correcciones puntuales de errores, ajustes de tolerancias o refactorizaciones.
+- **Sincronización estricta:**
+  - `src/version.ts`: Fuente única de verdad exportada (`APP_VERSION`).
+  - `package.json`: Campo `"version"`.
+  - La interfaz de usuario (`App.tsx`) consume directamente `APP_VERSION`, sin cadenas cableadas.
+
 ---
 
 ## 🤖 Agentes Especializados de Calidad
@@ -71,3 +81,4 @@ Antes de dar por completada cualquier modificación en el repositorio, es mandat
 1. **Verificación de tipos:** `npx tsc --noEmit` debe ejecutarse con 0 errores.
 2. **Suite de pruebas unitarias y de integración:** `npm test` debe completar el 100% de los tests en verde.
 3. **Compilación de producción:** `npm run build` debe generar el bundle de producción y el Service Worker PWA sin fallas.
+4. **Sincronización de versión:** Verificar que `src/version.ts` y `package.json` tengan la versión actualizada e idéntica.

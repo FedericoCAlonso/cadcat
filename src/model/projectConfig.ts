@@ -97,6 +97,10 @@ export const hardwareConfigSchema = z.object({
   doorHalfOverlayRevealMm: z.number().min(0).default(1.5),
   doorInsetGapMm: z.number().min(0).default(2.0),
   doorHingeMarginMm: z.number().positive().default(100.0),
+  maxDrawerSpanMm: z.number().positive().default(900.0),
+  maxUnreinforcedSpanMm: z.number().positive().default(900.0),
+  backingGrooveToleranceMm: z.number().min(0).default(0.5),
+  customSlideClearanceMm: z.number().positive().optional(),
 });
 export type HardwareConfig = z.infer<typeof hardwareConfigSchema>;
 

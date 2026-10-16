@@ -1,8 +1,91 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="64" fill="#2c3e50"/>
-  <rect x="64" y="96" width="384" height="64" rx="8" fill="#e67e22"/>
-  <rect x="64" y="192" width="48" height="224" rx="8" fill="#d35400"/>
-  <rect x="400" y="192" width="48" height="224" rx="8" fill="#d35400"/>
-  <rect x="144" y="288" width="224" height="32" rx="4" fill="#f39c12"/>
-  <rect x="64" y="416" width="384" height="32" rx="4" fill="#e67e22"/>
+<defs>
+    <!-- Architectural Slate Canvas -->
+    <radialGradient id="bgGrad" cx="50%" cy="36%" r="68%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="60%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#060911"/>
+    </radialGradient>
+
+    <!-- Warm Golden Honey Melamine Front Face -->
+    <linearGradient id="frontOak" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="45%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+
+    <!-- Edge Banding Chamfer Highlight -->
+    <linearGradient id="frontEdge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FEF3C7"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+
+    <!-- Sunlit Top Faces (Golden Maple / Beech) -->
+    <linearGradient id="topOak" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF3C7"/>
+      <stop offset="60%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+
+    <!-- Form Shadow / Right Faces (Warm Roasted Teak) -->
+    <linearGradient id="sideTeak" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="50%" stop-color="#B45309"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+
+    <!-- Underside Ceiling Shadow (Deep Espresso / Walnut) -->
+    <linearGradient id="deepCeiling" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78350F"/>
+      <stop offset="100%" stop-color="#381402"/>
+    </linearGradient>
+
+    <!-- Precision Blueprint CAD Cyan Accents -->
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DD3FC"/>
+      <stop offset="60%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    </defs>
+<rect width="512" height="512" fill="url(#bgGrad)"/>
+
+    <g opacity="0.10" stroke="#38BDF8" stroke-width="1.2" stroke-dasharray="3 6">
+      <circle cx="256" cy="256" r="204.8" fill="none"/>
+      <line x1="256" y1="45" x2="256" y2="467"/>
+      <line x1="45" y1="256" x2="467" y2="256"/>
+      <line x1="82" y1="156" x2="430" y2="356"/>
+      <line x1="82" y1="356" x2="430" y2="156"/>
+    </g>
+    
+
+    <ellipse cx="256" cy="390" rx="146" ry="24" fill="#000000" opacity="0.45"/>
+    <ellipse cx="144" cy="384" rx="36" ry="14" fill="#000000" opacity="0.30"/>
+    <ellipse cx="368" cy="384" rx="36" ry="14" fill="#000000" opacity="0.30"/>
+    
+<!-- BACK 3D EXTRUSIONS (Rendered BEFORE front face) -->
+<polygon points="166,156 242,271 270,254.8 194,139.8" fill="url(#sideTeak)"/>
+<polygon points="362,156 362,376 390,359.8 390,139.8" fill="url(#sideTeak)"/>
+<polygon points="318,231 242,346 270,329.8 346,214.8" fill="url(#deepCeiling)"/>
+<polygon points="166,231 166,376 194,359.8 194,214.8" fill="url(#sideTeak)" opacity="0.9"/>
+<polygon points="122,156 166,156 194,139.8 150,139.8" fill="url(#topOak)"/>
+<polygon points="318,156 362,156 390,139.8 346,139.8" fill="url(#topOak)"/>
+<polygon points="242,271 318,156 346,139.8 270,254.8" fill="url(#topOak)"/>
+<polygon points="242,346 166,231 194,214.8 270,329.8" fill="url(#deepCeiling)"/>
+<!-- FRONT FACADE (Golden Oak Melamine) -->
+<polygon points="122,376 122,156 166,156 242,271 318,156 362,156 362,376 318,376 318,231 242,346 166,231 166,376" fill="url(#frontOak)" stroke="url(#frontEdge)" stroke-width="1.5"/>
+
+    <!-- Melamine Panel Assembly Seams -->
+    <line x1="166" y1="156" x2="166" y2="231" stroke="#92400E" stroke-width="1.5" opacity="0.55"/>
+    <line x1="318" y1="156" x2="318" y2="231" stroke="#92400E" stroke-width="1.5" opacity="0.55"/>
+    <line x1="242" y1="271" x2="242" y2="346" stroke="#92400E" stroke-width="1.5" opacity="0.55"/>
+    
+
+    <!-- Precision Machining Alignment Dots (Cyan) -->
+    <circle cx="144" cy="176" r="4.5" fill="url(#cyanGrad)" stroke="#0F172A" stroke-width="1.5"/>
+    <circle cx="340" cy="176" r="4.5" fill="url(#cyanGrad)" stroke="#0F172A" stroke-width="1.5"/>
+    <circle cx="242" cy="288" r="4.5" fill="url(#cyanGrad)" stroke="#0F172A" stroke-width="1.5"/>
+    <circle cx="242" cy="328" r="3.5" fill="#BAE6FD" stroke="#0F172A" stroke-width="1.2"/>
+    <circle cx="144" cy="356" r="4.0" fill="url(#cyanGrad)" stroke="#0F172A" stroke-width="1.5"/>
+    <circle cx="340" cy="356" r="4.0" fill="url(#cyanGrad)" stroke="#0F172A" stroke-width="1.5"/>
+    
 </svg>

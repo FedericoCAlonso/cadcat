@@ -137,6 +137,7 @@ export {
   deriveContactGeometry,
   deriveFaceType,
   deriveModuleDrillOperations,
+  deriveModuleGrooveOperations,
   groupOperationsByPiece,
   type IJointMachiningStrategy,
   type IJointMachiningRegistry,

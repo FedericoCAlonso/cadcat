@@ -81,6 +81,9 @@
     "doorOverlayRevealMm": 1.5,
     "doorHalfOverlayRevealMm": 1.5,
     "doorInsetGapMm": 2.0,
-    "doorHingeMarginMm": 100.0
+    "doorHingeMarginMm": 100.0,
+    "maxDrawerSpanMm": 900.0,
+    "maxUnreinforcedSpanMm": 900.0,
+    "backingGrooveToleranceMm": 0.5
   }
 }

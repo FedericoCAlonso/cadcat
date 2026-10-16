@@ -124,6 +124,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
           bottomScrewedDeductionWidthMm: content.bottomScrewedDeductionWidthMm ?? options.drawerBottomScrewedDeductionWidthMm,
           bottomScrewedDeductionDepthMm: content.bottomScrewedDeductionDepthMm ?? options.drawerBottomScrewedDeductionDepthMm,
           slideType,
+          customSlideClearanceMm: content.slideClearanceMm,
           frontMount,
           edgeBandId,
           gapMm,

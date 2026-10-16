@@ -65,6 +65,7 @@ import {
   type SpatialPieceBox,
   type ModuleSpatialBounds,
   deriveModuleDrillOperations,
+  deriveModuleGrooveOperations,
   groupOperationsByPiece,
   buildModuleMachiningSheets,
   exportMachiningSheetPdf,
@@ -179,6 +180,7 @@ export interface ModuleViewModelState {
   removeDrawer: (bayIndex: number) => void;
   setDrawerFrontMount: (bayIndex: number, mount: DrawerFrontMount) => void;
   setDrawerSlideType: (bayIndex: number, slide: DrawerSlideType) => void;
+  setDrawerSlideClearance: (bayIndex: number, clearanceMm: number) => void;
   setDrawerDistributionPreset: (bayIndex: number, preset: 'equal' | 'cutlery-top' | 'custom', topHeightMm?: number) => void;
   setDrawerTopHeight: (bayIndex: number, heightMm: number) => void;
   setDrawerTrack: (bayIndex: number, trackIndex: number, track: TrackSize) => void;
@@ -200,11 +202,14 @@ export interface ModuleViewModelState {
   isIslandCabinet: boolean;
   rearStructuralRails: RearStructuralRails;
   rearStructuralRailsWidthMm: number;
+  partitionPassThroughRoof: boolean;
+  structuralSpanWarnings: string[];
   setBackingType: (type: BackingType) => void;
   setBackingThicknessMm: (thickness: number) => void;
   setIsIslandCabinet: (val: boolean) => void;
   setRearStructuralRails: (val: RearStructuralRails) => void;
   setRearStructuralRailsWidthMm: (val: number) => void;
+  setPartitionPassThroughRoof: (val: boolean) => void;
   setFrontsMaterialId: (id: string) => void;
   setDrawerBoxesMaterialId: (id: string) => void;
   setBackingsMaterialId: (id: string) => void;
@@ -406,6 +411,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [isIslandCabinet, setIsIslandCabinetState] = useState<boolean>(false);
   const [rearStructuralRails, setRearStructuralRailsState] = useState<RearStructuralRails>('none');
   const [rearStructuralRailsWidthMm, setRearStructuralRailsWidthMmState] = useState<number>(80);
+  const [partitionPassThroughRoof, setPartitionPassThroughRoofState] = useState<boolean>(false);
 
   // Piece-level overrides (Point 10)
   const [pieceMaterialOverrides, setPieceMaterialOverrides] = useState<Record<string, string>>({});
@@ -729,6 +735,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     });
   }, []);
 
+  const setDrawerSlideClearance = useCallback((bayIndex: number, slideClearanceMm: number) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'drawer-stack') {
+        next[bayIndex] = { ...current, slideClearanceMm };
+      }
+      return next;
+    });
+  }, []);
+
   const setDrawerDistributionPreset = useCallback(
     (bayIndex: number, preset: 'equal' | 'cutlery-top' | 'custom', topHeightMm: number = 140) => {
       setIsCustomModular(true);
@@ -963,6 +981,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   const setRearStructuralRailsWidthMm = useCallback((val: number) => {
     setRearStructuralRailsWidthMmState(val);
+    setIsCustomModular(true);
+  }, []);
+
+  const setPartitionPassThroughRoof = useCallback((val: boolean) => {
+    setPartitionPassThroughRoofState(val);
     setIsCustomModular(true);
   }, []);
 
@@ -1357,15 +1380,15 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
 
   // Resolves pieces dynamically whenever parameters, template, or materials change
-  const { currentModule, resolvedPieces, placementTree } = useMemo(() => {
+  const { currentModule, resolvedPieces, placementTree, bayBoxes } = useMemo(() => {
     if (!activeMaterial || width <= 0 || height <= 0 || depth <= 0) {
-      return { currentModule: null, resolvedPieces: [], placementTree: null };
+      return { currentModule: null, resolvedPieces: [], placementTree: null, bayBoxes: [] };
     }
 
     try {
       if (selectedTemplateId === 'wall-shelves') {
         if (!wallShelvingOutput) {
-          return { currentModule: null, resolvedPieces: [], placementTree: null };
+          return { currentModule: null, resolvedPieces: [], placementTree: null, bayBoxes: [] };
         }
         const positions = wallShelvingOutput.placementTree.resolvePositions();
         const resolvedPieces: ResolvedPieceWithCutSize[] = wallShelvingOutput.module.pieces.map((p) => {
@@ -1395,6 +1418,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           currentModule: wallShelvingOutput.module,
           resolvedPieces,
           placementTree: wallShelvingOutput.placementTree,
+          bayBoxes: [],
         };
       }
 
@@ -1459,6 +1483,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             isIslandCabinet,
             rearStructuralRails,
             rearStructuralRailsWidthMm,
+            partitionPassThroughRoof,
+            backingGrooveToleranceMm: projectConfig?.hardware?.backingGrooveToleranceMm ?? 0.5,
           },
           grid: gridDef,
           bays: normalizedBays,
@@ -1520,6 +1546,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           },
           resolvedPieces: finalPieces,
           placementTree: built.placementTree,
+          bayBoxes: built.bayBoxes ?? [],
         };
       }
 
@@ -1555,9 +1582,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         },
         resolvedPieces: finalPieces,
         placementTree: built.placementTree,
+        bayBoxes: [],
       };
     } catch {
-      return { currentModule: null, resolvedPieces: [], placementTree: null };
+      return { currentModule: null, resolvedPieces: [], placementTree: null, bayBoxes: [] };
     }
   }, [
     width,
@@ -1688,10 +1716,32 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     width,
   ]);
 
-  // Custom operations flattened list
+  // Automatic groove operations derived from module joints (backing grooves, drawer grooves)
+  const automaticGrooveOperations = useMemo(() => {
+    if (!currentModule) return [];
+    const foundMat = materials.find((m) => m.id === backingsMaterialId);
+    const resolvedBackingThickness: number =
+      foundMat && typeof foundMat.thicknessMm === 'number'
+        ? foundMat.thicknessMm
+        : backingThicknessMm;
+
+    return deriveModuleGrooveOperations(
+      resolvedPieces.length > 0 ? resolvedPieces : currentModule.pieces,
+      currentModule.joints,
+      {
+        backingThicknessMm: resolvedBackingThickness,
+        backingGrooveDistanceMm: 15,
+        backingGrooveDepthMm: 8,
+        backingGrooveToleranceMm: projectConfig?.hardware?.backingGrooveToleranceMm ?? 0.5,
+      },
+    );
+  }, [currentModule, resolvedPieces, materials, backingsMaterialId, backingThicknessMm, projectConfig]);
+
+  // Custom operations flattened list (merging automatic grooves + manual custom operations)
   const customOperationsList = useMemo(() => {
-    return Object.values(customPieceOperations).flat();
-  }, [customPieceOperations]);
+    const manualOps = Object.values(customPieceOperations).flat();
+    return [...automaticGrooveOperations, ...manualOps];
+  }, [automaticGrooveOperations, customPieceOperations]);
 
   // Identifies mobile kinematic mechanisms (drawers, doors, trays, flaps)
   const kinematicMechanisms = useMemo(() => {
@@ -1758,6 +1808,37 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const shelfDeflectionWarnings = useMemo(() => {
     return Array.from(shelfDeflections.values()).filter((d) => d.hasWarning);
   }, [shelfDeflections]);
+
+  // Structural span warnings for wide drawers and unreinforced top panels
+  const structuralSpanWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    const maxDrawerSpan = projectConfig?.hardware?.maxDrawerSpanMm ?? 900;
+    const maxUnreinforcedSpan = projectConfig?.hardware?.maxUnreinforcedSpanMm ?? 900;
+
+    // Check bays for wide drawer stacks
+    for (let i = 0; i < bays.length; i++) {
+      const b = bays[i];
+      if (b?.type === 'drawer-stack') {
+        const bayBox = bayBoxes?.[i];
+        const bayW = bayBox ? bayBox.width : (width - 36);
+        if (bayW > maxDrawerSpan) {
+          warnings.push(
+            `El vano ${i + 1} para cajonera (${Math.round(bayW)} mm) supera el límite recomendado de ${maxDrawerSpan} mm. Riesgo de deformación y atascamiento de correderas. Se recomienda dividir el módulo en 2 columnas con un divisor vertical.`,
+          );
+        }
+      }
+    }
+
+    // Check roof / top panel span if no vertical partition
+    const hasVerticalPartition = gridType === '2-bays-vertical' || gridType === '3-bays-vertical';
+    if (!hasVerticalPartition && width > maxUnreinforcedSpan && (roofType === 'solid-panel' || roofType === 'front-back-rails')) {
+      warnings.push(
+        `La luz libre del mueble (${width} mm) supera el máximo sugerido sin refuerzo vertical (${maxUnreinforcedSpan} mm). Se recomienda agregar un divisor intermedio o faja vertical de amarre para evitar el pandeo de la tapa.`,
+      );
+    }
+
+    return warnings;
+  }, [bays, bayBoxes, width, gridType, roofType, projectConfig]);
 
   // Generates Bill of Materials
   const bom = useMemo(() => {
@@ -2218,6 +2299,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     removeDrawer,
     setDrawerFrontMount,
     setDrawerSlideType,
+    setDrawerSlideClearance,
     setDrawerDistributionPreset,
     setDrawerTopHeight,
     setDrawerTrack,
@@ -2238,11 +2320,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     isIslandCabinet,
     rearStructuralRails,
     rearStructuralRailsWidthMm,
+    partitionPassThroughRoof,
+    structuralSpanWarnings,
     setBackingType,
     setBackingThicknessMm,
     setIsIslandCabinet,
     setRearStructuralRails,
     setRearStructuralRailsWidthMm,
+    setPartitionPassThroughRoof,
     setFrontsMaterialId,
     setDrawerBoxesMaterialId,
     setBackingsMaterialId,

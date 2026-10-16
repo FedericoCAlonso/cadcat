@@ -286,24 +286,50 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
                 } else if (val === 'overlay') {
                   onIsIslandCabinetChange?.(false);
                   onHasBackingChange(true);
-                  onBackingThicknessChange?.(3);
+                  if (backingThicknessMm >= 15) onBackingThicknessChange?.(3);
                   onBackingTypeChange?.('overlay');
                 } else {
                   // groove
                   onIsIslandCabinetChange?.(false);
                   onHasBackingChange(true);
-                  onBackingThicknessChange?.(3);
+                  if (backingThicknessMm >= 15) onBackingThicknessChange?.(3);
                   onBackingTypeChange?.('groove');
                 }
               }}
             >
-              <option value="groove">Fondo de Módulo (Ranurado 3mm)</option>
-              <option value="overlay">Fondo Fino Clavado / Atornillado (3mm)</option>
+              <option value="groove">{`Fondo de Módulo (Ranurado ${backingThicknessMm <= 3 ? '3mm' : '6mm'})`}</option>
+              <option value="overlay">Fondo Fino Clavado / Atornillado Posterior</option>
               <option value="solid-thick">Fondo Grueso Estructural (18mm con confirmat)</option>
               <option value="island">Mueble tipo Isla (Sin fondo, cantos traseros aplacados)</option>
               <option value="none">Sin fondo (Abierto)</option>
             </select>
           </div>
+
+          {hasBacking && !isIslandCabinet && backingThicknessMm < 15 && (
+            <div style={{ marginTop: '0.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                Espesor de Fondo:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${backingThicknessMm <= 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                  style={{ flex: 1, minHeight: '36px', fontSize: '0.8rem' }}
+                  onClick={() => onBackingThicknessChange?.(3)}
+                >
+                  3 mm
+                </button>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${backingThicknessMm > 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                  style={{ flex: 1, minHeight: '36px', fontSize: '0.8rem' }}
+                  onClick={() => onBackingThicknessChange?.(6)}
+                >
+                  6 mm
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="base-rear-rails" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>

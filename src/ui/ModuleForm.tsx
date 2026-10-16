@@ -75,6 +75,7 @@ export interface ModuleFormProps {
   onRemoveDrawer?: (bayIndex: number) => void;
   onDrawerFrontMountChange?: (bayIndex: number, mount: DrawerFrontMount) => void;
   onDrawerSlideTypeChange?: (bayIndex: number, slide: DrawerSlideType) => void;
+  onDrawerSlideClearanceChange?: (bayIndex: number, clearanceMm: number) => void;
   onDrawerTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onDrawerGapChange?: (bayIndex: number, gapMm: number) => void;
   onDrawerTransomsChange?: (bayIndex: number, hasTransoms: boolean) => void;
@@ -88,6 +89,10 @@ export interface ModuleFormProps {
   onFrontsMaterialChange?: (id: string) => void;
   onDrawerBoxesMaterialChange?: (id: string) => void;
   onBackingsMaterialChange?: (id: string) => void;
+  partitionPassThroughRoof?: boolean;
+  onPartitionPassThroughRoofChange?: (val: boolean) => void;
+  structuralSpanWarnings?: string[];
+  maxDrawerSpanMm?: number;
   onJointStrategyChange?: (strategy: JointStrategy) => void;
   onView3dClick?: () => void;
   onSaveUserTemplate?: (name: string, description?: string) => Promise<void> | void;
@@ -195,9 +200,14 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onRemoveDrawer,
     onDrawerFrontMountChange,
     onDrawerSlideTypeChange,
+    onDrawerSlideClearanceChange,
     onDrawerTracksChange,
     onDrawerGapChange,
     onDrawerTransomsChange,
+    partitionPassThroughRoof = false,
+    onPartitionPassThroughRoofChange,
+    structuralSpanWarnings = [],
+    maxDrawerSpanMm = 900,
     onDrawerTypeChange,
     onDrawerBottomMountChange,
     onDrawerTopPullGapChange,
@@ -817,6 +827,31 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           <span>🏗️ Estructura del Casco y Tapa</span>
         </h3>
 
+        {structuralSpanWarnings && structuralSpanWarnings.length > 0 && (
+          <div
+            className="m3-alert-banner warning"
+            style={{
+              padding: '10px 14px',
+              borderRadius: '8px',
+              backgroundColor: '#fff3e0',
+              border: '1px solid #ffe0b2',
+              color: '#bf360c',
+              fontSize: '0.82rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            {structuralSpanWarnings.map((warn, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <span style={{ fontSize: '1rem' }}>⚠️</span>
+                <span>{warn}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Tapa Superior / Techo */}
         <div className="form-group">
           <label>Tapa superior / Techo:</label>
@@ -900,24 +935,63 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               } else if (val === 'overlay') {
                 onIsIslandCabinetChange?.(false);
                 onHasBackingChange?.(true);
-                onBackingThicknessChange?.(3);
+                if (backingThicknessMm >= 15) onBackingThicknessChange?.(3);
                 onBackingTypeChange?.('overlay');
               } else {
                 // groove
                 onIsIslandCabinetChange?.(false);
                 onHasBackingChange?.(true);
-                onBackingThicknessChange?.(3);
+                if (backingThicknessMm >= 15) onBackingThicknessChange?.(3);
                 onBackingTypeChange?.('groove');
               }
             }}
           >
-            <option value="groove">Con fondo (ranurado 3mm)</option>
-            <option value="overlay">Fondo fino clavado / atornillado posterior (3mm)</option>
+            <option value="groove">Con fondo ranurado</option>
+            <option value="overlay">Fondo fino clavado / atornillado posterior</option>
             <option value="solid-thick">Fondo grueso estructural (18mm con confirmat)</option>
             <option value="island">🏝️ Mueble tipo Isla (Sin fondo, cantos traseros aplacados)</option>
             <option value="none">Sin fondo (Abierto)</option>
           </select>
         </div>
+
+        {/* Selector de espesor de fondo cuando es fino (3mm o 6mm) */}
+        {hasBacking && !isIslandCabinet && backingThicknessMm < 15 && (
+          <div className="form-group" style={{ marginTop: '-0.25rem' }}>
+            <label style={{ fontSize: '0.8rem', color: '#49454f' }}>Espesor del fondo posterior:</label>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <button
+                type="button"
+                className={`m3-btn m3-btn--small ${backingThicknessMm <= 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                style={{ flex: 1, minHeight: '38px', fontSize: '0.8rem' }}
+                onClick={() => onBackingThicknessChange?.(3)}
+              >
+                3 mm (Estándar)
+              </button>
+              <button
+                type="button"
+                className={`m3-btn m3-btn--small ${backingThicknessMm > 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                style={{ flex: 1, minHeight: '38px', fontSize: '0.8rem' }}
+                onClick={() => onBackingThicknessChange?.(6)}
+              >
+                6 mm (Reforzado)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Divisores pasantes hasta arriba (Decision 2) */}
+        {gridType && gridType !== '1-bay' && (
+          <div className="form-group" style={{ marginTop: '0.25rem' }}>
+            <label className="m3-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={Boolean(partitionPassThroughRoof)}
+                onChange={(e) => onPartitionPassThroughRoofChange?.(e.target.checked)}
+              />
+              <span>Divisores pasantes hasta arriba (secciona la tapa/fajas por vano)</span>
+            </label>
+          </div>
+        )}
 
         {/* Tirantes Estructurales de Amarre (Punto 6) */}
         <div className="form-group">
@@ -1430,6 +1504,29 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </div>
             )}
 
+            {width > maxDrawerSpanMm && (!gridType || gridType === '1-bay') && (
+              <div
+                className="m3-alert-banner warning"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#fff3e0',
+                  border: '1px solid #ffe0b2',
+                  color: '#bf360c',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '10px',
+                }}
+              >
+                <span>⚠️</span>
+                <span>
+                  <strong>Cajón muy ancho ({width} mm):</strong> Supera el estándar de {maxDrawerSpanMm} mm. Conviene dividir el mueble en 2 vanos verticales para asegurar el buen funcionamiento de las correderas.
+                </span>
+              </div>
+            )}
+
             <div className="form-group">
               <label>Tipo de correderas:</label>
               <div className="builder-segmented-group">
@@ -1446,6 +1543,38 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'undermount')}
                 >
                   Ocultas (Bajo Fondo)
+                </button>
+              </div>
+            </div>
+
+            {/* Holgura lateral de correderas */}
+            <div className="form-group">
+              <label>Holgura lateral total de correderas:</label>
+              <div className="m3-stepper-field">
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Disminuir holgura de correderas 0.5 mm"
+                  onClick={() => {
+                    const current = activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4);
+                    onDrawerSlideClearanceChange?.(currentActiveIndex, Math.max(5.0, Math.round((current - 0.5) * 10) / 10));
+                  }}
+                >
+                  −
+                </button>
+                <div className="builder-stepper-display">
+                  {`${(activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4)).toFixed(1)} mm`}
+                </div>
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Aumentar holgura de correderas 0.5 mm"
+                  onClick={() => {
+                    const current = activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4);
+                    onDrawerSlideClearanceChange?.(currentActiveIndex, Math.min(50.0, Math.round((current + 0.5) * 10) / 10));
+                  }}
+                >
+                  +
                 </button>
               </div>
             </div>

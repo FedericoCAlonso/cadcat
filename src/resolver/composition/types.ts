@@ -26,10 +26,13 @@ export interface CarcassDefinition {
   backingType?: BackingType;         // Default: 'groove'
   backingGrooveDistanceMm?: number;  // Distance from back edge to groove (default: 15mm)
   backingGrooveDepthMm?: number;     // Groove depth into carcase sides (default: 8mm)
+  backingGrooveToleranceMm?: number; // Tolerance for groove width (default: 0.5mm)
   backingThicknessMm?: number;       // Thickness of back panel (default: 3mm)
   isIslandCabinet?: boolean;         // Point 4: Island cabinet without back, rear edges banded
   rearStructuralRails?: RearStructuralRails; // Point 6: Structural stretchers when open or without back
   rearStructuralRailsWidthMm?: number; // Width of rear stretchers (default: 80mm)
+  partitionPassThroughRoof?: boolean; // When true, vertical partitions extend to the top and section the roof panel
+  backingMultiBayMode?: 'split-per-bay' | 'continuous'; // Multi-bay backing strategy (default: 'split-per-bay')
 }
 
 export interface InteriorBounds {
@@ -114,6 +117,7 @@ export type BayContent =
       boxSideHeightOffsetMm?: number;
       bottomScrewedDeductionWidthMm?: number;
       bottomScrewedDeductionDepthMm?: number;
+      slideClearanceMm?: number;
     }
   | {
       type: 'pull-out-tray';

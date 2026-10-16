@@ -117,7 +117,15 @@ export function resolveModule(definition: ModuleResolverDefinition): ResolvedMod
     const leftJoint = joints.find((j) => (j.a.pieceId === piece.id ? j.a.faceId : j.b.faceId) === 'left-edge');
     const rightJoint = joints.find((j) => (j.a.pieceId === piece.id ? j.a.faceId : j.b.faceId) === 'right-edge');
 
-    if (leftJoint && rightJoint) {
+    const isBackOrGroovedJoint =
+      piece.role === 'back' ||
+      piece.id.includes('-back') ||
+      leftJoint?.kind === 'groove' ||
+      rightJoint?.kind === 'groove' ||
+      leftJoint?.kind === 'rebate' ||
+      rightJoint?.kind === 'rebate';
+
+    if (leftJoint && rightJoint && !isBackOrGroovedJoint) {
       const leftNeighbor = leftJoint.a.pieceId === piece.id ? leftJoint.b.pieceId : leftJoint.a.pieceId;
       const rightNeighbor = rightJoint.a.pieceId === piece.id ? rightJoint.b.pieceId : rightJoint.a.pieceId;
       if (leftNeighbor !== piece.id && rightNeighbor !== piece.id && leftNeighbor !== rightNeighbor) {
@@ -147,11 +155,20 @@ export function resolveModule(definition: ModuleResolverDefinition): ResolvedMod
     let height = piece.contour.points[2]?.y ?? 0;
 
     // Check if joints close a loop between two opposing pieces (e.g. shelf between two sides)
+    // Exclude backing panels (role: 'back') or grooved/rebated panels where dimensions are explicitly sized with groove depth
     const joints = jointGraph.getJointsForPiece(piece.id);
     const leftJoint = joints.find((j) => (j.a.pieceId === piece.id ? j.a.faceId : j.b.faceId) === 'left-edge');
     const rightJoint = joints.find((j) => (j.a.pieceId === piece.id ? j.a.faceId : j.b.faceId) === 'right-edge');
 
-    if (leftJoint && rightJoint) {
+    const isBackOrGroovedJoint =
+      piece.role === 'back' ||
+      piece.id.includes('-back') ||
+      leftJoint?.kind === 'groove' ||
+      rightJoint?.kind === 'groove' ||
+      leftJoint?.kind === 'rebate' ||
+      rightJoint?.kind === 'rebate';
+
+    if (leftJoint && rightJoint && !isBackOrGroovedJoint) {
       const leftPieceId = leftJoint.a.pieceId === piece.id ? leftJoint.b.pieceId : leftJoint.a.pieceId;
       const rightPieceId = rightJoint.a.pieceId === piece.id ? rightJoint.b.pieceId : rightJoint.a.pieceId;
       const leftPos = positions.get(leftPieceId);
