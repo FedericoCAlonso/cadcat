@@ -30,33 +30,33 @@ export function createPwaManifest(base: string = '/'): WebAppManifest {
 
   return {
     id: normalizedBase,
-    name: 'Mobilius - Furniture Design',
+    name: 'Mobilius',
     short_name: 'Mobilius',
     description: 'Progressive Web App for panel furniture design',
-    theme_color: '#0f172a',
-    background_color: '#0f172a',
+    theme_color: '#101820',
+    background_color: '#101820',
     display: 'standalone',
     orientation: 'any',
     scope: normalizedBase,
     start_url: normalizedBase,
     icons: [
       {
-        src: cleanPath('icon.svg'),
-        sizes: '512x512',
-        type: 'image/svg+xml',
-        purpose: 'any maskable',
-      },
-      {
-        src: cleanPath('pwa-192x192.png'),
+        src: cleanPath('icons/icon-192.png'),
         sizes: '192x192',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
       },
       {
-        src: cleanPath('pwa-512x512.png'),
+        src: cleanPath('icons/icon-512.png'),
         sizes: '512x512',
         type: 'image/png',
-        purpose: 'any maskable',
+        purpose: 'any',
+      },
+      {
+        src: cleanPath('icons/icon-512-maskable.png'),
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   };

@@ -4,14 +4,14 @@ import { registerServiceWorker } from '../src/registerServiceWorker';
 
 describe('PWA Manifest configuration', () => {
   it('has required PWA manifest fields', () => {
-    expect(pwaManifest.name).toBe('Mobilius - Furniture Design');
+    expect(pwaManifest.name).toBe('Mobilius');
     expect(pwaManifest.short_name).toBe('Mobilius');
     expect(pwaManifest.id).toBe('/');
     expect(pwaManifest.start_url).toBe('/');
     expect(pwaManifest.scope).toBe('/');
     expect(pwaManifest.display).toBe('standalone');
     expect(pwaManifest.icons.length).toBeGreaterThan(0);
-    expect(pwaManifest.icons[0]?.src).toBe('/icon.svg');
+    expect(pwaManifest.icons[0]?.src).toBe('/icons/icon-192.png');
   });
 
   it('generates unique id, scope, start_url, and icon paths for GitHub Pages subpath isolation', () => {

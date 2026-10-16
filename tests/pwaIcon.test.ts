@@ -6,39 +6,44 @@ import { pwaManifest } from '../src/pwaConfig';
 describe('PWA Icon and Adaptive Shape Compliance', () => {
   const publicDir = path.resolve(__dirname, '../public');
 
-  it('provides public/icon.svg conforming to the 512x512 maskable standard', () => {
-    const iconSvgPath = path.join(publicDir, 'icon.svg');
+  it('provides public/icons/mobilius-icon-dark.svg conforming to the vector icon standard', () => {
+    const iconSvgPath = path.join(publicDir, 'icons/mobilius-icon-dark.svg');
     expect(fs.existsSync(iconSvgPath)).toBe(true);
     const content = fs.readFileSync(iconSvgPath, 'utf-8');
-    expect(content).toContain('viewBox="0 0 512 512"');
-    expect(content).toContain('rect width="512" height="512"'); // Full-bleed background
+    expect(content).toContain('viewBox="0 0 32 32"');
+    expect(content).toContain('shape-rendering="crispEdges"');
+    expect(content).toContain('fill="#101820"');
   });
 
-  it('provides high-resolution PNG assets for PWA launcher and splash screens', () => {
-    const pwa192 = path.join(publicDir, 'pwa-192x192.png');
-    const pwa512 = path.join(publicDir, 'pwa-512x512.png');
+  it('provides PNG assets for PWA launcher and splash screens', () => {
+    const icon192 = path.join(publicDir, 'icons/icon-192.png');
+    const icon512 = path.join(publicDir, 'icons/icon-512.png');
+    const iconMaskable = path.join(publicDir, 'icons/icon-512-maskable.png');
 
-    expect(fs.existsSync(pwa192)).toBe(true);
-    expect(fs.existsSync(pwa512)).toBe(true);
+    expect(fs.existsSync(icon192)).toBe(true);
+    expect(fs.existsSync(icon512)).toBe(true);
+    expect(fs.existsSync(iconMaskable)).toBe(true);
 
-    const stat192 = fs.statSync(pwa192);
-    const stat512 = fs.statSync(pwa512);
+    const stat192 = fs.statSync(icon192);
+    const stat512 = fs.statSync(icon512);
+    const statMaskable = fs.statSync(iconMaskable);
 
-    expect(stat192.size).toBeGreaterThan(10000);
-    expect(stat512.size).toBeGreaterThan(50000);
+    expect(stat192.size).toBeGreaterThan(1000);
+    expect(stat512.size).toBeGreaterThan(1000);
+    expect(statMaskable.size).toBeGreaterThan(1000);
   });
 
-  it('declares maskable icon purpose in the web app manifest for OS compatibility', () => {
-    expect(pwaManifest.theme_color).toBe('#0f172a');
-    expect(pwaManifest.background_color).toBe('#0f172a');
+  it('declares any and maskable icon purposes in the web app manifest for OS compatibility', () => {
+    expect(pwaManifest.theme_color).toBe('#101820');
+    expect(pwaManifest.background_color).toBe('#101820');
 
-    const svgIcon = pwaManifest.icons.find((i) => i.src.includes('icon.svg'));
-    expect(svgIcon?.purpose).toContain('maskable');
+    const png512Icon = pwaManifest.icons.find((i) => i.src.includes('icon-512.png'));
+    expect(png512Icon?.purpose).toBe('any');
 
-    const png512Icon = pwaManifest.icons.find((i) => i.src.includes('pwa-512x512.png'));
-    expect(png512Icon?.purpose).toContain('maskable');
+    const maskableIcon = pwaManifest.icons.find((i) => i.src.includes('icon-512-maskable.png'));
+    expect(maskableIcon?.purpose).toBe('maskable');
 
-    const png192Icon = pwaManifest.icons.find((i) => i.src.includes('pwa-192x192.png'));
-    expect(png192Icon?.purpose).toContain('maskable');
+    const png192Icon = pwaManifest.icons.find((i) => i.src.includes('icon-192.png'));
+    expect(png192Icon?.purpose).toBe('any');
   });
 });

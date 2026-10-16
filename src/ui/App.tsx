@@ -46,7 +46,7 @@ export function App(): ReactElement {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img
-              src={`${import.meta.env?.BASE_URL || '/'}icon.svg`}
+              src={`${import.meta.env?.BASE_URL || '/'}icons/mobilius-icon-dark.svg`}
               alt="Mobilius Icon"
               width="40"
               height="40"
@@ -54,6 +54,7 @@ export function App(): ReactElement {
                 borderRadius: '8px',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
                 flexShrink: 0,
+                imageRendering: 'pixelated',
               }}
             />
             <div>
