@@ -11,6 +11,8 @@ export interface CreateJointInput {
   b: FaceRef;
   kind: JointKind;
   offsetMm?: number;
+  doorOffsetMm?: number;
+  hingeSide?: 'left' | 'right';
   region?: Interval;
   hingeCrank?: 'codo-0' | 'codo-9' | 'codo-18';
 }

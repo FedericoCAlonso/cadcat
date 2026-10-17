@@ -215,11 +215,33 @@ export function deriveContactGeometry(
 
 /**
  * Determines whether a given face identifier maps to Face A, Face B, or an Edge.
+ * For doors and front panels, Face A is the visible exterior and Face B is the interior.
  */
-export function deriveFaceType(faceId: string): 'face-A' | 'face-B' | 'edge' {
+export function deriveFaceType(faceId: string, role?: string): 'face-A' | 'face-B' | 'edge' {
   const lower = faceId.toLowerCase();
   if (lower.includes('edge')) {
     return 'edge';
+  }
+  if (role) {
+    const r = role.toLowerCase();
+    if (
+      r.includes('door') ||
+      r.includes('front') ||
+      r.includes('puerta') ||
+      r.includes('frente') ||
+      r.includes('leaf')
+    ) {
+      if (
+        lower === 'inner' ||
+        lower === 'face-b' ||
+        lower === 'back' ||
+        lower === 'rear-face' ||
+        lower === 'interior'
+      ) {
+        return 'face-B';
+      }
+      return 'face-A';
+    }
   }
   if (
     lower === 'face-b' ||

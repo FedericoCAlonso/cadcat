@@ -14,33 +14,64 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
     const { pieceA, pieceB, joint, config, generateOpId } = context;
     const operations: DrillOperation[] = [];
 
-    // Piece A is Door, Piece B is Carcase Side
-    const hingeY = joint.offsetMm ?? 100;
-    const spacing = config.hingePlateHoleSpacingMm ?? 32.0;
-    const halfSpacing = spacing / 2;
+    // Identify Door (pieceA or pieceB) vs Carcase Side
+    const isADoor =
+      pieceA.role.includes('door') ||
+      pieceA.role.includes('leaf') ||
+      pieceA.id.includes('door') ||
+      pieceA.id.includes('leaf');
+    const isBDoor =
+      pieceB.role.includes('door') ||
+      pieceB.role.includes('leaf') ||
+      pieceB.id.includes('door') ||
+      pieceB.id.includes('leaf');
 
-    const doorWidth = Math.max(...pieceA.contour.points.map((p) => p.x));
+    const doorPiece = isBDoor && !isADoor ? pieceB : pieceA;
+    const carcasePiece = isBDoor && !isADoor ? pieceA : pieceB;
+    const doorFaceRef = isBDoor && !isADoor ? joint.b : joint.a;
+    const carcaseFaceRef = isBDoor && !isADoor ? joint.a : joint.b;
+
+    const doorHeight = Math.max(...doorPiece.contour.points.map((p) => p.y));
+    const doorWidth = Math.max(...doorPiece.contour.points.map((p) => p.x));
+
     const isRightDoor =
-      pieceA.role.includes('right') ||
-      pieceA.id.includes('right') ||
-      pieceA.id.endsWith('-r') ||
-      joint.b.pieceId.includes('right');
+      joint.hingeSide === 'right'
+        ? true
+        : joint.hingeSide === 'left'
+          ? false
+          : doorPiece.role.includes('right') ||
+            doorPiece.id.includes('right') ||
+            doorPiece.id.endsWith('-r') ||
+            carcaseFaceRef.pieceId.includes('right');
 
     const cupX = isRightDoor
       ? doorWidth - config.hingeCupEdgeSetbackMm
       : config.hingeCupEdgeSetbackMm;
 
-    // 1. On Door: cup hole (Ø35mm)
+    // Door local hinge elevation: measured from bottom edge of the door
+    const doorHingeY =
+      joint.doorOffsetMm !== undefined
+        ? joint.doorOffsetMm
+        : joint.offsetMm !== undefined && joint.offsetMm <= doorHeight
+          ? joint.offsetMm
+          : Math.min(
+              doorHeight - (config.jointDrillMarginMm ?? 100),
+              Math.max(config.jointDrillMarginMm ?? 100, (joint.offsetMm ?? 100) % doorHeight),
+            );
+
+    const safeDoorHingeY = Math.max(10, Math.min(doorHeight - 10, doorHingeY));
+
+    // 1. On Door: cup hole (Ø35mm) on the interior face (face-B)
     operations.push({
       schemaVersion: 1,
       id: generateOpId(),
-      pieceId: pieceA.id,
-      faceId: joint.a.faceId,
-      faceType: deriveFaceType(joint.a.faceId),
+      pieceId: doorPiece.id,
+      faceId: doorFaceRef.faceId,
+      faceType: 'face-B',
       diameterMm: config.hingeCupDiameterMm,
       depthMm: config.hingeCupDepthMm,
       isThrough: false,
-      positionMm: { x: cupX, y: hingeY },
+      positionMm: { x: cupX, y: safeDoorHingeY },
       origin: 'derived',
       sourceJointKind: 'hinge',
       description: `Concealed hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (${isRightDoor ? 'right' : 'left'})`,
@@ -48,22 +79,26 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
 
     // 2. On Carcase Side: 2 mounting plate holes in System 32 line
     // Codo 0 & Codo 9: 37mm setback. Codo 18 (Inset): 37mm + door thickness.
+    const carcaseHingeY = joint.offsetMm ?? doorHingeY;
+    const spacing = config.hingePlateHoleSpacingMm ?? 32.0;
+    const halfSpacing = spacing / 2;
+
     const isInset = joint.hingeCrank === 'codo-18';
     const plateSetback = isInset
-      ? config.hingePlateSetbackMm + pieceA.thicknessMm
+      ? config.hingePlateSetbackMm + doorPiece.thicknessMm
       : config.hingePlateSetbackMm;
 
     operations.push(
       {
         schemaVersion: 1,
         id: generateOpId(),
-        pieceId: pieceB.id,
-        faceId: joint.b.faceId,
-        faceType: deriveFaceType(joint.b.faceId),
+        pieceId: carcasePiece.id,
+        faceId: carcaseFaceRef.faceId,
+        faceType: deriveFaceType(carcaseFaceRef.faceId, carcasePiece.role),
         diameterMm: config.hingePlateDiameterMm,
         depthMm: config.hingePlateDepthMm,
         isThrough: false,
-        positionMm: { x: plateSetback, y: hingeY - halfSpacing },
+        positionMm: { x: plateSetback, y: carcaseHingeY - halfSpacing },
         origin: 'derived',
         sourceJointKind: 'hinge',
         description: `Hinge mounting plate hole 1 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm${isInset ? ' (Codo 18 / Inset)' : ''}`,
@@ -71,13 +106,13 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
       {
         schemaVersion: 1,
         id: generateOpId(),
-        pieceId: pieceB.id,
-        faceId: joint.b.faceId,
-        faceType: deriveFaceType(joint.b.faceId),
+        pieceId: carcasePiece.id,
+        faceId: carcaseFaceRef.faceId,
+        faceType: deriveFaceType(carcaseFaceRef.faceId, carcasePiece.role),
         diameterMm: config.hingePlateDiameterMm,
         depthMm: config.hingePlateDepthMm,
         isThrough: false,
-        positionMm: { x: plateSetback, y: hingeY + halfSpacing },
+        positionMm: { x: plateSetback, y: carcaseHingeY + halfSpacing },
         origin: 'derived',
         sourceJointKind: 'hinge',
         description: `Hinge mounting plate hole 2 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm${isInset ? ' (Codo 18 / Inset)' : ''}`,

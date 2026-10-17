@@ -210,18 +210,23 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
       );
 
       // Left leaf hinged to left carcase side
+      const leafBottomY = bay.y - T + 2;
       joints.push(
         createJoint({
           a: { pieceId: leaf1Id, faceId: 'inner' },
           b: { pieceId: bay.leftPieceId, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.y + 100,
+          offsetMm: leafBottomY + 100,
+          doorOffsetMm: 100,
+          hingeSide: 'left',
         }),
         createJoint({
           a: { pieceId: leaf1Id, faceId: 'inner' },
           b: { pieceId: bay.leftPieceId, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.y + bay.height - 100,
+          offsetMm: leafBottomY + leafHeight - 100,
+          doorOffsetMm: leafHeight - 100,
+          hingeSide: 'left',
         }),
       );
 

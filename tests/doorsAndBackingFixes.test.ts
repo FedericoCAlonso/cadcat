@@ -3,6 +3,8 @@ import {
   buildModularModule,
   buildDoorCabinet,
   HingeJointStrategy,
+  deriveModuleDrillOperations,
+  buildPieceMachiningSheet,
   type ModularModuleDefinition,
 } from '../src/resolver';
 import type { Material, ProjectConfig } from '../src/model';
@@ -437,6 +439,191 @@ describe('Doors & Backing Calculations - 4 Specific Fixes', () => {
       const backPlacement = resolved.placementTree.getNode(backPiece.id)!;
       expect(backPlacement.relativeOffset.y).toBe(100);
       expect(backPlacement.relativeOffset.z).toBe(560);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. Cup hole placement on doors: face-B, local door Y, and carcase alignment
+  // -------------------------------------------------------------------------
+  describe('Fix 5: Cup hole placement on doors (face-B, local Y, mounting plate alignment)', () => {
+    it('always assigns door cup hole to face-B (interior/reverso) and never face-A', () => {
+      const strategy = new HingeJointStrategy();
+      const door = {
+        id: 'door-single',
+        role: 'door-left',
+        contour: { points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 700 }, { x: 0, y: 700 }] },
+        thicknessMm: 18,
+      };
+      const side = {
+        id: 'side-left',
+        role: 'side-left',
+        contour: { points: [{ x: 0, y: 0 }, { x: 500, y: 0 }, { x: 500, y: 800 }, { x: 0, y: 800 }] },
+        thicknessMm: 18,
+      };
+
+      let opId = 0;
+      const ops = strategy.generateOperations({
+        pieceA: door as any,
+        pieceB: side as any,
+        joint: {
+          a: { pieceId: 'door-single', faceId: 'inner' },
+          b: { pieceId: 'side-left', faceId: 'inner' },
+          kind: 'hinge',
+          doorOffsetMm: 100,
+          offsetMm: 120,
+        },
+        effectiveKind: 'hinge',
+        config: defaultProjectConfig.machining,
+        generateOpId: () => `op-${++opId}`,
+      });
+
+      const cupOp = ops.find((o) => o.pieceId === 'door-single')!;
+      expect(cupOp).toBeDefined();
+      expect(cupOp.faceType).toBe('face-B');
+      expect(cupOp.positionMm.y).toBe(100); // respects door local offset
+      expect(cupOp.diameterMm).toBe(35);
+
+      const plateOps = ops.filter((o) => o.pieceId === 'side-left');
+      expect(plateOps).toHaveLength(2);
+      expect(plateOps[0]!.faceType).toBe('face-A'); // inner face of carcase side
+      expect(plateOps[0]!.positionMm.y).toBe(120 - 16); // 104mm
+      expect(plateOps[1]!.positionMm.y).toBe(120 + 16); // 136mm
+    });
+
+    it('positions door cup holes relative to door bottom edge in modular cabinet with elevated bay (plinth)', () => {
+      const def: ModularModuleDefinition = {
+        id: 'mod-door-plinth',
+        carcass: {
+          width: 600,
+          height: 850,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasPlinth: true,
+          plinthHeightMm: 100,
+          hasBacking: false,
+        },
+        grid: {
+          axis: 'horizontal',
+          tracks: [{ type: 'fractional', valueFr: 1 }],
+        },
+        bays: [
+          {
+            type: 'doors',
+            count: 1,
+            hingeSide: 'left',
+            mountType: 'full-overlay',
+          },
+        ],
+        materials: {
+          carcassMaterialId: testCarcassMaterial.id,
+          frontsMaterialId: testCarcassMaterial.id,
+          drawerBoxesMaterialId: testCarcassMaterial.id,
+          backingsMaterialId: testBackingMaterial.id,
+        },
+      };
+
+      const resolved = buildModularModule(def, {
+        carcassThicknessMm: 18,
+      });
+
+      const doorPiece = resolved.resolvedPieces.find((p) => p.role.startsWith('door-'))!;
+      const doorHeight = doorPiece.contour.points[2]!.y;
+
+      const ops = deriveModuleDrillOperations(
+        resolved.module.pieces,
+        resolved.module.joints,
+        defaultProjectConfig.machining,
+      );
+
+      const doorCups = ops.filter((o) => o.pieceId === doorPiece.id && o.diameterMm === 35);
+      expect(doorCups.length).toBeGreaterThanOrEqual(2);
+
+      // Cup holes MUST be on face-B
+      for (const cup of doorCups) {
+        expect(cup.faceType).toBe('face-B');
+      }
+
+      // Bottom hinge cup must be at standard margin (100mm) from door bottom, NOT 100 + plinth (200mm)
+      const bottomCup = doorCups.reduce((min, c) => (c.positionMm.y < min.positionMm.y ? c : min));
+      expect(bottomCup.positionMm.y).toBe(100);
+
+      // Top hinge cup must be at doorHeight - 100mm, strictly within door boundaries
+      const topCup = doorCups.reduce((max, c) => (c.positionMm.y > max.positionMm.y ? c : max));
+      expect(topCup.positionMm.y).toBe(doorHeight - 100);
+      expect(topCup.positionMm.y).toBeLessThan(doorHeight);
+
+      // Verify that the machining sheet places cups on Cara B and keeps Cara A pristine
+      const sheet = buildPieceMachiningSheet(doorPiece, ops, []);
+      expect(sheet.faceAOperations).toHaveLength(0);
+      expect(sheet.faceBOperations.filter((o) => o.diameterMm === 35).length).toBe(doorCups.length);
+      expect(sheet.requiresTurn).toBe(true);
+    });
+
+    it('positions both doors correctly in double-door modular bay', () => {
+      const def: ModularModuleDefinition = {
+        id: 'mod-double-door',
+        carcass: {
+          width: 900,
+          height: 800,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasPlinth: false,
+          hasBacking: false,
+        },
+        grid: {
+          axis: 'horizontal',
+          tracks: [{ type: 'fractional', valueFr: 1 }],
+        },
+        bays: [
+          {
+            type: 'doors',
+            count: 2,
+            mountType: 'full-overlay',
+          },
+        ],
+        materials: {
+          carcassMaterialId: testCarcassMaterial.id,
+          frontsMaterialId: testCarcassMaterial.id,
+          drawerBoxesMaterialId: testCarcassMaterial.id,
+          backingsMaterialId: testBackingMaterial.id,
+        },
+      };
+
+      const resolved = buildModularModule(def, {
+        carcassThicknessMm: 18,
+      });
+
+      const leftDoor = resolved.module.pieces.find((p) => p.role === 'door-left')!;
+      const rightDoor = resolved.module.pieces.find((p) => p.role === 'door-right')!;
+      const rightDoorWidth = rightDoor.contour.points[1]!.x;
+
+      const ops = deriveModuleDrillOperations(
+        resolved.module.pieces,
+        resolved.module.joints,
+        defaultProjectConfig.machining,
+      );
+
+      const leftCups = ops.filter((o) => o.pieceId === leftDoor.id && o.diameterMm === 35);
+      const rightCups = ops.filter((o) => o.pieceId === rightDoor.id && o.diameterMm === 35);
+
+      expect(leftCups).toHaveLength(2);
+      expect(rightCups).toHaveLength(2);
+
+      // Left door: setback from left edge (21.5mm), face-B, Y=100 and Y=doorHeight-100
+      for (const cup of leftCups) {
+        expect(cup.faceType).toBe('face-B');
+        expect(cup.positionMm.x).toBe(21.5);
+      }
+      expect(leftCups[0]!.positionMm.y).toBe(100);
+
+      // Right door: setback from right edge (rightDoorWidth - 21.5mm), face-B, Y=100 and Y=doorHeight-100
+      for (const cup of rightCups) {
+        expect(cup.faceType).toBe('face-B');
+        expect(cup.positionMm.x).toBeCloseTo(rightDoorWidth - 21.5, 1);
+      }
+      expect(rightCups[0]!.positionMm.y).toBe(100);
     });
   });
 });

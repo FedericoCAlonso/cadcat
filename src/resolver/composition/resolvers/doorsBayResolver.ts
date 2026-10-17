@@ -120,6 +120,8 @@ export class DoorsBayResolver implements IBayContentResolver<BayContentDoors> {
       pieces.push(doorResult.doorPiece);
       placementNodes.push(doorResult.placementNode);
 
+      const doorBottomY = doorResult.placementNode.relativeOffset.y;
+
       for (const posMm of doorResult.hingePositionsMm) {
         joints.push(
           createJoint({
@@ -129,7 +131,9 @@ export class DoorsBayResolver implements IBayContentResolver<BayContentDoors> {
               faceId: 'inner',
             },
             kind: 'hinge',
-            offsetMm: bay.y + posMm,
+            offsetMm: doorBottomY + posMm,
+            doorOffsetMm: posMm,
+            hingeSide,
             hingeCrank: normMount,
           }),
         );
@@ -224,14 +228,18 @@ export class DoorsBayResolver implements IBayContentResolver<BayContentDoors> {
             a: { pieceId: leftDoorPiece.id, faceId: 'inner' },
             b: { pieceId: bay.leftPieceId, faceId: 'inner' },
             kind: 'hinge',
-            offsetMm: bay.y + posMm,
+            offsetMm: doorY + posMm,
+            doorOffsetMm: posMm,
+            hingeSide: 'left',
             hingeCrank: normMount,
           }),
           createJoint({
             a: { pieceId: rightDoorPiece.id, faceId: 'inner' },
             b: { pieceId: bay.rightPieceId, faceId: 'inner' },
             kind: 'hinge',
-            offsetMm: bay.y + posMm,
+            offsetMm: doorY + posMm,
+            doorOffsetMm: posMm,
+            hingeSide: 'right',
             hingeCrank: normMount,
           }),
         );

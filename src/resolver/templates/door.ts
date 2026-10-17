@@ -172,6 +172,8 @@ export function buildDoorSubAssembly(
       b: { pieceId: parentPieceId, faceId: 'inner' },
       kind: 'hinge',
       offsetMm: pos,
+      doorOffsetMm: pos,
+      hingeSide: side,
       hingeCrank: normMount,
     }),
   );
