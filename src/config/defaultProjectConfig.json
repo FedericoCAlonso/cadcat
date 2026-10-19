@@ -52,7 +52,8 @@
     "sawKerfMm": 4.4,
     "sheetTrimMarginMm": 10.0,
     "respectGrain": true,
-    "optimizationGoal": "min-waste",
+    "grainDirectionMode": "auto",
+    "optimizationGoal": "balanced",
     "includeAssemblyGaugesInCutPlan": false
   },
   "cost": {

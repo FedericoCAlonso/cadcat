@@ -8,6 +8,8 @@ export {
   getContourSegments,
   createPieceFaces,
   createPiece,
+  isPieceVisible,
+  canPieceRotate,
 } from './piece';
 
 export {

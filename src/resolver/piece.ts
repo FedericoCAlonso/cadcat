@@ -159,3 +159,53 @@ export function createPiece(input: CreatePieceInput): Piece {
 
   return validatePiece(piece);
 }
+
+/**
+ * Determines whether a piece is visually prominent in finished furniture or an internal / hidden cut.
+ * Hidden pieces (amarres, travesaños, fondos, cajas de cajones, calibres, zócalos) do not require
+ * strict visual grain alignment and can be rotated to maximize sheet utilization in automatic grain mode.
+ */
+export function isPieceVisible(piece: { role?: string; isAuxiliary?: boolean; visible?: boolean }): boolean {
+  if (piece.isAuxiliary) return false;
+  if (piece.visible !== undefined) return piece.visible;
+
+  const role = (piece.role || '').toLowerCase();
+
+  // Hidden internal roles: rails, braces, transoms, backings, drawer boxes, internal lips, plinths, gauges
+  if (
+    role.includes('rail') ||
+    role.includes('brace') ||
+    role.includes('transom') ||
+    role.includes('back') ||
+    role.includes('drawer-box') ||
+    role.includes('drawer-side') ||
+    role.includes('drawer-bottom') ||
+    role.includes('plinth') ||
+    role.includes('tray-bottom') ||
+    role.includes('lip') ||
+    role.includes('gauge')
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Resolves whether a piece is allowed to rotate on a sheet based on material grain and nesting grain mode.
+ * - If the sheet/material has no grain: ALWAYS can rotate (maximum nesting yield).
+ * - If grain mode is 'free': ALWAYS can rotate.
+ * - If grain mode is 'strict': NEVER can rotate on grained materials.
+ * - If grain mode is 'auto': Visible pieces preserve grain (cannot rotate); hidden cuts can rotate.
+ */
+export function canPieceRotate(
+  piece: { role?: string; isAuxiliary?: boolean; visible?: boolean },
+  hasMaterialGrain: boolean,
+  grainMode: 'auto' | 'strict' | 'free' = 'auto'
+): boolean {
+  if (!hasMaterialGrain) return true;
+  if (grainMode === 'free') return true;
+  if (grainMode === 'strict') return false;
+  // 'auto': hidden cuts can rotate freely, visible pieces cannot
+  return !isPieceVisible(piece);
+}

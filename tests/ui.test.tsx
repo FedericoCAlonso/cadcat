@@ -540,10 +540,11 @@ describe('ProjectSettingsView Component', () => {
     expect(html).toContain('Parámetros de Sierra y Optimización de Corte');
     expect(html).toContain('Espesor de Corte de Hoja / Kerf (mm):');
     expect(html).toContain('Margen de Refilado Perimetral (mm):');
-    expect(html).toContain('Respetar dirección de veta del material');
+    expect(html).toContain('Dirección de Veta del Material:');
     expect(html).toContain('Objetivo de Optimización:');
-    expect(html).toContain('Minimizar Desperdicio');
-    expect(html).toContain('Minimizar Pasadas de Corte');
+    expect(html).toContain('Equilibrado');
+    expect(html).toContain('Ahorro de Material');
+    expect(html).toContain('Menos Pasadas');
     expect(html).toContain('Incluir calibres fijos de armado en el despiece');
     expect(html).toContain('Margen de Desperdicio de Seguridad (%):');
     expect(html).toContain('Modalidad de Facturación de Cortes:');

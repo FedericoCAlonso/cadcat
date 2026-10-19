@@ -59,6 +59,7 @@ import {
   exportCutPlanPdf,
   exportMachiningSheetToDxf,
   triggerBrowserDownload,
+  canPieceRotate,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
   type ModuleCostSummary,
@@ -2204,16 +2205,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           })
         : [];
 
+      const grainMode = projectConfig?.nesting?.grainDirectionMode ?? (projectConfig?.nesting?.respectGrain === false ? 'free' : 'auto');
       const nestingItems = [
         ...resolvedPieces.map((p) => {
           const pieceMat = materials.find((m) => m.id === p.materialId);
+          const hasGrain = Boolean(pieceMat ? pieceMat.hasGrain : activeMaterial.hasGrain);
           return {
             id: p.id,
             pieceId: p.id,
             materialId: p.materialId,
             cutWidthMm: p.cutDimensionsMm.width,
             cutHeightMm: p.cutDimensionsMm.height,
-            canRotate: pieceMat ? !pieceMat.hasGrain : !activeMaterial.hasGrain,
+            canRotate: canPieceRotate(p, hasGrain, grainMode),
             isAuxiliary: p.isAuxiliary,
           };
         }),
@@ -2551,6 +2554,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         materials,
         sawKerfMm: projectConfig?.nesting?.sawKerfMm,
         trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+        grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
+        respectGrain: projectConfig?.nesting?.respectGrain,
         optimizationGoal: projectConfig?.nesting?.optimizationGoal,
         includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
       });
@@ -2643,6 +2648,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         materials,
         sawKerfMm: projectConfig?.nesting?.sawKerfMm,
         trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+        grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
+        respectGrain: projectConfig?.nesting?.respectGrain,
         optimizationGoal: projectConfig?.nesting?.optimizationGoal,
         includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
       });
@@ -2677,16 +2684,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         })
       : [];
 
+    const grainMode = projectConfig?.nesting?.grainDirectionMode ?? (projectConfig?.nesting?.respectGrain === false ? 'free' : 'auto');
     const nestingItems = [
       ...resolvedPieces.map((p) => {
         const pieceMat = materials.find((m) => m.id === p.materialId);
+        const hasGrain = Boolean(pieceMat ? pieceMat.hasGrain : activeMaterial.hasGrain);
         return {
           id: p.id,
           pieceId: p.id,
           materialId: p.materialId,
           cutWidthMm: p.cutDimensionsMm.width,
           cutHeightMm: p.cutDimensionsMm.height,
-          canRotate: pieceMat ? !pieceMat.hasGrain : !activeMaterial.hasGrain,
+          canRotate: canPieceRotate(p, hasGrain, grainMode),
           isAuxiliary: p.isAuxiliary,
         };
       }),

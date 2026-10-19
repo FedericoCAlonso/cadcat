@@ -60,7 +60,7 @@ export interface NestingSheetResult {
 export interface NestingInput {
   items: NestingItem[];
   sheet: SheetDefinition;
-  optimizationGoal?: 'min-waste' | 'min-passes';
+  optimizationGoal?: 'min-waste' | 'min-passes' | 'balanced';
 }
 
 export interface NestingResult {
@@ -75,7 +75,7 @@ export interface MultiMaterialNestingInput {
   items: NestingItem[];
   defaultSheet?: SheetDefinition;
   sheetLookup?: (materialId: string) => SheetDefinition | undefined;
-  optimizationGoal?: 'min-waste' | 'min-passes';
+  optimizationGoal?: 'min-waste' | 'min-passes' | 'balanced';
 }
 
 export interface MultiMaterialNestingResult extends NestingResult {
@@ -551,7 +551,7 @@ function executeSingleStrategy(
 function isCandidateBetter(
   candidate: NestingResult,
   current: NestingResult,
-  goal: 'min-waste' | 'min-passes',
+  goal: 'min-waste' | 'min-passes' | 'balanced',
 ): boolean {
   // 1. Fewer unplaced pieces
   if (candidate.unplacedPieces.length !== current.unplacedPieces.length) {
@@ -567,6 +567,19 @@ function isCandidateBetter(
       return candidate.totalCutPasses < current.totalCutPasses;
     }
     return candidate.overallUtilizationPercentage > current.overallUtilizationPercentage;
+  } else if (goal === 'balanced') {
+    // Balanced trade-off: weighted score prioritizing high sheet utilization while penalizing excessive cut passes.
+    // Each cut pass penalty represents ~0.25% of sheet area yield.
+    const candScore = candidate.overallUtilizationPercentage - (candidate.totalCutPasses * 0.25);
+    const currScore = current.overallUtilizationPercentage - (current.totalCutPasses * 0.25);
+    if (Math.abs(candScore - currScore) > 0.05) {
+      return candScore > currScore;
+    }
+    // Tie breaker: higher utilization first, then fewer passes
+    if (Math.abs(candidate.overallUtilizationPercentage - current.overallUtilizationPercentage) > 0.05) {
+      return candidate.overallUtilizationPercentage > current.overallUtilizationPercentage;
+    }
+    return candidate.totalCutPasses < current.totalCutPasses;
   } else {
     // min-waste
     if (Math.abs(candidate.overallUtilizationPercentage - current.overallUtilizationPercentage) > 0.05) {
@@ -583,7 +596,7 @@ function isCandidateBetter(
  * Implements two-step nesting: primary pieces first, then auxiliary gauge pieces into unused offcuts.
  */
 export function runGuillotineNesting(input: NestingInput): NestingResult {
-  const optimizationGoal = input.optimizationGoal ?? 'min-waste';
+  const optimizationGoal = input.optimizationGoal ?? 'balanced';
 
   const candidateStrategies: PackingStrategyConfig[] = [
     {

@@ -632,18 +632,26 @@ export function ProjectSettingsView({
                 <span className="field-hint">Recorte de saneado en los 4 bordes de la placa virgen (10 mm recomendado para descartar cantos golpeados).</span>
               </div>
 
-              <div className="input-field-checkbox">
-                <label htmlFor="respectGrain">
-                  <input
-                    id="respectGrain"
-                    type="checkbox"
-                    checked={config.nesting.respectGrain}
-                    onChange={(e) => updateNesting('respectGrain', e.target.checked)}
-                  />
-                  <span>Respetar dirección de veta del material</span>
-                </label>
-                <span className="field-hint" style={{ display: 'block', marginTop: '0.2rem' }}>
-                  Desactivar para melaminas lisas / unicolores o MDF crudo para permitir rotar piezas 90° y elevar el rendimiento.
+              <div className="input-field" style={{ marginTop: '0.5rem' }}>
+                <label htmlFor="grainDirectionMode">Dirección de Veta del Material:</label>
+                <select
+                  id="grainDirectionMode"
+                  className="m3-select"
+                  style={{ width: '100%', fontSize: '0.92rem', padding: '0.65rem 0.85rem' }}
+                  value={config.nesting.grainDirectionMode ?? (config.nesting.respectGrain ? 'auto' : 'free')}
+                  onChange={(e) => {
+                    const mode = e.target.value as 'auto' | 'strict' | 'free';
+                    updateNesting('grainDirectionMode', mode);
+                    updateNesting('respectGrain', mode !== 'free');
+                  }}
+                >
+                  <option value="auto">🌲 Automática (Recomendada: frentes con veta, cortes ocultos rotan)</option>
+                  <option value="strict">📏 Estricta (Todas las piezas respetan la veta obligatoriamente)</option>
+                  <option value="free">🔄 Rotación Libre (Ignorar veta para máximo ahorro de material)</option>
+                </select>
+                <span className="field-hint">
+                  <strong>Automática:</strong> Las piezas visibles (puertas, frentes, laterales, estantes) mantienen la veta longitudinal. Los cortes ocultos (amarres, travesaños, fondos, cajas de cajón) rotan libremente para aprovechar retazos.<br />
+                  <em>* Si la placa seleccionada es lisa o cruda (sin veta), siempre optimiza con rotación libre.</em>
                 </span>
               </div>
             </div>
@@ -658,15 +666,17 @@ export function ProjectSettingsView({
                   id="optimizationGoal"
                   className="m3-select"
                   style={{ width: '100%', fontSize: '0.92rem', padding: '0.65rem 0.85rem' }}
-                  value={config.nesting.optimizationGoal ?? 'min-waste'}
-                  onChange={(e) => updateNesting('optimizationGoal', e.target.value as 'min-waste' | 'min-passes')}
+                  value={config.nesting.optimizationGoal ?? 'balanced'}
+                  onChange={(e) => updateNesting('optimizationGoal', e.target.value as 'min-waste' | 'min-passes' | 'balanced')}
                 >
-                  <option value="min-waste">🌿 Minimizar Desperdicio (Aprovechar al máximo cada placa)</option>
-                  <option value="min-passes">⚡ Minimizar Pasadas de Corte (Cortes más rápidos y continuos)</option>
+                  <option value="balanced">⚖️ Equilibrado (Balance óptimo entre ahorro de material y pasadas de corte)</option>
+                  <option value="min-waste">🌿 Ahorro de Material (Minimizar desperdicio y comprar menos placas)</option>
+                  <option value="min-passes">⚡ Menos Pasadas (Minimizar cortes de sierra para agilizar trabajo)</option>
                 </select>
                 <span className="field-hint">
-                  <strong>Minimizar desperdicio:</strong> ideal para taller propio donde el tablero es el costo principal.<br />
-                  <strong>Minimizar pasadas:</strong> reduce maniobras en la escuadradora o si pagás por corte en el distribuidor.
+                  <strong>Equilibrado:</strong> Combina alta utilización de tablero evitando pasadas de sierra innecesarias.<br />
+                  <strong>Ahorro de material:</strong> Prioriza exprimir cada milímetro de la placa.<br />
+                  <strong>Menos pasadas:</strong> Cortes transversales y longitudinales continuos y rápidos.
                 </span>
               </div>
 

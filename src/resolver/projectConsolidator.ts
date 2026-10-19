@@ -16,6 +16,7 @@ import {
 } from './cost';
 import { type ResolvedPieceWithCutSize } from './edgeBand';
 import { type AssemblyGauge } from './gauges';
+import { canPieceRotate } from './piece';
 import { type NestingItem, runMultiMaterialGuillotineNesting, type MultiMaterialNestingResult } from '../workers';
 
 export interface ModuleToConsolidate {
@@ -168,11 +169,13 @@ export function buildProjectNestingItems(
     includeAssemblyGauges?: boolean;
     materials?: Material[];
     activeMaterial?: Material;
+    grainMode?: 'auto' | 'strict' | 'free';
   },
 ): NestingItem[] {
   const items: NestingItem[] = [];
   const materials = options?.materials ?? [];
   const activeMat = options?.activeMaterial;
+  const grainMode = options?.grainMode ?? 'auto';
 
   for (const mod of modules) {
     const qty = Math.max(1, Math.floor(mod.quantity || 1));
@@ -180,7 +183,7 @@ export function buildProjectNestingItems(
     for (let instance = 1; instance <= qty; instance++) {
       for (const p of mod.pieces) {
         const pieceMat = materials.find((m) => m.id === p.materialId) ?? activeMat;
-        const canRotate = pieceMat ? !pieceMat.hasGrain : true;
+        const canRotate = canPieceRotate(p, Boolean(pieceMat?.hasGrain), grainMode);
         const uniqueId = qty > 1 || modules.length > 1
           ? `${mod.moduleId}__${p.id}__i${instance}`
           : p.id;
@@ -229,14 +232,18 @@ export function runProjectNesting(
     materials: Material[];
     sawKerfMm?: number;
     trimMarginMm?: number;
-    optimizationGoal?: 'min-waste' | 'min-passes';
+    grainDirectionMode?: 'auto' | 'strict' | 'free';
+    respectGrain?: boolean;
+    optimizationGoal?: 'min-waste' | 'min-passes' | 'balanced';
     includeAssemblyGauges?: boolean;
   },
 ): MultiMaterialNestingResult {
+  const grainMode = config.grainDirectionMode ?? (config.respectGrain === false ? 'free' : 'auto');
   const nestingItems = buildProjectNestingItems(modules, {
     includeAssemblyGauges: config.includeAssemblyGauges,
     materials: config.materials,
     activeMaterial: config.materials[0],
+    grainMode,
   });
 
   return runMultiMaterialGuillotineNesting({

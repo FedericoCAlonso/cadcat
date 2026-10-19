@@ -57,11 +57,19 @@ export const machiningConfigSchema = z.object({
 });
 export type MachiningConfig = z.infer<typeof machiningConfigSchema>;
 
+export const grainDirectionModeSchema = z.enum([
+  'auto',
+  'strict',
+  'free',
+]).default('auto');
+export type GrainDirectionMode = z.infer<typeof grainDirectionModeSchema>;
+
 export const nestingConfigSchema = z.object({
   sawKerfMm: z.number().min(0),
   sheetTrimMarginMm: z.number().min(0),
-  respectGrain: z.boolean(),
-  optimizationGoal: z.enum(['min-waste', 'min-passes']).default('min-waste'),
+  respectGrain: z.boolean().default(true),
+  grainDirectionMode: grainDirectionModeSchema,
+  optimizationGoal: z.enum(['min-waste', 'min-passes', 'balanced']).default('balanced'),
   includeAssemblyGaugesInCutPlan: z.boolean().default(false),
 });
 export type NestingConfig = z.infer<typeof nestingConfigSchema>;

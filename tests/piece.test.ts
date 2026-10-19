@@ -6,6 +6,8 @@ import {
   getContourSegments,
   isDefaultStructuralRole,
   calculateSegmentLength,
+  isPieceVisible,
+  canPieceRotate,
 } from '../src/resolver';
 
 describe('Contour and Segment Calculations', () => {
@@ -139,5 +141,70 @@ describe('Face Generation and Piece Factory', () => {
         thicknessMm: 0,
       }),
     ).toThrow();
+  });
+});
+
+describe('Piece Visibility and Grain Rotation Resolution', () => {
+  const contour = createRectangularContour(400, 300);
+
+  it('correctly identifies visible vs hidden pieces by role and attributes', () => {
+    const door = createPiece({ id: 'door-1', role: 'door', materialId: 'm1', contour, thicknessMm: 18 });
+    const side = createPiece({ id: 'side-1', role: 'side-left', materialId: 'm1', contour, thicknessMm: 18 });
+    const shelf = createPiece({ id: 'shelf-1', role: 'shelf', materialId: 'm1', contour, thicknessMm: 18 });
+
+    expect(isPieceVisible(door)).toBe(true);
+    expect(isPieceVisible(side)).toBe(true);
+    expect(isPieceVisible(shelf)).toBe(true);
+
+    const rail = createPiece({ id: 'rail-1', role: 'rail', materialId: 'm1', contour, thicknessMm: 18 });
+    const brace = createPiece({ id: 'brace-1', role: 'brace', materialId: 'm1', contour, thicknessMm: 18 });
+    const transom = createPiece({ id: 'transom-1', role: 'transom', materialId: 'm1', contour, thicknessMm: 18 });
+    const back = createPiece({ id: 'back-1', role: 'back', materialId: 'm1', contour, thicknessMm: 3 });
+    const drawerBox = createPiece({ id: 'box-1', role: 'drawer-box', materialId: 'm1', contour, thicknessMm: 15 });
+    const plinth = createPiece({ id: 'plinth-1', role: 'plinth', materialId: 'm1', contour, thicknessMm: 18 });
+
+    expect(isPieceVisible(rail)).toBe(false);
+    expect(isPieceVisible(brace)).toBe(false);
+    expect(isPieceVisible(transom)).toBe(false);
+    expect(isPieceVisible(back)).toBe(false);
+    expect(isPieceVisible(drawerBox)).toBe(false);
+    expect(isPieceVisible(plinth)).toBe(false);
+
+    // Explicit override via visible attribute
+    expect(isPieceVisible({ role: 'door', visible: false })).toBe(false);
+    expect(isPieceVisible({ role: 'rail', visible: true })).toBe(true);
+
+    // Auxiliary piece (gauges, spacers) is always hidden
+    const auxPiece = createPiece({ id: 'gauge-1', role: 'other', materialId: 'm1', contour, thicknessMm: 18, isAuxiliary: true });
+    expect(isPieceVisible(auxPiece)).toBe(false);
+  });
+
+  it('allows free rotation when material has no grain, regardless of mode or visibility', () => {
+    const door = createPiece({ id: 'door-1', role: 'door', materialId: 'm1', contour, thicknessMm: 18 });
+    const rail = createPiece({ id: 'rail-1', role: 'rail', materialId: 'm1', contour, thicknessMm: 18 });
+
+    expect(canPieceRotate(door, false, 'auto')).toBe(true);
+    expect(canPieceRotate(door, false, 'strict')).toBe(true);
+    expect(canPieceRotate(door, false, 'free')).toBe(true);
+    expect(canPieceRotate(rail, false, 'auto')).toBe(true);
+  });
+
+  it('resolves piece rotation correctly when material has grain', () => {
+    const door = createPiece({ id: 'door-1', role: 'door', materialId: 'm1', contour, thicknessMm: 18 });
+    const rail = createPiece({ id: 'rail-1', role: 'rail', materialId: 'm1', contour, thicknessMm: 18 });
+    const back = createPiece({ id: 'back-1', role: 'back', materialId: 'm1', contour, thicknessMm: 3 });
+
+    // Mode: free (all pieces can rotate)
+    expect(canPieceRotate(door, true, 'free')).toBe(true);
+    expect(canPieceRotate(rail, true, 'free')).toBe(true);
+
+    // Mode: strict (no pieces can rotate)
+    expect(canPieceRotate(door, true, 'strict')).toBe(false);
+    expect(canPieceRotate(rail, true, 'strict')).toBe(false);
+
+    // Mode: auto (hidden pieces rotate freely, visible pieces lock grain)
+    expect(canPieceRotate(door, true, 'auto')).toBe(false);
+    expect(canPieceRotate(rail, true, 'auto')).toBe(true);
+    expect(canPieceRotate(back, true, 'auto')).toBe(true);
   });
 });
