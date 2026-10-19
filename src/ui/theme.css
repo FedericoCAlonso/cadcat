@@ -781,6 +781,10 @@ body {
   flex-wrap: wrap;
 }
 
+.machining-piece-selector-mobile {
+  display: none;
+}
+
 .machining-chips-row {
   display: flex;
   gap: 0.5rem;
@@ -1037,6 +1041,10 @@ body {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.settings-section-selector-mobile {
+  display: none;
 }
 
 .settings-subtabs {
@@ -2251,7 +2259,7 @@ legend.builder-section-title {
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   .m3-catalog-table-wrapper {
     display: none;
   }
@@ -2344,7 +2352,9 @@ legend.builder-section-title {
   }
 
   .machining-piece-selector-mobile {
-    display: block;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .machining-chips-row {
@@ -2352,11 +2362,41 @@ legend.builder-section-title {
   }
 
   .settings-section-selector-mobile {
-    display: block;
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 0.75rem !important;
   }
 
   .settings-subtabs {
-    display: none;
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+  }
+
+  .settings-subtabs .settings-tab-btn {
+    min-height: 48px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: var(--md-sys-shape-corner-full);
+    border: 1px solid var(--md-sys-color-outline-variant);
+  }
+
+  .settings-subtabs .settings-tab-btn.active {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-color: var(--md-sys-color-primary);
+    font-weight: 700;
   }
 
   /* Mobile Viewport 3D Kinematics / Apertura */
@@ -2448,14 +2488,6 @@ legend.builder-section-title {
     width: 100% !important;
     margin: 0.15rem 0 !important;
   }
-}
-
-.machining-piece-selector-mobile {
-  display: none;
-}
-
-.settings-section-selector-mobile {
-  display: none;
 }
 
 

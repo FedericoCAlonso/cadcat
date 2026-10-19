@@ -176,14 +176,14 @@ export function ProjectSettingsView({
       </div>
 
       {/* Mobile Section Switcher */}
-      <div className="settings-section-selector-mobile">
-        <label htmlFor="settings-section-select" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-          Sección de Configuración:
+      <div className="settings-section-selector-mobile" style={{ width: '100%', marginBottom: '0.85rem' }}>
+        <label htmlFor="settings-section-select" style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.35rem', color: 'var(--md-sys-color-on-surface)' }}>
+          ⚙️ Elegir Sección de Configuración:
         </label>
         <select
           id="settings-section-select"
           className="m3-select"
-          style={{ width: '100%', fontSize: '0.9rem', marginBottom: '0.75rem' }}
+          style={{ width: '100%', minHeight: '48px', fontSize: '1rem', padding: '0.65rem 0.85rem', boxSizing: 'border-box' }}
           value={activeSection}
           onChange={(e) => setActiveSection(e.target.value as 'general' | 'machining' | 'catalog' | 'nesting' | 'costs')}
         >
