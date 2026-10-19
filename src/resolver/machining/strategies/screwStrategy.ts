@@ -1,6 +1,11 @@
 import { type DrillOperation } from '../../../model/operation';
 import { type IJointMachiningStrategy, type JointMachiningContext } from '../types';
-import { deriveContactGeometry, calculateDrillSpacingsFromConfig, deriveFaceType } from '../geometry';
+import {
+  deriveContactGeometry,
+  calculateDrillSpacingsFromConfig,
+  deriveFaceType,
+  derivePieceBJointPositions,
+} from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
 
 export class ScrewJointStrategy implements IJointMachiningStrategy {
@@ -23,6 +28,8 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
 
     for (const off of offsets) {
       const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
+      const posBGeom = derivePieceBJointPositions(pieceB, joint.b.faceId, off);
+
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -47,7 +54,7 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
         diameterMm: coreDiameter,
         depthMm: coreDepth,
         isThrough: false,
-        positionMm: { x: off, y: pieceB.thicknessMm / 2 },
+        positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'screw',
         description: `Spax pilot core Ø${coreDiameter}x${coreDepth}mm into edge`,

@@ -1,10 +1,15 @@
 import { useState, type ReactElement } from 'react';
-import type { ResolvedPieceWithCutSize, ShelfDeflectionResult, PieceEdgeBandOverride } from '../resolver';
+import type {
+  ResolvedPieceWithCutSize,
+  ShelfDeflectionResult,
+  PieceEdgeBandOverride,
+  ConsolidatedPiece,
+} from '../resolver';
 import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
 import { translatePieceRole } from './localization';
 
 export interface PieceListViewProps {
-  pieces: ResolvedPieceWithCutSize[];
+  pieces: (ResolvedPieceWithCutSize | ConsolidatedPiece)[];
   shelfDeflections?: Map<string, ShelfDeflectionResult>;
   selectedPieceId?: string | null;
   onSelectPiece?: (pieceId: string | null) => void;
@@ -22,6 +27,11 @@ export interface PieceListViewProps {
   onSetPieceEdgeBands?: (pieceId: string, overrides: PieceEdgeBandOverride | null) => void;
   // Machining modal (Point 8)
   onOpenMachiningModal?: (pieceId: string) => void;
+  // Multi-module project scope
+  projectScope?: 'current-module' | 'all-modules';
+  onProjectScopeChange?: (scope: 'current-module' | 'all-modules') => void;
+  projectModulesCount?: number;
+  currentModuleName?: string;
 }
 
 /**
@@ -46,6 +56,10 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     onSetPieceThickness,
     onSetPieceEdgeBands,
     onOpenMachiningModal,
+    projectScope = 'current-module',
+    onProjectScopeChange,
+    projectModulesCount,
+    currentModuleName,
   } = props;
 
   const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
@@ -119,6 +133,28 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                 style={{ cursor: 'pointer' }}
               >
                 <td>
+                  {'moduleName' in piece && Boolean((piece as ConsolidatedPiece).moduleName) && (
+                    <div style={{ marginBottom: '0.25rem' }}>
+                      <span
+                        className="m3-badge m3-badge--neutral"
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          padding: '0.15rem 0.45rem',
+                          backgroundColor: 'var(--md-sys-color-secondary-container)',
+                          color: 'var(--md-sys-color-on-secondary-container)',
+                          borderRadius: '4px',
+                        }}
+                        title={`Módulo: ${(piece as ConsolidatedPiece).moduleName}`}
+                      >
+                        📦 {(piece as ConsolidatedPiece).moduleName}
+                        {typeof (piece as ConsolidatedPiece).moduleInstanceIndex === 'number' &&
+                        (piece as ConsolidatedPiece).moduleInstanceIndex > 1
+                          ? ` #${(piece as ConsolidatedPiece).moduleInstanceIndex}`
+                          : ''}
+                      </span>
+                    </div>
+                  )}
                   <strong>{translatePieceRole(piece.role)}</strong>
                   <br />
                   <code className="piece-tag">{piece.id}</code>
@@ -217,10 +253,37 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
   return (
     <section aria-labelledby="pieces-heading" className="m3-card piece-list-view">
       <div className="m3-card__header">
+        {projectModulesCount !== undefined && projectModulesCount > 1 && onProjectScopeChange && (
+          <div style={{ marginBottom: '0.85rem' }}>
+            <div className="m3-segmented-button" role="radiogroup" aria-label="Alcance del Despiece">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={projectScope !== 'all-modules'}
+                className={`m3-segmented-button__item ${projectScope !== 'all-modules' ? 'selected' : ''}`}
+                onClick={() => onProjectScopeChange('current-module')}
+                style={{ minHeight: '44px' }}
+              >
+                📌 Módulo Actual ({currentModuleName || 'Activo'})
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={projectScope === 'all-modules'}
+                className={`m3-segmented-button__item ${projectScope === 'all-modules' ? 'selected' : ''}`}
+                onClick={() => onProjectScopeChange('all-modules')}
+                style={{ minHeight: '44px' }}
+              >
+                📦 Todo el Proyecto ({projectModulesCount} módulos)
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="piece-list-header-row">
           <div>
             <h2 id="pieces-heading" className="m3-card__title">
-              📋 Despiece de Taller ({filteredPieces.length} piezas)
+              📋 {projectScope === 'all-modules' ? 'Despiece Consolidado del Proyecto' : 'Despiece de Taller'} ({filteredPieces.length} piezas)
               <span className="visually-hidden">{`Pieces Cut List (${filteredPieces.length})`}</span>
             </h2>
             <p className="m3-card__subtitle">
@@ -474,7 +537,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
 
             {/* Machining Modal & Info */}
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: '0.4rem' }}>
-              <div style={{ fontSize: '0.8rem', color: '#444746' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
                 Corte sierra: <strong>{selectedPiece.cutDimensionsMm.width} × {selectedPiece.cutDimensionsMm.height} mm</strong>
               </div>
               {onOpenMachiningModal && (

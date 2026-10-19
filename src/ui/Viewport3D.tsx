@@ -124,7 +124,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color(0xf0f4f9);
+    scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 10, 10000);
     cameraRef.current = camera;
@@ -1068,8 +1068,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
                   marginTop: '0.75rem',
                   padding: '0.65rem 0.85rem',
                   borderRadius: '8px',
-                  backgroundColor: defl.hasWarning ? '#ffebee' : '#e8f5e9',
-                  border: `1px solid ${defl.hasWarning ? '#ef9a9a' : '#a5d6a7'}`,
+                  backgroundColor: defl.hasWarning ? 'var(--md-sys-color-error-container)' : 'var(--md-sys-color-success-container)',
+                  border: `1px solid ${defl.hasWarning ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-success-border)'}`,
+                  color: defl.hasWarning ? 'var(--md-sys-color-on-error-container)' : 'var(--md-sys-color-on-success-container)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
@@ -1081,14 +1082,14 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
                   <strong>Máx admisible: </strong>
                   {`${defl.allowableDeflectionMm.toFixed(2)} mm`}
                 </p>
-                <p style={{ margin: '0.25rem 0', fontSize: '0.82rem', color: '#444746' }}>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.82rem', opacity: 0.9 }}>
                   <strong>Carga: </strong>
                   {`${defl.totalLoadKg.toFixed(1)} kg (${defl.totalLoadN.toFixed(0)} N) | `}
                   <strong>Módulo E: </strong>
                   {`${defl.elasticModulusMPa} MPa ${defl.isElasticModulusConfirmed ? '' : '(TO_CONFIRM)'}`}
                 </p>
                 {defl.hasWarning && (
-                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: '#b71c1c', fontWeight: 500 }}>
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', fontWeight: 600 }}>
                     {defl.warningMessage}
                   </p>
                 )}

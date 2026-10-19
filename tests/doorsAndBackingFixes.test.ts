@@ -5,6 +5,8 @@ import {
   HingeJointStrategy,
   deriveModuleDrillOperations,
   buildPieceMachiningSheet,
+  buildPieceMachining3DGroup,
+  getPieceFaceNormalSign,
   type ModularModuleDefinition,
 } from '../src/resolver';
 import type { Material, ProjectConfig } from '../src/model';
@@ -624,6 +626,69 @@ describe('Doors & Backing Calculations - 4 Specific Fixes', () => {
         expect(cup.positionMm.x).toBeCloseTo(rightDoorWidth - 21.5, 1);
       }
       expect(rightCups[0]!.positionMm.y).toBe(100);
+    });
+
+    it('positions hinge cup drillings on the interior face (+Z) of the door/tapa in 3D', () => {
+      // 1. Check face normal signs for Z-normal door panels
+      const faceANormalSign = getPieceFaceNormalSign('door-left', 'door-left-1', true, 'z');
+      const faceBNormalSign = getPieceFaceNormalSign('door-left', 'door-left-1', false, 'z');
+
+      // Face A is Exterior (facing camera at -Z)
+      expect(faceANormalSign).toBe(-1);
+      // Face B is Interior (facing cabinet interior at +Z)
+      expect(faceBNormalSign).toBe(1);
+
+      // Also check role "tapa" or "door-right"
+      expect(getPieceFaceNormalSign('tapa-elevable', 'tapa-1', false, 'z')).toBe(1);
+      expect(getPieceFaceNormalSign('door-right', 'door-r', false, 'z')).toBe(1);
+
+      // 2. Build 3D group and verify cylinder mesh local Z coordinate
+      const doorPiece = {
+        id: 'door-single',
+        role: 'door-left',
+        materialId: 'mat-carcass-18',
+        contour: {
+          points: [
+            { x: 0, y: 0 },
+            { x: 400, y: 0 },
+            { x: 400, y: 700 },
+            { x: 0, y: 700 },
+          ],
+        },
+        cutDimensionsMm: { width: 400, height: 700 },
+        dimensionsMm: { width: 400, height: 700 },
+        thicknessMm: 18,
+        faces: [],
+        structural: false,
+        referenceFace: 'A' as const,
+      };
+
+      const hingeOp = {
+        schemaVersion: 1 as const,
+        id: 'op-hinge-cup-1',
+        pieceId: 'door-single',
+        faceId: 'inner',
+        faceType: 'face-B' as const,
+        diameterMm: 35,
+        depthMm: 12,
+        isThrough: false,
+        positionMm: { x: 21.5, y: 100 },
+        origin: 'derived' as const,
+        sourceJointKind: 'hinge' as const,
+        description: 'Concealed hinge cup Ø35x12mm (left)',
+      };
+
+      const sheet = buildPieceMachiningSheet(doorPiece as any, [hingeOp]);
+      const group = buildPieceMachining3DGroup(sheet, { x: 400, y: 700, z: 18 });
+
+      // There should be 1 mesh for the hinge cup
+      expect(group.children.length).toBe(1);
+      const mesh = group.children[0]!;
+
+      // The mesh position in local Z must be positive (> 0), i.e. on the interior face facing the cabinet
+      expect(mesh.position.z).toBeGreaterThan(0);
+      // Specifically at sz / 2 - depth / 2 + 0.1 = 18 / 2 - 12 / 2 + 0.1 = 9 - 6 + 0.1 = 3.1
+      expect(mesh.position.z).toBeCloseTo(3.1, 1);
     });
   });
 });

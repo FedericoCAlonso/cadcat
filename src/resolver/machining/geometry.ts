@@ -185,9 +185,43 @@ export function deriveContactGeometry(
           y: centerV,
         });
       }
+    } else if (
+      aRole.includes('roof') ||
+      aRole.includes('top') ||
+      aRole.includes('bottom') ||
+      aRole.includes('shelf')
+    ) {
+      // Piece A in XZ plane (horizontal roof, bottom, shelf)
+      if (bRole.includes('side') || bRole.includes('partition')) {
+        axis = 'along-y';
+        const isRight = bId.includes('-r-') || bId.includes('right') || bRole.includes('right');
+        const sideT = pieceB.thicknessMm > 0 ? pieceB.thicknessMm : 18;
+        const centerU = isRight
+          ? Math.round(aWidth - sideT / 2)
+          : Math.round(sideT / 2);
+        const isVerticalEdge = joint.b.faceId.includes('left') || joint.b.faceId.includes('right');
+        contactLen = isVerticalEdge ? bHeight : bWidth;
+        if (contactLen <= 0) contactLen = aHeight;
+        yContact = 0;
+        zStart = centerU;
+        getPieceAPosition = (off: number) => ({
+          x: centerU,
+          y: off,
+        });
+      } else {
+        axis = 'along-x';
+        contactLen = bWidth > 0 ? bWidth : aWidth;
+        yContact = Math.round(pieceB.thicknessMm / 2);
+        zStart = 0;
+        getPieceAPosition = (off: number) => ({
+          x: off,
+          y: yContact,
+        });
+      }
     } else {
       // Piece A in YZ plane (carcase side / vertical partition)
-      contactLen = joint.b.faceId.includes('edge') ? bHeight : bWidth;
+      const isVerticalEdge = joint.b.faceId.includes('left') || joint.b.faceId.includes('right');
+      contactLen = isVerticalEdge ? bHeight : bWidth;
       if (contactLen <= 0) {
         contactLen = Math.max(bWidth, bHeight, aWidth, aHeight, pieceB.thicknessMm);
       }
@@ -255,3 +289,83 @@ export function deriveFaceType(faceId: string, role?: string): 'face-A' | 'face-
   }
   return 'face-A';
 }
+
+export interface PieceBEdgeGeometry {
+  edgePosition: { x: number; y: number };
+  getPocketPosition: (setbackMm: number) => { x: number; y: number };
+  faceType: 'edge';
+  edgeFaceTypeForPocket: 'face-A' | 'face-B';
+}
+
+/**
+ * Derives orientation-aware 2D coordinates on Piece B for edge drill holes
+ * and face pockets (such as Minifix cams) based on the joined edge.
+ *
+ * Coordinates follow Datum (0,0) at bottom-left corner of Piece B:
+ * - left-edge: X = 0, Y = offset along edge. Cam pocket at X = setbackMm, Y = offset.
+ * - right-edge: X = width, Y = offset along edge. Cam pocket at X = width - setbackMm, Y = offset.
+ * - bottom-edge / front-edge: X = offset along edge, Y = 0. Cam pocket at X = offset, Y = setbackMm.
+ * - top-edge / rear-edge / back-edge: X = offset along edge, Y = height. Cam pocket at X = offset, Y = height - setbackMm.
+ */
+export function derivePieceBJointPositions(
+  pieceB: Piece | ResolvedPiece,
+  faceId: string,
+  offsetAlongEdge: number,
+  preferredPocketFace?: 'face-A' | 'face-B',
+): PieceBEdgeGeometry {
+  const points = pieceB.contour.points;
+  const w = Math.abs(points[1]?.x ?? 0);
+  const h = Math.abs(points[2]?.y ?? 0);
+  const lower = faceId.toLowerCase();
+  const role = pieceB.role?.toLowerCase() ?? '';
+
+  // For roof/top panels, pocket is on underside (face-B). For bottoms/shelves, on top (face-A).
+  const defaultPocketFace: 'face-A' | 'face-B' =
+    role.includes('roof') || role.includes('top') ? 'face-B' : 'face-A';
+  const pocketFace = preferredPocketFace ?? defaultPocketFace;
+
+  if (lower.includes('left')) {
+    return {
+      edgePosition: { x: 0, y: offsetAlongEdge },
+      getPocketPosition: (setbackMm: number) => ({ x: setbackMm, y: offsetAlongEdge }),
+      faceType: 'edge',
+      edgeFaceTypeForPocket: pocketFace,
+    };
+  }
+
+  if (lower.includes('right')) {
+    return {
+      edgePosition: { x: w, y: offsetAlongEdge },
+      getPocketPosition: (setbackMm: number) => ({
+        x: Math.max(0, w - setbackMm),
+        y: offsetAlongEdge,
+      }),
+      faceType: 'edge',
+      edgeFaceTypeForPocket: pocketFace,
+    };
+  }
+
+  if (lower.includes('top') || lower.includes('rear') || lower.includes('back')) {
+    return {
+      edgePosition: { x: offsetAlongEdge, y: h },
+      getPocketPosition: (setbackMm: number) => ({
+        x: offsetAlongEdge,
+        y: Math.max(0, h - setbackMm),
+      }),
+      faceType: 'edge',
+      edgeFaceTypeForPocket: pocketFace,
+    };
+  }
+
+  // Default: bottom-edge or front-edge
+  return {
+    edgePosition: { x: offsetAlongEdge, y: 0 },
+    getPocketPosition: (setbackMm: number) => ({
+      x: offsetAlongEdge,
+      y: setbackMm,
+    }),
+    faceType: 'edge',
+    edgeFaceTypeForPocket: pocketFace,
+  };
+}
+

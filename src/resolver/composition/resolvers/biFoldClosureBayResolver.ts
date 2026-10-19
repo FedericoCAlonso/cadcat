@@ -143,31 +143,39 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
       joints.push(
         createJoint({
           a: { pieceId: leaf1Id, faceId: 'inner' },
-          b: { pieceId: bay.topPieceId, faceId: 'front-edge' },
+          b: { pieceId: bay.topPieceId, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.x + 100,
+          hingeSide: 'top',
+          offsetMm: 100,
+          doorOffsetMm: 100,
         }),
         createJoint({
           a: { pieceId: leaf1Id, faceId: 'inner' },
-          b: { pieceId: bay.topPieceId, faceId: 'front-edge' },
+          b: { pieceId: bay.topPieceId, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.x + bay.width - 100,
+          hingeSide: 'top',
+          offsetMm: leafWidth - 100,
+          doorOffsetMm: leafWidth - 100,
         }),
       );
 
       // Intermediate hinges: connects leaf 1 and leaf 2
       joints.push(
         createJoint({
-          a: { pieceId: leaf1Id, faceId: 'bottom-edge' },
-          b: { pieceId: leaf2Id, faceId: 'top-edge' },
+          a: { pieceId: leaf1Id, faceId: 'inner' },
+          b: { pieceId: leaf2Id, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.x + 100,
+          hingeSide: 'bottom',
+          offsetMm: 100,
+          doorOffsetMm: 100,
         }),
         createJoint({
-          a: { pieceId: leaf1Id, faceId: 'bottom-edge' },
-          b: { pieceId: leaf2Id, faceId: 'top-edge' },
+          a: { pieceId: leaf1Id, faceId: 'inner' },
+          b: { pieceId: leaf2Id, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.x + bay.width - 100,
+          hingeSide: 'bottom',
+          offsetMm: leafWidth - 100,
+          doorOffsetMm: leafWidth - 100,
         }),
       );
     } else {
@@ -233,16 +241,20 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
       // Intermediate hinges between leaf 1 and leaf 2
       joints.push(
         createJoint({
-          a: { pieceId: leaf1Id, faceId: 'right-edge' },
-          b: { pieceId: leaf2Id, faceId: 'left-edge' },
+          a: { pieceId: leaf1Id, faceId: 'inner' },
+          b: { pieceId: leaf2Id, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.y + 100,
+          hingeSide: 'right',
+          offsetMm: 100,
+          doorOffsetMm: 100,
         }),
         createJoint({
-          a: { pieceId: leaf1Id, faceId: 'right-edge' },
-          b: { pieceId: leaf2Id, faceId: 'left-edge' },
+          a: { pieceId: leaf1Id, faceId: 'inner' },
+          b: { pieceId: leaf2Id, faceId: 'inner' },
           kind: 'hinge',
-          offsetMm: bay.y + bay.height - 100,
+          hingeSide: 'right',
+          offsetMm: leafHeight - 100,
+          doorOffsetMm: leafHeight - 100,
         }),
       );
     }

@@ -292,7 +292,17 @@ export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): Kinematic
       continue;
     }
 
-    // 3. Doors (puertas)
+    // 3. Bi-fold closures (tapas plegables elevables / Aventos)
+    if (role.includes('bifold') || role.includes('leaf') || id.includes('bifold')) {
+      const match = id.match(/^(.*?)(?:[-_]?(?:bifold|leaf|hoja|tapa|door))?[-_]?(\d+)$/i);
+      const groupKey = match ? match[1] : id.replace(/-leaf-\d+$/i, '');
+      const list = bifoldGroups.get(groupKey || 'bifold-closure') ?? [];
+      list.push(id);
+      bifoldGroups.set(groupKey || 'bifold-closure', list);
+      continue;
+    }
+
+    // 4. Doors (puertas)
     if (role.includes('door')) {
       const isRight = id.endsWith('-r') || id.includes('right');
       const isLeft = id.endsWith('-l') || id.includes('left') || !isRight;
@@ -306,15 +316,6 @@ export function identifyKinematicMechanisms(boxes: SpatialPieceBox[]): Kinematic
         kind: isRight ? 'door-right' : 'door-left',
         pieceIds: [id],
       });
-      continue;
-    }
-
-    // 4. Bi-fold closures (tapas plegables elevables)
-    if (role.includes('bifold') || role.includes('leaf')) {
-      const groupKey = id.replace(/-leaf-\d+$/i, '') || 'bifold-closure';
-      const list = bifoldGroups.get(groupKey) ?? [];
-      list.push(id);
-      bifoldGroups.set(groupKey, list);
       continue;
     }
 
@@ -431,23 +432,98 @@ export function calculateKinematicBoxes(
       dy = (h / 2) * (1 - Math.cos(angle)) + (t / 2) * Math.sin(angle);
       dz = (t / 2) * (1 - Math.cos(angle)) - (h / 2) * Math.sin(angle);
     } else if (mech.kind === 'bifold') {
-      // Coordinated two-leaf lift (e.g. Aventos HF)
-      const isLeaf1 = box.pieceId.endsWith('leaf-1') || box.pieceId.includes('-1');
-      const angle1 = ratio * 1.15; // Upper leaf rises ~65 degrees
-      const h = box.sizeMm.y;
-      const t = box.sizeMm.z;
+      // Coordinated two-leaf articulated bifold (e.g. Aventos HF vertical lift or horizontal book fold)
+      const bifoldBoxes = mech.pieceIds
+        .map((pId) => boxes.find((b) => b.pieceId === pId))
+        .filter((b): b is SpatialPieceBox => !!b);
 
-      if (isLeaf1) {
-        rx = angle1;
-        dy = (h / 2) * (1 - Math.cos(angle1)) + (t / 2) * Math.sin(angle1);
-        dz = (t / 2) * (1 - Math.cos(angle1)) - (h / 2) * Math.sin(angle1);
+      const b1 = bifoldBoxes[0];
+      const b2 = bifoldBoxes[1];
+
+      if (b1 && b2) {
+        const isVertical =
+          Math.abs(b1.positionMm.y - b2.positionMm.y) >= Math.abs(b1.positionMm.x - b2.positionMm.x);
+
+        if (isVertical) {
+          // Upper leaf (top) and lower leaf (bottom)
+          const boxTop = b1.positionMm.y >= b2.positionMm.y ? b1 : b2;
+          const boxBottom = b1.positionMm.y >= b2.positionMm.y ? b2 : b1;
+          const h1 = boxTop.sizeMm.y;
+          const h2 = boxBottom.sizeMm.y;
+          const t = box.sizeMm.z;
+
+          // Upper leaf swings up & forward around carcase top edge hinge
+          const angle1 = ratio * 1.15; // ~66 degrees at full open
+          const Y_pivot1 = boxTop.positionMm.y + h1;
+          const Z_pivot1 = boxTop.positionMm.z + t;
+
+          const Center1_Y = Y_pivot1 - (h1 / 2) * Math.cos(angle1) + (t / 2) * Math.sin(angle1);
+          const Center1_Z = Z_pivot1 - (h1 / 2) * Math.sin(angle1) - (t / 2) * Math.cos(angle1);
+
+          // Intermediate hinge connection where both leaves join
+          const Y_hinge = Y_pivot1 - h1 * Math.cos(angle1);
+          const Z_hinge = Z_pivot1 - h1 * Math.sin(angle1);
+
+          // Lower leaf guided along cabinet face, folding backward in articulated tent
+          const Z_bottom_2 = Z_pivot1 - 10 * Math.sin(ratio * Math.PI);
+          const deltaZ = Z_bottom_2 - Z_hinge;
+          const rx2 = -Math.asin(Math.max(-0.99, Math.min(0.99, deltaZ / h2)));
+
+          const Center2_Y = Y_hinge - (h2 / 2) * Math.cos(rx2) + (t / 2) * Math.sin(rx2);
+          const Center2_Z = Z_hinge - (h2 / 2) * Math.sin(rx2) - (t / 2) * Math.cos(rx2);
+
+          if (box.pieceId === boxTop.pieceId) {
+            rx = angle1;
+            dy = Center1_Y - (boxTop.positionMm.y + h1 / 2);
+            dz = Center1_Z - (boxTop.positionMm.z + t / 2);
+          } else {
+            rx = rx2;
+            dy = Center2_Y - (boxBottom.positionMm.y + h2 / 2);
+            dz = Center2_Z - (boxBottom.positionMm.z + t / 2);
+          }
+        } else {
+          // Horizontal book fold (left leaf swings around left edge, right leaf articulates back)
+          const boxLeft = b1.positionMm.x <= b2.positionMm.x ? b1 : b2;
+          const boxRight = b1.positionMm.x <= b2.positionMm.x ? b2 : b1;
+          const w1 = boxLeft.sizeMm.x;
+          const w2 = boxRight.sizeMm.x;
+          const t = box.sizeMm.z;
+
+          const angle1 = ratio * 1.25; // ~72 degrees
+          const X_pivot1 = boxLeft.positionMm.x;
+          const Z_pivot1 = boxLeft.positionMm.z + t;
+
+          const Center1_X = X_pivot1 + (w1 / 2) * Math.cos(angle1) - (t / 2) * Math.sin(angle1);
+          const Center1_Z = Z_pivot1 - (w1 / 2) * Math.sin(angle1) - (t / 2) * Math.cos(angle1);
+
+          const X_hinge = X_pivot1 + w1 * Math.cos(angle1);
+          const Z_hinge = Z_pivot1 - w1 * Math.sin(angle1);
+
+          const Z_right_2 = Z_pivot1 - 10 * Math.sin(ratio * Math.PI);
+          const deltaZ = Z_right_2 - Z_hinge;
+          const ry2 = -Math.asin(Math.max(-0.99, Math.min(0.99, deltaZ / w2)));
+
+          const Center2_X = X_hinge + (w2 / 2) * Math.cos(ry2) - (t / 2) * Math.sin(ry2);
+          const Center2_Z = Z_hinge - (w2 / 2) * Math.sin(ry2) - (t / 2) * Math.cos(ry2);
+
+          if (box.pieceId === boxLeft.pieceId) {
+            ry = angle1;
+            dx = Center1_X - (boxLeft.positionMm.x + w1 / 2);
+            dz = Center1_Z - (boxLeft.positionMm.z + t / 2);
+          } else {
+            ry = ry2;
+            dx = Center2_X - (boxRight.positionMm.x + w2 / 2);
+            dz = Center2_Z - (boxRight.positionMm.z + t / 2);
+          }
+        }
       } else {
-        // Lower leaf follows intermediate hinge of leaf 1, folding forward
-        rx = ratio * 0.25;
-        const leaf1DispY = h * (1 - Math.cos(angle1));
-        const leaf1DispZ = -h * Math.sin(angle1);
-        dy = leaf1DispY + (h / 2) * (1 - Math.cos(rx));
-        dz = leaf1DispZ - (h / 2) * Math.sin(rx);
+        // Fallback for single leaf
+        const angle = ratio * (Math.PI / 2);
+        const h = box.sizeMm.y;
+        const t = box.sizeMm.z;
+        rx = angle;
+        dy = (h / 2) * (1 - Math.cos(angle)) + (t / 2) * Math.sin(angle);
+        dz = (t / 2) * (1 - Math.cos(angle)) - (h / 2) * Math.sin(angle);
       }
     }
 

@@ -55,3 +55,16 @@ export {
   loadUserTemplateById,
 } from './userTemplateStore';
 
+export {
+  type StoredProject,
+  PROJECTS_STORE,
+  saveProjectToDb,
+  loadProjectFromDb,
+  loadAllProjectsFromDb,
+  deleteProjectFromDb,
+  exportProjectJson,
+  importProjectJson,
+} from './projectStore';
+
+
+

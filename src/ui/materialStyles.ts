@@ -82,6 +82,18 @@ export const BOARD_PBR_STYLES: Record<string, PiecePbrStyle> = {
     metalness: 0.02,
     wireframeColor: 0x94a3b8,
   },
+  'mat-mdf-raw-3': {
+    color: 0xc8ad8d, // Raw MDF / Fibrofácil crudo 3mm (warm wood fiber tone)
+    roughness: 0.75,
+    metalness: 0.0,
+    wireframeColor: 0x8c6d48,
+  },
+  'mat-mdf-raw-6': {
+    color: 0xc8ad8d, // Raw MDF / Fibrofácil crudo 6mm (warm wood fiber tone)
+    roughness: 0.75,
+    metalness: 0.0,
+    wireframeColor: 0x8c6d48,
+  },
 };
 
 export const DEFAULT_BOARD_STYLE: PiecePbrStyle = {

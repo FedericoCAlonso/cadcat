@@ -7,7 +7,7 @@ import type { PieceMachiningSheet, SheetOperationItem } from '../machiningSheet'
  * - For left side panels (side-left, drawer-side-l): Face A is INNER (+X into cabinet), Face B is OUTER (-X).
  * - For roof / top panels: Face A is INNER (-Y into cabinet), Face B is OUTER (+Y).
  * - For shelves and bottom panels: Face A is TOP (+Y), Face B is BOTTOM (-Y).
- * - For doors and drawer fronts: Face A is EXTERIOR (+Z), Face B is INTERIOR (-Z).
+ * - For doors and drawer fronts: Face A is EXTERIOR (-Z), Face B is INTERIOR (+Z).
  */
 export function getPieceFaceNormalSign(
   role: string,
@@ -33,7 +33,10 @@ export function getPieceFaceNormalSign(
   }
 
   // normal === 'z'
-  return isFaceA ? 1 : -1;
+  // In Mobilius coordinate frame:
+  // - Camera and exterior face are towards -Z (Face A: -1).
+  // - Cabinet interior and hinge cup mortises are towards +Z (Face B: +1).
+  return isFaceA ? -1 : 1;
 }
 
 /**
@@ -147,6 +150,61 @@ export function buildPieceMachining3DGroup(
     group.add(mesh);
   };
 
+  // Helper to place an edge drill hole cylinder
+  const addEdgeDrillMesh = (op: SheetOperationItem) => {
+    const radius = Math.max(1.2, op.diameterMm / 2);
+    const depth = Math.min(Math.max(op.depthMm, 2), Math.max(sx, sy, sz));
+    const geom = new THREE.CylinderGeometry(radius, radius, depth, 12);
+    const mesh = new THREE.Mesh(geom, drillHoleMaterial);
+
+    const fId = op.faceId.toLowerCase();
+
+    if (normal === 'x') {
+      // Piece standing in YZ plane (e.g. side, partition)
+      if (fId.includes('bottom')) {
+        mesh.position.set(0, -sy / 2 + depth / 2 - 0.1, op.xMm - w2d / 2);
+      } else if (fId.includes('top')) {
+        mesh.position.set(0, sy / 2 - depth / 2 + 0.1, op.xMm - w2d / 2);
+      } else if (fId.includes('left')) {
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.set(0, op.yMm - h2d / 2, -sz / 2 + depth / 2 - 0.1);
+      } else {
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.set(0, op.yMm - h2d / 2, sz / 2 - depth / 2 + 0.1);
+      }
+    } else if (normal === 'y') {
+      // Piece lying in XZ plane (e.g. bottom, shelf, roof, rail)
+      if (fId.includes('left')) {
+        mesh.rotation.z = Math.PI / 2;
+        mesh.position.set(-sx / 2 + depth / 2 - 0.1, 0, op.yMm - h2d / 2);
+      } else if (fId.includes('right')) {
+        mesh.rotation.z = Math.PI / 2;
+        mesh.position.set(sx / 2 - depth / 2 + 0.1, 0, op.yMm - h2d / 2);
+      } else if (fId.includes('bottom') || fId.includes('front')) {
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.set(op.xMm - w2d / 2, 0, -sz / 2 + depth / 2 - 0.1);
+      } else {
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.set(op.xMm - w2d / 2, 0, sz / 2 - depth / 2 + 0.1);
+      }
+    } else {
+      // Piece standing in XY plane (e.g. door, drawer front/back, plinth)
+      if (fId.includes('left')) {
+        mesh.rotation.z = Math.PI / 2;
+        mesh.position.set(-sx / 2 + depth / 2 - 0.1, op.yMm - h2d / 2, 0);
+      } else if (fId.includes('right')) {
+        mesh.rotation.z = Math.PI / 2;
+        mesh.position.set(sx / 2 - depth / 2 + 0.1, op.yMm - h2d / 2, 0);
+      } else if (fId.includes('bottom')) {
+        mesh.position.set(op.xMm - w2d / 2, -sy / 2 + depth / 2 - 0.1, 0);
+      } else {
+        mesh.position.set(op.xMm - w2d / 2, sy / 2 - depth / 2 + 0.1, 0);
+      }
+    }
+
+    group.add(mesh);
+  };
+
   // 1. Add Face A drill operations
   for (const op of sheet.faceAOperations) {
     addDrillMesh(op);
@@ -157,7 +215,12 @@ export function buildPieceMachining3DGroup(
     addDrillMesh(op);
   }
 
-  // 3. Add Custom operations (grooves, rebates, cutouts)
+  // 3. Add Edge drill operations
+  for (const op of sheet.edgeOperations) {
+    addEdgeDrillMesh(op);
+  }
+
+  // 4. Add Custom operations (grooves, rebates, cutouts)
   if (sheet.customOperations) {
     for (const cop of sheet.customOperations) {
       if (cop.kind === 'groove') {

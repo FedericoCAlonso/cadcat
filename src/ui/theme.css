@@ -1,44 +1,57 @@
 /* Google Material Design 3 (Material You) Design Tokens & Styles */
 
-:root {
-  /* M3 Color System (Light Theme) */
-  --md-sys-color-primary: #0b57d0;
+:root,
+:root[data-theme="light"] {
+  /* M3 Color System (Vanguard Light Theme - Mobilius Artisanal Woodcraft Palette) */
+  --md-sys-color-primary: #1f485b;
   --md-sys-color-on-primary: #ffffff;
-  --md-sys-color-primary-container: #d3e3fd;
-  --md-sys-color-on-primary-container: #041e49;
+  --md-sys-color-primary-container: #d6e7f0;
+  --md-sys-color-on-primary-container: #061d28;
 
-  --md-sys-color-secondary: #00639b;
+  --md-sys-color-secondary: #496b5c; /* Mobilius sage fronts (#6B9080) */
   --md-sys-color-on-secondary: #ffffff;
-  --md-sys-color-secondary-container: #c2e7ff;
-  --md-sys-color-on-secondary-container: #001d35;
+  --md-sys-color-secondary-container: #d4e6dd;
+  --md-sys-color-on-secondary-container: #0a2016;
 
-  --md-sys-color-tertiary: #625b71;
+  --md-sys-color-tertiary: #b34d31; /* Mobilius copper/terracotta collar (#D9694A) */
   --md-sys-color-on-tertiary: #ffffff;
-  --md-sys-color-tertiary-container: #e8def8;
-  --md-sys-color-on-tertiary-container: #1d192b;
+  --md-sys-color-tertiary-container: #fadece;
+  --md-sys-color-on-tertiary-container: #3d1409;
 
   --md-sys-color-surface: #ffffff;
-  --md-sys-color-surface-dim: #ded8e1;
+  --md-sys-color-surface-dim: #e5e9ec;
   --md-sys-color-surface-container-lowest: #ffffff;
-  --md-sys-color-surface-container-low: #f7f9fc;
-  --md-sys-color-surface-container: #f0f4f9;
-  --md-sys-color-surface-container-high: #e9eef6;
-  --md-sys-color-surface-container-highest: #e1e3e1;
+  --md-sys-color-surface-container-low: #f6f8fa;
+  --md-sys-color-surface-container: #eff2f5;
+  --md-sys-color-surface-container-high: #e6ebef;
+  --md-sys-color-surface-container-highest: #dce1e6;
 
-  --md-sys-color-on-surface: #1f1f1f;
-  --md-sys-color-on-surface-variant: #444746;
-  --md-sys-color-outline: #747775;
-  --md-sys-color-outline-variant: #c4c7c5;
+  --md-sys-color-on-surface: #181c1f;
+  --md-sys-color-on-surface-variant: #41474d;
+  --md-sys-color-outline: #71787e;
+  --md-sys-color-outline-variant: #c1c7cd;
 
-  --md-sys-color-error: #b3261e;
+  --md-sys-color-error: #ba1a1a;
   --md-sys-color-on-error: #ffffff;
-  --md-sys-color-error-container: #f9dedc;
-  --md-sys-color-on-error-container: #410e0b;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
 
-  /* M3 Elevation */
-  --md-sys-elevation-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
-  --md-sys-elevation-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
-  --md-sys-elevation-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
+  --md-sys-color-warning-container: #fef3c7;
+  --md-sys-color-on-warning-container: #78350f;
+  --md-sys-color-warning-border: #fde68a;
+
+  --md-sys-color-success-container: #dcfce7;
+  --md-sys-color-on-success-container: #14532d;
+  --md-sys-color-success-border: #bbf7d0;
+
+  --md-sys-color-info-container: #e0f2fe;
+  --md-sys-color-on-info-container: #0369a1;
+  --md-sys-color-info-border: #bae6fd;
+
+  /* M3 Elevation (Soft, luminous diffusion) */
+  --md-sys-elevation-1: 0px 1px 3px 0px rgba(0, 0, 0, 0.07), 0px 1px 2px 0px rgba(0, 0, 0, 0.04);
+  --md-sys-elevation-2: 0px 2px 6px 0px rgba(0, 0, 0, 0.07), 0px 1px 3px 0px rgba(0, 0, 0, 0.05);
+  --md-sys-elevation-3: 0px 4px 14px 0px rgba(0, 0, 0, 0.08), 0px 2px 6px 0px rgba(0, 0, 0, 0.05);
 
   /* M3 Shape Tokens */
   --md-sys-shape-corner-xs: 4px;
@@ -49,46 +62,120 @@
   --md-sys-shape-corner-full: 9999px;
 
   /* M3 Typography */
-  --md-sys-font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --md-sys-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --md-sys-typescale-display-large: 400 3.5rem/4rem var(--md-sys-font-family);
-  --md-sys-typescale-headline-medium: 400 1.75rem/2.25rem var(--md-sys-font-family);
-  --md-sys-typescale-title-large: 400 1.375rem/1.75rem var(--md-sys-font-family);
-  --md-sys-typescale-title-medium: 500 1rem/1.5rem var(--md-sys-font-family);
+  --md-sys-typescale-headline-medium: 600 1.75rem/2.25rem var(--md-sys-font-family);
+  --md-sys-typescale-title-large: 600 1.375rem/1.75rem var(--md-sys-font-family);
+  --md-sys-typescale-title-medium: 600 1rem/1.5rem var(--md-sys-font-family);
+  --md-sys-typescale-title-small: 600 0.875rem/1.25rem var(--md-sys-font-family);
   --md-sys-typescale-body-large: 400 1rem/1.5rem var(--md-sys-font-family);
   --md-sys-typescale-body-medium: 400 0.875rem/1.25rem var(--md-sys-font-family);
-  --md-sys-typescale-label-large: 500 0.875rem/1.25rem var(--md-sys-font-family);
+  --md-sys-typescale-label-large: 600 0.875rem/1.25rem var(--md-sys-font-family);
   --md-sys-typescale-label-medium: 500 0.75rem/1rem var(--md-sys-font-family);
 }
 
+:root[data-theme="dark"] {
+  /* M3 Color System (Dark Theme - Mobilius Dark #101820) */
+  --md-sys-color-primary: #8fc9e8;
+  --md-sys-color-on-primary: #00344b;
+  --md-sys-color-primary-container: #1a4b63;
+  --md-sys-color-on-primary-container: #cbe7f6;
+
+  --md-sys-color-secondary: #9ecbb6;
+  --md-sys-color-on-secondary: #0d3626;
+  --md-sys-color-secondary-container: #274e3d;
+  --md-sys-color-on-secondary-container: #b8e8cf;
+
+  --md-sys-color-tertiary: #f69e86;
+  --md-sys-color-on-tertiary: #521f11;
+  --md-sys-color-tertiary-container: #723221;
+  --md-sys-color-on-tertiary-container: #ffdbd1;
+
+  --md-sys-color-surface: #101820;
+  --md-sys-color-surface-dim: #0c131a;
+  --md-sys-color-surface-container-lowest: #080d12;
+  --md-sys-color-surface-container-low: #141d26;
+  --md-sys-color-surface-container: #19232d;
+  --md-sys-color-surface-container-high: #212c38;
+  --md-sys-color-surface-container-highest: #2a3644;
+
+  --md-sys-color-on-surface: #e2e6eb;
+  --md-sys-color-on-surface-variant: #c1c7cf;
+  --md-sys-color-outline: #8b929a;
+  --md-sys-color-outline-variant: #41474e;
+
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+
+  --md-sys-color-warning-container: #451a03;
+  --md-sys-color-on-warning-container: #fef08a;
+  --md-sys-color-warning-border: #78350f;
+
+  --md-sys-color-success-container: #052e16;
+  --md-sys-color-on-success-container: #86efac;
+  --md-sys-color-success-border: #166534;
+
+  --md-sys-color-info-container: #082f49;
+  --md-sys-color-on-info-container: #7dd3fc;
+  --md-sys-color-info-border: #075985;
+
+  --md-sys-elevation-1: 0px 1px 3px 0px rgba(0, 0, 0, 0.4), 0px 1px 2px 0px rgba(0, 0, 0, 0.25);
+  --md-sys-elevation-2: 0px 2px 8px 0px rgba(0, 0, 0, 0.45), 0px 2px 4px 0px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-3: 0px 6px 16px 0px rgba(0, 0, 0, 0.55), 0px 3px 8px 0px rgba(0, 0, 0, 0.35);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    --md-sys-color-primary: #a8c7fa;
-    --md-sys-color-on-primary: #062e6f;
-    --md-sys-color-primary-container: #0842a0;
-    --md-sys-color-on-primary-container: #d3e3fd;
+  :root:not([data-theme="light"]) {
+    --md-sys-color-primary: #8fc9e8;
+    --md-sys-color-on-primary: #00344b;
+    --md-sys-color-primary-container: #1a4b63;
+    --md-sys-color-on-primary-container: #cbe7f6;
 
-    --md-sys-color-secondary: #7fcfff;
-    --md-sys-color-on-secondary: #003454;
-    --md-sys-color-secondary-container: #004b77;
-    --md-sys-color-on-secondary-container: #c2e7ff;
+    --md-sys-color-secondary: #9ecbb6;
+    --md-sys-color-on-secondary: #0d3626;
+    --md-sys-color-secondary-container: #274e3d;
+    --md-sys-color-on-secondary-container: #b8e8cf;
 
-    --md-sys-color-surface: #111318;
-    --md-sys-color-surface-dim: #111318;
-    --md-sys-color-surface-container-lowest: #0c0e13;
-    --md-sys-color-surface-container-low: #191c20;
-    --md-sys-color-surface-container: #1d2024;
-    --md-sys-color-surface-container-high: #282a2f;
-    --md-sys-color-surface-container-highest: #33353a;
+    --md-sys-color-tertiary: #f69e86;
+    --md-sys-color-on-tertiary: #521f11;
+    --md-sys-color-tertiary-container: #723221;
+    --md-sys-color-on-tertiary-container: #ffdbd1;
 
-    --md-sys-color-on-surface: #e2e2e6;
-    --md-sys-color-on-surface-variant: #c4c7c5;
-    --md-sys-color-outline: #8e918f;
-    --md-sys-color-outline-variant: #444746;
+    --md-sys-color-surface: #101820;
+    --md-sys-color-surface-dim: #0c131a;
+    --md-sys-color-surface-container-lowest: #080d12;
+    --md-sys-color-surface-container-low: #141d26;
+    --md-sys-color-surface-container: #19232d;
+    --md-sys-color-surface-container-high: #212c38;
+    --md-sys-color-surface-container-highest: #2a3644;
 
-    --md-sys-color-error: #f2b8b5;
-    --md-sys-color-on-error: #601410;
-    --md-sys-color-error-container: #8c1d18;
-    --md-sys-color-on-error-container: #f9dedc;
+    --md-sys-color-on-surface: #e2e6eb;
+    --md-sys-color-on-surface-variant: #c1c7cf;
+    --md-sys-color-outline: #8b929a;
+    --md-sys-color-outline-variant: #41474e;
+
+    --md-sys-color-error: #ffb4ab;
+    --md-sys-color-on-error: #690005;
+    --md-sys-color-error-container: #93000a;
+    --md-sys-color-on-error-container: #ffdad6;
+
+    --md-sys-color-warning-container: #451a03;
+    --md-sys-color-on-warning-container: #fef08a;
+    --md-sys-color-warning-border: #78350f;
+
+    --md-sys-color-success-container: #052e16;
+    --md-sys-color-on-success-container: #86efac;
+    --md-sys-color-success-border: #166534;
+
+    --md-sys-color-info-container: #082f49;
+    --md-sys-color-on-info-container: #7dd3fc;
+    --md-sys-color-info-border: #075985;
+
+    --md-sys-elevation-1: 0px 1px 3px 0px rgba(0, 0, 0, 0.4), 0px 1px 2px 0px rgba(0, 0, 0, 0.25);
+    --md-sys-elevation-2: 0px 2px 8px 0px rgba(0, 0, 0, 0.45), 0px 2px 4px 0px rgba(0, 0, 0, 0.3);
+    --md-sys-elevation-3: 0px 6px 16px 0px rgba(0, 0, 0, 0.55), 0px 3px 8px 0px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -530,9 +617,13 @@ body {
   }
 }
 
+:root[data-theme="dark"] .viewport-3d-canvas-wrapper {
+  background: radial-gradient(circle at 50% 50%, #19232d 0%, #101820 100%);
+}
+
 @media (prefers-color-scheme: dark) {
-  .viewport-3d-canvas-wrapper {
-    background: radial-gradient(circle at 50% 50%, #202329 0%, #111317 100%);
+  :root:not([data-theme="light"]) .viewport-3d-canvas-wrapper {
+    background: radial-gradient(circle at 50% 50%, #19232d 0%, #101820 100%);
   }
 }
 
@@ -704,9 +795,9 @@ body {
 }
 
 .m3-badge--warning {
-  background-color: #fff3cd;
-  color: #664d03;
-  border: 1px solid #ffe69c;
+  background-color: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  border: 1px solid var(--md-sys-color-warning-border);
 }
 
 .machining-info-bar {
@@ -739,9 +830,9 @@ body {
 }
 
 .m3-banner--warning {
-  background-color: #fff8e1;
-  border: 1.5px solid #ffb300;
-  color: #5d4037;
+  background-color: var(--md-sys-color-warning-container);
+  border: 1.5px solid var(--md-sys-color-warning-border);
+  color: var(--md-sys-color-on-warning-container);
 }
 
 .m3-banner__icon {
@@ -752,7 +843,7 @@ body {
 .m3-banner__text strong {
   display: block;
   font: var(--md-sys-typescale-title-medium);
-  color: #bf360c;
+  color: var(--md-sys-color-on-warning-container);
   margin-bottom: 0.15rem;
 }
 
@@ -802,7 +893,7 @@ body {
   align-items: center;
   border-radius: var(--md-sys-shape-corner-lg);
   border: 1px solid var(--md-sys-color-outline-variant);
-  background-color: #ffffff;
+  background-color: var(--md-sys-color-surface);
   overflow: hidden;
   box-shadow: var(--md-sys-elevation-1);
   width: 100%;
@@ -1059,15 +1150,15 @@ body {
 }
 
 .m3-badge--success {
-  background-color: #e8f5e9;
-  color: #1b5e20;
-  border: 1px solid #c8e6c9;
+  background-color: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+  border: 1px solid var(--md-sys-color-success-border);
 }
 
 .m3-badge--warning {
-  background-color: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
-  border: 1px solid #ffcdd2;
+  background-color: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  border: 1px solid var(--md-sys-color-warning-border);
 }
 
 .m3-badge--neutral {
@@ -1086,9 +1177,9 @@ body {
 }
 
 .m3-alert--warning {
-  background-color: #fff3e0;
-  color: #e65100;
-  border: 1px solid #ffe0b2;
+  background-color: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  border: 1px solid var(--md-sys-color-warning-border);
 }
 
 .m3-alert__icon {
@@ -1301,20 +1392,79 @@ body {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* Theme Toggle Segmented Control */
+.theme-toggle-group {
+  display: inline-flex;
+  background-color: var(--md-sys-color-surface-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  padding: 2px;
+  gap: 2px;
+}
+
+.theme-toggle-group .m3-segmented-button__item {
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  border-radius: var(--md-sys-shape-corner-full);
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  min-height: 28px;
+}
+
+.theme-toggle-group .m3-segmented-button__item:hover:not(.active) {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="dark"] .theme-toggle-group .m3-segmented-button__item:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme-toggle-group .m3-segmented-button__item.active {
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--md-sys-elevation-1);
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .theme-toggle-label {
+    display: none;
+  }
+  .theme-toggle-group .m3-segmented-button__item {
+    padding: 6px 8px;
+    min-height: 36px;
+    font-size: 0.9rem;
+  }
+}
+
 /* ==========================================================================
    Modular Interactive Cabinet Builder (Touch-First & M3 Design)
    ========================================================================== */
-.builder-section {
-  border-top: 1px solid var(--md-sys-color-outline-variant);
-  padding-top: 1rem;
-  margin-top: 1rem;
+.builder-section,
+fieldset.builder-section {
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-md);
+  padding: 1.15rem;
+  margin-top: 1.25rem;
+  background-color: var(--md-sys-color-surface-container-low);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.builder-section-title {
+.builder-section-title,
+legend.builder-section-title {
   font: var(--md-sys-typescale-title-small);
   font-weight: 600;
   color: var(--md-sys-color-primary);
   margin-bottom: 0.65rem;
+  padding: 0 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.45rem;

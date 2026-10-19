@@ -332,7 +332,7 @@ export function renderPieceMachiningSvg(
     (op) => op.faceType === face && op.kind !== 'drill',
   );
 
-  if (ops.length === 0 && customOps.length === 0) {
+  if (ops.length === 0 && customOps.length === 0 && sheet.edgeOperations.length === 0) {
     svgParts.push(`
       <text x="${originX + drawW / 2}" y="${originY + drawH / 2}" text-anchor="middle" font-size="14" fill="#747775">
         Sin operaciones en ${face === 'face-A' ? 'Cara A' : 'Cara B'}
@@ -452,6 +452,75 @@ export function renderPieceMachiningSvg(
           Y:${op.yMm}
         </text>
       </g>
+    `);
+  }
+
+  // Draw edge operations on piece perimeter
+  for (const op of sheet.edgeOperations) {
+    const fId = op.faceId.toLowerCase();
+    const r = Math.max(2.5, (op.diameterMm / 2) * scale * 1.2);
+    const holeDepthPx = Math.max(8, Math.min(op.depthMm * scale, 35));
+
+    let hx = originX;
+    let hy = datumY;
+    let rectX = originX;
+    let rectY = datumY;
+    let rectW = 0;
+    let rectH = 0;
+    let labelX = 0;
+    let labelY = 0;
+    let textAnchor = 'middle';
+
+    if (fId.includes('left')) {
+      hx = originX;
+      hy = datumY - op.yMm * scale;
+      rectX = originX;
+      rectY = hy - r;
+      rectW = holeDepthPx;
+      rectH = 2 * r;
+      labelX = originX + holeDepthPx + 3;
+      labelY = hy + 2.5;
+      textAnchor = 'start';
+    } else if (fId.includes('right')) {
+      hx = originX + drawW;
+      hy = datumY - op.yMm * scale;
+      rectX = originX + drawW - holeDepthPx;
+      rectY = hy - r;
+      rectW = holeDepthPx;
+      rectH = 2 * r;
+      labelX = originX + drawW - holeDepthPx - 3;
+      labelY = hy + 2.5;
+      textAnchor = 'end';
+    } else if (fId.includes('top') || fId.includes('rear') || fId.includes('back')) {
+      hx = originX + op.xMm * scale;
+      hy = originY;
+      rectX = hx - r;
+      rectY = originY;
+      rectW = 2 * r;
+      rectH = holeDepthPx;
+      labelX = hx;
+      labelY = originY + holeDepthPx + 8;
+      textAnchor = 'middle';
+    } else {
+      // bottom / front
+      hx = originX + op.xMm * scale;
+      hy = datumY;
+      rectX = hx - r;
+      rectY = datumY - holeDepthPx;
+      rectW = 2 * r;
+      rectH = holeDepthPx;
+      labelX = hx;
+      labelY = datumY - holeDepthPx - 4;
+      textAnchor = 'middle';
+    }
+
+    svgParts.push(`
+      <!-- Edge drill hole: ${op.faceId} -->
+      <rect x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}" rx="1.5" fill="#ba1a1a" fill-opacity="0.2" stroke="#ba1a1a" stroke-width="1.2" stroke-dasharray="2 2" />
+      <circle cx="${hx}" cy="${hy}" r="${r}" fill="#ba1a1a" />
+      <text x="${labelX}" y="${labelY}" text-anchor="${textAnchor}" font-size="7.5" font-weight="bold" fill="#ba1a1a">
+        Ø${op.diameterMm}x${op.depthMm} (Canto)
+      </text>
     `);
   }
 

@@ -387,4 +387,46 @@ describe('Assembly Gauges & Auxiliary Pieces (Phase 2 WP2)', () => {
       expect(cappedGauges.filter((p) => p.contour.points[1]?.x === g.contour.points[1]?.x).length).toBeLessThanOrEqual(2);
     }
   });
+
+  it('filters out self-referencing perimeter gauges for roof/top and side panels', () => {
+    const { pieces, joints } = createTestCabinetPieces();
+
+    // Add a roof piece at y = 782..800
+    const roof: ResolvedPiece = {
+      ...createPiece({
+        id: 'roof',
+        role: 'roof',
+        materialId: sampleMaterial.id,
+        contour: createRectangularContour(564, 560),
+        thicknessMm: 18,
+      }),
+      positionMm: { x: 18, y: 782, z: 0 },
+      dimensionsMm: { width: 564, height: 560 },
+    };
+
+    const cabinetPieces = [...pieces, roof];
+    const cabinetJoints = [
+      ...joints,
+      createJoint({
+        a: { pieceId: 'side-left', faceId: 'inner' },
+        b: { pieceId: 'roof', faceId: 'left-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: 'side-right', faceId: 'inner' },
+        b: { pieceId: 'roof', faceId: 'right-edge' },
+        kind: 'confirmat',
+      }),
+    ];
+
+    const gauges = deriveAssemblyGauges({ pieces: cabinetPieces, joints: cabinetJoints });
+
+    // The only gauge generated must be G1 (282 mm) between bottom->shelf1 and shelf1->shelf2
+    // NO gauge should be generated between shelf2 and roof (182 mm) or side-left and side-right (564 mm)
+    expect(gauges).toHaveLength(1);
+    expect(Math.abs(gauges[0]!.clearSpanMm - 282)).toBeLessThanOrEqual(1.0);
+    expect(gauges.some((g) => g.occurrences.some((occ) => occ.upperPieceId === 'roof'))).toBe(false);
+    expect(gauges.some((g) => g.occurrences.some((occ) => occ.upperPieceId === 'side-right'))).toBe(false);
+  });
 });
+

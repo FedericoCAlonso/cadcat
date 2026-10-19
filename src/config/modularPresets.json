@@ -15,7 +15,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-white-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -41,7 +41,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-white-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -73,7 +73,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-oak-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -107,7 +107,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-white-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -131,7 +131,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-oak-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -176,7 +176,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-oak-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -201,7 +201,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-white-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   },
   {
@@ -229,7 +229,7 @@
       "carcassMaterialId": "mat-egger-white-18",
       "frontsMaterialId": "mat-egger-oak-18",
       "drawerBoxesMaterialId": "mat-egger-white-18",
-      "backingsMaterialId": "mat-mdf-white-3"
+      "backingsMaterialId": "mat-mdf-raw-3"
     }
   }
 ]

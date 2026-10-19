@@ -8,8 +8,8 @@ export interface StoredEntity {
 }
 
 export const DB_NAME = 'mobilius_db';
-export const DB_VERSION = 3;
-export const DEFAULT_STORES = ['modules', 'catalogs', 'configs', 'user_templates'] as const;
+export const DB_VERSION = 4;
+export const DEFAULT_STORES = ['modules', 'catalogs', 'configs', 'user_templates', 'projects'] as const;
 
 /**
  * Get the IndexedDB factory from the current environment.

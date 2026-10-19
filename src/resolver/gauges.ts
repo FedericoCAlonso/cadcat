@@ -75,6 +75,54 @@ function getPieceSpatialInfo(p: Piece | ResolvedPiece): SpatialPieceInfo {
 }
 
 /**
+ * Helper to determine if a piece needs an assembly gauge for its physical positioning.
+ * Self-referencing perimeter pieces (roof/top, outer side-right, rails, bottom edge)
+ * are placed flush against side or base edges and do not require assembly gauges.
+ */
+function isInternalPlacementTarget(piece: Piece | ResolvedPiece, axis: 'x' | 'y'): boolean {
+  const role = piece.role.toLowerCase();
+
+  // Perimeter boundaries that fix themselves by enrasado:
+  if (
+    role.includes('top') ||
+    role.includes('roof') ||
+    role.includes('rail') ||
+    role.includes('hanging-rail')
+  ) {
+    return false;
+  }
+
+  // Right lateral perimeter defines outer carcase boundary
+  if (
+    role.includes('side-right') ||
+    (role.includes('side') && !role.includes('left') && !role.includes('partition') && !role.includes('divider'))
+  ) {
+    return false;
+  }
+
+  // Backings, doors, drawers, plinths, countertops are not structural carcase gauge targets
+  if (
+    role.includes('back') ||
+    role.includes('door') ||
+    role.includes('drawer') ||
+    role.includes('countertop') ||
+    role.includes('plinth')
+  ) {
+    return false;
+  }
+
+  if (axis === 'y') {
+    return role.includes('shelf') || role.includes('transom') || role.includes('tray');
+  }
+
+  if (axis === 'x') {
+    return role.includes('partition') || role.includes('divider');
+  }
+
+  return false;
+}
+
+/**
  * Derives assembly gauges from module pieces and joints.
  * Finds clear spans between parallel panel faces (e.g., shelf spacings or drawer spans),
  * groups identical spans, and creates an auxiliary piece for each unique clear span.
@@ -124,6 +172,13 @@ export function deriveAssemblyGauges(
     for (let i = 0; i < horizontalNeighbors.length - 1; i++) {
       const lower = horizontalNeighbors[i]!;
       const upper = horizontalNeighbors[i + 1]!;
+
+      // Workshop rule: only internal floating elements (shelves, transoms) need assembly gauges.
+      // Top panels and roof rails enrase directly to the top edge of the sides.
+      if (!isInternalPlacementTarget(upper.piece, 'y')) {
+        continue;
+      }
+
       const spanMm = upper.min.y - lower.max.y;
 
       if (spanMm > 1.0) {
@@ -144,6 +199,13 @@ export function deriveAssemblyGauges(
     for (let i = 0; i < verticalNeighbors.length - 1; i++) {
       const left = verticalNeighbors[i]!;
       const right = verticalNeighbors[i + 1]!;
+
+      // Workshop rule: only internal partitions/dividers need assembly gauges.
+      // The outer carcase width between side-left and side-right is fixed by the carcase panels.
+      if (!isInternalPlacementTarget(right.piece, 'x')) {
+        continue;
+      }
+
       const spanMm = right.min.x - left.max.x;
 
       if (spanMm > 1.0) {

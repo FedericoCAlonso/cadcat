@@ -1,6 +1,11 @@
 import { type DrillOperation } from '../../../model/operation';
 import { type IJointMachiningStrategy, type JointMachiningContext } from '../types';
-import { deriveContactGeometry, calculateDrillSpacingsFromConfig, deriveFaceType } from '../geometry';
+import {
+  deriveContactGeometry,
+  calculateDrillSpacingsFromConfig,
+  deriveFaceType,
+  derivePieceBJointPositions,
+} from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
 
 export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
@@ -20,6 +25,8 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
     // 1. Confirmat clamping screws
     for (const off of offsets) {
       const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
+      const posBGeom = derivePieceBJointPositions(pieceB, joint.b.faceId, off);
+
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -44,7 +51,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.confirmatCoreDiameterMm,
         depthMm: config.confirmatCoreDepthMm,
         isThrough: false,
-        positionMm: { x: off, y: pieceB.thicknessMm / 2 },
+        positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
         description: `Confirmat pilot core Ø${config.confirmatCoreDiameterMm}x${config.confirmatCoreDepthMm}mm into edge`,
@@ -64,6 +71,8 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
 
     for (const dOff of dowelOffsets) {
       const dPosA = geom.getPieceAPosition ? geom.getPieceAPosition(dOff) : { x: zStart + dOff, y: yContact };
+      const dPosBGeom = derivePieceBJointPositions(pieceB, joint.b.faceId, dOff);
+
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
@@ -88,7 +97,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.dowelEdgeDiameterMm,
         depthMm: config.dowelEdgeDepthMm,
         isThrough: false,
-        positionMm: { x: dOff, y: pieceB.thicknessMm / 2 },
+        positionMm: dPosBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
         description: `Dowel edge hole Ø${config.dowelEdgeDiameterMm}x${config.dowelEdgeDepthMm}mm`,

@@ -29,7 +29,7 @@ export const jointSchema = z.object({
   kind: jointKindSchema,
   offsetMm: z.number().optional(),
   doorOffsetMm: z.number().optional(),
-  hingeSide: z.enum(['left', 'right']).optional(),
+  hingeSide: z.enum(['left', 'right', 'top', 'bottom']).optional(),
   region: intervalSchema.optional(),
   hingeCrank: z.enum(['codo-0', 'codo-9', 'codo-18']).optional(),
 });

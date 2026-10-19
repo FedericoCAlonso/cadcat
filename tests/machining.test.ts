@@ -11,6 +11,8 @@ import {
   createPiece,
   createJoint,
   createRectangularContour,
+  buildPieceMachiningSheet,
+  buildPieceMachining3DGroup,
 } from '../src/resolver';
 import type { Material } from '../src/model';
 
@@ -117,13 +119,20 @@ describe('Machining Derivation - Specific Joint Rules', () => {
     expect(shelfPockets).toHaveLength(2);
     expect(shelfPockets[0]!.diameterMm).toBe(15);
     expect(shelfPockets[0]!.depthMm).toBe(13.5);
-    expect(shelfPockets[0]!.positionMm.y).toBe(34); // setback from edge
+    expect(shelfPockets[0]!.positionMm.x).toBe(34); // 34mm setback from left edge
+    expect(shelfPockets[0]!.positionMm.y).toBe(50); // first spacing along depth
+    expect(shelfPockets[1]!.positionMm.x).toBe(34);
+    expect(shelfPockets[1]!.positionMm.y).toBe(510);
 
     const shelfEdgeChannels = ops.filter(
       (o) => o.pieceId === 'p-shelf' && o.faceType === 'edge',
     );
     expect(shelfEdgeChannels).toHaveLength(2);
     expect(shelfEdgeChannels[0]!.diameterMm).toBe(8);
+    expect(shelfEdgeChannels[0]!.positionMm.x).toBe(0); // On left edge (X=0)
+    expect(shelfEdgeChannels[0]!.positionMm.y).toBe(50);
+    expect(shelfEdgeChannels[1]!.positionMm.x).toBe(0);
+    expect(shelfEdgeChannels[1]!.positionMm.y).toBe(510);
   });
 
   it('derives hinge operations: 35mm cup hole on door and System 32 mounting plate holes on carcase side', () => {
@@ -476,6 +485,178 @@ describe('Machining Derivation - Drawer Front Screws Dynamic Positioning', () =>
     }
   });
 });
+
+describe('Machining Derivation - Precision Edge & Fastener Positioning Audit', () => {
+  it('correctly positions confirmat pilot holes on Piece B for left, right, bottom, and top edges', () => {
+    const bottom = createPiece({
+      id: 'p-bottom',
+      role: 'bottom',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(564, 560),
+      thicknessMm: 18,
+    });
+
+    const sideL = createPiece({
+      id: 'p-side-l',
+      role: 'side-left',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(560, 720),
+      thicknessMm: 18,
+    });
+
+    const sideR = createPiece({
+      id: 'p-side-r',
+      role: 'side-right',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(560, 720),
+      thicknessMm: 18,
+    });
+
+    const roof = createPiece({
+      id: 'p-roof',
+      role: 'roof',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(564, 560),
+      thicknessMm: 18,
+    });
+
+    const joints = [
+      createJoint({
+        a: { pieceId: 'p-side-l', faceId: 'inner' },
+        b: { pieceId: 'p-bottom', faceId: 'left-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: 'p-side-r', faceId: 'inner' },
+        b: { pieceId: 'p-bottom', faceId: 'right-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: 'p-roof', faceId: 'bottom' },
+        b: { pieceId: 'p-side-l', faceId: 'top-edge' },
+        kind: 'confirmat',
+      }),
+      createJoint({
+        a: { pieceId: 'p-bottom', faceId: 'top' },
+        b: { pieceId: 'p-side-l', faceId: 'bottom-edge' },
+        kind: 'confirmat',
+      }),
+    ];
+
+    const ops = deriveModuleDrillOperations([bottom, sideL, sideR, roof], joints);
+
+    // 1. Bottom left-edge holes: X = 0, Y = [50, 510]
+    const bLeftOps = ops.filter((o) => o.pieceId === 'p-bottom' && o.faceId === 'left-edge');
+    expect(bLeftOps).toHaveLength(2);
+    expect(bLeftOps[0]!.positionMm).toEqual({ x: 0, y: 50 });
+    expect(bLeftOps[1]!.positionMm).toEqual({ x: 0, y: 510 });
+
+    // 2. Bottom right-edge holes: X = 564, Y = [50, 510]
+    const bRightOps = ops.filter((o) => o.pieceId === 'p-bottom' && o.faceId === 'right-edge');
+    expect(bRightOps).toHaveLength(2);
+    expect(bRightOps[0]!.positionMm).toEqual({ x: 564, y: 50 });
+    expect(bRightOps[1]!.positionMm).toEqual({ x: 564, y: 510 });
+
+    // 3. Side-L top-edge holes: X = [50, 510], Y = 720
+    const sideTopOps = ops.filter((o) => o.pieceId === 'p-side-l' && o.faceId === 'top-edge');
+    expect(sideTopOps).toHaveLength(2);
+    expect(sideTopOps[0]!.positionMm).toEqual({ x: 50, y: 720 });
+    expect(sideTopOps[1]!.positionMm).toEqual({ x: 510, y: 720 });
+
+    // 4. Side-L bottom-edge holes: X = [50, 510], Y = 0
+    const sideBottomOps = ops.filter((o) => o.pieceId === 'p-side-l' && o.faceId === 'bottom-edge');
+    expect(sideBottomOps).toHaveLength(2);
+    expect(sideBottomOps[0]!.positionMm).toEqual({ x: 50, y: 0 });
+    expect(sideBottomOps[1]!.positionMm).toEqual({ x: 510, y: 0 });
+  });
+
+  it('correctly positions minifix cam pocket and bolt channel on right-edge and top-edge joints', () => {
+    const shelf = createPiece({
+      id: 'p-shelf',
+      role: 'shelf',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(564, 540),
+      thicknessMm: 18,
+    });
+
+    const sideR = createPiece({
+      id: 'p-side-r',
+      role: 'side-right',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(560, 720),
+      thicknessMm: 18,
+    });
+
+    const jointR = createJoint({
+      a: { pieceId: 'p-side-r', faceId: 'inner' },
+      b: { pieceId: 'p-shelf', faceId: 'right-edge' },
+      kind: 'cam-dowel',
+    });
+
+    const ops = deriveModuleDrillOperations([shelf, sideR], [jointR]);
+
+    // Shelf right-edge joint:
+    // Width = 564mm. Pocket setback = 34mm => Pocket X = 564 - 34 = 530mm!
+    const shelfPockets = ops.filter((o) => o.pieceId === 'p-shelf' && o.faceType === 'face-A');
+    expect(shelfPockets).toHaveLength(2);
+    expect(shelfPockets[0]!.positionMm.x).toBe(530);
+    expect(shelfPockets[0]!.positionMm.y).toBe(50);
+    expect(shelfPockets[1]!.positionMm.x).toBe(530);
+    expect(shelfPockets[1]!.positionMm.y).toBe(490);
+
+    // Bolt channel entering right edge: X = 564, Y = [50, 490]
+    const edgeChannels = ops.filter((o) => o.pieceId === 'p-shelf' && o.faceType === 'edge');
+    expect(edgeChannels).toHaveLength(2);
+    expect(edgeChannels[0]!.positionMm.x).toBe(564);
+    expect(edgeChannels[0]!.positionMm.y).toBe(50);
+    expect(edgeChannels[1]!.positionMm.x).toBe(564);
+    expect(edgeChannels[1]!.positionMm.y).toBe(490);
+  });
+
+  it('generates 3D meshes for edge operations in buildPieceMachining3DGroup', () => {
+    const bottom = {
+      ...createPiece({
+        id: 'p-bottom',
+        role: 'bottom',
+        materialId: testMaterial.id,
+        contour: createRectangularContour(564, 560),
+        thicknessMm: 18,
+      }),
+      cutDimensionsMm: { width: 564, height: 560 },
+      dimensionsMm: { width: 564, height: 560, thickness: 18 },
+    };
+
+    const sideL = createPiece({
+      id: 'p-side-l',
+      role: 'side-left',
+      materialId: testMaterial.id,
+      contour: createRectangularContour(560, 720),
+      thicknessMm: 18,
+    });
+
+    const joint = createJoint({
+      a: { pieceId: 'p-side-l', faceId: 'inner' },
+      b: { pieceId: 'p-bottom', faceId: 'left-edge' },
+      kind: 'confirmat',
+    });
+
+    const ops = deriveModuleDrillOperations([bottom as any, sideL], [joint]);
+    const sheet = buildPieceMachiningSheet(bottom as any, ops);
+
+    expect(sheet.edgeOperations).toHaveLength(2);
+    expect(sheet.edgeOperations[0]!.xMm).toBe(0);
+    expect(sheet.edgeOperations[0]!.yMm).toBe(50);
+
+    // Build 3D machining group for bottom panel (normal: 'y', size: 564 x 18 x 560)
+    const group3D = buildPieceMachining3DGroup(sheet, { x: 564, y: 18, z: 560 });
+    expect(group3D.children.length).toBeGreaterThanOrEqual(2);
+
+    // The edge hole cylinders must be placed on the left edge (X near -564/2)
+    const child1 = group3D.children[0] as any;
+    expect(child1.position.x).toBeLessThan(-200); // left edge
+  });
+});
+
 
 
 

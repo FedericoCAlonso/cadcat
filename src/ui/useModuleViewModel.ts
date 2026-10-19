@@ -18,6 +18,9 @@ import {
   type CountertopMaterial,
   type CountertopEdgeFinish,
   type EquipmentItem,
+  type Project,
+  type ProjectModuleItem,
+  createDefaultProject,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -41,6 +44,9 @@ import {
   exportProjectConfigJson,
   importProjectConfigJson,
   DEFAULT_PROJECT_ID,
+  saveProjectToDb,
+  loadProjectFromDb,
+  loadAllProjectsFromDb,
 } from '../storage';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { getSeedMaterials, getSeedEdgeBands, getSeedHardware } from '../catalog';
@@ -109,7 +115,16 @@ import {
   calculateCountertop,
   adaptCabinetForEquipment,
   exportMarmoleriaPdf,
+  type ConsolidatedPiece,
+  type ModuleToConsolidate,
+  consolidateProjectPieces,
+  consolidateProjectBom,
+  runProjectNesting,
+  calculateProjectCost,
+  type AssemblyGauge,
+  deriveAssemblyGauges,
 } from '../resolver';
+
 import { runMultiMaterialGuillotineNesting } from '../workers';
 
 export interface ModuleViewModelState {
@@ -317,6 +332,188 @@ export interface ModuleViewModelState {
   setSinkDrawerAdaptation: (mode: 'false-front' | 'u-shape-drawer' | 'none') => void;
   setCountertopFrontRailOrientation: (orientation: 'vertical' | 'horizontal' | 'suppressed') => void;
   exportMarmoleriaPdfReport: () => void;
+  // Multi-module project management
+  project: Project | null;
+  projectModules: ProjectModuleItem[];
+  activeModuleId: string;
+  projectScope: 'current-module' | 'all-modules';
+  setProjectScope: (scope: 'current-module' | 'all-modules') => void;
+  addProjectModule: (name?: string, templateId?: string) => void;
+  duplicateProjectModule: (moduleId: string) => void;
+  removeProjectModule: (moduleId: string) => void;
+  updateProjectModuleQuantity: (moduleId: string, quantity: number) => void;
+  updateProjectModuleName: (moduleId: string, name: string) => void;
+  setActiveModule: (moduleId: string) => void;
+  saveProject: () => Promise<void>;
+  loadProject: (id: string) => Promise<void>;
+  consolidatedPieces: ConsolidatedPiece[];
+  consolidatedBom: BillOfMaterials | null;
+  consolidatedCost: ModuleCostSummary | null;
+}
+
+/**
+ * Resolves cut pieces, BOM, and assembly gauges for an inactive module in the project.
+ */
+function resolveInactiveModule(
+  item: ProjectModuleItem,
+  materials: Material[],
+  edgeBands: EdgeBand[],
+  projectConfig?: ProjectConfig | null,
+  userTemplates: UserTemplate[] = [],
+): { pieces: ResolvedPieceWithCutSize[]; bom: BillOfMaterials; gauges: AssemblyGauge[] } {
+  try {
+    const activeMat = materials.find((m) => m.id === item.selectedMaterialId) ?? materials[0];
+    if (!activeMat) {
+      return { pieces: [], bom: { moduleId: item.id, totalPieceCount: 0, totalCutAreaM2: 0, totalEdgeBandMeters: 0, totalHardwareCount: 0, pieces: [], hardware: [], edgeBands: [] }, gauges: [] };
+    }
+
+    if (item.templateId === 'wall-shelves') {
+      const output = buildWallShelving({
+        id: item.id,
+        widthMm: item.width,
+        depthMm: item.depth,
+        thicknessMm: typeof activeMat.thicknessMm === 'number' ? activeMat.thicknessMm : 18,
+        materialId: activeMat.id,
+        edgeBandId: item.selectedEdgeBandId || undefined,
+        shelfCount: 3,
+        verticalSpacingMm: 320,
+        baseElevationYMm: 800,
+        bracketType: 'l-bracket',
+        wallType: 'solid-brick',
+        loadCategory: 'medium',
+        boundaryCondition: 'free-ends',
+        overhangMode: 'balanced-cantilever',
+      });
+      const positions = output.placementTree.resolvePositions();
+      const pieces: ResolvedPieceWithCutSize[] = output.module.pieces.map((p) => {
+        const cut = calculatePieceCutSize(p, edgeBands);
+        const pos = positions.get(p.id) ?? { x: 0, y: 0, z: 0 };
+        const bandedList = [
+          cut.bandedEdges.bottom,
+          cut.bandedEdges.right,
+          cut.bandedEdges.top,
+          cut.bandedEdges.left,
+        ].filter((b): b is NonNullable<typeof b> => Boolean(b));
+
+        return {
+          ...p,
+          positionMm: pos,
+          dimensionsMm: {
+            width: p.contour.points[1]!.x,
+            height: p.contour.points[2]!.y,
+          },
+          cutDimensionsMm: cut.cutDimensionsMm,
+          cutContour: createRectangularContour(cut.cutDimensionsMm.width, cut.cutDimensionsMm.height),
+          bandedEdges: bandedList,
+        };
+      });
+      const bom = generateBillOfMaterials(
+        {
+          moduleId: item.id,
+          parameters: { width: item.width, height: item.height, depth: item.depth },
+          pieces,
+          joints: [],
+          placementTree: output.placementTree,
+          jointGraph: new JointGraph([]),
+        },
+        edgeBands,
+      );
+      return { pieces, bom, gauges: [] };
+    }
+
+    if (item.isCustomModular) {
+      const backingMat = materials.find((m) => m.id === item.backingsMaterialId);
+      const boxMat = materials.find((m) => m.id === item.drawerBoxesMaterialId);
+      const frontMat = materials.find((m) => m.id === item.frontsMaterialId);
+
+      const modularDef: ModularModuleDefinition = {
+        id: item.id,
+        carcass: {
+          width: item.width,
+          height: item.height,
+          depth: item.depth,
+          roofType: item.roofType,
+          jointPriority: item.jointPriority,
+          hasBacking: item.hasBacking,
+          backingType: item.backingType as any,
+          backingThicknessMm: item.backingThicknessMm,
+          isIslandCabinet: item.isIslandCabinet,
+          rearStructuralRails: item.rearStructuralRails,
+          rearStructuralRailsWidthMm: item.rearStructuralRailsWidthMm,
+          partitionPassThroughRoof: item.partitionPassThroughRoof,
+        },
+        grid: {
+          axis: 'horizontal',
+          tracks: [{ type: 'fractional', valueFr: 1 }],
+        },
+        bays: item.bays && item.bays.length > 0 ? item.bays : [{ type: 'empty' }],
+        materials: {
+          carcassMaterialId: activeMat.id,
+          frontsMaterialId: frontMat?.id ?? activeMat.id,
+          drawerBoxesMaterialId: boxMat?.id ?? activeMat.id,
+          backingsMaterialId: backingMat?.id ?? activeMat.id,
+        },
+        edgeBandId: item.selectedEdgeBandId || undefined,
+      };
+
+      const built = buildModularModule(modularDef, {
+        carcassThicknessMm: typeof activeMat.thicknessMm === 'number' ? activeMat.thicknessMm : 18,
+        frontThicknessMm: typeof frontMat?.thicknessMm === 'number' ? frontMat.thicknessMm : 18,
+        boxThicknessMm: typeof boxMat?.thicknessMm === 'number' ? boxMat.thicknessMm : 15,
+        backingThicknessMm: typeof backingMat?.thicknessMm === 'number' ? backingMat.thicknessMm : item.backingThicknessMm,
+        drawerBottomScrewedDeductionWidthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionWidthMm,
+        drawerBottomScrewedDeductionDepthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionDepthMm,
+        edgeBands,
+      });
+
+      const bom = generateBillOfMaterials(
+        {
+          moduleId: item.id,
+          parameters: { width: item.width, height: item.height, depth: item.depth },
+          pieces: built.resolvedPieces,
+          joints: built.module.joints,
+          placementTree: built.placementTree,
+          jointGraph: new JointGraph(built.module.joints),
+        },
+        edgeBands,
+      );
+
+      const gauges = deriveAssemblyGauges({ pieces: built.resolvedPieces, joints: built.module.joints }, projectConfig?.machining);
+
+      return { pieces: built.resolvedPieces, bom, gauges };
+    }
+
+    const template = getTemplateById(item.templateId, userTemplates);
+    const built = template.build(
+      { width: item.width, height: item.height, depth: item.depth },
+      activeMat,
+      edgeBands,
+      item.selectedEdgeBandId || undefined,
+      projectConfig ?? undefined,
+    );
+
+    const bom = generateBillOfMaterials(
+      {
+        moduleId: item.id,
+        parameters: { width: item.width, height: item.height, depth: item.depth },
+        pieces: built.resolvedPieces,
+        joints: built.module.joints,
+        placementTree: built.placementTree,
+        jointGraph: new JointGraph(built.module.joints),
+      },
+      edgeBands,
+    );
+
+    const gauges = deriveAssemblyGauges({ pieces: built.resolvedPieces, joints: built.module.joints }, projectConfig?.machining);
+
+    return { pieces: built.resolvedPieces, bom, gauges };
+  } catch {
+    return {
+      pieces: [],
+      bom: { moduleId: item.id, totalPieceCount: 0, totalCutAreaM2: 0, totalEdgeBandMeters: 0, totalHardwareCount: 0, pieces: [], hardware: [], edgeBands: [] },
+      gauges: [],
+    };
+  }
 }
 
 /**
@@ -375,6 +572,40 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Multi-Module Project State
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectModules, setProjectModules] = useState<ProjectModuleItem[]>([
+    {
+      id: 'mod-1',
+      name: 'Módulo 1',
+      quantity: 1,
+      templateId: 'modular-empty',
+      width: DEFAULT_UI_CONFIG.dimensions.width.default,
+      height: DEFAULT_UI_CONFIG.dimensions.height.default,
+      depth: DEFAULT_UI_CONFIG.dimensions.depth.default,
+      selectedMaterialId: '',
+      selectedEdgeBandId: '',
+      frontsMaterialId: '',
+      drawerBoxesMaterialId: '',
+      backingsMaterialId: '',
+      isCustomModular: false,
+      roofType: DEFAULT_UI_CONFIG.defaultCarcassSettings.roofType as RoofType,
+      jointPriority: DEFAULT_UI_CONFIG.defaultCarcassSettings.jointPriority as JointPriority,
+      hasBacking: DEFAULT_UI_CONFIG.defaultCarcassSettings.hasBacking,
+      backingType: 'groove',
+      backingThicknessMm: 3,
+      isIslandCabinet: false,
+      rearStructuralRails: 'none',
+      rearStructuralRailsWidthMm: 80,
+      partitionPassThroughRoof: false,
+      gridType: '1-bay',
+      bays: [{ type: 'empty' }],
+      jointStrategy: 'confirmat',
+    },
+  ]);
+  const [activeModuleId, setActiveModuleId] = useState<string>('mod-1');
+  const [projectScope, setProjectScope] = useState<'current-module' | 'all-modules'>('current-module');
+
   // Modular Builder Interactive State (default: Estructura Hueco Libre)
   const [isCustomModular, setIsCustomModular] = useState<boolean>(false);
   const [roofType, setRoofTypeState] = useState<RoofType>(
@@ -393,7 +624,17 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [activeBayIndex, setActiveBayIndex] = useState<number>(0);
   const [frontsMaterialId, setFrontsMaterialId] = useState<string>('');
   const [drawerBoxesMaterialId, setDrawerBoxesMaterialId] = useState<string>('');
-  const [backingsMaterialId, setBackingsMaterialId] = useState<string>('');
+  const [backingsMaterialId, setBackingsMaterialId] = useState<string>(() => {
+    try {
+      const seed = getSeedMaterials().materials;
+      return seed.find((m) => m.id === 'mat-mdf-raw-3')?.id
+        ?? seed.find((m) => m.id === 'mat-mdf-white-3')?.id
+        ?? seed.find((m) => typeof m.thicknessMm === 'number' && m.thicknessMm <= 6)?.id
+        ?? '';
+    } catch {
+      return '';
+    }
+  });
 
   // Base structure state (Point 7)
   const [railOrientation, setRailOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
@@ -996,12 +1237,13 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     async function loadData(): Promise<void> {
       try {
         setIsLoading(true);
-        const [loadedMats, loadedBands, loadedHw, loadedConfig, loadedUserTpls] = await Promise.all([
+        const [loadedMats, loadedBands, loadedHw, loadedConfig, loadedUserTpls, loadedProjects] = await Promise.all([
           loadMaterialsFromDb(initialDb),
           loadEdgeBandsFromDb(initialDb),
           loadHardwareFromDb(initialDb),
           loadProjectConfigFromDb(DEFAULT_PROJECT_ID, initialDb),
           loadUserTemplatesFromDb(initialDb),
+          loadAllProjectsFromDb(initialDb),
         ]);
 
         if (!isMounted) return;
@@ -1012,11 +1254,76 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         setProjectConfig(loadedConfig);
         setUserTemplates(loadedUserTpls);
 
+        if (loadedProjects.length > 0 && loadedProjects[0]) {
+          const p = loadedProjects[0];
+          setProject(p);
+          setProjectModules(p.modules);
+          const activeMod = p.modules.find((m) => m.id === p.activeModuleId) ?? p.modules[0]!;
+          setActiveModuleId(activeMod.id);
+          setWidth(activeMod.width);
+          setHeight(activeMod.height);
+          setDepth(activeMod.depth);
+          if (activeMod.templateId) setSelectedTemplateId(activeMod.templateId);
+          if (activeMod.selectedMaterialId) setSelectedMaterialId(activeMod.selectedMaterialId);
+          if (activeMod.selectedEdgeBandId) setSelectedEdgeBandId(activeMod.selectedEdgeBandId);
+          if (activeMod.frontsMaterialId) setFrontsMaterialId(activeMod.frontsMaterialId);
+          if (activeMod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(activeMod.drawerBoxesMaterialId);
+          if (activeMod.backingsMaterialId) setBackingsMaterialId(activeMod.backingsMaterialId);
+          setIsCustomModular(Boolean(activeMod.isCustomModular));
+          if (activeMod.roofType) setRoofTypeState(activeMod.roofType as RoofType);
+          if (activeMod.jointPriority) setJointPriorityState(activeMod.jointPriority as JointPriority);
+          if (typeof activeMod.hasBacking === 'boolean') setHasBackingState(activeMod.hasBacking);
+          if (activeMod.backingType) setBackingType(activeMod.backingType as BackingType);
+          if (activeMod.backingThicknessMm) setBackingThicknessMm(activeMod.backingThicknessMm);
+          if (typeof activeMod.isIslandCabinet === 'boolean') setIsIslandCabinet(activeMod.isIslandCabinet);
+          if (activeMod.rearStructuralRails) setRearStructuralRails(activeMod.rearStructuralRails as RearStructuralRails);
+          if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
+          if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
+          if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
+          if (activeMod.bays) setBaysState(activeMod.bays);
+          if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
+        } else {
+          const defProj = createDefaultProject({
+            id: 'mod-1',
+            name: 'Módulo Principal',
+            quantity: 1,
+            templateId: 'modular-empty',
+            width: DEFAULT_UI_CONFIG.dimensions.width.default,
+            height: DEFAULT_UI_CONFIG.dimensions.height.default,
+            depth: DEFAULT_UI_CONFIG.dimensions.depth.default,
+            selectedMaterialId: loadedMats[0]?.id ?? '',
+            selectedEdgeBandId: loadedBands[0]?.id ?? '',
+            frontsMaterialId: '',
+            drawerBoxesMaterialId: '',
+            backingsMaterialId: '',
+            isCustomModular: false,
+            roofType: DEFAULT_UI_CONFIG.defaultCarcassSettings.roofType as RoofType,
+            jointPriority: DEFAULT_UI_CONFIG.defaultCarcassSettings.jointPriority as JointPriority,
+            hasBacking: DEFAULT_UI_CONFIG.defaultCarcassSettings.hasBacking,
+            backingType: 'groove',
+            backingThicknessMm: 3,
+            isIslandCabinet: false,
+            rearStructuralRails: 'none',
+            rearStructuralRailsWidthMm: 80,
+            partitionPassThroughRoof: false,
+            gridType: '1-bay',
+            bays: [{ type: 'empty' }],
+            jointStrategy: 'confirmat',
+          });
+          setProject(defProj);
+        }
+
         if (loadedMats[0]) {
           setSelectedMaterialId(loadedMats[0].id);
         }
         if (loadedBands[0]) {
           setSelectedEdgeBandId(loadedBands[0].id);
+        }
+        const defaultBacking = loadedMats.find((m) => m.id === 'mat-mdf-raw-3')
+          ?? loadedMats.find((m) => m.id === 'mat-mdf-white-3')
+          ?? loadedMats.find((m) => typeof m.thicknessMm === 'number' && m.thicknessMm <= 6);
+        if (defaultBacking) {
+          setBackingsMaterialId((prev) => prev || defaultBacking.id);
         }
       } catch (err) {
         if (!isMounted) return;
@@ -1943,19 +2250,337 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig, assemblySheet]);
 
+  const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
+  const setJointStrategy = useCallback((strategy: JointStrategy) => {
+    setProjectConfig((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        machining: {
+          ...prev.machining,
+          jointStrategy: strategy,
+        },
+      };
+    });
+  }, []);
+
+  const serializeCurrentModule = useCallback((): ProjectModuleItem => {
+    return {
+      id: activeModuleId,
+      name: projectModules.find((m) => m.id === activeModuleId)?.name ?? 'Módulo Principal',
+      quantity: projectModules.find((m) => m.id === activeModuleId)?.quantity ?? 1,
+      templateId: selectedTemplateId,
+      width,
+      height,
+      depth,
+      selectedMaterialId,
+      selectedEdgeBandId,
+      frontsMaterialId,
+      drawerBoxesMaterialId,
+      backingsMaterialId,
+      isCustomModular,
+      roofType,
+      jointPriority,
+      hasBacking,
+      backingType,
+      backingThicknessMm,
+      isIslandCabinet,
+      rearStructuralRails,
+      rearStructuralRailsWidthMm,
+      partitionPassThroughRoof,
+      gridType,
+      bays,
+      jointStrategy,
+      pieceJointOverrides: Object.fromEntries(
+        Object.entries(pieceJointOverrides).map(([k, v]) => [k, String(v)]),
+      ),
+      pieceMaterialOverrides,
+      pieceThicknessOverrides,
+      pieceEdgeBandOverrides,
+      countertopEnabled,
+      countertopDefinition,
+    };
+  }, [
+    activeModuleId,
+    projectModules,
+    selectedTemplateId,
+    width,
+    height,
+    depth,
+    selectedMaterialId,
+    selectedEdgeBandId,
+    frontsMaterialId,
+    drawerBoxesMaterialId,
+    backingsMaterialId,
+    isCustomModular,
+    roofType,
+    jointPriority,
+    hasBacking,
+    backingType,
+    backingThicknessMm,
+    isIslandCabinet,
+    rearStructuralRails,
+    rearStructuralRailsWidthMm,
+    partitionPassThroughRoof,
+    gridType,
+    bays,
+    jointStrategy,
+    pieceJointOverrides,
+    pieceMaterialOverrides,
+    pieceThicknessOverrides,
+    pieceEdgeBandOverrides,
+    countertopEnabled,
+    countertopDefinition,
+  ]);
+
+  const setActiveModule = useCallback((targetModuleId: string) => {
+    if (targetModuleId === activeModuleId) return;
+
+    const currentPacked = serializeCurrentModule();
+    const targetModule = projectModules.find((m) => m.id === targetModuleId);
+    if (!targetModule) return;
+
+    setProjectModules((prev) =>
+      prev.map((m) => (m.id === activeModuleId ? currentPacked : m))
+    );
+
+    setWidth(targetModule.width);
+    setHeight(targetModule.height);
+    setDepth(targetModule.depth);
+    if (targetModule.templateId) setSelectedTemplateId(targetModule.templateId);
+    if (targetModule.selectedMaterialId) setSelectedMaterialId(targetModule.selectedMaterialId);
+    if (targetModule.selectedEdgeBandId) setSelectedEdgeBandId(targetModule.selectedEdgeBandId);
+    if (targetModule.frontsMaterialId) setFrontsMaterialId(targetModule.frontsMaterialId);
+    if (targetModule.drawerBoxesMaterialId) setDrawerBoxesMaterialId(targetModule.drawerBoxesMaterialId);
+    if (targetModule.backingsMaterialId) setBackingsMaterialId(targetModule.backingsMaterialId);
+    setIsCustomModular(Boolean(targetModule.isCustomModular));
+    if (targetModule.roofType) setRoofTypeState(targetModule.roofType as RoofType);
+    if (targetModule.jointPriority) setJointPriorityState(targetModule.jointPriority as JointPriority);
+    if (typeof targetModule.hasBacking === 'boolean') setHasBackingState(targetModule.hasBacking);
+    if (targetModule.backingType) setBackingType(targetModule.backingType as BackingType);
+    if (targetModule.backingThicknessMm) setBackingThicknessMm(targetModule.backingThicknessMm);
+    if (typeof targetModule.isIslandCabinet === 'boolean') setIsIslandCabinet(targetModule.isIslandCabinet);
+    if (targetModule.rearStructuralRails) setRearStructuralRails(targetModule.rearStructuralRails as RearStructuralRails);
+    if (targetModule.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(targetModule.rearStructuralRailsWidthMm);
+    if (typeof targetModule.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(targetModule.partitionPassThroughRoof);
+    if (targetModule.gridType) setGridTypeState(targetModule.gridType as any);
+    if (targetModule.bays) setBaysState(targetModule.bays);
+    if (targetModule.jointStrategy) setJointStrategy(targetModule.jointStrategy);
+    if (targetModule.pieceJointOverrides) setPieceJointOverrides(targetModule.pieceJointOverrides as any);
+    if (targetModule.pieceMaterialOverrides) setPieceMaterialOverrides(targetModule.pieceMaterialOverrides);
+    if (targetModule.pieceThicknessOverrides) setPieceThicknessOverrides(targetModule.pieceThicknessOverrides);
+    if (targetModule.pieceEdgeBandOverrides) setPieceEdgeBandOverrides(targetModule.pieceEdgeBandOverrides);
+
+    setActiveModuleId(targetModuleId);
+    setStatusMessage(`Cambiado al módulo "${targetModule.name}".`);
+  }, [activeModuleId, serializeCurrentModule, projectModules]);
+
+  const addProjectModule = useCallback((name?: string, templateId?: string) => {
+    const currentPacked = serializeCurrentModule();
+    const newId = `mod-${Date.now()}`;
+    const newName = name?.trim() || `Módulo ${projectModules.length + 1}`;
+    const newMod: ProjectModuleItem = {
+      ...currentPacked,
+      id: newId,
+      name: newName,
+      quantity: 1,
+      templateId: templateId || selectedTemplateId || 'base-modular',
+    };
+
+    setProjectModules((prev) => [
+      ...prev.map((m) => (m.id === activeModuleId ? currentPacked : m)),
+      newMod,
+    ]);
+    setActiveModuleId(newId);
+    setStatusMessage(`Módulo "${newName}" agregado al proyecto.`);
+  }, [serializeCurrentModule, projectModules, activeModuleId, selectedTemplateId]);
+
+  const duplicateProjectModule = useCallback((moduleId: string) => {
+    const currentPacked = serializeCurrentModule();
+    const source = moduleId === activeModuleId ? currentPacked : projectModules.find((m) => m.id === moduleId);
+    if (!source) return;
+
+    const newId = `mod-${Date.now()}`;
+    const newName = `${source.name} (Copia)`;
+    const cloned: ProjectModuleItem = {
+      ...source,
+      id: newId,
+      name: newName,
+      quantity: 1,
+    };
+
+    setProjectModules((prev) => [
+      ...prev.map((m) => (m.id === activeModuleId ? currentPacked : m)),
+      cloned,
+    ]);
+    setActiveModuleId(newId);
+    setStatusMessage(`Módulo "${source.name}" duplicado.`);
+  }, [serializeCurrentModule, activeModuleId, projectModules]);
+
+  const removeProjectModule = useCallback((moduleId: string) => {
+    if (projectModules.length <= 1) {
+      setStatusMessage('El proyecto debe contener al menos un módulo.');
+      return;
+    }
+    const remaining = projectModules.filter((m) => m.id !== moduleId);
+    setProjectModules(remaining);
+    if (activeModuleId === moduleId && remaining[0]) {
+      setActiveModule(remaining[0].id);
+    }
+    setStatusMessage('Módulo eliminado del proyecto.');
+  }, [projectModules, activeModuleId, setActiveModule]);
+
+  const updateProjectModuleQuantity = useCallback((moduleId: string, quantity: number) => {
+    const validQty = Math.max(1, Math.round(quantity));
+    setProjectModules((prev) =>
+      prev.map((m) => (m.id === moduleId ? { ...m, quantity: validQty } : m))
+    );
+  }, []);
+
+  const updateProjectModuleName = useCallback((moduleId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setProjectModules((prev) =>
+      prev.map((m) => (m.id === moduleId ? { ...m, name: trimmed } : m))
+    );
+  }, []);
+
+  const saveProject = useCallback(async () => {
+    try {
+      setIsSaving(true);
+      const currentPacked = serializeCurrentModule();
+      const allMods = projectModules.map((m) => (m.id === activeModuleId ? currentPacked : m));
+      const projToSave: Project = {
+        schemaVersion: 1,
+        id: project?.id ?? 'proj-default',
+        name: project?.name ?? 'Proyecto Mobilius',
+        clientName: project?.clientName ?? 'Cliente Estándar',
+        description: project?.description ?? '',
+        modules: allMods,
+        activeModuleId,
+        createdAt: project?.createdAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveProjectToDb(projToSave, initialDb);
+      setProject(projToSave);
+      setStatusMessage(`Proyecto "${projToSave.name}" (${allMods.length} módulos) guardado.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar el proyecto');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [serializeCurrentModule, projectModules, activeModuleId, project, initialDb]);
+
+  const loadProject = useCallback(async (id: string) => {
+    try {
+      setIsLoading(true);
+      const loaded = await loadProjectFromDb(id, initialDb);
+      if (loaded && loaded.modules.length > 0) {
+        setProject(loaded);
+        setProjectModules(loaded.modules);
+        const activeMod = loaded.modules.find((m) => m.id === loaded.activeModuleId) ?? loaded.modules[0]!;
+        setActiveModuleId(activeMod.id);
+        setWidth(activeMod.width);
+        setHeight(activeMod.height);
+        setDepth(activeMod.depth);
+        if (activeMod.templateId) setSelectedTemplateId(activeMod.templateId);
+        if (activeMod.selectedMaterialId) setSelectedMaterialId(activeMod.selectedMaterialId);
+        if (activeMod.selectedEdgeBandId) setSelectedEdgeBandId(activeMod.selectedEdgeBandId);
+        if (activeMod.frontsMaterialId) setFrontsMaterialId(activeMod.frontsMaterialId);
+        if (activeMod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(activeMod.drawerBoxesMaterialId);
+        if (activeMod.backingsMaterialId) setBackingsMaterialId(activeMod.backingsMaterialId);
+        setIsCustomModular(Boolean(activeMod.isCustomModular));
+        if (activeMod.roofType) setRoofTypeState(activeMod.roofType as RoofType);
+        if (activeMod.jointPriority) setJointPriorityState(activeMod.jointPriority as JointPriority);
+        if (typeof activeMod.hasBacking === 'boolean') setHasBackingState(activeMod.hasBacking);
+        if (activeMod.backingType) setBackingType(activeMod.backingType as BackingType);
+        if (activeMod.backingThicknessMm) setBackingThicknessMm(activeMod.backingThicknessMm);
+        if (typeof activeMod.isIslandCabinet === 'boolean') setIsIslandCabinet(activeMod.isIslandCabinet);
+        if (activeMod.rearStructuralRails) setRearStructuralRails(activeMod.rearStructuralRails as RearStructuralRails);
+        if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
+        if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
+        if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
+        if (activeMod.bays) setBaysState(activeMod.bays);
+        if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
+        setStatusMessage(`Proyecto "${loaded.name}" cargado desde la base de datos.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar el proyecto');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [initialDb]);
+
+  // Consolidate pieces and BOM across all modules for full-project optimization
+  const modulesToConsolidate: ModuleToConsolidate[] = useMemo(() => {
+    return projectModules.map((m) => {
+      if (m.id === activeModuleId) {
+        return {
+          moduleId: m.id,
+          moduleName: m.name,
+          quantity: m.quantity,
+          pieces: resolvedPieces,
+          bom,
+          gauges: assemblySheet?.gauges,
+        };
+      }
+      const resolved = resolveInactiveModule(m, materials, edgeBands, projectConfig, userTemplates);
+      return {
+        moduleId: m.id,
+        moduleName: m.name,
+        quantity: m.quantity,
+        pieces: resolved.pieces,
+        bom: resolved.bom,
+        gauges: resolved.gauges,
+      };
+    });
+  }, [projectModules, activeModuleId, resolvedPieces, bom, assemblySheet, materials, edgeBands, projectConfig, userTemplates]);
+
+  const consolidatedPieces = useMemo(() => {
+    return consolidateProjectPieces(modulesToConsolidate);
+  }, [modulesToConsolidate]);
+
+  const consolidatedBom = useMemo(() => {
+    return consolidateProjectBom(modulesToConsolidate);
+  }, [modulesToConsolidate]);
+
+  const consolidatedCost = useMemo(() => {
+    if (consolidatedPieces.length === 0 || !activeMaterial) return null;
+    try {
+      const nesting = runProjectNesting(modulesToConsolidate, {
+        materials,
+        sawKerfMm: projectConfig?.nesting?.sawKerfMm,
+        trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+        optimizationGoal: projectConfig?.nesting?.optimizationGoal,
+        includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
+      });
+      return calculateProjectCost({
+        bom: consolidatedBom,
+        nestingResult: nesting,
+        materials,
+        edgeBands,
+        hardware,
+        costConfig: projectConfig?.cost,
+      });
+    } catch {
+      return null;
+    }
+  }, [consolidatedPieces, activeMaterial, modulesToConsolidate, materials, edgeBands, hardware, projectConfig, consolidatedBom]);
+
   // Save module to IndexedDB
   const saveModule = useCallback(async () => {
     if (!currentModule) return;
     try {
       setIsSaving(true);
       await saveItem('modules', currentModule, initialDb);
+      await saveProject();
       setStatusMessage(`Módulo "${currentModule.id}" guardado en la base de datos.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar el módulo');
     } finally {
       setIsSaving(false);
     }
-  }, [currentModule, initialDb]);
+  }, [currentModule, initialDb, saveProject]);
 
   // Load module from IndexedDB
   const loadModule = useCallback(async (id: string) => {
@@ -1976,32 +2601,62 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   }, [initialDb]);
 
   const exportCsv = useCallback(() => {
-    if (resolvedPieces.length === 0) return;
-    const auxPieces: ResolvedPieceWithCutSize[] = (assemblySheet?.gauges ?? []).map((g) => ({
-      id: g.piece.id,
-      role: g.piece.role,
-      materialId: g.piece.materialId,
-      contour: g.piece.contour,
-      thicknessMm: g.piece.thicknessMm,
-      faces: g.piece.faces,
-      structural: g.piece.structural,
-      referenceFace: g.piece.referenceFace,
-      isAuxiliary: true,
-      positionMm: { x: 0, y: 0, z: 0 },
-      dimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
-      cutDimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
-      cutContour: g.piece.contour,
-      bandedEdges: [],
-    }));
-    const allPieces = [...resolvedPieces, ...auxPieces];
+    const isGlobal = projectScope === 'all-modules';
+    const piecesToExport = isGlobal ? consolidatedPieces : resolvedPieces;
+    if (piecesToExport.length === 0) return;
+
+    const auxPieces: ResolvedPieceWithCutSize[] = (!isGlobal && assemblySheet?.gauges)
+      ? assemblySheet.gauges.map((g) => ({
+          id: g.piece.id,
+          role: g.piece.role,
+          materialId: g.piece.materialId,
+          contour: g.piece.contour,
+          thicknessMm: g.piece.thicknessMm,
+          faces: g.piece.faces,
+          structural: g.piece.structural,
+          referenceFace: g.piece.referenceFace,
+          isAuxiliary: true,
+          positionMm: { x: 0, y: 0, z: 0 },
+          dimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
+          cutDimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
+          cutContour: g.piece.contour,
+          bandedEdges: [],
+        }))
+      : [];
+
+    const allPieces = [...piecesToExport, ...auxPieces];
     const csvContent = exportCutListCsv(allPieces);
-    const fileName = `cut-list-${currentModule?.id ?? 'module'}.csv`;
+    const fileName = isGlobal
+      ? `cut-list-proyecto-${(project?.name ?? 'global').toLowerCase().replace(/\s+/g, '-')}.csv`
+      : `cut-list-${currentModule?.id ?? 'module'}.csv`;
+
     triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
-    setStatusMessage(`Lista de corte exportada a ${fileName}.`);
-  }, [resolvedPieces, currentModule, assemblySheet]);
+    setStatusMessage(`Lista de corte (${isGlobal ? 'Todo el Proyecto' : 'Módulo Actual'}) exportada a ${fileName}.`);
+  }, [projectScope, consolidatedPieces, resolvedPieces, assemblySheet, project, currentModule]);
 
   const exportPdf = useCallback(() => {
-    if (resolvedPieces.length === 0 || !activeMaterial) return;
+    if (!activeMaterial) return;
+
+    if (projectScope === 'all-modules') {
+      if (consolidatedPieces.length === 0) return;
+      const nesting = runProjectNesting(modulesToConsolidate, {
+        materials,
+        sawKerfMm: projectConfig?.nesting?.sawKerfMm,
+        trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+        optimizationGoal: projectConfig?.nesting?.optimizationGoal,
+        includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
+      });
+
+      const projectName = project?.name ?? 'Proyecto';
+      const doc = exportCutPlanPdf(nesting, `Plano de Corte Consolidado - ${projectName}`);
+      const pdfBlob = doc.output('blob');
+      const fileName = `plano-corte-proyecto-${projectName.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+      triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+      setStatusMessage(`Plano de corte global del proyecto exportado a ${fileName}.`);
+      return;
+    }
+
+    if (resolvedPieces.length === 0) return;
     const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
     const gaugePieces = includeGauges
       ? (assemblySheet?.gauges ?? []).flatMap((g) => {
@@ -2060,7 +2715,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const fileName = `plano-corte-${currentModule?.id ?? 'modulo'}.pdf`;
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
     setStatusMessage(`Plano de corte (nesting) exportado a ${fileName}.`);
-  }, [resolvedPieces, activeMaterial, currentModule, projectConfig, assemblySheet]);
+  }, [
+    activeMaterial,
+    projectScope,
+    consolidatedPieces,
+    modulesToConsolidate,
+    resolvedPieces,
+    materials,
+    projectConfig,
+    project,
+    currentModule,
+    assemblySheet,
+  ]);
 
   // Export sequential assembly guide as PDF
   const exportAssemblyPdf = useCallback(() => {
@@ -2206,20 +2872,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       setError(err instanceof Error ? err.message : 'Error al restablecer configuración');
     }
   }, [projectConfig]);
-
-  const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
-  const setJointStrategy = useCallback((strategy: JointStrategy) => {
-    setProjectConfig((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        machining: {
-          ...prev.machining,
-          jointStrategy: strategy,
-        },
-      };
-    });
-  }, []);
 
   return {
     width,
@@ -2416,5 +3068,23 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSinkDrawerAdaptation,
     setCountertopFrontRailOrientation,
     exportMarmoleriaPdfReport,
+    // Multi-module project management
+    project,
+    projectModules,
+    activeModuleId,
+    projectScope,
+    setProjectScope,
+    addProjectModule,
+    duplicateProjectModule,
+    removeProjectModule,
+    updateProjectModuleQuantity,
+    updateProjectModuleName,
+    setActiveModule,
+    saveProject,
+    loadProject,
+    consolidatedPieces,
+    consolidatedBom,
+    consolidatedCost,
   };
 }
+

@@ -12,7 +12,7 @@ export interface CreateJointInput {
   kind: JointKind;
   offsetMm?: number;
   doorOffsetMm?: number;
-  hingeSide?: 'left' | 'right';
+  hingeSide?: 'left' | 'right' | 'top' | 'bottom';
   region?: Interval;
   hingeCrank?: 'codo-0' | 'codo-9' | 'codo-18';
 }

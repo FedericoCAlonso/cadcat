@@ -6,7 +6,7 @@ describe('Seed Catalogs', () => {
     const catalog = getSeedMaterials();
 
     expect(catalog.schemaVersion).toBe(1);
-    expect(catalog.materials).toHaveLength(3);
+    expect(catalog.materials).toHaveLength(5);
 
     const whiteBoard = catalog.materials.find((m) => m.id === 'mat-egger-white-18');
     expect(whiteBoard).toBeDefined();
@@ -23,9 +23,19 @@ describe('Seed Catalogs', () => {
     expect(oakBoard?.hasGrain).toBe(true);
     expect(oakBoard?.pricePerSheet).toBe('TO_CONFIRM');
 
-    const mdfBacking = catalog.materials.find((m) => m.id === 'mat-mdf-white-3');
-    expect(mdfBacking).toBeDefined();
-    expect(mdfBacking?.thicknessMm).toBe(3);
+    const mdfWhiteBacking = catalog.materials.find((m) => m.id === 'mat-mdf-white-3');
+    expect(mdfWhiteBacking).toBeDefined();
+    expect(mdfWhiteBacking?.thicknessMm).toBe(3);
+
+    const mdfRaw3 = catalog.materials.find((m) => m.id === 'mat-mdf-raw-3');
+    expect(mdfRaw3).toBeDefined();
+    expect(mdfRaw3?.name).toContain('Crudo');
+    expect(mdfRaw3?.thicknessMm).toBe(3);
+
+    const mdfRaw6 = catalog.materials.find((m) => m.id === 'mat-mdf-raw-6');
+    expect(mdfRaw6).toBeDefined();
+    expect(mdfRaw6?.name).toContain('Crudo');
+    expect(mdfRaw6?.thicknessMm).toBe(6);
   });
 
   it('loads and validates seed edge bands catalog', () => {

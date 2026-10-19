@@ -1,6 +1,11 @@
 import { type DrillOperation } from '../../../model/operation';
 import { type IJointMachiningStrategy, type JointMachiningContext } from '../types';
-import { deriveContactGeometry, calculateDrillSpacingsFromConfig, deriveFaceType } from '../geometry';
+import {
+  deriveContactGeometry,
+  calculateDrillSpacingsFromConfig,
+  deriveFaceType,
+  derivePieceBJointPositions,
+} from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
 
 export class ConfirmatJointStrategy implements IJointMachiningStrategy {
@@ -19,6 +24,7 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
 
     for (const off of offsets) {
       const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
+      const posBGeom = derivePieceBJointPositions(pieceB, joint.b.faceId, off);
 
       // Operation on Piece A (Face through hole)
       operations.push({
@@ -46,7 +52,7 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.confirmatCoreDiameterMm,
         depthMm: config.confirmatCoreDepthMm,
         isThrough: false,
-        positionMm: { x: off, y: pieceB.thicknessMm / 2 },
+        positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'confirmat',
         description: `Confirmat pilot core Ø${config.confirmatCoreDiameterMm}x${config.confirmatCoreDepthMm}mm into edge`,

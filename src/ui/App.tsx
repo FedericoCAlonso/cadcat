@@ -12,6 +12,8 @@ import { MachiningEditorModal } from './MachiningEditorModal';
 import { CountertopEditorView } from './CountertopEditorView';
 import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 import { APP_VERSION } from '../version';
+import { useTheme } from './useTheme';
+import { ThemeToggle } from './ThemeToggle';
 
 /**
  * Main application View component.
@@ -19,6 +21,7 @@ import { APP_VERSION } from '../version';
  */
 export function App(): ReactElement {
   const vm = useModuleViewModel();
+  const { themeMode, effectiveTheme, setThemeMode } = useTheme();
   const [machiningPieceId, setMachiningPieceId] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
@@ -40,32 +43,45 @@ export function App(): ReactElement {
     }
   }, []);
 
+  const logoFileName = effectiveTheme === 'dark' ? 'mobilius-icon-dark.svg' : 'mobilius-icon-light.svg';
+  const logoUrl = `${import.meta.env?.BASE_URL || '/'}icons/${logoFileName}`;
+
   return (
     <div className="app-wrapper">
       <header className="m3-top-app-bar">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img
-              src={`${import.meta.env?.BASE_URL || '/'}icons/mobilius-icon-dark.svg`}
+              src={logoUrl}
               alt="Mobilius Icon"
-              width="40"
-              height="40"
+              width="42"
+              height="42"
               style={{
                 borderRadius: '8px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
                 flexShrink: 0,
                 imageRendering: 'pixelated',
               }}
             />
             <div>
-              <h1 className="m3-top-app-bar__title">Mobilius</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h1 className="m3-top-app-bar__title">Mobilius</h1>
+                <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', fontWeight: 600 }}>
+                  Taller CAD
+                </span>
+              </div>
               <p className="m3-top-app-bar__subtitle">
                 <span>Diseño paramétrico y despiece de muebles para taller.</span>
                 <span className="visually-hidden"> Furniture design progressive web application.</span>
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <ThemeToggle
+              themeMode={themeMode}
+              effectiveTheme={effectiveTheme}
+              onThemeChange={setThemeMode}
+            />
             <button
               type="button"
               className="m3-button m3-button--tonal"
@@ -75,7 +91,7 @@ export function App(): ReactElement {
             >
               🔄 Actualizar app
             </button>
-            <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', opacity: 0.85 }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-outline)', opacity: 0.9, fontWeight: 600 }}>
               {`v${APP_VERSION}`}
             </span>
           </div>
@@ -84,20 +100,12 @@ export function App(): ReactElement {
         <nav aria-label="Navegación principal" className="m3-tabs">
           <button
             type="button"
-            className={`m3-tab-button ${vm.activeTab === '3d' ? 'active' : ''}`}
+            className={`m3-tab-button ${vm.activeTab === '3d' || vm.activeTab === 'form' ? 'active' : ''}`}
             onClick={() => vm.setActiveTab('3d')}
           >
             <span aria-hidden="true">🧊 </span>
             <span>Vista 3D</span>
             <span className="visually-hidden"> 3D Viewport</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'machining' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('machining')}
-          >
-            <span aria-hidden="true">🛠️ </span>
-            <span>Mecanizado</span>
           </button>
           <button
             type="button"
@@ -107,6 +115,14 @@ export function App(): ReactElement {
             <span aria-hidden="true">📋 </span>
             <span>Despiece</span>
             <span className="visually-hidden"> Piece List</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-tab-button ${vm.activeTab === 'machining' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('machining')}
+          >
+            <span aria-hidden="true">🛠️ </span>
+            <span>Mecanizado</span>
           </button>
           <button
             type="button"
@@ -142,15 +158,6 @@ export function App(): ReactElement {
             <span aria-hidden="true">⚙️ </span>
             <span>Configuración</span>
           </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'form' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('form')}
-          >
-            <span aria-hidden="true">🛠️ </span>
-            <span>Armar</span>
-            <span className="visually-hidden"> Parameters and Modular Builder</span>
-          </button>
         </nav>
       </header>
 
@@ -184,6 +191,18 @@ export function App(): ReactElement {
           >
             <aside aria-label="Module Parameters" className="layout-aside">
               <ModuleForm
+                project={vm.project}
+                projectModules={vm.projectModules}
+                activeModuleId={vm.activeModuleId}
+                onSetActiveModule={vm.setActiveModule}
+                onAddProjectModule={vm.addProjectModule}
+                onDuplicateProjectModule={vm.duplicateProjectModule}
+                onRemoveProjectModule={vm.removeProjectModule}
+                onUpdateProjectModuleQuantity={vm.updateProjectModuleQuantity}
+                onUpdateProjectModuleName={vm.updateProjectModuleName}
+                onSaveProject={() => void vm.saveProject()}
+                projectScope={vm.projectScope}
+                onProjectScopeChange={vm.setProjectScope}
                 width={vm.width}
                 height={vm.height}
                 depth={vm.depth}
@@ -300,7 +319,7 @@ export function App(): ReactElement {
             </aside>
 
             <section aria-label="Module Visualization" className="layout-main">
-              {vm.activeTab === '3d' && (
+              {(vm.activeTab === '3d' || vm.activeTab === 'form') && (
                 <>
                   <Viewport3D
                     boxes={vm.spatialBoxes}
@@ -353,7 +372,11 @@ export function App(): ReactElement {
 
               {vm.activeTab === 'pieces' && (
                 <PieceListView
-                  pieces={vm.resolvedPieces}
+                  pieces={vm.projectScope === 'all-modules' ? vm.consolidatedPieces : vm.resolvedPieces}
+                  projectScope={vm.projectScope}
+                  onProjectScopeChange={vm.setProjectScope}
+                  projectModulesCount={vm.projectModules.length}
+                  currentModuleName={vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name ?? 'Módulo Actual'}
                   shelfDeflections={vm.shelfDeflections}
                   selectedPieceId={vm.selectedPieceId}
                   onSelectPiece={vm.setSelectedPieceId}
@@ -454,23 +477,6 @@ export function App(): ReactElement {
                   />
                 </div>
               )}
-
-              {vm.activeTab === 'form' && (
-                <div className="m3-card">
-                  <h3 className="m3-card__title">
-                    <span>Resumen del Módulo</span>
-                    <span className="visually-hidden"> Module Overview</span>
-                  </h3>
-                  <p className="m3-card__subtitle">
-                    Piezas resueltas: {vm.resolvedPieces.length} | Tapacantos:{' '}
-                    {vm.bom?.totalEdgeBandMeters.toFixed(2) ?? '0.00'} m
-                  </p>
-                  <PieceListView
-                    pieces={vm.resolvedPieces}
-                    shelfDeflections={vm.shelfDeflections}
-                  />
-                </div>
-              )}
             </section>
           </div>
         )}
@@ -487,6 +493,7 @@ export function App(): ReactElement {
             <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
           </div>
           <span className="m3-bottom-nav__label">Armar</span>
+          <span className="visually-hidden"> Parameters and Modular Builder</span>
         </button>
         <button
           type="button"

@@ -191,8 +191,77 @@ describe('Interactive Kinematics (Point 11)', () => {
     const leaf1 = result.find((b) => b.pieceId === 'bay-0-bifold-leaf-1')!;
     const leaf2 = result.find((b) => b.pieceId === 'bay-0-bifold-leaf-2')!;
 
+    // Upper leaf tilts up and outward (+X rotation)
     expect(leaf1.kinematicRotationRad.x).toBeGreaterThan(0);
-    expect(leaf2.kinematicRotationRad.x).toBeGreaterThan(0);
+    // Lower leaf folds backward relative to vertical (-X rotation) creating an articulated fold
+    expect(leaf2.kinematicRotationRad.x).toBeLessThan(0);
+    // Both leaves are projected outward toward user
     expect(leaf1.kinematicPositionMm.z).toBeLessThan(-18);
+    expect(leaf2.kinematicPositionMm.z).toBeLessThan(-18);
+
+    // Verify exact 3D world-space joint connection between the two articulated leaves
+    const h1 = leaf1.sizeMm.y;
+    const h2 = leaf2.sizeMm.y;
+    const t = leaf1.sizeMm.z;
+
+    const center1Y = leaf1.kinematicPositionMm.y + h1 / 2;
+    const center1Z = leaf1.kinematicPositionMm.z + t / 2;
+    const leaf1BottomEdgeY =
+      center1Y - (h1 / 2) * Math.cos(leaf1.kinematicRotationRad.x) - (t / 2) * Math.sin(leaf1.kinematicRotationRad.x);
+    const leaf1BottomEdgeZ =
+      center1Z - (h1 / 2) * Math.sin(leaf1.kinematicRotationRad.x) + (t / 2) * Math.cos(leaf1.kinematicRotationRad.x);
+
+    const center2Y = leaf2.kinematicPositionMm.y + h2 / 2;
+    const center2Z = leaf2.kinematicPositionMm.z + t / 2;
+    const leaf2TopEdgeY =
+      center2Y + (h2 / 2) * Math.cos(leaf2.kinematicRotationRad.x) - (t / 2) * Math.sin(leaf2.kinematicRotationRad.x);
+    const leaf2TopEdgeZ =
+      center2Z + (h2 / 2) * Math.sin(leaf2.kinematicRotationRad.x) + (t / 2) * Math.cos(leaf2.kinematicRotationRad.x);
+
+    // In 3D space, the bottom edge of leaf 1 and the top edge of leaf 2 stay connected at the hinge
+    expect(Math.abs(leaf1BottomEdgeY - leaf2TopEdgeY)).toBeLessThan(1);
+    expect(Math.abs(leaf1BottomEdgeZ - leaf2TopEdgeZ)).toBeLessThan(1);
+  });
+
+  it('coordinates horizontal book-fold bifold closure leaves', () => {
+    const horizontalBifoldBoxes: SpatialPieceBox[] = [
+      {
+        pieceId: 'bay-0-bifold-leaf-1',
+        role: 'bifold-leaf',
+        materialId: 'mat-1',
+        thicknessMm: 18,
+        positionMm: { x: 18, y: 100, z: -18 },
+        sizeMm: { x: 280, y: 600, z: 18 },
+        centerMm: { x: 158, y: 400, z: -9 },
+      },
+      {
+        pieceId: 'bay-0-bifold-leaf-2',
+        role: 'bifold-leaf',
+        materialId: 'mat-1',
+        thicknessMm: 18,
+        positionMm: { x: 300, y: 100, z: -18 },
+        sizeMm: { x: 280, y: 600, z: 18 },
+        centerMm: { x: 440, y: 400, z: -9 },
+      },
+    ];
+
+    const mechs = identifyKinematicMechanisms(horizontalBifoldBoxes);
+    expect(mechs).toHaveLength(1);
+    expect(mechs[0]?.kind).toBe('bifold');
+
+    const result = calculateKinematicBoxes(horizontalBifoldBoxes, mechs, {
+      [mechs[0]!.id]: 0.8,
+    });
+
+    const leaf1 = result.find((b) => b.pieceId === 'bay-0-bifold-leaf-1')!;
+    const leaf2 = result.find((b) => b.pieceId === 'bay-0-bifold-leaf-2')!;
+
+    // Left leaf swings open (+Y rotation)
+    expect(leaf1.kinematicRotationRad.y).toBeGreaterThan(0);
+    // Right leaf folds back (-Y rotation)
+    expect(leaf2.kinematicRotationRad.y).toBeLessThan(0);
+    // Both leaves are projected outward toward user
+    expect(leaf1.kinematicPositionMm.z).toBeLessThan(-18);
+    expect(leaf2.kinematicPositionMm.z).toBeLessThan(-18);
   });
 });

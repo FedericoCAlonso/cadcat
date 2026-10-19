@@ -277,6 +277,7 @@ export {
 
 export {
   buildPieceMachining3DGroup,
+  getPieceFaceNormalSign,
 } from './machining/machining3d';
 
 export {
@@ -311,5 +312,15 @@ export {
 } from './countertop';
 
 
+
+export {
+  type ModuleToConsolidate,
+  type ConsolidatedPiece,
+  consolidateProjectPieces,
+  consolidateProjectBom,
+  buildProjectNestingItems,
+  runProjectNesting,
+  calculateProjectCost,
+} from './projectConsolidator';
 
 export * from './dxf';

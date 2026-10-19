@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobilius · animación</title>
+<style>
+  html,body{margin:0;height:100%;background:#101820}
+  body{display:grid;place-items:center}
+  canvas{width:min(100vw,768px);image-rendering:pixelated;display:block}
+</style>
+</head>
+<body>
+<canvas id="c" width="64" height="32" role="img" aria-label="Un gato gris teclea en una computadora y va apareciendo un mueble en el monitor"></canvas>
+<script>
+/* Animación pixel art de Mobilius: 64x32 px lógicos, ~6,6 s en bucle.
+   Para usarla en otra página: copiar el <canvas> y este <script>. */
+var K={o:'#9AA5B1',d:'#66717E',w:'#EEF1F5',k:'#2B1B14',p:'#D9788A',h:'#E9C46A',g:'#B8892B',r:'#D9694A'};
+var c=document.getElementById('c').getContext('2d');
+function r(x,y,w,h,col){c.fillStyle=col;c.fillRect(x,y,w,h)}
+function D(n){return '.'.repeat(n)}function H(m){return D(5)+m+D(5)}
+var base=(function(){
+ var R=[D(21),H('.o.......o.'),H('odo.....odo'),H('ooodododooo'),H('ooooooooooo'),H('oo'+'k'+'ooooo'+'k'+'oo'),H('o'+'k'+'o'+'k'+'ooo'+'k'+'o'+'k'+'o'),H('oooo'+'wpw'+'oooo'),H('oooo'+'wkw'+'oooo'),H('ooooooooooo'),D(6)+'rrrrrrrrr'+D(6),D(4)+'oooo'+'whhhw'+'oooo'+D(4),D(4)+'oooo'+'wgggw'+'oooo'+D(4)];
+ for(var i=0;i<5;i++)R.push(D(4)+'oooo'+'wwwww'+'oooo'+D(4));
+ R.push(D(4)+'oo'+'ww'+'ooooo'+'ww'+'oo'+D(4));
+ R=R.map(function(s){return s.split('')});
+ for(var y=11;y<=18;y++)if(R[y][16]==='o')R[y][16]='d';
+ [[4,7],[3,7],[2,6],[1,6],[4,8],[3,8],[2,9],[1,9]].forEach(function(q){R[q[1]][q[0]]='w';R[q[1]][20-q[0]]='w'});
+ [[17,18,'o'],[18,18,'o'],[19,18,'o'],[18,17,'o'],[19,17,'o'],[18,16,'d'],[19,16,'d'],[18,15,'o'],[19,15,'o'],[18,14,'d'],[19,14,'d'],[18,13,'o'],[19,13,'o'],[18,12,'d'],[19,12,'d']].forEach(function(q){R[q[1]][q[0]]=q[2]});
+ return R})();
+var arm=[[2,11,'o'],[3,11,'o'],[1,12,'o'],[2,12,'p'],[3,12,'o'],[1,13,'d'],[2,13,'o'],[3,13,'o'],[1,14,'d'],[2,14,'o'],[3,14,'o'],[1,15,'d'],[2,15,'o'],[3,15,'o']];
+function ff(x,y,w,h,fl){var a=fl?'#FFFFFF':'#6B9080',b=fl?'#FFFFFF':'#A7C4A0',d=fl?'#FFFFFF':'#3F5E52';r(39+x,6+y,w,h,a);r(39+x,6+y,w,1,b);r(39+x,6+y,1,h,b);r(39+x,6+y+h-1,w,1,d);r(39+x+w-1,6+y,1,h,d)}
+function R2(x,y,w,h,col,fl){r(39+x,6+y,w,h,fl?'#FFFFFF':col)}
+function piece(k,fl){switch(k){
+ case 0:R2(2,7,10,1,'#3B4A52',fl);break;
+ case 1:R2(1,2,12,5,'#5A6B73',fl);break;
+ case 2:ff(2,2,10,2,fl);break;
+ case 3:ff(2,4,4,3,fl);ff(8,4,4,3,fl);break;
+ case 4:R2(0,0,14,2,'#E8DCC4',fl);R2(0,0,14,1,'#FFF8E7',fl);break;
+ case 5:R2(5,3,4,1,'#E9C46A',fl);R2(5,4,1,2,'#E9C46A',fl);R2(8,4,1,2,'#E9C46A',fl);break}}
+function frame(n){
+ var t=n%60,typing=t<42,wave=t>=42&&t<56;
+ c.fillStyle='#101820';c.fillRect(0,0,64,32);
+ r(4,22,56,6,'#2E3B40');
+ [[5,23,26,4],[33,23,26,4]].forEach(function(q){r(q[0],q[1],q[2],q[3],'#6B9080');r(q[0],q[1],q[2],1,'#A7C4A0');r(q[0],q[1],1,q[3],'#A7C4A0');r(q[0],q[1]+q[3]-1,q[2],1,'#3F5E52');r(q[0]+q[2]-1,q[1],1,q[3],'#3F5E52')});
+ r(16,24,4,1,'#E9C46A');r(16,25,4,1,'#B8892B');r(44,24,4,1,'#E9C46A');r(44,25,4,1,'#B8892B');
+ r(5,28,3,3,'#26323A');r(56,28,3,3,'#26323A');
+ r(2,19,60,3,'#E8DCC4');r(2,19,60,1,'#FFF8E7');r(2,21,60,1,'#C9B99A');
+ r(8,20,15,2,'#3A4552');
+ for(var x=8;x<23;x++){if(x%2===0)r(x,20,1,1,'#AEB8C6');else r(x,21,1,1,'#AEB8C6')}
+ r(12,21,7,1,'#AEB8C6');
+ r(34,2,24,14,'#2E3B40');r(34,2,24,1,'#41525A');r(36,4,20,10,'#0B1A22');
+ for(var gy=5;gy<14;gy+=3)for(var gx=37;gx<56;gx+=3)r(gx,gy,1,1,'#16303A');
+ r(44,16,4,2,'#2E3B40');r(41,18,10,1,'#2E3B40');r(55,14,1,1,'#12B886');
+ var shown=typing?Math.floor((t+1)/7):(wave?6:Math.max(0,6-(t-55)*2));
+ var flash=typing&&(t+1)%7===0;
+ for(var k=0;k<shown;k++)piece(k,flash&&k===shown-1);
+ base.forEach(function(row,j){row.forEach(function(ch,i){if(ch!=='.')r(4+i,j,1,1,K[ch])})});
+ if(typing){
+  if(t%2===0){r(10,18,2,1,K.o);r(10,19,2,1,K.w);r(9+((t*3)%4),20,1,1,'#E9C46A')}
+  else{r(17,18,2,1,K.o);r(17,19,2,1,K.w);r(16+((t*3)%4),20,1,1,'#E9C46A')}
+ }
+ if(wave){var dy=((t>>1)%2===0)?0:-1;arm.forEach(function(q){r(4+q[0],q[1]+dy,1,1,K[q[2]])});
+  if(t%4<2){[[54,6],[53,6],[55,6],[54,5],[54,7]].forEach(function(q){r(q[0],q[1],1,1,'#E9C46A')})}}
+}
+var n=0;
+if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){frame(50)}
+else{frame(0);setInterval(function(){n++;frame(n)},110)}
+</script>
+</body>
+</html>

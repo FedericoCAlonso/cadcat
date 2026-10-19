@@ -1,6 +1,11 @@
 import { type DrillOperation } from '../../../model/operation';
 import { type IJointMachiningStrategy, type JointMachiningContext } from '../types';
-import { deriveContactGeometry, calculateDrillSpacingsFromConfig, deriveFaceType } from '../geometry';
+import {
+  deriveContactGeometry,
+  calculateDrillSpacingsFromConfig,
+  deriveFaceType,
+  derivePieceBJointPositions,
+} from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
 
 export class CamDowelJointStrategy implements IJointMachiningStrategy {
@@ -19,6 +24,9 @@ export class CamDowelJointStrategy implements IJointMachiningStrategy {
 
     for (const off of offsets) {
       const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
+      const preferredFace = joint.b.faceId === 'outer' ? 'face-B' : undefined;
+      const posBGeom = derivePieceBJointPositions(pieceB, joint.b.faceId, off, preferredFace);
+
       // On Piece A: dowel anchor hole
       operations.push({
         schemaVersion: 1,
@@ -35,17 +43,17 @@ export class CamDowelJointStrategy implements IJointMachiningStrategy {
         description: `Minifix connecting bolt anchor hole Ø${config.minifixDowelDiameterMm}x${config.minifixDowelDepthMm}mm`,
       });
 
-      // On Piece B: cam housing pocket on Face A
+      // On Piece B: cam housing pocket on Face A or Face B
       operations.push({
         schemaVersion: 1,
         id: generateOpId(),
         pieceId: pieceB.id,
-        faceId: 'inner',
-        faceType: deriveFaceType(joint.b.faceId === 'outer' ? 'face-B' : 'inner'),
+        faceId: posBGeom.edgeFaceTypeForPocket === 'face-B' ? 'bottom' : 'inner',
+        faceType: posBGeom.edgeFaceTypeForPocket,
         diameterMm: config.minifixPocketDiameterMm,
         depthMm: config.minifixPocketDepthMm,
         isThrough: false,
-        positionMm: { x: off, y: config.minifixPocketSetbackMm },
+        positionMm: posBGeom.getPocketPosition(config.minifixPocketSetbackMm),
         origin: 'derived',
         sourceJointKind: 'cam-dowel',
         description: `Minifix cam pocket Ø${config.minifixPocketDiameterMm}x${config.minifixPocketDepthMm}mm at ${config.minifixPocketSetbackMm}mm setback`,
@@ -61,7 +69,7 @@ export class CamDowelJointStrategy implements IJointMachiningStrategy {
         diameterMm: config.minifixBoltDiameterMm,
         depthMm: config.minifixPocketSetbackMm,
         isThrough: false,
-        positionMm: { x: off, y: pieceB.thicknessMm / 2 },
+        positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'cam-dowel',
         description: `Minifix bolt channel Ø${config.minifixBoltDiameterMm}x${config.minifixPocketSetbackMm}mm into edge`,

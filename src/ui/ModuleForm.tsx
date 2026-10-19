@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react';
-import type { Material, EdgeBand, JointStrategy } from '../model';
+import type { Material, EdgeBand, JointStrategy, Project, ProjectModuleItem } from '../model';
 import type {
   TemplateDefinition,
   RoofType,
@@ -27,6 +27,20 @@ import { DrawerTracksInput } from './DrawerTracksInput';
 import { DEFAULT_UI_CONFIG } from '../config';
 
 export interface ModuleFormProps {
+  // Multi-Module Project Management
+  project?: Project | null;
+  projectModules?: ProjectModuleItem[];
+  activeModuleId?: string;
+  onSetActiveModule?: (moduleId: string) => void;
+  onAddProjectModule?: (name?: string, templateId?: string) => void;
+  onDuplicateProjectModule?: (moduleId: string) => void;
+  onRemoveProjectModule?: (moduleId: string) => void;
+  onUpdateProjectModuleQuantity?: (moduleId: string, quantity: number) => void;
+  onUpdateProjectModuleName?: (moduleId: string, name: string) => void;
+  onSaveProject?: () => Promise<void> | void;
+  projectScope?: 'current-module' | 'all-modules';
+  onProjectScopeChange?: (scope: 'current-module' | 'all-modules') => void;
+
   width: number;
   height: number;
   depth: number;
@@ -155,6 +169,18 @@ export interface ModuleFormProps {
  */
 export function ModuleForm(props: ModuleFormProps): ReactElement {
   const {
+    project,
+    projectModules,
+    activeModuleId,
+    onSetActiveModule,
+    onAddProjectModule,
+    onDuplicateProjectModule,
+    onRemoveProjectModule,
+    onUpdateProjectModuleQuantity,
+    onUpdateProjectModuleName,
+    onSaveProject,
+    projectScope = 'current-module',
+    onProjectScopeChange,
     width,
     height,
     depth,
@@ -304,8 +330,261 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
 
+  const activeModuleItem = projectModules?.find((m) => m.id === activeModuleId) ?? projectModules?.[0];
+  const totalProjectUnits = projectModules?.reduce((acc, m) => acc + (m.quantity || 1), 0) ?? 1;
+
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
+      {/* Project & Multi-Module Manager */}
+      {projectModules && projectModules.length > 0 && onSetActiveModule && (
+        <section
+          aria-labelledby="project-modules-heading"
+          className="m3-card"
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            backgroundColor: 'var(--md-sys-color-surface-container)',
+            borderRadius: 'var(--md-sys-shape-corner-md)',
+            border: '1px solid var(--md-sys-color-outline-variant)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <div>
+              <h3 id="project-modules-heading" style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>📦 Proyecto: {project?.name ?? 'Mobilius CAD'}</span>
+              </h3>
+              <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                {totalProjectUnits} unidad(es) en {projectModules.length} tipo(s) de módulo
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {onSaveProject && (
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{
+                    minHeight: '48px',
+                    padding: '0 0.8rem',
+                    fontSize: '0.85rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                  onClick={() => void onSaveProject()}
+                  title="Guardar todos los módulos del proyecto en base de datos"
+                  aria-label="Guardar proyecto completo"
+                >
+                  <span>💾</span>
+                  <span>Guardar Proyecto</span>
+                </button>
+              )}
+              {onAddProjectModule && (
+                <button
+                  type="button"
+                  className="m3-button m3-button--primary"
+                  style={{
+                    minHeight: '48px',
+                    padding: '0 0.9rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                  onClick={() => onAddProjectModule()}
+                  aria-label="Agregar nuevo módulo al proyecto"
+                >
+                  <span>➕</span>
+                  <span>Nuevo Módulo</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Module Selector Chips Carousel */}
+          <div
+            className="module-chips-carousel"
+            style={{
+              display: 'flex',
+              gap: '0.5rem',
+              overflowX: 'auto',
+              paddingBottom: '0.4rem',
+              marginBottom: '0.75rem',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {projectModules.map((mod) => {
+              const isActive = mod.id === (activeModuleId ?? activeModuleItem?.id);
+              return (
+                <button
+                  key={mod.id}
+                  type="button"
+                  className={`m3-chip ${isActive ? 'm3-chip--selected' : ''}`}
+                  style={{
+                    minHeight: '48px',
+                    padding: '0 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => onSetActiveModule(mod.id)}
+                  aria-pressed={isActive}
+                >
+                  <span>{isActive ? '📌' : '📦'}</span>
+                  <span>{mod.name}</span>
+                  <span
+                    className="m3-badge m3-badge--neutral"
+                    style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.1rem 0.4rem' }}
+                  >
+                    x{mod.quantity}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Module Editor Card */}
+          {activeModuleItem && (
+            <div
+              style={{
+                backgroundColor: 'var(--md-sys-color-surface)',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div style={{ flex: '1 1 200px' }}>
+                  <label htmlFor="active-module-name" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                    Nombre del módulo activo:
+                  </label>
+                  <input
+                    id="active-module-name"
+                    type="text"
+                    className="m3-input"
+                    value={activeModuleItem.name}
+                    onChange={(e) => onUpdateProjectModuleName?.(activeModuleItem.id, e.target.value)}
+                    style={{ width: '100%', minHeight: '44px' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {onUpdateProjectModuleQuantity && (
+                    <div>
+                      <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                        Cantidad:
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <button
+                          type="button"
+                          className="m3-button m3-button--tonal"
+                          style={{
+                            minWidth: '48px',
+                            minHeight: '48px',
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          disabled={activeModuleItem.quantity <= 1}
+                          onClick={() => onUpdateProjectModuleQuantity(activeModuleItem.id, Math.max(1, activeModuleItem.quantity - 1))}
+                          aria-label="Disminuir cantidad del módulo"
+                        >
+                          −
+                        </button>
+                        <span
+                          style={{
+                            minWidth: '42px',
+                            textAlign: 'center',
+                            fontWeight: 700,
+                            fontSize: '1.1rem',
+                            color: 'var(--md-sys-color-primary)',
+                          }}
+                        >
+                          {activeModuleItem.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          className="m3-button m3-button--tonal"
+                          style={{
+                            minWidth: '48px',
+                            minHeight: '48px',
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          onClick={() => onUpdateProjectModuleQuantity(activeModuleItem.id, activeModuleItem.quantity + 1)}
+                          aria-label="Aumentar cantidad del módulo"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    {onDuplicateProjectModule && (
+                      <button
+                        type="button"
+                        className="m3-button m3-button--tonal"
+                        style={{
+                          minHeight: '48px',
+                          padding: '0 0.75rem',
+                          fontSize: '0.82rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                        onClick={() => onDuplicateProjectModule(activeModuleItem.id)}
+                        title="Duplicar este módulo con todas sus dimensiones y vanos"
+                        aria-label="Duplicar módulo activo"
+                      >
+                        <span>📑</span>
+                        <span>Duplicar</span>
+                      </button>
+                    )}
+
+                    {onRemoveProjectModule && projectModules.length > 1 && (
+                      <button
+                        type="button"
+                        className="m3-button m3-button--outlined"
+                        style={{
+                          minHeight: '48px',
+                          padding: '0 0.75rem',
+                          fontSize: '0.82rem',
+                          color: 'var(--md-sys-color-error)',
+                          borderColor: 'var(--md-sys-color-error)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar el módulo "${activeModuleItem.name}" del proyecto?`)) {
+                            onRemoveProjectModule(activeModuleItem.id);
+                          }
+                        }}
+                        title="Eliminar este módulo del proyecto"
+                        aria-label="Eliminar módulo activo"
+                      >
+                        <span>🗑️</span>
+                        <span>Eliminar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="m3-card__header">
         <h2 id="form-heading" className="m3-card__title">
           📐 Medidas y Armado del Módulo
@@ -354,7 +633,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               <button
                 type="button"
                 className="m3-button m3-button--outlined"
-                style={{ padding: '0.25rem 0.5rem', color: '#ba1a1a' }}
+                style={{ padding: '0.25rem 0.5rem', color: 'var(--md-sys-color-error)' }}
                 title={t('userTemplates.delete')}
                 onClick={() => {
                   const currentTpl = templates.find((t) => t.id === selectedTemplateId);
@@ -370,7 +649,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
 
           {isSavingTemplate && (
-            <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#f8f9fa' }}>
+            <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--md-sys-color-surface-container)' }}>
               <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{t('userTemplates.saveTitle')}</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <input
@@ -427,10 +706,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {isWallShelves ? (
         <>
           {/* Dimensiones y Cantidad de Estantes */}
-          <div className="builder-section">
-            <h3 className="builder-section-title">
+          <fieldset className="builder-section">
+            <legend className="builder-section-title">
               <span>📏 Dimensiones y Niveles</span>
-            </h3>
+            </legend>
 
             {/* Ancho */}
             <div className="form-group">
@@ -487,7 +766,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 >
                   +
                 </button>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
                   ({wallShelvesShelfCount ?? 3} niveles verticales)
                 </span>
               </div>
@@ -522,13 +801,13 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 onChange={(val) => onWallShelvesBaseElevationYMmChange?.(val)}
               />
             </div>
-          </div>
+          </fieldset>
 
           {/* Sistema de Fijación y Ménsulas */}
-          <div className="builder-section">
-            <h3 className="builder-section-title">
+          <fieldset className="builder-section">
+            <legend className="builder-section-title">
               <span>🔩 Sistema de Ménsulas y Fijación</span>
-            </h3>
+            </legend>
 
             {/* Tipo de Ménsula */}
             <div className="form-group">
@@ -663,19 +942,19 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   🚪 Entre paredes / Nicho
                 </button>
               </div>
-              <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+              <small style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
                 {wallShelvesBoundaryCondition === 'free-ends'
                   ? 'Frente y laterales aplacados con tapacantos; fondo contra pared crudo.'
                   : 'Solo frente aplacado; laterales crudos con descuento de 3 mm de holgura total.'}
               </small>
             </div>
-          </div>
+          </fieldset>
 
           {/* Material y Tapacantos */}
-          <div className="builder-section">
-            <h3 className="builder-section-title">
+          <fieldset className="builder-section">
+            <legend className="builder-section-title">
               <span>🎨 Materiales y Tapacantos</span>
-            </h3>
+            </legend>
 
             <div className="form-group">
               <label htmlFor="select-shelf-material">Placa para Estantes:</label>
@@ -708,7 +987,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 ))}
               </select>
             </div>
-          </div>
+          </fieldset>
 
           {/* Tarjeta de Diagnóstico Estructural en Tiempo Real */}
           {wallShelvingOutput && (
@@ -717,22 +996,26 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               style={{
                 marginTop: '1rem',
                 padding: '1rem',
-                background: wallShelvingOutput.bracketCalculation.warning ? '#fffbeb' : '#f0fdf4',
-                border: wallShelvingOutput.bracketCalculation.warning ? '1px solid #fde68a' : '1px solid #bbf7d0',
+                background: wallShelvingOutput.bracketCalculation.warning
+                  ? 'var(--md-sys-color-warning-container)'
+                  : 'var(--md-sys-color-success-container)',
+                border: wallShelvingOutput.bracketCalculation.warning
+                  ? '1px solid var(--md-sys-color-warning-border)'
+                  : '1px solid var(--md-sys-color-success-border)',
                 borderRadius: '8px',
               }}
             >
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: 'var(--md-sys-color-on-surface)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {wallShelvingOutput.bracketCalculation.warning ? '⚠️ Advertencia Estructural' : '✅ Diagnóstico Estructural (Sagulator)'}
               </h4>
 
               {wallShelvingOutput.bracketCalculation.warning && (
-                <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#b45309', fontWeight: 500 }}>
+                <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--md-sys-color-on-warning-container)', fontWeight: 500 }}>
                   {wallShelvingOutput.bracketCalculation.warning}
                 </p>
               )}
 
-              <div style={{ fontSize: '0.85rem', color: '#374151', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div>
                   <strong>Ménsulas sugeridas:</strong> {wallShelvingOutput.bracketCalculation.bracketCountPerShelf} por estante ({wallShelvingOutput.bracketCalculation.totalBrackets} totales)
                 </div>
@@ -822,10 +1105,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {/* =========================================================================
           SECCIÓN 1: Casco y Tapa Superior
           ========================================================================= */}
-      <div className="builder-section">
-        <h3 className="builder-section-title">
-          <span>🏗️ Estructura del Casco y Tapa</span>
-        </h3>
+      <fieldset className="builder-section">
+        <legend className="builder-section-title">
+          <span>🏗️ Estructura del Casco y Techo</span>
+        </legend>
 
         {structuralSpanWarnings && structuralSpanWarnings.length > 0 && (
           <div
@@ -833,9 +1116,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             style={{
               padding: '10px 14px',
               borderRadius: '8px',
-              backgroundColor: '#fff3e0',
-              border: '1px solid #ffe0b2',
-              color: '#bf360c',
+              backgroundColor: 'var(--md-sys-color-warning-container)',
+              border: '1px solid var(--md-sys-color-warning-border)',
+              color: 'var(--md-sys-color-on-warning-container)',
               fontSize: '0.82rem',
               marginBottom: '1rem',
               display: 'flex',
@@ -957,7 +1240,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         {/* Selector de espesor de fondo cuando es fino (3mm o 6mm) */}
         {hasBacking && !isIslandCabinet && backingThicknessMm < 15 && (
           <div className="form-group" style={{ marginTop: '-0.25rem' }}>
-            <label style={{ fontSize: '0.8rem', color: '#49454f' }}>Espesor del fondo posterior:</label>
+            <label style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)' }}>Espesor del fondo posterior:</label>
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
               <button
                 type="button"
@@ -1156,15 +1439,15 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
           )}
         </div>
-      </div>
+      </fieldset>
 
       {/* =========================================================================
           SECCIÓN 2: Distribución de Vanos
           ========================================================================= */}
-      <div className="builder-section">
-        <h3 className="builder-section-title">
+      <fieldset className="builder-section">
+        <legend className="builder-section-title">
           <span>🔲 Distribución de Vanos</span>
-        </h3>
+        </legend>
         <div className="form-group">
           <label>Divisiones del mueble:</label>
           <div className="builder-segmented-group" role="group" aria-label="Distribución de vanos">
@@ -1198,15 +1481,15 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </button>
           </div>
         </div>
-      </div>
+      </fieldset>
 
       {/* =========================================================================
           SECCIÓN 3: Equipamiento Interior (Cajones, Estantes, Puertas, Tapas)
           ========================================================================= */}
-      <div className="builder-section">
-        <h3 className="builder-section-title">
+      <fieldset className="builder-section">
+        <legend className="builder-section-title">
           <span>🚪 Equipamiento Interior</span>
-        </h3>
+        </legend>
 
         {/* Pestañas si hay más de 1 vano */}
         {currentBayCount > 1 && (
@@ -1510,9 +1793,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 style={{
                   padding: '8px 12px',
                   borderRadius: '8px',
-                  backgroundColor: '#fff3e0',
-                  border: '1px solid #ffe0b2',
-                  color: '#bf360c',
+                  backgroundColor: 'var(--md-sys-color-warning-container)',
+                  border: '1px solid var(--md-sys-color-warning-border)',
+                  color: 'var(--md-sys-color-on-warning-container)',
                   fontSize: '0.8rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -1737,10 +2020,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
 
             {/* Estantes interiores detrás de puertas (Punto 3) */}
-            <div className="form-group" style={{ marginTop: '0.25rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.5rem' }}>
+            <div className="form-group" style={{ marginTop: '0.25rem', borderTop: '1px solid var(--md-sys-color-outline-variant)', paddingTop: '0.5rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                 <span>📚 Estantes interiores:</span>
-                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 'normal' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 'normal' }}>
                   ({activeBay.interiorShelvesCount ?? 0} estante{(activeBay.interiorShelvesCount ?? 0) === 1 ? '' : 's'})
                 </span>
               </label>
@@ -1816,10 +2099,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
 
             {/* Estantes interiores para bi-fold */}
-            <div className="form-group" style={{ marginTop: '0.25rem', borderTop: '1px solid #e5e7eb', paddingTop: '0.5rem' }}>
+            <div className="form-group" style={{ marginTop: '0.25rem', borderTop: '1px solid var(--md-sys-color-outline-variant)', paddingTop: '0.5rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                 <span>📚 Estantes interiores:</span>
-                <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 'normal' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 'normal' }}>
                   ({activeBay.interiorShelvesCount ?? 0} estante{(activeBay.interiorShelvesCount ?? 0) === 1 ? '' : 's'})
                 </span>
               </label>
@@ -1867,15 +2150,15 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             Vano libre sin equipamiento interior. Seleccioná una opción arriba para agregar cajones, estantes o puertas.
           </p>
         )}
-      </div>
+      </fieldset>
 
       {/* =========================================================================
           SECCIÓN 4: Materiales por Rol (Multi-Material)
           ========================================================================= */}
-      <div className="builder-section">
-        <h3 className="builder-section-title">
+      <fieldset className="builder-section">
+        <legend className="builder-section-title">
           <span>🎨 Materiales y Tapacantos</span>
-        </h3>
+        </legend>
 
         {/* Material Casco */}
         <div className="form-group">
@@ -2000,9 +2283,40 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </select>
           </div>
         )}
-      </div>
+      </fieldset>
       </>
     )}
+
+      {/* Alcance de Exportación si hay múltiples módulos */}
+      {projectModules && projectModules.length > 1 && onProjectScopeChange && (
+        <div style={{ marginTop: '1rem', marginBottom: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container)', borderRadius: '8px' }}>
+          <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--md-sys-color-on-surface)', marginBottom: '0.4rem' }}>
+            Alcance para descargas (CSV / PDF):
+          </span>
+          <div className="m3-segmented-button" role="radiogroup" aria-label="Alcance para exportaciones" style={{ width: '100%' }}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={projectScope !== 'all-modules'}
+              className={`m3-segmented-button__item ${projectScope !== 'all-modules' ? 'selected' : ''}`}
+              onClick={() => onProjectScopeChange('current-module')}
+              style={{ flex: 1, minHeight: '44px', padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+            >
+              📌 Módulo Actual
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={projectScope === 'all-modules'}
+              className={`m3-segmented-button__item ${projectScope === 'all-modules' ? 'selected' : ''}`}
+              onClick={() => onProjectScopeChange('all-modules')}
+              style={{ flex: 1, minHeight: '44px', padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+            >
+              📦 Todo el Proyecto ({totalProjectUnits} uds.)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Botones de acción */}
       <div className="form-actions m3-button-row">

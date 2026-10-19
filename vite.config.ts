@@ -25,7 +25,10 @@ export default defineConfig(({ mode }) => {
           'icons/icon-512-maskable.png',
           'icons/apple-touch-icon.png',
           'icons/favicon.ico',
-          'icons/favicon-48.png',
+          'icons/favicon-32.png',
+          'icons/favicon-64.png',
+          'icons/icon-light-192.png',
+          'icons/icon-light-512.png',
         ],
         manifest: createPwaManifest(base),
         workbox: {

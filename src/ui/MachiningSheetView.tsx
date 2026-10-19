@@ -412,6 +412,7 @@ export function MachiningSheetView({
                 <th>Descripción</th>
                 <th>Diámetro</th>
                 <th>Profundidad</th>
+                <th>Cota en Canto</th>
                 <th>Posición X</th>
                 <th>Posición Y</th>
               </tr>
@@ -424,6 +425,11 @@ export function MachiningSheetView({
                   <td>{op.description}</td>
                   <td>Ø{op.diameterMm} mm</td>
                   <td>{op.depthMm} mm</td>
+                  <td>
+                    {op.faceId.toLowerCase().includes('left') || op.faceId.toLowerCase().includes('right')
+                      ? `Y = ${op.yMm} mm`
+                      : `X = ${op.xMm} mm`}
+                  </td>
                   <td>{op.xMm} mm</td>
                   <td>{op.yMm} mm</td>
                 </tr>

@@ -192,4 +192,13 @@ export {
   DEFAULT_COUNTERTOP_CONFIG,
 } from './countertop';
 
+export {
+  projectModuleItemSchema,
+  type ProjectModuleItem,
+  projectSchema,
+  type Project,
+  validateProject,
+  createDefaultProject,
+} from './project';
+
 
