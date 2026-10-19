@@ -329,6 +329,23 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
+  const [showAllRoleMaterials, setShowAllRoleMaterials] = useState(false);
+
+  const hasDoorsOrFronts =
+    Boolean(frontsMaterialId) ||
+    bays.some(
+      (b) =>
+        b.type === 'doors' ||
+        b.type === 'bi-fold-closure' ||
+        (b.type === 'drawer-stack' && b.drawerType !== 'simple-interior'),
+    );
+
+  const hasDrawers =
+    Boolean(drawerBoxesMaterialId) ||
+    bays.some((b) => b.type === 'drawer-stack' || b.type === 'pull-out-tray');
+
+  const hasBackingBoard =
+    Boolean(backingsMaterialId) || (hasBacking && backingType !== 'none');
 
   const activeModuleItem = projectModules?.find((m) => m.id === activeModuleId) ?? projectModules?.[0];
   const totalProjectUnits = projectModules?.reduce((acc, m) => acc + (m.quantity || 1), 0) ?? 1;
@@ -951,18 +968,24 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </fieldset>
 
           {/* Material y Tapacantos */}
-          <fieldset className="builder-section">
-            <legend className="builder-section-title">
+          <fieldset
+            className="builder-section"
+            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}
+          >
+            <legend className="builder-section-title" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               <span>🎨 Materiales y Tapacantos</span>
             </legend>
 
-            <div className="form-group">
-              <label htmlFor="select-shelf-material">Placa para Estantes:</label>
+            <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+              <label htmlFor="select-shelf-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                Placa para Estantes:
+              </label>
               <select
                 id="select-shelf-material"
                 value={selectedMaterialId}
                 onChange={(e) => onMaterialChange(e.target.value)}
                 className="m3-select"
+                style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
               >
                 {materials.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -972,13 +995,16 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </select>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="select-shelf-edgeband">Tapacantos para bordes vistos:</label>
+            <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+              <label htmlFor="select-shelf-edgeband" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                Tapacantos para bordes vistos:
+              </label>
               <select
                 id="select-shelf-edgeband"
                 value={selectedEdgeBandId}
                 onChange={(e) => onEdgeBandChange(e.target.value)}
                 className="m3-select"
+                style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
               >
                 {edgeBands.map((eb) => (
                   <option key={eb.id} value={eb.id}>
@@ -2155,14 +2181,17 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {/* =========================================================================
           SECCIÓN 4: Materiales por Rol (Multi-Material)
           ========================================================================= */}
-      <fieldset className="builder-section">
-        <legend className="builder-section-title">
+      <fieldset
+        className="builder-section"
+        style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}
+      >
+        <legend className="builder-section-title" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           <span>🎨 Materiales y Tapacantos</span>
         </legend>
 
         {/* Material Casco */}
-        <div className="form-group">
-          <label htmlFor="select-material">
+        <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <label htmlFor="select-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
             Placa para Casco (Laterales, piso, techo):
             <span className="visually-hidden">Sheet Material:</span>
           </label>
@@ -2171,6 +2200,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             value={selectedMaterialId}
             onChange={(e) => onMaterialChange(e.target.value)}
             className="m3-select"
+            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
           >
             {materials.map((m) => (
               <option key={m.id} value={m.id}>
@@ -2180,10 +2210,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </select>
         </div>
 
-        {/* Material Frentes / Puertas */}
-        {onFrontsMaterialChange && (
-          <div className="form-group">
-            <label htmlFor="select-fronts-material">
+        {/* Material Frentes / Puertas (Contextual) */}
+        {onFrontsMaterialChange && (hasDoorsOrFronts || showAllRoleMaterials) && (
+          <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <label htmlFor="select-fronts-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
               Placa para Frentes / Puertas / Tapas:
             </label>
             <select
@@ -2191,6 +2221,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               value={frontsMaterialId || selectedMaterialId}
               onChange={(e) => onFrontsMaterialChange(e.target.value)}
               className="m3-select"
+              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -2201,10 +2232,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
 
-        {/* Material Cajones */}
-        {onDrawerBoxesMaterialChange && (
-          <div className="form-group">
-            <label htmlFor="select-drawer-material">
+        {/* Material Cajones (Contextual) */}
+        {onDrawerBoxesMaterialChange && (hasDrawers || showAllRoleMaterials) && (
+          <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <label htmlFor="select-drawer-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
               Placa para Cajas de Cajones interiores:
             </label>
             <select
@@ -2212,6 +2243,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               value={drawerBoxesMaterialId || selectedMaterialId}
               onChange={(e) => onDrawerBoxesMaterialChange(e.target.value)}
               className="m3-select"
+              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -2222,10 +2254,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
 
-        {/* Material Fondos y Traseras */}
-        {onBackingsMaterialChange && (
-          <div className="form-group">
-            <label htmlFor="select-backings-material">
+        {/* Material Fondos y Traseras (Contextual) */}
+        {onBackingsMaterialChange && (hasBackingBoard || showAllRoleMaterials) && (
+          <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <label htmlFor="select-backings-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
               Placa para Fondos y Traseras:
             </label>
             <select
@@ -2233,6 +2265,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               value={backingsMaterialId || selectedMaterialId}
               onChange={(e) => onBackingsMaterialChange(e.target.value)}
               className="m3-select"
+              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -2243,9 +2276,23 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
 
+        {/* Toggle para mostrar/ocultar todas las placas si alguna no aplica aún */}
+        {(!showAllRoleMaterials && (!hasDoorsOrFronts || !hasDrawers || !hasBackingBoard)) && (
+          <div style={{ marginBottom: '0.85rem' }}>
+            <button
+              type="button"
+              className="m3-btn m3-btn--small m3-btn--text"
+              style={{ fontSize: '0.78rem', padding: '0.2rem 0.4rem', textDecoration: 'underline', color: 'var(--md-sys-color-primary)' }}
+              onClick={() => setShowAllRoleMaterials(true)}
+            >
+              ⚙️ Personalizar más materiales por rol...
+            </button>
+          </div>
+        )}
+
         {/* Tapacantos */}
-        <div className="form-group">
-          <label htmlFor="select-edgeband">
+        <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <label htmlFor="select-edgeband" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
             Tapacantos:
             <span className="visually-hidden">Edge Band:</span>
           </label>
@@ -2254,6 +2301,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             value={selectedEdgeBandId}
             onChange={(e) => onEdgeBandChange(e.target.value)}
             className="m3-select"
+            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
           >
             <option value="">Sin tapacanto / Ninguno</option>
             {edgeBands.map((eb) => (
@@ -2266,8 +2314,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
         {/* Fijaciones / Tipo de Uniones */}
         {onJointStrategyChange && (
-          <div className="form-group">
-            <label htmlFor="select-joint-strategy">
+          <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <label htmlFor="select-joint-strategy" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
               Fijaciones / Tipo de Uniones:
             </label>
             <select
@@ -2275,6 +2323,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               value={jointStrategy}
               onChange={(e) => onJointStrategyChange(e.target.value as JointStrategy)}
               className="m3-select"
+              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
             >
               <option value="confirmat">Confirmat (Tornillo soberbio Ø7 / Ø5 mm)</option>
               <option value="dowel-and-confirmat">Tarugo + Confirmat (Tarugo Ø8 mm + Confirmat Ø7 mm)</option>
