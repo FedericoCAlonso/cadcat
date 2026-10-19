@@ -521,6 +521,33 @@ describe('ProjectSettingsView Component', () => {
 
     expect(html).toContain('Cargando configuración de base de datos...');
   });
+
+  it('renders complete sawing and nesting optimization settings when active section is nesting', () => {
+    const config = getDefaultProjectConfig();
+    const html = renderToString(
+      <ProjectSettingsView
+        config={config}
+        isSaving={false}
+        initialSection="nesting"
+        onUpdateConfig={vi.fn()}
+        onSaveConfig={vi.fn()}
+        onExportConfig={vi.fn()}
+        onImportConfigFile={vi.fn()}
+        onResetConfig={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Parámetros de Sierra y Optimización de Corte');
+    expect(html).toContain('Espesor de Corte de Hoja / Kerf (mm):');
+    expect(html).toContain('Margen de Refilado Perimetral (mm):');
+    expect(html).toContain('Respetar dirección de veta del material');
+    expect(html).toContain('Objetivo de Optimización:');
+    expect(html).toContain('Minimizar Desperdicio');
+    expect(html).toContain('Minimizar Pasadas de Corte');
+    expect(html).toContain('Incluir calibres fijos de armado en el despiece');
+    expect(html).toContain('Margen de Desperdicio de Seguridad (%):');
+    expect(html).toContain('Modalidad de Facturación de Cortes:');
+  });
 });
 
 describe('App MVVM Integration', () => {

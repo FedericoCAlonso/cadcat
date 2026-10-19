@@ -20,6 +20,7 @@ export interface ProjectSettingsViewProps {
   onSaveHardware?: (hardware: Hardware) => Promise<void>;
   onDeleteHardware?: (id: string) => Promise<void>;
   onResetCatalogs?: () => Promise<void>;
+  initialSection?: 'general' | 'machining' | 'catalog' | 'nesting' | 'costs';
 }
 
 /**
@@ -34,6 +35,7 @@ export function ProjectSettingsView({
   onExportConfig,
   onImportConfigFile,
   onResetConfig,
+  initialSection,
   materials = [],
   edgeBands = [],
   hardware = [],
@@ -45,7 +47,9 @@ export function ProjectSettingsView({
   onDeleteHardware,
   onResetCatalogs,
 }: ProjectSettingsViewProps): ReactElement {
-  const [activeSection, setActiveSection] = useState<'general' | 'machining' | 'catalog' | 'nesting' | 'costs'>('machining');
+  const [activeSection, setActiveSection] = useState<'general' | 'machining' | 'catalog' | 'nesting' | 'costs'>(
+    initialSection ?? 'machining'
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!config) {
@@ -82,7 +86,10 @@ export function ProjectSettingsView({
     });
   };
 
-  const updateNesting = (field: keyof ProjectConfig['nesting'], value: number | boolean) => {
+  const updateNesting = <K extends keyof ProjectConfig['nesting']>(
+    field: K,
+    value: ProjectConfig['nesting'][K]
+  ) => {
     onUpdateConfig({
       ...config,
       nesting: {
@@ -92,7 +99,10 @@ export function ProjectSettingsView({
     });
   };
 
-  const updateCost = (field: keyof ProjectConfig['cost'], value: number) => {
+  const updateCost = <K extends keyof ProjectConfig['cost']>(
+    field: K,
+    value: ProjectConfig['cost'][K]
+  ) => {
     onUpdateConfig({
       ...config,
       cost: {
@@ -586,36 +596,40 @@ export function ProjectSettingsView({
       {/* SECTION: Sawing & Nesting */}
       {activeSection === 'nesting' && (
         <div className="settings-section">
-          <h3 className="section-title">Parámetros de Sierra y Optimización de Corte</h3>
+          <h3 className="section-title">🪚 Parámetros de Sierra y Optimización de Corte</h3>
           <p className="section-desc">
-            Configuración de la seccionadora o escuadradora y refilado de placas.
+            Configuración del disco de corte, refilado perimetral, estrategia de anidamiento y cálculo de placas.
           </p>
 
           <div className="settings-grid">
+            {/* Card 1: Sierra y Refilado */}
             <div className="settings-group-card">
-              <h4 className="group-title">Sierra y Desperdicio</h4>
+              <h4 className="group-title">🪚 Sierra y Mecánica de Corte</h4>
+              
               <div className="input-field">
                 <label htmlFor="sawKerf">Espesor de Corte de Hoja / Kerf (mm):</label>
                 <input
                   id="sawKerf"
                   type="number"
                   step="0.1"
+                  min="0"
                   value={config.nesting.sawKerfMm}
-                  onChange={(e) => updateNesting('sawKerfMm', parseFloat(e.target.value) || 4.4)}
+                  onChange={(e) => updateNesting('sawKerfMm', parseFloat(e.target.value) || 0)}
                 />
-                <span className="field-hint">Espesor del disco de corte (típicamente 3.2 a 4.4 mm).</span>
+                <span className="field-hint">Espesor del disco de corte (ej: 3.2 mm escuadradora estándar, 4.4 mm seccionadora industrial, 6 mm fresa CNC).</span>
               </div>
 
               <div className="input-field">
-                <label htmlFor="trimMargin">Margen de Refilado de Placa (mm):</label>
+                <label htmlFor="trimMargin">Margen de Refilado Perimetral (mm):</label>
                 <input
                   id="trimMargin"
                   type="number"
                   step="1"
+                  min="0"
                   value={config.nesting.sheetTrimMarginMm}
-                  onChange={(e) => updateNesting('sheetTrimMarginMm', parseFloat(e.target.value) || 10.0)}
+                  onChange={(e) => updateNesting('sheetTrimMarginMm', parseFloat(e.target.value) || 0)}
                 />
-                <span className="field-hint">Corte perimetral para sanear bordes de la placa virgen.</span>
+                <span className="field-hint">Recorte de saneado en los 4 bordes de la placa virgen (10 mm recomendado para descartar cantos golpeados).</span>
               </div>
 
               <div className="input-field-checkbox">
@@ -628,7 +642,144 @@ export function ProjectSettingsView({
                   />
                   <span>Respetar dirección de veta del material</span>
                 </label>
+                <span className="field-hint" style={{ display: 'block', marginTop: '0.2rem' }}>
+                  Desactivar para melaminas lisas / unicolores o MDF crudo para permitir rotar piezas 90° y elevar el rendimiento.
+                </span>
               </div>
+            </div>
+
+            {/* Card 2: Estrategia de Optimización y Calibres */}
+            <div className="settings-group-card">
+              <h4 className="group-title">🎯 Algoritmo y Estrategia de Corte</h4>
+
+              <div className="input-field">
+                <label htmlFor="optimizationGoal">Objetivo de Optimización:</label>
+                <select
+                  id="optimizationGoal"
+                  className="m3-select"
+                  style={{ width: '100%', fontSize: '0.92rem', padding: '0.65rem 0.85rem' }}
+                  value={config.nesting.optimizationGoal ?? 'min-waste'}
+                  onChange={(e) => updateNesting('optimizationGoal', e.target.value as 'min-waste' | 'min-passes')}
+                >
+                  <option value="min-waste">🌿 Minimizar Desperdicio (Aprovechar al máximo cada placa)</option>
+                  <option value="min-passes">⚡ Minimizar Pasadas de Corte (Cortes más rápidos y continuos)</option>
+                </select>
+                <span className="field-hint">
+                  <strong>Minimizar desperdicio:</strong> ideal para taller propio donde el tablero es el costo principal.<br />
+                  <strong>Minimizar pasadas:</strong> reduce maniobras en la escuadradora o si pagás por corte en el distribuidor.
+                </span>
+              </div>
+
+              <div className="input-field-checkbox" style={{ marginTop: '0.75rem' }}>
+                <label htmlFor="includeAssemblyGaugesInCutPlan">
+                  <input
+                    id="includeAssemblyGaugesInCutPlan"
+                    type="checkbox"
+                    checked={Boolean(config.nesting.includeAssemblyGaugesInCutPlan)}
+                    onChange={(e) => updateNesting('includeAssemblyGaugesInCutPlan', e.target.checked)}
+                  />
+                  <span>Incluir calibres fijos de armado en el despiece</span>
+                </label>
+                <span className="field-hint" style={{ display: 'block', marginTop: '0.2rem' }}>
+                  Coloca los separadores y calibres de montaje aprovechando retazos y áreas de descarte sin consumir placas adicionales.
+                </span>
+              </div>
+            </div>
+
+            {/* Card 3: Costos y Factores de Desperdicio */}
+            <div className="settings-group-card">
+              <h4 className="group-title">💰 Desperdicio y Costo de Aserrado</h4>
+
+              <div className="input-field">
+                <label htmlFor="nestingWasteFactor">Margen de Desperdicio de Seguridad (%):</label>
+                <input
+                  id="nestingWasteFactor"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="100"
+                  value={config.cost.wasteFactorPercent}
+                  onChange={(e) => updateCost('wasteFactorPercent', parseFloat(e.target.value) || 0)}
+                />
+                <span className="field-hint">Porcentaje de seguridad extra añadido al presupuesto para cubrir mermas o imprevistos de taller.</span>
+              </div>
+
+              <div className="input-field">
+                <label htmlFor="nestingCutPricingMode">Modalidad de Facturación de Cortes:</label>
+                <select
+                  id="nestingCutPricingMode"
+                  className="m3-select"
+                  style={{ width: '100%', fontSize: '0.92rem', padding: '0.65rem 0.85rem' }}
+                  value={config.cost.cutPricingMode ?? 'per-pass'}
+                  onChange={(e) => updateCost('cutPricingMode', e.target.value as 'per-pass' | 'per-meter')}
+                >
+                  <option value="per-pass">✂️ Por Pasada de Sierra individual</option>
+                  <option value="per-meter">📏 Por Metro Lineal de Corte</option>
+                </select>
+              </div>
+
+              <div className="input-field">
+                <label htmlFor="nestingPricePerCutPass">
+                  {config.cost.cutPricingMode === 'per-meter' ? 'Precio por Metro Lineal ($):' : 'Precio por Pasada de Corte ($):'}
+                </label>
+                <input
+                  id="nestingPricePerCutPass"
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={typeof config.cost.pricePerCutPass === 'number' ? config.cost.pricePerCutPass : 0}
+                  onChange={(e) => updateCost('pricePerCutPass', parseFloat(e.target.value) || 0)}
+                />
+                <span className="field-hint">Tarifa que cobra la máquina o servicio de corte por cada pasada o metro.</span>
+              </div>
+            </div>
+
+            {/* Card 4: Tableros del Catálogo */}
+            <div className="settings-group-card" style={{ gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                <h4 className="group-title" style={{ margin: 0 }}>📐 Formatos de Placas Disponibles en Catálogo</h4>
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{ fontSize: '0.8rem', padding: '0.3rem 0.65rem' }}
+                  onClick={() => setActiveSection('catalog')}
+                >
+                  🗄️ Editar medidas en Insumos
+                </button>
+              </div>
+              <p className="field-hint" style={{ margin: '0 0 0.5rem' }}>
+                Dimensiones de tableros comerciales que el optimizador toma como base para calcular los planos de corte:
+              </p>
+              {materials.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.5rem' }}>
+                  {materials.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        padding: '0.65rem 0.85rem',
+                        backgroundColor: 'var(--md-sys-color-surface)',
+                        borderRadius: 'var(--md-sys-shape-corner-sm)',
+                        border: '1px solid var(--md-sys-color-outline-variant)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.2rem',
+                      }}
+                    >
+                      <strong style={{ fontSize: '0.88rem', color: 'var(--md-sys-color-on-surface)' }}>{m.name}</strong>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                        📏 Placa virgen: <strong>{m.sheetSizeMm.length} × {m.sheetSizeMm.width} mm</strong>
+                      </span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                        Espesor: <strong>{m.thicknessMm} mm</strong> · {m.hasGrain ? '🌲 Veta longitudinal' : '⚪ Sin veta (rotación libre)'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontStyle: 'italic', fontSize: '0.85rem', color: 'var(--md-sys-color-outline)' }}>
+                  No hay placas registradas en el catálogo. Podés agregar tableros en la sección Insumos.
+                </p>
+              )}
             </div>
           </div>
         </div>
