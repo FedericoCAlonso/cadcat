@@ -206,8 +206,8 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
 
     // Value and arc should still render cleanly
     expect(html).toContain('600');
-    expect(html).toContain('height:185px');
-    expect(html).toContain('viewBox="0 0 340 185"');
+    expect(html).toContain('height:230px');
+    expect(html).toContain('viewBox="0 0 360 240"');
   });
 
   it('configures touch-action: none and isolates touch events from parent with stopPropagation', () => {

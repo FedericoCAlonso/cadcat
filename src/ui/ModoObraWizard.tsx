@@ -573,7 +573,15 @@ export function ModoObraWizard({
           <div
             onTouchStart={handleDimTouchStart}
             onTouchEnd={handleDimTouchEnd}
-            style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flex: 1,
+              minHeight: 0,
+            }}
           >
             {/* Carousel Stepper Header for Dimension Field */}
             <div

@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactElement } from 'react';
+import { useState, useEffect, useRef, type ReactElement } from 'react';
 import './theme.css';
 import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
@@ -15,6 +15,7 @@ import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 import { APP_VERSION } from '../version';
 import { useTheme } from './useTheme';
 import { ThemeToggle } from './ThemeToggle';
+import { triggerHaptic } from '../resolver/thumbArc';
 
 /**
  * Main application View component.
@@ -43,6 +44,35 @@ export function App(): ReactElement {
       });
     }
   }, []);
+
+  const [isLandscape, setIsLandscape] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth > window.innerHeight;
+  });
+
+  const prevLandscapeRef = useRef<boolean>(isLandscape);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const landscape = window.innerWidth > window.innerHeight;
+      setIsLandscape(landscape);
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (prevLandscapeRef.current !== isLandscape) {
+      prevLandscapeRef.current = isLandscape;
+      if (vm.uiMode === 'site' && vm.isOneHandDevice && vm.activeTab === '3d') {
+        triggerHaptic('major');
+      }
+    }
+  }, [isLandscape, vm.uiMode, vm.isOneHandDevice, vm.activeTab]);
 
   const logoFileName = effectiveTheme === 'dark' ? 'mobilius-icon-dark.svg' : 'mobilius-icon-light.svg';
   const logoUrl = `${import.meta.env?.BASE_URL || '/'}icons/${logoFileName}`;
@@ -232,7 +262,7 @@ export function App(): ReactElement {
         {/* Full-screen 3D Viewport in Modo Obra */}
         {isSiteImmersive && vm.activeTab === '3d' && (
           <div
-            className="modo-obra-3d-fullscreen"
+            className={`modo-obra-3d-fullscreen ${isLandscape ? 'modo-obra-3d-fullscreen--landscape' : ''}`}
             role="region"
             aria-label="Inspección 3D en Modo Obra"
             style={{
@@ -247,41 +277,68 @@ export function App(): ReactElement {
               overflow: 'hidden',
             }}
           >
-            <header
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 'max(0.4rem, env(safe-area-inset-top, 0.4rem)) 0.75rem 0.4rem',
-                borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-                backgroundColor: 'var(--md-sys-color-surface-container)',
-                flexShrink: 0,
-                zIndex: 10,
-              }}
-            >
-              <button
-                type="button"
-                className="m3-button m3-button--filled"
+            {/* Top header: in portrait displays module name and rotation hint; in landscape collapses to maximize CAD canvas */}
+            {!isLandscape ? (
+              <header
                 style={{
-                  minHeight: '44px',
-                  borderRadius: '22px',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                  justifyContent: 'space-between',
+                  padding: 'max(0.4rem, env(safe-area-inset-top, 0.4rem)) 0.75rem 0.4rem',
+                  borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  flexShrink: 0,
+                  zIndex: 10,
                 }}
-                onClick={() => vm.setActiveTab('form')}
               >
-                <span aria-hidden="true">✕</span>
-                <span>Volver a Ajustes</span>
-              </button>
+                <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--md-sys-color-primary)' }}>
+                  {`👁️ 3D · ${vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name || 'Módulo'}`}
+                </span>
 
-              <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--md-sys-color-primary)' }}>
-                {`👁️ 3D · ${vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name || 'Módulo'}`}
-              </span>
-            </header>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--md-sys-color-outline)',
+                    fontWeight: 600,
+                  }}
+                  title="Girá el teléfono en horizontal para vista panorámica CAD"
+                >
+                  <span>🔄 Girar para CAD</span>
+                </div>
+              </header>
+            ) : (
+              /* Floating subtle badge in landscape mode */
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'max(0.5rem, env(safe-area-inset-top, 0.5rem))',
+                  left: 'max(0.75rem, env(safe-area-inset-left, 0.75rem))',
+                  zIndex: 80,
+                  backgroundColor: 'rgba(25, 25, 25, 0.8)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  color: '#ffffff',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  pointerEvents: 'none',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                <span>📐 Vista Panorámica CAD</span>
+                <span style={{ opacity: 0.8, fontSize: '0.72rem' }}>
+                  {`· ${vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name || 'Módulo'}`}
+                </span>
+              </div>
+            )}
 
             <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: 0, overflow: 'hidden' }}>
               <Viewport3D
@@ -310,6 +367,46 @@ export function App(): ReactElement {
                 onSetPieceEdgeBands={vm.setPieceEdgeBands}
                 countertopCalculation={vm.countertopCalculation}
               />
+
+              {/* Botón Flotante Ergonómico (FAB) para volver al editor */}
+              <button
+                type="button"
+                className="m3-button m3-button--filled modo-obra-floating-back-fab"
+                aria-label="Volver al editor"
+                title="Volver al editor de taller"
+                onClick={() => {
+                  triggerHaptic('major');
+                  vm.setActiveTab('form');
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: isLandscape
+                    ? 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))'
+                    : 'max(1.2rem, env(safe-area-inset-bottom, 1.2rem))',
+                  [vm.handMode === 'right' ? 'right' : 'left']: isLandscape
+                    ? 'max(0.75rem, env(safe-area-inset-right, 0.75rem))'
+                    : 'max(1rem, env(safe-area-inset-right, 1rem))',
+                  zIndex: 100,
+                  minHeight: isLandscape ? '44px' : '52px',
+                  padding: isLandscape ? '0 1rem' : '0 1.25rem',
+                  borderRadius: isLandscape ? '22px' : '26px',
+                  fontSize: isLandscape ? '0.85rem' : '0.92rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  backgroundColor: 'var(--md-sys-color-primary)',
+                  color: 'var(--md-sys-color-on-primary)',
+                  boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35)',
+                  border: '2px solid rgba(255, 255, 255, 0.35)',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(8px)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span aria-hidden="true" style={{ fontSize: isLandscape ? '1rem' : '1.15rem' }}>✏️</span>
+                <span>Volver al Editor</span>
+              </button>
             </div>
           </div>
         )}

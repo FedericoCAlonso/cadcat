@@ -119,10 +119,10 @@ export function ThumbArcInput({
     handMode: activeHandMode,
   };
 
-  const baseWidth = compact ? 340 : 360;
-  const baseHeight = compact ? 185 : 260;
-  const baseSvgHeight = compact ? 185 : 270;
-  const baseRadius = compact ? 210 : 275;
+  const baseWidth = 360;
+  const baseHeight = compact ? 230 : 260;
+  const baseSvgHeight = compact ? 240 : 270;
+  const baseRadius = compact ? 245 : 275;
 
   // SVG Geometry for visual arc (calibrated for regular or compact viewport)
   const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
@@ -257,7 +257,7 @@ export function ThumbArcInput({
         userSelect: 'none',
         width: '100%',
         maxWidth: '460px',
-        margin: '0 auto',
+        margin: compact ? 'auto auto 0' : '0 auto',
         boxSizing: 'border-box',
       }}
     >
@@ -325,7 +325,7 @@ export function ThumbArcInput({
       )}
 
       {/* Numerical Readout & Direct Tapping */}
-      <div style={{ width: '100%', margin: compact ? '0.2rem 0 0.35rem' : '0.75rem 0', textAlign: 'center' }}>
+      <div style={{ width: '100%', margin: compact ? '0.15rem 0 0.25rem' : '0.75rem 0', textAlign: 'center' }}>
         {isDirectEditing ? (
           <div
             style={{
@@ -454,7 +454,117 @@ export function ThumbArcInput({
         )}
       </div>
 
-      {/* Thumb Radial Sweep Arc Area */}
+      {/* In compact mode: place Presets & Steppers ABOVE the thumb arc, so the arc rests at the bottom */}
+      {compact && (
+        <>
+          {quickPresets && quickPresets.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: '0.3rem',
+                width: '100%',
+                marginBottom: '0.3rem',
+              }}
+            >
+              {quickPresets.map((preset) => {
+                const isSelected = preset === value;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      onChange(preset);
+                      triggerHaptic('major');
+                    }}
+                    className={`m3-button ${isSelected ? 'm3-button--filled' : 'm3-button--outlined'}`}
+                    style={{
+                      minHeight: '34px',
+                      padding: '0 0.65rem',
+                      fontSize: '0.8rem',
+                      fontWeight: isSelected ? 700 : 500,
+                      borderRadius: '16px',
+                    }}
+                  >
+                    {`${preset} ${unit}`}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Stepper Buttons (Touch Targets) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '0.35rem',
+              width: '100%',
+              marginBottom: '0.4rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => applyDelta(-coarseStep)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Restar ${coarseStep} ${unit}`}
+              style={{
+                minHeight: '40px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                borderRadius: '12px',
+              }}
+            >
+              {`-${coarseStep}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDelta(-step)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Restar ${step} ${unit}`}
+              style={{
+                minHeight: '40px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                borderRadius: '12px',
+              }}
+            >
+              {`-${step}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDelta(step)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Sumar ${step} ${unit}`}
+              style={{
+                minHeight: '40px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                borderRadius: '12px',
+              }}
+            >
+              {`+${step}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDelta(coarseStep)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Sumar ${coarseStep} ${unit}`}
+              style={{
+                minHeight: '40px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                borderRadius: '12px',
+              }}
+            >
+              {`+${coarseStep}`}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Thumb Radial Sweep Arc Area (Anchored at the bottom for natural thumb sweep) */}
       <div
         ref={arcContainerRef}
         className="thumb-arc-track"
@@ -546,110 +656,113 @@ export function ThumbArcInput({
         </div>
       </div>
 
-      {/* Stepper Buttons (Touch Targets) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: compact ? '0.35rem' : '0.5rem',
-          width: '100%',
-          marginTop: compact ? '0.45rem' : '0.85rem',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => applyDelta(-coarseStep)}
-          className="m3-button m3-button--tonal"
-          aria-label={`Restar ${coarseStep} ${unit}`}
-          style={{
-            minHeight: compact ? '42px' : '48px',
-            fontSize: compact ? '0.88rem' : '0.95rem',
-            fontWeight: 700,
-            borderRadius: '12px',
-          }}
-        >
-          {`-${coarseStep}`}
-        </button>
-        <button
-          type="button"
-          onClick={() => applyDelta(-step)}
-          className="m3-button m3-button--tonal"
-          aria-label={`Restar ${step} ${unit}`}
-          style={{
-            minHeight: compact ? '42px' : '48px',
-            fontSize: compact ? '0.88rem' : '0.95rem',
-            fontWeight: 700,
-            borderRadius: '12px',
-          }}
-        >
-          {`-${step}`}
-        </button>
-        <button
-          type="button"
-          onClick={() => applyDelta(step)}
-          className="m3-button m3-button--tonal"
-          aria-label={`Sumar ${step} ${unit}`}
-          style={{
-            minHeight: compact ? '42px' : '48px',
-            fontSize: compact ? '0.88rem' : '0.95rem',
-            fontWeight: 700,
-            borderRadius: '12px',
-          }}
-        >
-          {`+${step}`}
-        </button>
-        <button
-          type="button"
-          onClick={() => applyDelta(coarseStep)}
-          className="m3-button m3-button--tonal"
-          aria-label={`Sumar ${coarseStep} ${unit}`}
-          style={{
-            minHeight: compact ? '42px' : '48px',
-            fontSize: compact ? '0.88rem' : '0.95rem',
-            fontWeight: 700,
-            borderRadius: '12px',
-          }}
-        >
-          {`+${coarseStep}`}
-        </button>
-      </div>
+      {/* Stepper Buttons & Presets for non-compact mode */}
+      {!compact && (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '0.5rem',
+              width: '100%',
+              marginTop: '0.85rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => applyDelta(-coarseStep)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Restar ${coarseStep} ${unit}`}
+              style={{
+                minHeight: '48px',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                borderRadius: '14px',
+              }}
+            >
+              {`-${coarseStep}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDelta(-step)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Restar ${step} ${unit}`}
+              style={{
+                minHeight: '48px',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                borderRadius: '14px',
+              }}
+            >
+              {`-${step}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDelta(step)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Sumar ${step} ${unit}`}
+              style={{
+                minHeight: '48px',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                borderRadius: '14px',
+              }}
+            >
+              {`+${step}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDelta(coarseStep)}
+              className="m3-button m3-button--tonal"
+              aria-label={`Sumar ${coarseStep} ${unit}`}
+              style={{
+                minHeight: '48px',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                borderRadius: '14px',
+              }}
+            >
+              {`+${coarseStep}`}
+            </button>
+          </div>
 
-      {/* Quick Presets Pills (if provided) */}
-      {quickPresets && quickPresets.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: compact ? '0.3rem' : '0.4rem',
-            width: '100%',
-            marginTop: compact ? '0.4rem' : '0.75rem',
-          }}
-        >
-          {quickPresets.map((preset) => {
-            const isSelected = preset === value;
-            return (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => {
-                  onChange(preset);
-                  triggerHaptic('major');
-                }}
-                className={`m3-button ${isSelected ? 'm3-button--filled' : 'm3-button--outlined'}`}
-                style={{
-                  minHeight: compact ? '36px' : '44px',
-                  padding: compact ? '0 0.65rem' : '0 0.85rem',
-                  fontSize: compact ? '0.8rem' : '0.85rem',
-                  fontWeight: isSelected ? 700 : 500,
-                  borderRadius: '16px',
-                }}
-              >
-                {`${preset} ${unit}`}
-              </button>
-            );
-          })}
-        </div>
+          {quickPresets && quickPresets.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: '0.4rem',
+                width: '100%',
+                marginTop: '0.75rem',
+              }}
+            >
+              {quickPresets.map((preset) => {
+                const isSelected = preset === value;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      onChange(preset);
+                      triggerHaptic('major');
+                    }}
+                    className={`m3-button ${isSelected ? 'm3-button--filled' : 'm3-button--outlined'}`}
+                    style={{
+                      minHeight: '44px',
+                      padding: '0 0.85rem',
+                      fontSize: '0.85rem',
+                      fontWeight: isSelected ? 700 : 500,
+                      borderRadius: '18px',
+                    }}
+                  >
+                    {`${preset} ${unit}`}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

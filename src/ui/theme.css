@@ -2559,6 +2559,50 @@ legend.builder-section-title {
   border-radius: 14px !important;
 }
 
+/* Modo Obra Fullscreen 3D Viewport - Landscape CAD Mode */
+.modo-obra-3d-fullscreen--landscape .viewport-3d-card {
+  padding: 0 !important;
+  gap: 0 !important;
+  position: relative !important;
+}
+
+.modo-obra-3d-fullscreen--landscape .viewport-3d-canvas-wrapper {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+}
+
+.modo-obra-3d-fullscreen--landscape .viewport-3d-toolbar {
+  position: absolute !important;
+  bottom: max(0.6rem, env(safe-area-inset-bottom, 0.6rem)) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 50 !important;
+  background-color: rgba(25, 25, 25, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 24px !important;
+  padding: 0.25rem 0.75rem !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  max-width: 85vw !important;
+}
+
+.modo-obra-3d-fullscreen--landscape .viewport-3d-slider-group {
+  margin-bottom: 0.15rem !important;
+}
+
+/* Modo Obra Floating Back Button */
+.modo-obra-floating-back-fab {
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease !important;
+}
+
+.modo-obra-floating-back-fab:active {
+  transform: scale(0.94) !important;
+}
+
 
 
 
