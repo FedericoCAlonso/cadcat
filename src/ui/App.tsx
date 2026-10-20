@@ -191,7 +191,7 @@ export function App(): ReactElement {
             data-mobile-view={vm.activeTab === 'form' ? 'form' : 'workspace'}
           >
             <aside aria-label="Module Parameters" className="layout-aside">
-              {vm.uiMode === 'site' ? (
+              {vm.uiMode === 'site' && vm.isOneHandDevice ? (
                 <ModoObraWizard
                   width={vm.width}
                   height={vm.height}
@@ -342,7 +342,7 @@ export function App(): ReactElement {
                 onWallShelvesBaseElevationYMmChange={vm.setWallShelvesBaseElevationYMm}
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
-                onSwitchToSiteMode={() => vm.setUiMode('site')}
+                onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}
               />
             )}
           </aside>
@@ -382,9 +382,15 @@ export function App(): ReactElement {
                   type="button"
                   className="builder-floating-action"
                   onClick={() => vm.setActiveTab('form')}
-                  aria-label={vm.uiMode === 'site' ? 'Volver a Modo Obra' : 'Modificar o armar mueble'}
+                  aria-label={
+                    vm.uiMode === 'site' && vm.isOneHandDevice
+                      ? 'Volver a Modo Obra'
+                      : 'Modificar o armar mueble'
+                  }
                 >
-                  {vm.uiMode === 'site' ? '🏗️ Volver a Medidas' : '🛠️ Armar Módulo'}
+                  {vm.uiMode === 'site' && vm.isOneHandDevice
+                    ? '🏗️ Volver a Medidas'
+                    : '🛠️ Armar Módulo'}
                 </button>
               </>
             )}

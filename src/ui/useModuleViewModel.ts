@@ -49,6 +49,7 @@ import {
   loadAllProjectsFromDb,
 } from '../storage';
 import { DEFAULT_UI_CONFIG } from '../config';
+import { useOneHandDevice } from './useOneHandDevice';
 import { getSeedMaterials, getSeedEdgeBands, getSeedHardware } from '../catalog';
 import {
   generateBillOfMaterials,
@@ -150,6 +151,7 @@ export interface ModuleViewModelState {
   cost: ModuleCostSummary | null;
   activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs' | 'countertop';
   uiMode: 'site' | 'expert';
+  isOneHandDevice: boolean;
   handMode: HandMode;
   selectedPieceId: string | null;
   explodedRatio: number;
@@ -570,12 +572,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   });
   const [activeTab, setActiveTab] = useState<ModuleViewModelState['activeTab']>('3d');
+  const isOneHandDevice = useOneHandDevice();
   const [uiMode, setUiModeState] = useState<'site' | 'expert'>(() => {
     try {
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('mobilius_ui_mode');
         if (saved === 'expert' || saved === 'site') return saved;
-        if (window.innerWidth <= 768) return 'site';
       }
     } catch {
       // ignore storage error
@@ -2965,7 +2967,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     bom,
     cost,
     activeTab,
-    uiMode,
+    uiMode: isOneHandDevice ? uiMode : 'expert',
+    isOneHandDevice,
     handMode,
     setUiMode,
     setHandMode,
