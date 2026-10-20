@@ -105,4 +105,24 @@ describe('PieceListView Grouped Plate Cutting List (Point 10)', () => {
     expect(html).toContain('Mecanizados de Placa');
     expect(html).toContain('Cerrar Inspector');
   });
+
+  it('renders mobile cutting cards format and format switcher (Fichas vs Tabla)', () => {
+    const html = renderToString(
+      <PieceListView
+        pieces={mockPieces}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        selectedPieceId={null}
+        onSelectPiece={vi.fn()}
+      />,
+    );
+
+    // Format switcher buttons
+    expect(html).toContain('Fichas');
+    expect(html).toContain('Tabla');
+
+    // Prominent cutting dimensions or table view elements
+    expect(html).toContain('498');
+    expect(html).toContain('700');
+  });
 });

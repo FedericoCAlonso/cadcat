@@ -50,6 +50,8 @@ export function App(): ReactElement {
     return window.innerWidth > window.innerHeight;
   });
 
+  const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
+
   const prevLandscapeRef = useRef<boolean>(isLandscape);
 
   useEffect(() => {
@@ -790,13 +792,17 @@ export function App(): ReactElement {
         )}
       </main>
 
-      {/* Material Design 3 Bottom Navigation Bar for Mobile (< 1024px) */}
+      {/* Material Design 3 Bottom Navigation Bar for Mobile (< 1024px) - 4 Destinations Standard */}
       {!isSiteImmersive && (
         <nav aria-label="Navegación móvil" className="m3-bottom-nav">
           <button
             type="button"
             className={`m3-bottom-nav__item ${vm.activeTab === 'form' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('form')}
+            onClick={() => {
+              triggerHaptic('tick');
+              vm.setActiveTab('form');
+              setIsMoreSheetOpen(false);
+            }}
           >
             <div className="m3-bottom-nav__indicator">
               <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
@@ -804,77 +810,189 @@ export function App(): ReactElement {
             <span className="m3-bottom-nav__label">Armar</span>
             <span className="visually-hidden"> Parameters and Modular Builder</span>
           </button>
+
           <button
             type="button"
             className={`m3-bottom-nav__item ${vm.activeTab === '3d' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('3d')}
+            onClick={() => {
+              triggerHaptic('tick');
+              vm.setActiveTab('3d');
+              setIsMoreSheetOpen(false);
+            }}
           >
             <div className="m3-bottom-nav__indicator">
               <span className="m3-bottom-nav__icon" aria-hidden="true">🧊</span>
             </div>
             <span className="m3-bottom-nav__label">Vista 3D</span>
           </button>
+
           <button
             type="button"
             className={`m3-bottom-nav__item ${vm.activeTab === 'pieces' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('pieces')}
+            onClick={() => {
+              triggerHaptic('tick');
+              vm.setActiveTab('pieces');
+              setIsMoreSheetOpen(false);
+            }}
           >
             <div className="m3-bottom-nav__indicator">
               <span className="m3-bottom-nav__icon" aria-hidden="true">📋</span>
             </div>
             <span className="m3-bottom-nav__label">Despiece</span>
           </button>
+
           <button
             type="button"
-            className={`m3-bottom-nav__item ${vm.activeTab === 'machining' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('machining')}
+            className={`m3-bottom-nav__item ${['machining', 'assembly', 'countertop', 'catalogs', 'settings'].includes(vm.activeTab) ? 'active' : ''}`}
+            onClick={() => {
+              triggerHaptic('tick');
+              setIsMoreSheetOpen((prev) => !prev);
+            }}
+            aria-label="Más herramientas y vistas de taller"
+            aria-expanded={isMoreSheetOpen}
           >
             <div className="m3-bottom-nav__indicator">
-              <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
+              <span className="m3-bottom-nav__icon" aria-hidden="true">
+                {vm.activeTab === 'machining'
+                  ? '🛠️'
+                  : vm.activeTab === 'assembly'
+                  ? '📖'
+                  : vm.activeTab === 'countertop'
+                  ? '🪨'
+                  : vm.activeTab === 'catalogs'
+                  ? '🗄️'
+                  : vm.activeTab === 'settings'
+                  ? '⚙️'
+                  : '📑'}
+              </span>
             </div>
-            <span className="m3-bottom-nav__label">Mecanizado</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-bottom-nav__item ${vm.activeTab === 'assembly' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('assembly')}
-          >
-            <div className="m3-bottom-nav__indicator">
-              <span className="m3-bottom-nav__icon" aria-hidden="true">📖</span>
-            </div>
-            <span className="m3-bottom-nav__label">Armado</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-bottom-nav__item ${vm.activeTab === 'countertop' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('countertop')}
-          >
-            <div className="m3-bottom-nav__indicator">
-              <span className="m3-bottom-nav__icon" aria-hidden="true">🪨</span>
-            </div>
-            <span className="m3-bottom-nav__label">Mesada</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-bottom-nav__item ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('catalogs')}
-          >
-            <div className="m3-bottom-nav__indicator">
-              <span className="m3-bottom-nav__icon" aria-hidden="true">🗄️</span>
-            </div>
-            <span className="m3-bottom-nav__label">Catálogos</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-bottom-nav__item ${vm.activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('settings')}
-          >
-            <div className="m3-bottom-nav__indicator">
-              <span className="m3-bottom-nav__icon" aria-hidden="true">⚙️</span>
-            </div>
-            <span className="m3-bottom-nav__label">Taller</span>
+            <span className="m3-bottom-nav__label">
+              {vm.activeTab === 'machining'
+                ? 'Mecanizado'
+                : vm.activeTab === 'assembly'
+                ? 'Armado'
+                : vm.activeTab === 'countertop'
+                ? 'Mesada'
+                : vm.activeTab === 'catalogs'
+                ? 'Catálogos'
+                : vm.activeTab === 'settings'
+                ? 'Taller'
+                : 'Más...'}
+            </span>
           </button>
         </nav>
+      )}
+
+      {/* Material Design 3 Modal Bottom Sheet for Secondary Tools */}
+      {!isSiteImmersive && isMoreSheetOpen && (
+        <div
+          className="m3-bottom-sheet-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Herramientas adicionales de taller"
+          onClick={() => setIsMoreSheetOpen(false)}
+        >
+          <div
+            className="m3-bottom-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="m3-bottom-sheet__handle" aria-hidden="true" />
+            <div className="m3-bottom-sheet__header">
+              <h3 className="m3-bottom-sheet__title">📑 Herramientas de Taller</h3>
+              <button
+                type="button"
+                className="m3-button m3-button--tonal"
+                onClick={() => setIsMoreSheetOpen(false)}
+                aria-label="Cerrar menú"
+                style={{ minHeight: '38px', minWidth: '38px', borderRadius: '19px', padding: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="m3-bottom-sheet__grid">
+              <button
+                type="button"
+                className={`m3-bottom-sheet__item ${vm.activeTab === 'machining' ? 'active' : ''}`}
+                onClick={() => {
+                  triggerHaptic('major');
+                  vm.setActiveTab('machining');
+                  setIsMoreSheetOpen(false);
+                }}
+              >
+                <span className="m3-bottom-sheet__item-icon">🛠️</span>
+                <div className="m3-bottom-sheet__item-text">
+                  <strong>Mecanizado de Placas</strong>
+                  <span>Ranurados, cremalleras y fresados CNC</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className={`m3-bottom-sheet__item ${vm.activeTab === 'assembly' ? 'active' : ''}`}
+                onClick={() => {
+                  triggerHaptic('major');
+                  vm.setActiveTab('assembly');
+                  setIsMoreSheetOpen(false);
+                }}
+              >
+                <span className="m3-bottom-sheet__item-icon">📖</span>
+                <div className="m3-bottom-sheet__item-text">
+                  <strong>Guía de Armado</strong>
+                  <span>Pasos de ensamble y lista de herrajes</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className={`m3-bottom-sheet__item ${vm.activeTab === 'countertop' ? 'active' : ''}`}
+                onClick={() => {
+                  triggerHaptic('major');
+                  vm.setActiveTab('countertop');
+                  setIsMoreSheetOpen(false);
+                }}
+              >
+                <span className="m3-bottom-sheet__item-icon">🪨</span>
+                <div className="m3-bottom-sheet__item-text">
+                  <strong>Mesadas y Calados</strong>
+                  <span>Cálculo de bacha, anafe y voladizos</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className={`m3-bottom-sheet__item ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
+                onClick={() => {
+                  triggerHaptic('major');
+                  vm.setActiveTab('catalogs');
+                  setIsMoreSheetOpen(false);
+                }}
+              >
+                <span className="m3-bottom-sheet__item-icon">🗄️</span>
+                <div className="m3-bottom-sheet__item-text">
+                  <strong>Catálogos de Materiales</strong>
+                  <span>Placas, tapacantos y herrajes</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className={`m3-bottom-sheet__item ${vm.activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => {
+                  triggerHaptic('major');
+                  vm.setActiveTab('settings');
+                  setIsMoreSheetOpen(false);
+                }}
+              >
+                <span className="m3-bottom-sheet__item-icon">⚙️</span>
+                <div className="m3-bottom-sheet__item-text">
+                  <strong>Configuración del Taller</strong>
+                  <span>Fijaciones, holguras, tolerancias y caché</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Interactive 2D Machining Editor Modal (Point 8) */}

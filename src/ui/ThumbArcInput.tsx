@@ -248,7 +248,7 @@ export function ThumbArcInput({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: compact ? '0.45rem 0.6rem' : '0.85rem 0.75rem',
+        padding: compact ? '0.45rem 0.6rem max(0.45rem, env(safe-area-inset-bottom, 0.45rem))' : '0.85rem 0.75rem',
         borderRadius: compact ? '18px' : '24px',
         backgroundColor: 'var(--md-sys-color-surface-container)',
         border: '1px solid var(--md-sys-color-outline-variant)',
@@ -480,11 +480,11 @@ export function ThumbArcInput({
                     }}
                     className={`m3-button ${isSelected ? 'm3-button--filled' : 'm3-button--outlined'}`}
                     style={{
-                      minHeight: '34px',
-                      padding: '0 0.65rem',
-                      fontSize: '0.8rem',
-                      fontWeight: isSelected ? 700 : 500,
-                      borderRadius: '16px',
+                      minHeight: '48px',
+                      padding: '0 0.85rem',
+                      fontSize: '0.86rem',
+                      fontWeight: isSelected ? 700 : 600,
+                      borderRadius: '24px',
                     }}
                   >
                     {`${preset} ${unit}`}
@@ -494,14 +494,14 @@ export function ThumbArcInput({
             </div>
           )}
 
-          {/* Stepper Buttons (Touch Targets) */}
+          {/* Stepper Buttons (Touch Targets >= 48px per M3) */}
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '0.35rem',
+              gap: '0.4rem',
               width: '100%',
-              marginBottom: '0.4rem',
+              marginBottom: '0.45rem',
             }}
           >
             <button
@@ -510,10 +510,10 @@ export function ThumbArcInput({
               className="m3-button m3-button--tonal"
               aria-label={`Restar ${coarseStep} ${unit}`}
               style={{
-                minHeight: '40px',
-                fontSize: '0.88rem',
+                minHeight: '48px',
+                fontSize: '0.92rem',
                 fontWeight: 700,
-                borderRadius: '12px',
+                borderRadius: '14px',
               }}
             >
               {`-${coarseStep}`}
@@ -524,10 +524,10 @@ export function ThumbArcInput({
               className="m3-button m3-button--tonal"
               aria-label={`Restar ${step} ${unit}`}
               style={{
-                minHeight: '40px',
-                fontSize: '0.88rem',
+                minHeight: '48px',
+                fontSize: '0.92rem',
                 fontWeight: 700,
-                borderRadius: '12px',
+                borderRadius: '14px',
               }}
             >
               {`-${step}`}
@@ -538,10 +538,10 @@ export function ThumbArcInput({
               className="m3-button m3-button--tonal"
               aria-label={`Sumar ${step} ${unit}`}
               style={{
-                minHeight: '40px',
-                fontSize: '0.88rem',
+                minHeight: '48px',
+                fontSize: '0.92rem',
                 fontWeight: 700,
-                borderRadius: '12px',
+                borderRadius: '14px',
               }}
             >
               {`+${step}`}
@@ -552,10 +552,10 @@ export function ThumbArcInput({
               className="m3-button m3-button--tonal"
               aria-label={`Sumar ${coarseStep} ${unit}`}
               style={{
-                minHeight: '40px',
-                fontSize: '0.88rem',
+                minHeight: '48px',
+                fontSize: '0.92rem',
                 fontWeight: 700,
-                borderRadius: '12px',
+                borderRadius: '14px',
               }}
             >
               {`+${coarseStep}`}

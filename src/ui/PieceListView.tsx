@@ -64,6 +64,9 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
 
   const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
+  const [displayFormat, setDisplayFormat] = useState<'cards' | 'table'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table',
+  );
 
   if (pieces.length === 0) {
     return (
@@ -250,6 +253,182 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     </div>
   );
 
+  const renderPiecesCards = (cardPieces: (ResolvedPieceWithCutSize | ConsolidatedPiece)[]) => (
+    <div
+      className="pieces-cards-grid"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '0.75rem',
+        marginTop: '0.85rem',
+      }}
+    >
+      {cardPieces.map((piece) => {
+        const isSelected = selectedPieceId === piece.id;
+        const finishedStr = `${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} mm`;
+        const cutStr = `${piece.cutDimensionsMm.width} × ${piece.cutDimensionsMm.height} mm`;
+        const matName = materials?.find((m) => m.id === piece.materialId)?.name ?? piece.materialId;
+        const deflection = shelfDeflections?.get(piece.id);
+        const bandedEdges = piece.bandedEdges ?? [];
+
+        return (
+          <div
+            key={piece.id}
+            className={`m3-card piece-card-mobile ${isSelected ? 'selected-piece-row' : ''}`}
+            onClick={() => onSelectPiece?.(piece.id)}
+            style={{
+              padding: '0.85rem',
+              borderRadius: '16px',
+              border: isSelected
+                ? '2px solid var(--md-sys-color-primary)'
+                : '1px solid var(--md-sys-color-outline-variant)',
+              backgroundColor: isSelected
+                ? 'var(--md-sys-color-surface-container-high)'
+                : 'var(--md-sys-color-surface-container-low)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.6rem',
+              boxShadow: isSelected ? 'var(--md-sys-elevation-2)' : 'var(--md-sys-elevation-1)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {/* Header: Role, Tag, Structural */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+              <div>
+                {'moduleName' in piece && Boolean((piece as ConsolidatedPiece).moduleName) && (
+                  <span
+                    className="m3-badge m3-badge--neutral"
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '0.15rem 0.45rem',
+                      backgroundColor: 'var(--md-sys-color-secondary-container)',
+                      color: 'var(--md-sys-color-on-secondary-container)',
+                      borderRadius: '4px',
+                      display: 'inline-block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    📦 {(piece as ConsolidatedPiece).moduleName}
+                    {typeof (piece as ConsolidatedPiece).moduleInstanceIndex === 'number' &&
+                    (piece as ConsolidatedPiece).moduleInstanceIndex > 1
+                      ? ` #${(piece as ConsolidatedPiece).moduleInstanceIndex}`
+                      : ''}
+                  </span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <strong style={{ fontSize: '0.98rem', color: 'var(--md-sys-color-on-surface)' }}>
+                    {translatePieceRole(piece.role)}
+                  </strong>
+                  <code className="piece-tag" style={{ fontSize: '0.75rem' }}>{piece.id}</code>
+                </div>
+              </div>
+
+              <span
+                className={`m3-badge ${piece.structural ? 'm3-badge--success' : 'm3-badge--neutral'}`}
+                style={{ fontSize: '0.72rem', fontWeight: 600, flexShrink: 0 }}
+              >
+                {piece.structural ? '✓ Estructural' : 'No estructural'}
+              </span>
+            </div>
+
+            {/* Big Prominent Cutting Dimension Banner */}
+            <div
+              style={{
+                backgroundColor: 'var(--md-sys-color-primary-container)',
+                color: 'var(--md-sys-color-on-primary-container)',
+                padding: '0.65rem 0.85rem',
+                borderRadius: '12px',
+                border: '1px solid var(--md-sys-color-primary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.85, display: 'block' }}>
+                  🪚 Medida de Corte (Sierra)
+                </span>
+                <span style={{ fontSize: '1.35rem', fontWeight: 900, letterSpacing: '-0.02em' }}>
+                  {cutStr}
+                </span>
+              </div>
+              <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>
+                {piece.thicknessMm} mm
+              </span>
+            </div>
+
+            {/* Finished Size & Material */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', flexWrap: 'wrap', gap: '0.35rem' }}>
+              <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
+                📐 Medida Final: <strong>{finishedStr}</strong>
+              </span>
+              <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.75rem' }}>
+                🪵 {matName}
+              </span>
+            </div>
+
+            {/* Tapacantos & Deflection */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.8rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600, color: 'var(--md-sys-color-outline)' }}>🏷️ Cantos:</span>
+                {bandedEdges.length > 0 ? (
+                  bandedEdges.map((b, idx) => (
+                    <span
+                      key={idx}
+                      className="m3-badge m3-badge--neutral"
+                      style={{ fontSize: '0.72rem', padding: '0.1rem 0.35rem' }}
+                    >
+                      {`${b.faceId} (${b.thicknessMm}mm)`}
+                    </span>
+                  ))
+                ) : (
+                  <span style={{ opacity: 0.7, fontStyle: 'italic', fontSize: '0.75rem' }}>Sin tapacantos</span>
+                )}
+              </div>
+
+              {deflection && (
+                <div
+                  className={`m3-badge ${deflection.hasWarning ? 'm3-badge--warning' : 'm3-badge--success'}`}
+                  style={{ alignSelf: 'flex-start', fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                >
+                  {deflection.hasWarning
+                    ? `⚠️ Flecha: ${deflection.calculatedDeflectionMm.toFixed(2)} mm (máx ${deflection.allowableDeflectionMm.toFixed(2)} mm)`
+                    : `✓ Flecha: ${deflection.calculatedDeflectionMm.toFixed(2)} mm (ok)`}
+                </div>
+              )}
+            </div>
+
+            {/* Actions: Machining modal button if enabled */}
+            {onOpenMachiningModal && (
+              <div style={{ marginTop: '0.25rem', paddingTop: '0.5rem', borderTop: '1px solid var(--md-sys-color-outline-variant)' }}>
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{ width: '100%', minHeight: '44px', fontSize: '0.84rem', fontWeight: 700 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenMachiningModal(piece.id);
+                  }}
+                >
+                  🛠️ Mecanizar Placa (Ranuras / Fresados)
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderPiecesContent = (contentPieces: (ResolvedPieceWithCutSize | ConsolidatedPiece)[]) => {
+    if (displayFormat === 'cards') {
+      return renderPiecesCards(contentPieces);
+    }
+    return renderPiecesTable(contentPieces as ResolvedPieceWithCutSize[]);
+  };
+
   return (
     <section aria-labelledby="pieces-heading" className="m3-card piece-list-view">
       <div className="m3-card__header">
@@ -327,24 +506,48 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             </div>
           )}
 
-          {selectedMaterial === 'all' && (
-            <div style={{ display: 'flex', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Format Switcher: Mobile Cards vs Technical Table */}
+            <div className="m3-segmented-button" style={{ height: '36px' }}>
               <button
                 type="button"
-                className={`m3-btn m3-btn--small ${viewMode === 'grouped' ? 'm3-btn--tonal' : 'm3-btn--text'}`}
-                onClick={() => setViewMode('grouped')}
+                className={`m3-segmented-button__item ${displayFormat === 'cards' ? 'selected' : ''}`}
+                onClick={() => setDisplayFormat('cards')}
+                title="Ver fichas de corte compactas para taller"
+                style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem' }}
               >
-                📁 Agrupar por Placa
+                🃏 Fichas
               </button>
               <button
                 type="button"
-                className={`m3-btn m3-btn--small ${viewMode === 'flat' ? 'm3-btn--tonal' : 'm3-btn--text'}`}
-                onClick={() => setViewMode('flat')}
+                className={`m3-segmented-button__item ${displayFormat === 'table' ? 'selected' : ''}`}
+                onClick={() => setDisplayFormat('table')}
+                title="Ver tabla técnica completa"
+                style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem' }}
               >
-                📄 Lista Corrida
+                📊 Tabla
               </button>
             </div>
-          )}
+
+            {selectedMaterial === 'all' && (
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${viewMode === 'grouped' ? 'm3-btn--tonal' : 'm3-btn--text'}`}
+                  onClick={() => setViewMode('grouped')}
+                >
+                  📁 Agrupar por Placa
+                </button>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${viewMode === 'flat' ? 'm3-btn--tonal' : 'm3-btn--text'}`}
+                  onClick={() => setViewMode('flat')}
+                >
+                  📄 Lista Corrida
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -387,13 +590,13 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                     </span>
                   </div>
                 </div>
-                {renderPiecesTable(matPieces)}
+                {renderPiecesContent(matPieces)}
               </div>
             );
           })}
         </div>
       ) : (
-        renderPiecesTable(filteredPieces)
+        renderPiecesContent(filteredPieces)
       )}
 
       {/* Selected Piece Inspector & Inline Property Editor (Point 10 & Point 8) */}

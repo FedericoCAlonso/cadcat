@@ -180,4 +180,93 @@ describe('Modo Obra Fullscreen 3D Viewport & Landscape Experience', () => {
     });
     container.remove();
   });
+
+  it('renders 4-destination M3 bottom nav in mobile and opens secondary tools bottom sheet', () => {
+    const handleSetTab = vi.fn();
+    const mockVm = {
+      uiMode: 'expert' as const,
+      isOneHandDevice: false,
+      activeTab: '3d' as const,
+      setActiveTab: handleSetTab,
+      handMode: 'right' as const,
+      projectModules: [{ id: 'mod-1', name: 'Bajo Mesada 800' }],
+      activeModuleId: 'mod-1',
+      spatialBoxes: [],
+      spatialBounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 800, y: 750, z: 580 }, center: { x: 400, y: 375, z: 290 }, size: { x: 800, y: 750, z: 580 } },
+      resolvedPieces: [],
+      explodedRatio: 0,
+      setExplodedRatio: vi.fn(),
+      selectedPieceId: null,
+      setSelectedPieceId: vi.fn(),
+      shelfDeflections: [],
+      pieceJointOverrides: {},
+      setPieceJointOverride: vi.fn(),
+      jointStrategy: 'confirmat' as const,
+      kinematicBoxes: [],
+      kinematicMechanisms: [],
+      kinematicsState: {},
+      setMechanismOpenRatio: vi.fn(),
+      materials: [],
+      edgeBands: [],
+      pieceMaterialOverrides: {},
+      pieceThicknessOverrides: {},
+      pieceEdgeBandOverrides: {},
+      setPieceMaterial: vi.fn(),
+      setPieceThickness: vi.fn(),
+      setPieceEdgeBands: vi.fn(),
+      countertopCalculation: null,
+      isLoading: false,
+      error: null,
+      statusMessage: null,
+    };
+
+    vi.spyOn(useModuleViewModelModule, 'useModuleViewModel').mockReturnValue(mockVm as unknown as ReturnType<typeof useModuleViewModelModule.useModuleViewModel>);
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(<App />);
+    });
+
+    // 1. Bottom nav should contain exactly 4 main destinations (per M3 standard)
+    const bottomNav = container.querySelector('.m3-bottom-nav');
+    expect(bottomNav).toBeDefined();
+    const navItems = container.querySelectorAll('.m3-bottom-nav__item');
+    expect(navItems.length).toBe(4);
+    expect(navItems[0]?.textContent).toContain('Armar');
+    expect(navItems[1]?.textContent).toContain('Vista 3D');
+    expect(navItems[2]?.textContent).toContain('Despiece');
+    expect(navItems[3]?.textContent).toContain('Más');
+
+    // 2. Tapping "Más" opens the modal bottom sheet
+    const moreBtn = navItems[3] as HTMLButtonElement;
+    act(() => {
+      moreBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const bottomSheet = container.querySelector('.m3-bottom-sheet');
+    expect(bottomSheet).toBeDefined();
+    expect(bottomSheet?.textContent).toContain('Herramientas de Taller');
+    expect(bottomSheet?.textContent).toContain('Mecanizado de Placas');
+    expect(bottomSheet?.textContent).toContain('Guía de Armado');
+    expect(bottomSheet?.textContent).toContain('Mesadas y Calados');
+
+    // 3. Tapping "Mecanizado de Placas" calls setActiveTab('machining') and closes sheet
+    const machiningOption = Array.from(container.querySelectorAll('.m3-bottom-sheet__item')).find(
+      (btn) => btn.textContent?.includes('Mecanizado'),
+    ) as HTMLButtonElement;
+    expect(machiningOption).toBeDefined();
+
+    act(() => {
+      machiningOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleSetTab).toHaveBeenCalledWith('machining');
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });
