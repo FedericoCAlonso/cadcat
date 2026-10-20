@@ -257,87 +257,189 @@ export function ModoObraWizard({
         boxSizing: 'border-box',
       }}
     >
-      {/* 1. Ultra-Compact Top Bar (Height ~44px) */}
+      {/* 1. Ultra-Compact 2-Row Top Bar (Zero Overlap Layout) */}
       <header
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '0.4rem',
-          padding: 'max(0.4rem, env(safe-area-inset-top, 0.4rem)) 0.6rem 0.35rem',
+          flexDirection: 'column',
+          gap: '0.25rem',
+          padding: 'max(0.35rem, env(safe-area-inset-top, 0.35rem)) 0.6rem 0.3rem',
           borderBottom: '1px solid var(--md-sys-color-outline-variant)',
           backgroundColor: 'var(--md-sys-color-surface-container)',
           flexShrink: 0,
           zIndex: 10,
         }}
       >
-        {/* Module Picker / Add Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0 }}>
-          {projectModules.length > 0 && onSetActiveModule ? (
-            <select
-              value={activeModuleId ?? activeModule?.id}
-              onChange={(e) => onSetActiveModule(e.target.value)}
-              aria-label="Seleccionar módulo activo del proyecto"
-              style={{
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                padding: '0.3rem 0.5rem',
-                borderRadius: '12px',
-                border: '1px solid var(--md-sys-color-outline)',
-                backgroundColor: 'var(--md-sys-color-surface)',
-                color: 'var(--md-sys-color-on-surface)',
-                maxWidth: '140px',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {projectModules.map((mod, idx) => (
-                <option key={mod.id} value={mod.id}>
-                  {`📦 ${mod.name || `Módulo ${idx + 1}`}`}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-              {activeModule ? `📦 ${activeModule.name}` : '🏗️ Obra'}
-            </span>
-          )}
+        {/* Row 1: Module Selector (Left) & Global Controls (Right) */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            gap: '0.4rem',
+          }}
+        >
+          {/* Module Picker / Add Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0, flexShrink: 1 }}>
+            {projectModules.length > 0 && onSetActiveModule ? (
+              <select
+                value={activeModuleId ?? activeModule?.id}
+                onChange={(e) => onSetActiveModule(e.target.value)}
+                aria-label="Seleccionar módulo activo del proyecto"
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  padding: '0.25rem 0.45rem',
+                  borderRadius: '10px',
+                  border: '1px solid var(--md-sys-color-outline)',
+                  backgroundColor: 'var(--md-sys-color-surface)',
+                  color: 'var(--md-sys-color-on-surface)',
+                  maxWidth: '140px',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                }}
+              >
+                {projectModules.map((mod, idx) => (
+                  <option key={mod.id} value={mod.id}>
+                    {`📦 ${mod.name || `Módulo ${idx + 1}`}`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: 'var(--md-sys-color-on-surface)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {activeModule ? `📦 ${activeModule.name}` : '🏗️ Obra'}
+              </span>
+            )}
 
-          {onAddProjectModule && (
+            {onAddProjectModule && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('major');
+                  onAddProjectModule();
+                }}
+                className="m3-button m3-button--filled"
+                aria-label="Agregar nuevo módulo a la obra"
+                title="Agregar nuevo mueble a la obra"
+                style={{
+                  minWidth: '36px',
+                  height: '34px',
+                  padding: '0 0.35rem',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                ➕
+              </button>
+            )}
+          </div>
+
+          {/* Right Controls: Hand Mode Toggle & Expert Mode Switch */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
             <button
               type="button"
               onClick={() => {
-                triggerHaptic('major');
-                onAddProjectModule();
+                const nextMode: HandMode = handMode === 'right' ? 'left' : 'right';
+                onHandModeChange(nextMode);
+                triggerHaptic('tick');
               }}
-              className="m3-button m3-button--filled"
-              aria-label="Agregar nuevo módulo a la obra"
-              title="Agregar nuevo mueble a la obra"
+              aria-label={`Cambiar mano: actualmente ${handMode === 'right' ? 'Diestro' : 'Zurdo'}`}
+              title={`Mano activa: ${handMode === 'right' ? 'Diestro' : 'Zurdo'}`}
               style={{
-                minWidth: '40px',
-                height: '36px',
-                padding: '0 0.4rem',
-                borderRadius: '10px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
+                height: '34px',
+                padding: '0 0.5rem',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                backgroundColor: 'var(--md-sys-color-surface)',
+                color: 'var(--md-sys-color-on-surface)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
               }}
             >
-              ➕
+              {handMode === 'right' ? '🖐️ D' : '🖐️ Z'}
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={onSwitchToExpertMode}
+              aria-label="Cambiar a Modo Experto (formulario completo)"
+              title="Abrir formulario técnico completo"
+              className="m3-button m3-button--tonal"
+              style={{
+                height: '34px',
+                padding: '0 0.55rem',
+                borderRadius: '10px',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                backgroundColor: 'var(--md-sys-color-surface-container-highest)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                color: 'var(--md-sys-color-primary)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span aria-hidden="true">⚙️</span>
+              <span>Modo Experto</span>
+            </button>
+          </div>
         </div>
 
-        {/* Step Indicator */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <span
-            style={{
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              color: 'var(--md-sys-color-primary)',
-            }}
-          >
-            {`Paso ${activeStep.stepNumber} de ${OBRA_STEPS.length}`}
-          </span>
-          <div style={{ display: 'flex', gap: '3px', marginTop: '2px' }}>
+        {/* Row 2: Step Title Context & Progress Indicator */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            gap: '0.4rem',
+            paddingTop: '0.1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0, overflow: 'hidden' }}>
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                color: 'var(--md-sys-color-primary)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {`Paso ${activeStep.stepNumber} de ${OBRA_STEPS.length}:`}
+            </span>
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: 'var(--md-sys-color-on-surface)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {activeStep.title}
+            </span>
+          </div>
+
+          {/* Step Progress Line / Dots */}
+          <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flexShrink: 0 }}>
             {OBRA_STEPS.map((s, idx) => (
               <span
                 key={s.id}
@@ -355,59 +457,6 @@ export function ModoObraWizard({
             ))}
           </div>
         </div>
-
-        {/* Hand Toggle & Expert Switch */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <button
-            type="button"
-            onClick={() => {
-              const nextMode: HandMode = handMode === 'right' ? 'left' : 'right';
-              onHandModeChange(nextMode);
-              triggerHaptic('tick');
-            }}
-            aria-label={`Cambiar mano: actualmente ${handMode === 'right' ? 'Diestro' : 'Zurdo'}`}
-            title={`Mano activa: ${handMode === 'right' ? 'Diestro' : 'Zurdo'}`}
-            style={{
-              height: '36px',
-              padding: '0 0.5rem',
-              borderRadius: '10px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              border: '1px solid var(--md-sys-color-outline-variant)',
-              backgroundColor: 'var(--md-sys-color-surface)',
-              color: 'var(--md-sys-color-on-surface)',
-              cursor: 'pointer',
-            }}
-          >
-            {handMode === 'right' ? '🖐️ D' : '🖐️ Z'}
-          </button>
-
-          <button
-            type="button"
-            onClick={onSwitchToExpertMode}
-            aria-label="Cambiar a Modo Experto (formulario completo)"
-            title="Abrir formulario técnico completo"
-            className="m3-button m3-button--tonal"
-            style={{
-              height: '38px',
-              padding: '0 0.65rem',
-              borderRadius: '12px',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              backgroundColor: 'var(--md-sys-color-surface-container-highest)',
-              border: '1px solid var(--md-sys-color-outline-variant)',
-              color: 'var(--md-sys-color-primary)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span aria-hidden="true">⚙️</span>
-            <span>Modo Experto</span>
-          </button>
-        </div>
       </header>
 
       {/* 2. Scroll-Free Middle Body Container */}
@@ -418,29 +467,21 @@ export function ModoObraWizard({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'flex-start',
-          padding: '0.4rem 0.6rem',
+          padding: '0.35rem 0.6rem',
           overflowY: 'auto',
+          overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           boxSizing: 'border-box',
           width: '100%',
         }}
       >
-        {/* Step Header Title */}
-        <div style={{ width: '100%', textAlign: 'center', marginBottom: '0.35rem' }}>
-          <h2
-            style={{
-              margin: '0.1rem 0 0',
-              fontSize: '1.08rem',
-              fontWeight: 700,
-              color: 'var(--md-sys-color-on-surface)',
-            }}
-          >
-            {activeStep.title}
-          </h2>
+        {/* Step Subtitle / Accessibility Header */}
+        <div style={{ width: '100%', textAlign: 'center', marginBottom: '0.25rem' }}>
+          <h2 className="visually-hidden">{activeStep.title}</h2>
           <p
             style={{
-              margin: '0.1rem 0 0.25rem',
-              fontSize: '0.78rem',
+              margin: '0',
+              fontSize: '0.76rem',
               color: 'var(--md-sys-color-outline)',
             }}
           >
@@ -660,6 +701,7 @@ export function ModoObraWizard({
                 handMode={handMode}
                 onHandModeChange={onHandModeChange}
                 quickPresets={[400, 500, 600, 800, 900, 1000, 1200]}
+                compact={true}
               />
             )}
 
@@ -678,6 +720,7 @@ export function ModoObraWizard({
                 handMode={handMode}
                 onHandModeChange={onHandModeChange}
                 quickPresets={[700, 750, 800, 850, 900, 1800, 2100]}
+                compact={true}
               />
             )}
 
@@ -696,6 +739,7 @@ export function ModoObraWizard({
                 handMode={handMode}
                 onHandModeChange={onHandModeChange}
                 quickPresets={[300, 320, 350, 450, 500, 550, 580, 600]}
+                compact={true}
               />
             )}
 
@@ -714,6 +758,7 @@ export function ModoObraWizard({
                 handMode={handMode}
                 onHandModeChange={onHandModeChange}
                 quickPresets={[15, 18, 25]}
+                compact={true}
               />
             )}
           </div>
@@ -1556,59 +1601,42 @@ export function ModoObraWizard({
         )}
       </main>
 
-      {/* 3. Ergonomic Bottom Navigation Bar (~52px + safe-area) */}
+      {/* 3. Ergonomic Bottom Navigation Bar (Single Row ~50px + safe-area) */}
       <footer
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          gap: '0.35rem',
-          padding: '0.4rem 0.6rem max(0.4rem, env(safe-area-inset-bottom, 0.4rem))',
+          alignItems: 'center',
+          gap: '0.4rem',
+          padding: '0.35rem 0.6rem max(0.35rem, env(safe-area-inset-bottom, 0.35rem))',
           backgroundColor: 'var(--md-sys-color-surface-container)',
           borderTop: '1px solid var(--md-sys-color-outline-variant)',
           flexShrink: 0,
           zIndex: 10,
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
-        {/* Step Prev / Next Buttons */}
-        <div style={{ display: 'flex', gap: '0.4rem', width: '100%' }}>
-          <button
-            type="button"
-            onClick={goToPrevStep}
-            disabled={currentStepIndex === 0}
-            className="m3-button m3-button--tonal"
-            aria-label="Paso anterior (o deslizar hacia abajo)"
-            style={{
-              flex: 1,
-              minHeight: '44px',
-              borderRadius: '12px',
-              fontSize: '0.86rem',
-              fontWeight: 700,
-              opacity: currentStepIndex === 0 ? 0.35 : 1,
-            }}
-          >
-            ◀ Anterior
-          </button>
+        <button
+          type="button"
+          onClick={goToPrevStep}
+          disabled={currentStepIndex === 0}
+          className="m3-button m3-button--tonal"
+          aria-label="Paso anterior (o deslizar hacia abajo)"
+          style={{
+            flex: 1,
+            minHeight: '44px',
+            padding: '0 0.35rem',
+            borderRadius: '12px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            opacity: currentStepIndex === 0 ? 0.35 : 1,
+          }}
+        >
+          ◀ Anterior
+        </button>
 
-          <button
-            type="button"
-            onClick={goToNextStep}
-            disabled={currentStepIndex === OBRA_STEPS.length - 1}
-            className="m3-button m3-button--filled"
-            aria-label="Siguiente paso (o deslizar hacia arriba)"
-            style={{
-              flex: 1.2,
-              minHeight: '44px',
-              borderRadius: '12px',
-              fontSize: '0.86rem',
-              fontWeight: 700,
-              opacity: currentStepIndex === OBRA_STEPS.length - 1 ? 0.35 : 1,
-            }}
-          >
-            Siguiente ▶
-          </button>
-        </div>
-
-        {/* Persistent 3D Inspector Full Button (Point 1.3) */}
+        {/* Persistent 3D Inspector Button */}
         <button
           type="button"
           onClick={() => {
@@ -1618,19 +1646,41 @@ export function ModoObraWizard({
           className={`m3-button ${is3dViewActive ? 'm3-button--tonal' : 'm3-button--filled'}`}
           aria-label={is3dViewActive ? 'Volver al formulario de obra' : 'Ver modelo 3D en pantalla completa'}
           style={{
-            width: '100%',
-            minHeight: '48px',
-            borderRadius: '24px',
-            fontSize: '0.96rem',
+            flex: 1.25,
+            minHeight: '44px',
+            padding: '0 0.4rem',
+            borderRadius: '12px',
+            fontSize: '0.84rem',
             fontWeight: 800,
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.4rem',
-            boxShadow: '0 3px 8px rgba(0, 0, 0, 0.12)',
+            gap: '0.25rem',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
           }}
         >
           <span>{is3dViewActive ? '✏️ Volver a Ajustes' : '👁️ Ver Modelo 3D'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={goToNextStep}
+          disabled={currentStepIndex === OBRA_STEPS.length - 1}
+          className="m3-button m3-button--filled"
+          aria-label="Siguiente paso (o deslizar hacia arriba)"
+          style={{
+            flex: 1,
+            minHeight: '44px',
+            padding: '0 0.35rem',
+            borderRadius: '12px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            opacity: currentStepIndex === OBRA_STEPS.length - 1 ? 0.35 : 1,
+          }}
+        >
+          Siguiente ▶
         </button>
       </footer>
     </section>

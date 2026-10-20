@@ -189,4 +189,24 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     container.remove();
   });
+
+  it('renders in compact mode with reduced vertical footprint and hidden redundant header', () => {
+    const html = renderToString(
+      <ThumbArcInput
+        label="Ancho Compacto"
+        value={600}
+        compact={true}
+        onChange={vi.fn()}
+      />,
+    );
+
+    // Redundant header and hand mode switch should be hidden in compact mode
+    expect(html).not.toContain('🏗️ Modo Obra');
+    expect(html).not.toContain('🖐️ Diestro');
+
+    // Value and arc should still render cleanly
+    expect(html).toContain('600');
+    expect(html).toContain('height:185px');
+    expect(html).toContain('viewBox="0 0 340 185"');
+  });
 });

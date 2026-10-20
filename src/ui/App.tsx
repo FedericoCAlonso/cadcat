@@ -164,8 +164,8 @@ export function App(): ReactElement {
           </p>
         )}
         {vm.error && <p className="error-state" role="alert">{vm.error}</p>}
-        {vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
-        {updateAvailable && (
+        {!isSiteImmersive && vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
+        {!isSiteImmersive && updateAvailable && (
           <div className="m3-banner m3-banner--warning" role="alert" style={{ margin: '0 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span>🎉 ¡Nueva versión de Mobilius disponible con mejoras de cajones y CAD móvil!</span>
             <button

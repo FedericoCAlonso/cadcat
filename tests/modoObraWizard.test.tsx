@@ -250,4 +250,33 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
     });
     container.remove();
   });
+
+  it('renders zero-overlap 2-row top bar and compact 1-row bottom footer', () => {
+    const html = renderToString(
+      <ModoObraWizard
+        width={800}
+        height={750}
+        depth={580}
+        thickness={18}
+        templates={dummyTemplates}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        handMode="right"
+        onHandModeChange={vi.fn()}
+        onSwitchToExpertMode={vi.fn()}
+      />,
+    );
+
+    // Header has step counter and title
+    expect(html).toContain('Paso 1 de 8:');
+    expect(html).toContain('Módulo y Tipo');
+    expect(html).toContain('Modo Experto');
+    expect(html).toContain('🖐️ D');
+
+    // Footer is single-row with all 3 actions
+    expect(html).toContain('◀ Anterior');
+    expect(html).toContain('👁️ Ver Modelo 3D');
+    expect(html).toContain('Siguiente ▶');
+  });
 });
