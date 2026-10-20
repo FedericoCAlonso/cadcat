@@ -106,6 +106,37 @@ describe('AssemblySheetView Component', () => {
     expect(html).toContain('Tiras Calibre');
     expect(html).toContain('svg');
     expect(html).toContain('viewBox=');
+    // Enhanced assembly guide assertions
+    expect(html).toContain('Vista Explotada y Mapa de Piezas');
+    expect(html).toContain('Vistas de Pre-mecanizado en Banco');
+    expect(html).toContain('Diagonal de Escuadra:');
+    expect(html).toContain('#1');
+    expect(html).toContain('Datum (0,0)');
+  });
+
+  it('generates rich engineering model with mathematical squaring diagonal, exploded map and panel details', () => {
+    const sheet: AssemblySheet = generateAssemblySheet({
+      module: {
+        moduleId: 'cab-01',
+        pieces: samplePieces,
+        joints: [],
+      },
+    });
+
+    // Mathematical diagonal sqrt(W^2 + H^2)
+    expect(sheet.squaringDiagonalMm).toBeGreaterThan(0);
+    expect(sheet.explodedMap.length).toBe(samplePieces.length);
+    expect(sheet.explodedMap[0]?.referenceNumber).toBe(1);
+    expect(sheet.panelDetails.length).toBeGreaterThanOrEqual(1);
+
+    const firstPanel = sheet.panelDetails[0]!;
+    expect(firstPanel.datumNotes).toContain('Datum (0,0)');
+    expect(firstPanel.operations.length).toBeGreaterThan(0);
+
+    // Squaring step verification
+    const squaringStep = sheet.steps.find((s) => s.phase === 'squaring');
+    expect(squaringStep).toBeDefined();
+    expect(squaringStep?.criticalDimensionMm?.valueMm).toBe(sheet.squaringDiagonalMm);
   });
 
   it('renders wall shelving installation view reactively when wallShelvingDefinition and output are provided', () => {

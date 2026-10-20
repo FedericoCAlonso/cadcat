@@ -196,7 +196,10 @@ export {
 } from './gauges';
 
 export {
+  type AssemblyHardwareRequirement,
   type AssemblyStep,
+  type ExplodedPieceMapItem,
+  type PanelDetailItem,
   type AssemblySheet,
   type GenerateAssemblySheetInput,
   generateAssemblySheet,

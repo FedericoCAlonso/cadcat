@@ -717,6 +717,8 @@ export function App(): ReactElement {
                   wallShelvingOutput={vm.wallShelvingOutput}
                   wallShelvingDefinition={vm.wallShelvingDefinition}
                   onExportPdf={vm.exportAssemblyPdf}
+                  selectedPieceId={vm.selectedPieceId}
+                  onSelectPiece={vm.setSelectedPieceId}
                 />
               )}
 

@@ -2312,11 +2312,17 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           joints: currentModule.joints,
         },
         machiningConfig: projectConfig?.machining,
+        machiningSheets,
+        moduleDimensions: {
+          width: currentModule.parameters?.width ?? 600,
+          height: currentModule.parameters?.height ?? 800,
+          depth: currentModule.parameters?.depth ?? 550,
+        },
       });
     } catch {
       return null;
     }
-  }, [currentModule, resolvedPieces, projectConfig]);
+  }, [currentModule, resolvedPieces, projectConfig, machiningSheets]);
 
   // Generates Costs
   const cost = useMemo(() => {
