@@ -63,6 +63,30 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('Save Module to Database');
   });
 
+  it('renders switch button to Modo Obra when onSwitchToSiteMode is provided', () => {
+    const html = renderToString(
+      <ModuleForm
+        width={600}
+        height={800}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        selectedMaterialId="mat-1"
+        selectedEdgeBandId="eb-1"
+        isSaving={false}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        onMaterialChange={vi.fn()}
+        onEdgeBandChange={vi.fn()}
+        onSave={vi.fn()}
+        onSwitchToSiteMode={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Modo Obra (Táctil)');
+  });
+
   it('renders interactive builder controls for roof, vanos, drawers, and shelves', () => {
     const html = renderToString(
       <ModuleForm

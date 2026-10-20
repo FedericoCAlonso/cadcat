@@ -60,6 +60,7 @@ import {
   exportMachiningSheetToDxf,
   triggerBrowserDownload,
   canPieceRotate,
+  type HandMode,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
   type ModuleCostSummary,
@@ -148,6 +149,8 @@ export interface ModuleViewModelState {
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
   activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs' | 'countertop';
+  uiMode: 'site' | 'expert';
+  handMode: HandMode;
   selectedPieceId: string | null;
   explodedRatio: number;
   spatialBoxes: SpatialPieceBox[];
@@ -179,6 +182,9 @@ export interface ModuleViewModelState {
   setSelectedMaterialId: (id: string) => void;
   setSelectedEdgeBandId: (id: string) => void;
   setActiveTab: (tab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs' | 'countertop') => void;
+  setUiMode: (mode: 'site' | 'expert') => void;
+  setHandMode: (mode: HandMode) => void;
+  toggleUiMode: () => void;
   setSelectedPieceId: (id: string | null) => void;
   setSelectedMachiningPieceId: (id: string | null) => void;
   setExplodedRatio: (ratio: number) => void;
@@ -564,6 +570,51 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   });
   const [activeTab, setActiveTab] = useState<ModuleViewModelState['activeTab']>('3d');
+  const [uiMode, setUiModeState] = useState<'site' | 'expert'>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('mobilius_ui_mode');
+        if (saved === 'expert' || saved === 'site') return saved;
+        if (window.innerWidth <= 768) return 'site';
+      }
+    } catch {
+      // ignore storage error
+    }
+    return 'site';
+  });
+  const [handMode, setHandModeState] = useState<HandMode>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('mobilius_hand_mode');
+        if (saved === 'right' || saved === 'left') return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'right';
+  });
+
+  const setUiMode = useCallback((mode: 'site' | 'expert') => {
+    setUiModeState(mode);
+    try {
+      localStorage.setItem('mobilius_ui_mode', mode);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setHandMode = useCallback((mode: HandMode) => {
+    setHandModeState(mode);
+    try {
+      localStorage.setItem('mobilius_hand_mode', mode);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleUiMode = useCallback(() => {
+    setUiMode(uiMode === 'site' ? 'expert' : 'site');
+  }, [uiMode, setUiMode]);
   const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [selectedMachiningPieceId, setSelectedMachiningPieceId] = useState<string | null>(null);
   const [projectConfig, setProjectConfig] = useState<ProjectConfig | null>(null);
@@ -2914,6 +2965,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     bom,
     cost,
     activeTab,
+    uiMode,
+    handMode,
+    setUiMode,
+    setHandMode,
+    toggleUiMode,
     selectedPieceId,
     explodedRatio,
     spatialBoxes: spatialData.boxes,

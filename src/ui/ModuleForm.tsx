@@ -109,6 +109,7 @@ export interface ModuleFormProps {
   maxDrawerSpanMm?: number;
   onJointStrategyChange?: (strategy: JointStrategy) => void;
   onView3dClick?: () => void;
+  onSwitchToSiteMode?: () => void;
   onSaveUserTemplate?: (name: string, description?: string) => Promise<void> | void;
   onDeleteUserTemplate?: (id: string) => Promise<void> | void;
   // Base structure & reinforcement props (Point 7)
@@ -246,6 +247,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onBackingsMaterialChange,
     onJointStrategyChange,
     onView3dClick,
+    onSwitchToSiteMode,
     railOrientation = 'horizontal',
     hasMiddleBrace = false,
     middleBraceWidthMm = 80,
@@ -603,13 +605,41 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       )}
 
       <div className="m3-card__header">
-        <h2 id="form-heading" className="m3-card__title">
-          📐 Medidas y Armado del Módulo
-          <span className="visually-hidden">Module Parameters and Builder</span>
-        </h2>
-        <p className="m3-card__subtitle">
-          Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h2 id="form-heading" className="m3-card__title">
+              📐 Medidas y Armado del Módulo
+              <span className="visually-hidden">Module Parameters and Builder</span>
+            </h2>
+            <p className="m3-card__subtitle">
+              Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
+            </p>
+          </div>
+          {onSwitchToSiteMode && (
+            <button
+              type="button"
+              onClick={onSwitchToSiteMode}
+              className="m3-button m3-button--tonal"
+              aria-label="Cambiar a Modo Obra (control gestual)"
+              title="Cambiar al modo táctil con gestos para celular"
+              style={{
+                minHeight: '48px',
+                borderRadius: '24px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                backgroundColor: 'var(--md-sys-color-primary-container)',
+                color: 'var(--md-sys-color-on-primary-container)',
+                border: '1px solid var(--md-sys-color-primary)',
+              }}
+            >
+              <span>🏗️</span>
+              <span>Modo Obra (Táctil)</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {templates && templates.length > 0 && onTemplateChange && (

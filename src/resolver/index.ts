@@ -326,3 +326,4 @@ export {
 } from './projectConsolidator';
 
 export * from './dxf';
+export * from './thumbArc';

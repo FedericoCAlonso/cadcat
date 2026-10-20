@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactElement } from 'react';
 import './theme.css';
 import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
+import { ModoObraWizard } from './ModoObraWizard';
 import { PieceListView } from './PieceListView';
 import { Viewport3D } from './Viewport3D';
 import { MachiningSheetView } from './MachiningSheetView';
@@ -190,7 +191,33 @@ export function App(): ReactElement {
             data-mobile-view={vm.activeTab === 'form' ? 'form' : 'workspace'}
           >
             <aside aria-label="Module Parameters" className="layout-aside">
-              <ModuleForm
+              {vm.uiMode === 'site' ? (
+                <ModoObraWizard
+                  width={vm.width}
+                  height={vm.height}
+                  depth={vm.depth}
+                  thickness={
+                    typeof vm.materials.find((m) => m.id === vm.selectedMaterialId)?.thicknessMm === 'number'
+                      ? (vm.materials.find((m) => m.id === vm.selectedMaterialId)!.thicknessMm as number)
+                      : 18
+                  }
+                  onWidthChange={vm.setWidth}
+                  onHeightChange={vm.setHeight}
+                  onDepthChange={vm.setDepth}
+                  onThicknessChange={(th) => {
+                    const match = vm.materials.find((m) => m.thicknessMm === th);
+                    if (match) {
+                      vm.setSelectedMaterialId(match.id);
+                    }
+                  }}
+                  handMode={vm.handMode}
+                  onHandModeChange={vm.setHandMode}
+                  onSwitchToExpertMode={() => vm.setUiMode('expert')}
+                  onView3dClick={() => vm.setActiveTab(vm.activeTab === '3d' ? 'form' : '3d')}
+                  is3dViewActive={vm.activeTab === '3d'}
+                />
+              ) : (
+                <ModuleForm
                 project={vm.project}
                 projectModules={vm.projectModules}
                 activeModuleId={vm.activeModuleId}
@@ -315,50 +342,52 @@ export function App(): ReactElement {
                 onWallShelvesBaseElevationYMmChange={vm.setWallShelvesBaseElevationYMm}
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
+                onSwitchToSiteMode={() => vm.setUiMode('site')}
               />
-            </aside>
+            )}
+          </aside>
 
-            <section aria-label="Module Visualization" className="layout-main">
-              {(vm.activeTab === '3d' || vm.activeTab === 'form') && (
-                <>
-                  <Viewport3D
-                    boxes={vm.spatialBoxes}
-                    bounds={vm.spatialBounds}
-                    pieces={vm.resolvedPieces}
-                    explodedRatio={vm.explodedRatio}
-                    onExplodedRatioChange={vm.setExplodedRatio}
-                    selectedPieceId={vm.selectedPieceId}
-                    onSelectPiece={vm.setSelectedPieceId}
-                    shelfDeflections={vm.shelfDeflections}
-                    pieceJointOverrides={vm.pieceJointOverrides}
-                    onSetPieceJointOverride={vm.setPieceJointOverride}
-                    defaultJointStrategy={vm.jointStrategy}
-                    kinematicBoxes={vm.kinematicBoxes}
-                    kinematicMechanisms={vm.kinematicMechanisms}
-                    kinematicsState={vm.kinematicsState}
-                    onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
-                    materials={vm.materials}
-                    edgeBands={vm.edgeBands}
-                    pieceMaterialOverrides={vm.pieceMaterialOverrides}
-                    pieceThicknessOverrides={vm.pieceThicknessOverrides}
-                    pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
-                    onSetPieceMaterial={vm.setPieceMaterial}
-                    onSetPieceThickness={vm.setPieceThickness}
-                    onSetPieceEdgeBands={vm.setPieceEdgeBands}
-                    onOpenMachiningModal={(id) => setMachiningPieceId(id)}
-                    machiningSheets={vm.machiningSheets}
-                    countertopCalculation={vm.countertopCalculation}
-                  />
-                  <button
-                    type="button"
-                    className="builder-floating-action"
-                    onClick={() => vm.setActiveTab('form')}
-                    aria-label="Modificar o armar mueble"
-                  >
-                    🛠️ Armar Módulo
-                  </button>
-                </>
-              )}
+          <section aria-label="Module Visualization" className="layout-main">
+            {(vm.activeTab === '3d' || vm.activeTab === 'form') && (
+              <>
+                <Viewport3D
+                  boxes={vm.spatialBoxes}
+                  bounds={vm.spatialBounds}
+                  pieces={vm.resolvedPieces}
+                  explodedRatio={vm.explodedRatio}
+                  onExplodedRatioChange={vm.setExplodedRatio}
+                  selectedPieceId={vm.selectedPieceId}
+                  onSelectPiece={vm.setSelectedPieceId}
+                  shelfDeflections={vm.shelfDeflections}
+                  pieceJointOverrides={vm.pieceJointOverrides}
+                  onSetPieceJointOverride={vm.setPieceJointOverride}
+                  defaultJointStrategy={vm.jointStrategy}
+                  kinematicBoxes={vm.kinematicBoxes}
+                  kinematicMechanisms={vm.kinematicMechanisms}
+                  kinematicsState={vm.kinematicsState}
+                  onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
+                  materials={vm.materials}
+                  edgeBands={vm.edgeBands}
+                  pieceMaterialOverrides={vm.pieceMaterialOverrides}
+                  pieceThicknessOverrides={vm.pieceThicknessOverrides}
+                  pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
+                  onSetPieceMaterial={vm.setPieceMaterial}
+                  onSetPieceThickness={vm.setPieceThickness}
+                  onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                  onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                  machiningSheets={vm.machiningSheets}
+                  countertopCalculation={vm.countertopCalculation}
+                />
+                <button
+                  type="button"
+                  className="builder-floating-action"
+                  onClick={() => vm.setActiveTab('form')}
+                  aria-label={vm.uiMode === 'site' ? 'Volver a Modo Obra' : 'Modificar o armar mueble'}
+                >
+                  {vm.uiMode === 'site' ? '🏗️ Volver a Medidas' : '🛠️ Armar Módulo'}
+                </button>
+              </>
+            )}
 
               {vm.activeTab === 'machining' && (
                 <MachiningSheetView
