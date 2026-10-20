@@ -459,10 +459,11 @@ export function ModoObraWizard({
         </div>
       </header>
 
-      {/* 2. Scroll-Free Middle Body Container */}
+      {/* 2. Scrollable Middle Body Container */}
       <main
         style={{
           flex: 1,
+          minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',

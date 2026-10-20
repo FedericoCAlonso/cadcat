@@ -99,8 +99,12 @@ describe('Modo Obra Fullscreen 3D Viewport & Landscape Experience', () => {
     });
     expect(handleSetTab).toHaveBeenCalledWith('form');
 
-    // 3. In portrait mode (375x667), shows rotation suggestion for CAD
+    // 3. In portrait mode (375x667), shows rotation suggestion for CAD and scrollable layout
     expect(container.textContent).toContain('Girar para CAD');
+    const viewportContainer = container.querySelector('.modo-obra-3d-fullscreen') as HTMLDivElement;
+    expect(viewportContainer).toBeDefined();
+    expect(viewportContainer.style.overflowY).toBe('auto');
+    expect(fabButton.style.position).toBe('fixed');
 
     act(() => {
       root.unmount();

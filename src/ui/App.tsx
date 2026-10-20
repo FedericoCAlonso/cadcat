@@ -274,7 +274,9 @@ export function App(): ReactElement {
               flexDirection: 'column',
               width: '100vw',
               height: '100dvh',
-              overflow: 'hidden',
+              overflowY: isLandscape ? 'hidden' : 'auto',
+              overflowX: 'hidden',
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             {/* Top header: in portrait displays module name and rotation hint; in landscape collapses to maximize CAD canvas */}
@@ -340,7 +342,15 @@ export function App(): ReactElement {
               </div>
             )}
 
-            <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: 0, overflow: 'hidden' }}>
+            <div
+              style={{
+                flex: isLandscape ? 1 : 'none',
+                position: 'relative',
+                width: '100%',
+                minHeight: isLandscape ? 0 : 'auto',
+                overflow: isLandscape ? 'hidden' : 'visible',
+              }}
+            >
               <Viewport3D
                 boxes={vm.spatialBoxes}
                 bounds={vm.spatialBounds}
@@ -379,7 +389,7 @@ export function App(): ReactElement {
                   vm.setActiveTab('form');
                 }}
                 style={{
-                  position: 'absolute',
+                  position: 'fixed',
                   bottom: isLandscape
                     ? 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))'
                     : 'max(1.2rem, env(safe-area-inset-bottom, 1.2rem))',
