@@ -20,6 +20,7 @@ import {
   triggerHaptic,
   computeThumbArcSvgPath,
   isPointOnThumbArc,
+  isPointOnKnob,
 } from '../resolver/thumbArc';
 
 export interface ThumbArcInputProps {
@@ -123,6 +124,19 @@ export function ThumbArcInput({
   const baseSvgHeight = compact ? 185 : 270;
   const baseRadius = compact ? 210 : 275;
 
+  // SVG Geometry for visual arc (calibrated for regular or compact viewport)
+  const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
+
+  // Knob position along visual arc based on value percentage
+  // Sweeping up (elevating thumb) increases value (+); sweeping down decreases (-).
+  const valueRatio = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const knobAngleDeg = activeHandMode === 'right'
+    ? -165 + valueRatio * 60
+    : -15 - valueRatio * 60;
+  const knobAngleRad = (knobAngleDeg * Math.PI) / 180;
+  const knobX = svgTrack.center.x + svgTrack.radius * Math.cos(knobAngleRad);
+  const knobY = svgTrack.center.y + svgTrack.radius * Math.sin(knobAngleRad);
+
   const handlePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!arcContainerRef.current) return;
@@ -135,8 +149,16 @@ export function ThumbArcInput({
         y: (e.clientY - rect.top) * scaleY,
       };
 
-      // Only capture movement when finger is placed directly on the radial arc or knob
-      if (!isPointOnThumbArc(normalizedPoint, baseWidth, baseSvgHeight, activeHandMode, { radius: baseRadius })) {
+      // 1. Direct hit on the visual knob (< 35px) captures immediately regardless of angular tolerance
+      const isOverKnob = isPointOnKnob(normalizedPoint, { x: knobX, y: knobY }, 35);
+
+      // 2. Proportional hit on the radial arc corridor with expanded tolerance (55px)
+      const isOnArc = isPointOnThumbArc(normalizedPoint, baseWidth, baseSvgHeight, activeHandMode, {
+        radius: baseRadius,
+        radialTolerance: 55,
+      });
+
+      if (!isOverKnob && !isOnArc) {
         return;
       }
 
@@ -155,7 +177,7 @@ export function ThumbArcInput({
       accumulatedValueRef.current = value;
       triggerHaptic('tick');
     },
-    [activeHandMode, value, baseWidth, baseSvgHeight, baseRadius],
+    [activeHandMode, value, baseWidth, baseSvgHeight, baseRadius, knobX, knobY],
   );
 
   const handlePointerMove = useCallback(
@@ -215,19 +237,6 @@ export function ThumbArcInput({
     },
     [value, min, max, step, coarseStep, onChange],
   );
-
-  // SVG Geometry for visual arc (calibrated for regular or compact viewport)
-  const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
-
-  // Knob position along visual arc based on value percentage
-  // Sweeping up (elevating thumb) increases value (+); sweeping down decreases (-).
-  const valueRatio = Math.max(0, Math.min(1, (value - min) / (max - min)));
-  const knobAngleDeg = activeHandMode === 'right'
-    ? -165 + valueRatio * 60
-    : -15 - valueRatio * 60;
-  const knobAngleRad = (knobAngleDeg * Math.PI) / 180;
-  const knobX = svgTrack.center.x + svgTrack.radius * Math.cos(knobAngleRad);
-  const knobY = svgTrack.center.y + svgTrack.radius * Math.sin(knobAngleRad);
 
   return (
     <div
@@ -448,10 +457,13 @@ export function ThumbArcInput({
       {/* Thumb Radial Sweep Arc Area */}
       <div
         ref={arcContainerRef}
+        className="thumb-arc-track"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
         style={{
           width: '100%',
           height: `${baseHeight}px`,
@@ -461,7 +473,7 @@ export function ThumbArcInput({
           backgroundColor: 'var(--md-sys-color-surface)',
           border: '1px solid var(--md-sys-color-outline-variant)',
           cursor: 'default',
-          touchAction: 'pan-x pan-y',
+          touchAction: 'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -469,7 +481,7 @@ export function ThumbArcInput({
         }}
       >
         <svg
-          viewBox={`0 0 ${baseWidth} ${baseHeight}`}
+          viewBox={`0 0 ${baseWidth} ${baseSvgHeight}`}
           style={{
             width: '100%',
             height: '100%',

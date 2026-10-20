@@ -8,6 +8,7 @@ import {
   evaluateHapticFeedback,
   computeThumbArcSvgPath,
   isPointOnThumbArc,
+  isPointOnKnob,
   DEFAULT_THUMB_ARC_CONFIG,
 } from '../src/resolver';
 
@@ -186,6 +187,22 @@ describe('ThumbArc Mathematical Resolver (Modo Obra)', () => {
       // Point at -45 deg: x = -20 + 275 * cos(-45 deg) = -20 + 194.45 = 174.5, y = 290 - 194.45 = 95.5
       const pointOnLeftArc = { x: 174.5, y: 95.5 };
       expect(isPointOnThumbArc(pointOnLeftArc, W, H, 'left', { radius })).toBe(true);
+    });
+  });
+
+  describe('Knob Area Hit-Testing (isPointOnKnob)', () => {
+    const knobCenter = { x: 150, y: 150 };
+
+    it('returns true when point is within 35px radius of knob center', () => {
+      expect(isPointOnKnob({ x: 150, y: 150 }, knobCenter, 35)).toBe(true);
+      expect(isPointOnKnob({ x: 170, y: 150 }, knobCenter, 35)).toBe(true);
+      expect(isPointOnKnob({ x: 150, y: 180 }, knobCenter, 35)).toBe(true);
+      expect(isPointOnKnob({ x: 174, y: 174 }, knobCenter, 35)).toBe(true); // hypot(24, 24) = 33.94 <= 35
+    });
+
+    it('returns false when point is beyond 35px radius', () => {
+      expect(isPointOnKnob({ x: 150, y: 190 }, knobCenter, 35)).toBe(false); // 40px away
+      expect(isPointOnKnob({ x: 100, y: 150 }, knobCenter, 35)).toBe(false); // 50px away
     });
   });
 });

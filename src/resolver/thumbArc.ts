@@ -226,10 +226,22 @@ export interface ThumbArcHitTestOptions {
 
 export const DEFAULT_THUMB_ARC_HIT_OPTIONS: Required<ThumbArcHitTestOptions> = {
   radius: 275,
-  radialTolerance: 40,
-  angularToleranceDeg: 15,
+  radialTolerance: 55,
+  angularToleranceDeg: 18,
   marginOffsetMm: 20,
 };
+
+/**
+ * Pure mathematical resolver for hit-testing whether a 2D touch point falls on the interactive knob.
+ * Enables immediate touch capture over the visual knob area (< 35px) regardless of angle.
+ */
+export function isPointOnKnob(
+  point: Point2D,
+  knobCenter: Point2D,
+  knobHitRadius: number = 35,
+): boolean {
+  return Math.hypot(point.x - knobCenter.x, point.y - knobCenter.y) <= knobHitRadius;
+}
 
 /**
  * Pure mathematical resolver for hit-testing whether a 2D touch point falls on the thumb arc.

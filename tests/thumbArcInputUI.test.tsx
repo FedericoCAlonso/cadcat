@@ -209,4 +209,47 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     expect(html).toContain('height:185px');
     expect(html).toContain('viewBox="0 0 340 185"');
   });
+
+  it('configures touch-action: none and isolates touch events from parent with stopPropagation', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Ancho"
+          value={800}
+          onChange={vi.fn()}
+        />,
+      );
+    });
+
+    const arcDiv = container.querySelector('.thumb-arc-track') as HTMLDivElement;
+    expect(arcDiv).toBeDefined();
+    expect(arcDiv.style.touchAction).toBe('none');
+
+    // Verify touch events call stopPropagation to isolate from dimension carousel swipe
+    let startPropagationStopped = false;
+    let movePropagationStopped = false;
+
+    const touchStartEvent = new Event('touchstart', { bubbles: true });
+    touchStartEvent.stopPropagation = () => {
+      startPropagationStopped = true;
+    };
+    arcDiv.dispatchEvent(touchStartEvent);
+    expect(startPropagationStopped).toBe(true);
+
+    const touchMoveEvent = new Event('touchmove', { bubbles: true });
+    touchMoveEvent.stopPropagation = () => {
+      movePropagationStopped = true;
+    };
+    arcDiv.dispatchEvent(touchMoveEvent);
+    expect(movePropagationStopped).toBe(true);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });
