@@ -298,8 +298,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     // Dynamic resize observer
     const handleResize = () => {
       if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
-      const w = containerRef.current.clientWidth || 360;
-      const h = containerRef.current.clientHeight || (window.innerWidth < 1024 ? 360 : 520);
+      const w = Math.max(50, containerRef.current.clientWidth || (window.innerWidth < 1024 ? window.innerWidth : 360));
+      const h = Math.max(50, containerRef.current.clientHeight || (window.innerWidth < 1024 ? 360 : 520));
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h, false);

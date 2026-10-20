@@ -1,7 +1,7 @@
 {
   "name": "mobilius",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.8.1",
   "author": "Federico C. Alonso <federico.c.alonso@outlook.com.ar>",
   "license": "UNLICENSED",
   "type": "module",

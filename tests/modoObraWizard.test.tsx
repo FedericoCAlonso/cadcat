@@ -151,4 +151,103 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
 
     expect(html).toContain('✏️ Volver a Ajustes');
   });
+
+  it('navigates dimensions in Step 2 via carousel buttons, micro-dots, and gestures', () => {
+    const handleSwitchExpert = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ModoObraWizard
+          width={800}
+          height={720}
+          depth={560}
+          thickness={18}
+          templates={dummyTemplates}
+          onWidthChange={vi.fn()}
+          onHeightChange={vi.fn()}
+          onDepthChange={vi.fn()}
+          handMode="right"
+          onHandModeChange={vi.fn()}
+          onSwitchToExpertMode={handleSwitchExpert}
+        />,
+      );
+    });
+
+    // Verify prominent "Modo Experto" button is present and clickable in header
+    const expertBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Modo Experto'),
+    );
+    expect(expertBtn).toBeDefined();
+    act(() => {
+      expertBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleSwitchExpert).toHaveBeenCalled();
+
+    // Go to Step 2 (Medidas)
+    const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Siguiente'),
+    );
+    act(() => {
+      nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Medidas Principales');
+    // Initially shows Ancho Total
+    expect(container.textContent).toContain('Ancho Total:');
+    expect(container.textContent).toContain('800 mm');
+    expect(container.textContent).toContain('(1/4)');
+
+    // Click carousel forward button ▶ to navigate to Alto Total (2/4)
+    const dimForwardBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label')?.includes('Medida siguiente'),
+    );
+    expect(dimForwardBtn).toBeDefined();
+    act(() => {
+      dimForwardBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Alto Total:');
+    expect(container.textContent).toContain('720 mm');
+    expect(container.textContent).toContain('(2/4)');
+
+    // Click carousel forward button ▶ again to navigate to Profundidad (3/4)
+    act(() => {
+      dimForwardBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(container.textContent).toContain('Profundidad:');
+    expect(container.textContent).toContain('560 mm');
+    expect(container.textContent).toContain('(3/4)');
+
+    // Click micro-dot for Espesor directly
+    const dotEspesor = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label')?.includes('Espesor Placa'),
+    );
+    expect(dotEspesor).toBeDefined();
+    act(() => {
+      dotEspesor?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Espesor Placa:');
+    expect(container.textContent).toContain('18 mm');
+    expect(container.textContent).toContain('(4/4)');
+
+    // Click carousel back button ◀ to return to Profundidad (3/4)
+    const dimBackBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label')?.includes('Medida anterior'),
+    );
+    expect(dimBackBtn).toBeDefined();
+    act(() => {
+      dimBackBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(container.textContent).toContain('Profundidad:');
+    expect(container.textContent).toContain('(3/4)');
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });

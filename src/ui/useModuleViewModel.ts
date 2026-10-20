@@ -126,6 +126,8 @@ import {
   calculateProjectCost,
   type AssemblyGauge,
   deriveAssemblyGauges,
+  MODULAR_PRESETS,
+  defaultModularPresetRegistry,
 } from '../resolver';
 
 import { runMultiMaterialGuillotineNesting } from '../workers';
@@ -753,10 +755,31 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [sinkDrawerAdaptation, setSinkDrawerAdaptation] = useState<'false-front' | 'u-shape-drawer' | 'none'>(DEFAULT_COUNTERTOP_CONFIG.sinkDrawerAdaptation);
   const [countertopFrontRailOrientation, setCountertopFrontRailOrientation] = useState<'vertical' | 'horizontal' | 'suppressed'>(DEFAULT_COUNTERTOP_CONFIG.frontRailOrientation);
 
-  // Templates list exposed to UI: single base empty carcass + wall shelves + user templates
+  // Templates list exposed to UI: single base empty carcass + modular presets + wall shelves + user templates
   const templates = useMemo<TemplateDefinition[]>(() => {
+    const presetTemplates: TemplateDefinition[] = MODULAR_PRESETS.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      category: p.name.includes('Alacena')
+        ? 'Alacenas'
+        : p.name.includes('Cajonera')
+          ? 'Cajoneras'
+          : p.name.includes('Placard')
+            ? 'Dormitorio'
+            : 'Módulos Base',
+      defaultDimensions: p.defaultDimensions,
+      build: (dims, mat, ebs, selEb) => {
+        const def = p.createDefinition(dims, { carcassMaterialId: mat.id }, selEb);
+        const thickness = typeof mat.thicknessMm === 'number' ? mat.thicknessMm : 18;
+        const res = buildModularModule(def, { carcassThicknessMm: thickness, edgeBands: ebs });
+        return { module: res.module, placementTree: res.placementTree, resolvedPieces: res.resolvedPieces };
+      },
+    }));
+
     return [
       BASE_EMPTY_TEMPLATE,
+      ...presetTemplates,
       WALL_SHELVING_TEMPLATE,
       ...userTemplates.map(createUserTemplateDefinition),
     ];
@@ -803,6 +826,48 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       setPieceEdgeBandOverrides({});
       setCustomPieceOperations({});
       setKinematicsState({});
+    } else if (id.startsWith('preset-')) {
+      const preset = defaultModularPresetRegistry.getById(id);
+      if (preset) {
+        setWidth(preset.defaultDimensions.width);
+        setHeight(preset.defaultDimensions.height);
+        setDepth(preset.defaultDimensions.depth);
+        const def = preset.createDefinition();
+        setRoofTypeState(def.carcass.roofType);
+        setJointPriorityState(def.carcass.jointPriority);
+        setHasBackingState(def.carcass.hasBacking ?? true);
+        if (def.grid) {
+          if (def.grid.tracks.length === 3 && def.grid.axis === 'horizontal') {
+            setGridTypeState('3-bays-vertical');
+          } else if (def.grid.tracks.length === 2 && def.grid.axis === 'horizontal') {
+            setGridTypeState('2-bays-vertical');
+          } else {
+            setGridTypeState('2-bays-vertical');
+          }
+        } else {
+          setGridTypeState('1-bay');
+        }
+        setBaysState(def.bays);
+        if (def.materials?.carcassMaterialId && materials.some((m) => m.id === def.materials.carcassMaterialId)) {
+          setSelectedMaterialId(def.materials.carcassMaterialId);
+        }
+        if (def.materials?.frontsMaterialId && materials.some((m) => m.id === def.materials.frontsMaterialId)) {
+          setFrontsMaterialId(def.materials.frontsMaterialId);
+        }
+        if (def.materials?.drawerBoxesMaterialId && materials.some((m) => m.id === def.materials.drawerBoxesMaterialId)) {
+          setDrawerBoxesMaterialId(def.materials.drawerBoxesMaterialId);
+        }
+        if (def.materials?.backingsMaterialId && materials.some((m) => m.id === def.materials.backingsMaterialId)) {
+          setBackingsMaterialId(def.materials.backingsMaterialId);
+        }
+        setIsCustomModular(true);
+        setPieceJointOverrides({});
+        setPieceMaterialOverrides({});
+        setPieceThicknessOverrides({});
+        setPieceEdgeBandOverrides({});
+        setCustomPieceOperations({});
+        setKinematicsState({});
+      }
     } else {
       const userTpl = userTemplates.find((t) => t.id === id);
       if (userTpl) {
@@ -836,7 +901,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         else setPieceJointOverrides({});
       }
     }
-  }, [userTemplates]);
+  }, [userTemplates, materials]);
 
   // Builder setters that activate custom modular mode
   const setRoofType = useCallback((roof: RoofType) => {
@@ -1796,7 +1861,13 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         };
       }
 
-      if (isCustomModular || selectedTemplateId.startsWith('modular-') || selectedTemplateId.startsWith('user-')) {
+      if (
+        isCustomModular ||
+        selectedTemplateId.startsWith('modular-') ||
+        selectedTemplateId.startsWith('user-') ||
+        selectedTemplateId.startsWith('preset-') ||
+        selectedTemplateId !== 'wall-shelves'
+      ) {
         const gridDef: BayGridDefinition | undefined =
           gridType === '2-bays-vertical'
             ? {

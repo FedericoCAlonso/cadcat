@@ -194,8 +194,8 @@ export function ThumbArcInput({
     [value, min, max, step, coarseStep, onChange],
   );
 
-  // SVG Geometry for visual arc
-  const svgTrack = computeThumbArcSvgPath(340, 220, activeHandMode, 210);
+  // SVG Geometry for visual arc (enlarged for ergonomic natural sweep)
+  const svgTrack = computeThumbArcSvgPath(360, 270, activeHandMode, 275);
 
   // Knob position along visual arc based on value percentage
   // Sweeping up (elevating thumb) increases value (+); sweeping down decreases (-).
@@ -217,16 +217,15 @@ export function ThumbArcInput({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '1.25rem 1rem',
+        padding: '0.85rem 0.75rem',
         borderRadius: '24px',
         backgroundColor: 'var(--md-sys-color-surface-container)',
         border: '1px solid var(--md-sys-color-outline-variant)',
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
         position: 'relative',
         userSelect: 'none',
-        touchAction: 'none',
         width: '100%',
-        maxWidth: '440px',
+        maxWidth: '460px',
         margin: '0 auto',
         boxSizing: 'border-box',
       }}
@@ -429,10 +428,10 @@ export function ThumbArcInput({
         onPointerCancel={handlePointerUp}
         style={{
           width: '100%',
-          height: '190px',
+          height: '260px',
           position: 'relative',
           overflow: 'hidden',
-          borderRadius: '20px',
+          borderRadius: '24px',
           backgroundColor: 'var(--md-sys-color-surface)',
           border: '1px solid var(--md-sys-color-outline-variant)',
           cursor: 'grab',
@@ -444,7 +443,7 @@ export function ThumbArcInput({
         }}
       >
         <svg
-          viewBox="0 0 340 220"
+          viewBox="0 0 360 270"
           style={{
             width: '100%',
             height: '100%',
@@ -456,7 +455,7 @@ export function ThumbArcInput({
             d={svgTrack.pathD}
             fill="none"
             stroke="var(--md-sys-color-surface-container-highest)"
-            strokeWidth="28"
+            strokeWidth="36"
             strokeLinecap="round"
           />
 
@@ -465,7 +464,7 @@ export function ThumbArcInput({
             d={svgTrack.pathD}
             fill="none"
             stroke="var(--md-sys-color-primary-container)"
-            strokeWidth="16"
+            strokeWidth="22"
             strokeLinecap="round"
           />
 
@@ -473,16 +472,16 @@ export function ThumbArcInput({
           <circle
             cx={knobX.toFixed(1)}
             cy={knobY.toFixed(1)}
-            r="16"
+            r="22"
             fill="var(--md-sys-color-primary)"
             stroke="var(--md-sys-color-surface)"
-            strokeWidth="3"
-            filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.25))"
+            strokeWidth="3.5"
+            filter="drop-shadow(0px 3px 6px rgba(0,0,0,0.28))"
           />
           <circle
             cx={knobX.toFixed(1)}
             cy={knobY.toFixed(1)}
-            r="6"
+            r="8"
             fill="var(--md-sys-color-on-primary)"
           />
         </svg>

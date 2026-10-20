@@ -164,8 +164,8 @@ export function ModoObraWizard({
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [dimensionField, setDimensionField] = useState<DimensionSubField>('width');
 
-  const touchStartYRef = useRef<number>(0);
-  const touchStartXRef = useRef<number>(0);
+  const dimTouchStartXRef = useRef<number>(0);
+  const dimTouchStartYRef = useRef<number>(0);
 
   const activeStep = OBRA_STEPS[currentStepIndex] ?? OBRA_STEPS[0]!;
 
@@ -183,39 +183,52 @@ export function ModoObraWizard({
     }
   }, [currentStepIndex]);
 
-  // Vertical swipe navigation on outer container
-  const handleTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
+  // Dimension fields list for carousel navigation in Step 2
+  const dimensionFieldsList = useMemo<Array<{ id: DimensionSubField; label: string; shortLabel: string; value: number }>>(() => [
+    { id: 'width', label: 'Ancho Total', shortLabel: 'Ancho', value: width },
+    { id: 'height', label: 'Alto Total', shortLabel: 'Alto', value: height },
+    { id: 'depth', label: 'Profundidad', shortLabel: 'Prof.', value: depth },
+    { id: 'thickness', label: 'Espesor Placa', shortLabel: 'Espesor', value: thickness },
+  ], [width, height, depth, thickness]);
+
+  const activeDimIndex = dimensionFieldsList.findIndex((d) => d.id === dimensionField);
+  const currentDimConfig = dimensionFieldsList[activeDimIndex >= 0 ? activeDimIndex : 0]!;
+
+  const goToNextDimension = useCallback(() => {
+    const nextIdx = (activeDimIndex + 1) % dimensionFieldsList.length;
+    setDimensionField(dimensionFieldsList[nextIdx]!.id);
+    triggerHaptic('tick');
+  }, [activeDimIndex, dimensionFieldsList]);
+
+  const goToPrevDimension = useCallback(() => {
+    const prevIdx = (activeDimIndex - 1 + dimensionFieldsList.length) % dimensionFieldsList.length;
+    setDimensionField(dimensionFieldsList[prevIdx]!.id);
+    triggerHaptic('tick');
+  }, [activeDimIndex, dimensionFieldsList]);
+
+  // Horizontal swipe gestures exclusively on Step 2 (Medidas)
+  const handleDimTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
     if (touch) {
-      touchStartYRef.current = touch.clientY;
-      touchStartXRef.current = touch.clientX;
+      dimTouchStartXRef.current = touch.clientX;
+      dimTouchStartYRef.current = touch.clientY;
     }
   }, []);
 
-  const handleTouchEnd = useCallback(
-    (e: TouchEvent<HTMLDivElement>) => {
-      const touch = e.changedTouches[0];
-      if (!touch) return;
-
-      const dy = touch.clientY - touchStartYRef.current;
-      const dx = touch.clientX - touchStartXRef.current;
-
-      // 18px lateral safety margin to prevent conflicting with native Android/iOS back-swipe
-      if (touchStartXRef.current < 20 || touchStartXRef.current > window.innerWidth - 20) {
-        return;
+  const handleDimTouchEnd = useCallback((e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - dimTouchStartXRef.current;
+    const dy = touch.clientY - dimTouchStartYRef.current;
+    // Lateral swipe threshold: min 40px and dominant horizontal angle
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      if (dx < 0) {
+        goToNextDimension(); // Swipe left -> Next dimension
+      } else {
+        goToPrevDimension(); // Swipe right -> Previous dimension
       }
-
-      // Only trigger vertical navigation if dy is prominent and over 50px
-      if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-        if (dy < 0) {
-          goToNextStep(); // Swipe UP -> Next
-        } else {
-          goToPrevStep(); // Swipe DOWN -> Previous
-        }
-      }
-    },
-    [goToNextStep, goToPrevStep],
-  );
+    }
+  }, [goToNextDimension, goToPrevDimension]);
 
   // Active bay reference
   const currentBay: BayContent | undefined = bays[activeBayIndex];
@@ -230,8 +243,6 @@ export function ModoObraWizard({
     <section
       className="modo-obra-immersive-wrapper"
       aria-label="Modo Obra - Control con una mano"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -376,19 +387,25 @@ export function ModoObraWizard({
             onClick={onSwitchToExpertMode}
             aria-label="Cambiar a Modo Experto (formulario completo)"
             title="Abrir formulario técnico completo"
+            className="m3-button m3-button--tonal"
             style={{
-              height: '36px',
-              padding: '0 0.5rem',
-              borderRadius: '10px',
-              fontSize: '0.8rem',
+              height: '38px',
+              padding: '0 0.65rem',
+              borderRadius: '12px',
+              fontSize: '0.78rem',
               fontWeight: 700,
-              backgroundColor: 'var(--md-sys-color-surface-container-high)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              backgroundColor: 'var(--md-sys-color-surface-container-highest)',
               border: '1px solid var(--md-sys-color-outline-variant)',
-              color: 'var(--md-sys-color-on-surface)',
+              color: 'var(--md-sys-color-primary)',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
-            ⚙️
+            <span aria-hidden="true">⚙️</span>
+            <span>Modo Experto</span>
           </button>
         </div>
       </header>
@@ -512,59 +529,119 @@ export function ModoObraWizard({
 
         {/* STEP 2: MEDIDAS PRINCIPALES */}
         {activeStep.id === 'dimensions' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {/* Sub-selector for Dimension Field */}
+          <div
+            onTouchStart={handleDimTouchStart}
+            onTouchEnd={handleDimTouchEnd}
+            style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+          >
+            {/* Carousel Stepper Header for Dimension Field */}
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '0.35rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 width: '100%',
-                marginBottom: '0.5rem',
+                maxWidth: '460px',
+                padding: '0.2rem 0.2rem 0.45rem',
+                boxSizing: 'border-box',
               }}
             >
-              {(
-                [
-                  { id: 'width', label: 'Ancho', val: width },
-                  { id: 'height', label: 'Alto', val: height },
-                  { id: 'depth', label: 'Prof.', val: depth },
-                  { id: 'thickness', label: 'Espesor', val: thickness },
-                ] as const
-              ).map((dim) => {
-                const isSelected = dimensionField === dim.id;
-                return (
-                  <button
-                    key={dim.id}
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('tick');
-                      setDimensionField(dim.id);
-                    }}
-                    style={{
-                      minHeight: '48px',
-                      padding: '0.2rem',
-                      borderRadius: '12px',
-                      border: isSelected
-                        ? '2px solid var(--md-sys-color-primary)'
-                        : '1px solid var(--md-sys-color-outline-variant)',
-                      backgroundColor: isSelected
-                        ? 'var(--md-sys-color-primary-container)'
-                        : 'var(--md-sys-color-surface-container)',
-                      color: isSelected
-                        ? 'var(--md-sys-color-on-primary-container)'
-                        : 'var(--md-sys-color-on-surface)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.74rem', fontWeight: 600 }}>{dim.label}</span>
-                    <span style={{ fontSize: '0.84rem', fontWeight: 800 }}>{`${dim.val}mm`}</span>
-                  </button>
-                );
-              })}
+              <button
+                type="button"
+                onClick={goToPrevDimension}
+                aria-label="Medida anterior (o deslizar con el pulgar hacia la derecha)"
+                title="Medida anterior"
+                className="m3-button m3-button--tonal"
+                style={{
+                  minWidth: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                }}
+              >
+                ◀
+              </button>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  flex: 1,
+                  padding: '0 0.4rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                    {currentDimConfig.label}:
+                  </span>
+                  <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
+                    {`${currentDimConfig.value} mm`}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
+                    {`(${activeDimIndex + 1}/4)`}
+                  </span>
+                </div>
+
+                {/* Micro-dot navigation pills (clickable) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  {dimensionFieldsList.map((f) => {
+                    const isSelected = f.id === dimensionField;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('tick');
+                          setDimensionField(f.id);
+                        }}
+                        aria-label={`Seleccionar medida: ${f.label}`}
+                        title={`${f.label} (${f.value} mm)`}
+                        style={{
+                          width: isSelected ? '24px' : '8px',
+                          height: '8px',
+                          borderRadius: '4px',
+                          backgroundColor: isSelected
+                            ? 'var(--md-sys-color-primary)'
+                            : 'var(--md-sys-color-outline-variant)',
+                          border: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={goToNextDimension}
+                aria-label="Medida siguiente (o deslizar con el pulgar hacia la izquierda)"
+                title="Medida siguiente"
+                className="m3-button m3-button--tonal"
+                style={{
+                  minWidth: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                }}
+              >
+                ▶
+              </button>
             </div>
 
             {/* Radial Dial for Selected Dimension */}

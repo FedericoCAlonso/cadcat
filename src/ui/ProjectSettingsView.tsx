@@ -20,6 +20,7 @@ export interface ProjectSettingsViewProps {
   onSaveHardware?: (hardware: Hardware) => Promise<void>;
   onDeleteHardware?: (id: string) => Promise<void>;
   onResetCatalogs?: () => Promise<void>;
+  onForcePurgeCacheAndReload?: () => void;
   initialSection?: 'general' | 'machining' | 'catalog' | 'nesting' | 'costs';
 }
 
@@ -46,6 +47,7 @@ export function ProjectSettingsView({
   onSaveHardware,
   onDeleteHardware,
   onResetCatalogs,
+  onForcePurgeCacheAndReload,
 }: ProjectSettingsViewProps): ReactElement {
   const [activeSection, setActiveSection] = useState<'general' | 'machining' | 'catalog' | 'nesting' | 'costs'>(
     initialSection ?? 'machining'
@@ -865,6 +867,25 @@ export function ProjectSettingsView({
                   value={config.units.length}
                 />
               </div>
+            </div>
+
+            {/* Application Maintenance & Cache Purge */}
+            <div className="settings-group-card" style={{ gridColumn: '1 / -1' }}>
+              <h4 className="group-title">Mantenimiento de la Aplicación y Caché</h4>
+              <p style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-outline)', margin: '0.25rem 0 0.85rem', lineHeight: 1.4 }}>
+                Si experimentás inconsistencias visuales o deseás forzar la descarga de la última versión de Mobilius desde el servidor, podés purgar la caché del Service Worker y reiniciar la app.
+              </p>
+              {onForcePurgeCacheAndReload && (
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', minHeight: '44px', fontWeight: 600 }}
+                  onClick={onForcePurgeCacheAndReload}
+                >
+                  <span aria-hidden="true">🔄</span>
+                  <span>Actualizar aplicación y purgar caché</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

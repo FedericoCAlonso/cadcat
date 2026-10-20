@@ -85,15 +85,6 @@ export function App(): ReactElement {
               effectiveTheme={effectiveTheme}
               onThemeChange={setThemeMode}
             />
-            <button
-              type="button"
-              className="m3-button m3-button--tonal"
-              style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
-              onClick={() => void forcePurgeCacheAndReload()}
-              title="Borra la caché y fuerza la recarga de la última versión"
-            >
-              🔄 Actualizar app
-            </button>
             <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-outline)', opacity: 0.9, fontWeight: 600 }}>
               {`v${APP_VERSION}`}
             </span>
@@ -185,6 +176,141 @@ export function App(): ReactElement {
             >
               Actualizar ahora
             </button>
+          </div>
+        )}
+
+        {/* Prominent View Mode Switcher for Handheld Mobile Phones (One-Hand Obra vs Expert) */}
+        {vm.isOneHandDevice && vm.uiMode === 'expert' && (
+          <div
+            className="m3-banner"
+            role="region"
+            aria-label="Selector de Modo de Trabajo"
+            style={{
+              margin: '0 0 1rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '16px',
+              backgroundColor: 'var(--md-sys-color-primary-container)',
+              color: 'var(--md-sys-color-on-primary-container)',
+              border: '1px solid var(--md-sys-color-primary)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.4rem' }}>📱</span>
+              <div>
+                <strong style={{ fontSize: '0.92rem', display: 'block' }}>Modo Taller / Obra Disponible</strong>
+                <span style={{ fontSize: '0.78rem', opacity: 0.9 }}>
+                  Diseñá con una sola mano mediante gestos ergonómicos y dial radial.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="m3-button m3-button--filled"
+              style={{
+                minHeight: '44px',
+                borderRadius: '22px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+              onClick={() => vm.setUiMode('site')}
+            >
+              <span>🏗️</span>
+              <span>Cambiar a Modo Obra</span>
+            </button>
+          </div>
+        )}
+
+        {/* Full-screen 3D Viewport in Modo Obra */}
+        {isSiteImmersive && vm.activeTab === '3d' && (
+          <div
+            className="modo-obra-3d-fullscreen"
+            role="region"
+            aria-label="Inspección 3D en Modo Obra"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              backgroundColor: 'var(--md-sys-color-surface)',
+              display: 'flex',
+              flexDirection: 'column',
+              width: '100vw',
+              height: '100dvh',
+              overflow: 'hidden',
+            }}
+          >
+            <header
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 'max(0.4rem, env(safe-area-inset-top, 0.4rem)) 0.75rem 0.4rem',
+                borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                flexShrink: 0,
+                zIndex: 10,
+              }}
+            >
+              <button
+                type="button"
+                className="m3-button m3-button--filled"
+                style={{
+                  minHeight: '44px',
+                  borderRadius: '22px',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                }}
+                onClick={() => vm.setActiveTab('form')}
+              >
+                <span aria-hidden="true">✕</span>
+                <span>Volver a Ajustes</span>
+              </button>
+
+              <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--md-sys-color-primary)' }}>
+                {`👁️ 3D · ${vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name || 'Módulo'}`}
+              </span>
+            </header>
+
+            <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: 0, overflow: 'hidden' }}>
+              <Viewport3D
+                boxes={vm.spatialBoxes}
+                bounds={vm.spatialBounds}
+                pieces={vm.resolvedPieces}
+                explodedRatio={vm.explodedRatio}
+                onExplodedRatioChange={vm.setExplodedRatio}
+                selectedPieceId={vm.selectedPieceId}
+                onSelectPiece={vm.setSelectedPieceId}
+                shelfDeflections={vm.shelfDeflections}
+                pieceJointOverrides={vm.pieceJointOverrides}
+                onSetPieceJointOverride={vm.setPieceJointOverride}
+                defaultJointStrategy={vm.jointStrategy}
+                kinematicBoxes={vm.kinematicBoxes}
+                kinematicMechanisms={vm.kinematicMechanisms}
+                kinematicsState={vm.kinematicsState}
+                onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
+                materials={vm.materials}
+                edgeBands={vm.edgeBands}
+                pieceMaterialOverrides={vm.pieceMaterialOverrides}
+                pieceThicknessOverrides={vm.pieceThicknessOverrides}
+                pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
+                onSetPieceMaterial={vm.setPieceMaterial}
+                onSetPieceThickness={vm.setPieceThickness}
+                onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                countertopCalculation={vm.countertopCalculation}
+              />
+            </div>
           </div>
         )}
 
@@ -387,7 +513,7 @@ export function App(): ReactElement {
           </aside>
 
           <section aria-label="Module Visualization" className="layout-main">
-            {(vm.activeTab === '3d' || vm.activeTab === 'form') && (
+            {!isSiteImmersive && (vm.activeTab === '3d' || vm.activeTab === 'form') && (
               <>
                 <Viewport3D
                   boxes={vm.spatialBoxes}
@@ -526,6 +652,7 @@ export function App(): ReactElement {
                   onSaveHardware={vm.saveHardware}
                   onDeleteHardware={vm.deleteHardware}
                   onResetCatalogs={vm.resetCatalogs}
+                  onForcePurgeCacheAndReload={forcePurgeCacheAndReload}
                 />
               )}
 

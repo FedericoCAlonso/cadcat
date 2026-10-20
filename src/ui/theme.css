@@ -2526,5 +2526,39 @@ legend.builder-section-title {
   overflow: hidden;
 }
 
+/* Modo Obra Fullscreen 3D Viewport */
+.modo-obra-3d-fullscreen .viewport-3d-card {
+  height: 100% !important;
+  max-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.35rem !important;
+  gap: 0.35rem !important;
+  background: transparent !important;
+}
+
+.modo-obra-3d-fullscreen .viewport-3d-card .m3-card__header {
+  display: none !important;
+}
+
+.modo-obra-3d-fullscreen .viewport-3d-canvas-wrapper {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 240px !important;
+  border-radius: 16px !important;
+}
+
+.modo-obra-3d-fullscreen .m3-kinematics-bar,
+.modo-obra-3d-fullscreen .viewport-3d-toolbar {
+  flex-shrink: 0;
+  padding: 0.4rem 0.6rem !important;
+  border-radius: 14px !important;
+}
+
+
 
 
