@@ -9,6 +9,7 @@ import {
 import {
   type HandMode,
   type ThumbArcConfig,
+  type Point2D,
   DEFAULT_THUMB_ARC_CONFIG,
   calculatePointAngle,
   normalizeAngularDelta,
@@ -18,6 +19,7 @@ import {
   evaluateHapticFeedback,
   triggerHaptic,
   computeThumbArcSvgPath,
+  isPointOnThumbArc,
 } from '../resolver/thumbArc';
 
 export interface ThumbArcInputProps {
@@ -117,10 +119,23 @@ export function ThumbArcInput({
   const handlePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!arcContainerRef.current) return;
+
+      const rect = arcContainerRef.current.getBoundingClientRect();
+      const scaleX = 360 / Math.max(1, rect.width);
+      const scaleY = 270 / Math.max(1, rect.height);
+      const normalizedPoint: Point2D = {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
+      };
+
+      // Only capture movement when finger is placed directly on the radial arc or knob
+      if (!isPointOnThumbArc(normalizedPoint, 360, 270, activeHandMode, { radius: 275 })) {
+        return;
+      }
+
       arcContainerRef.current.setPointerCapture(e.pointerId);
       isDraggingRef.current = true;
 
-      const rect = arcContainerRef.current.getBoundingClientRect();
       const pivot = getThumbPivotPoint(rect.width, rect.height, activeHandMode);
       const point = {
         x: e.clientX - rect.left,
@@ -434,8 +449,8 @@ export function ThumbArcInput({
           borderRadius: '24px',
           backgroundColor: 'var(--md-sys-color-surface)',
           border: '1px solid var(--md-sys-color-outline-variant)',
-          cursor: 'grab',
-          touchAction: 'none',
+          cursor: 'default',
+          touchAction: 'pan-x pan-y',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

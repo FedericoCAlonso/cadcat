@@ -216,3 +216,66 @@ export function computeThumbArcSvgPath(
     radius,
   };
 }
+
+export interface ThumbArcHitTestOptions {
+  radius?: number;
+  radialTolerance?: number;
+  angularToleranceDeg?: number;
+  marginOffsetMm?: number;
+}
+
+export const DEFAULT_THUMB_ARC_HIT_OPTIONS: Required<ThumbArcHitTestOptions> = {
+  radius: 275,
+  radialTolerance: 40,
+  angularToleranceDeg: 15,
+  marginOffsetMm: 20,
+};
+
+/**
+ * Pure mathematical resolver for hit-testing whether a 2D touch point falls on the thumb arc.
+ * Ensures pointer movement is only captured when touching directly over the radial sweep dial.
+ */
+export function isPointOnThumbArc(
+  point: Point2D,
+  containerWidth: number,
+  containerHeight: number,
+  handMode: HandMode,
+  options: ThumbArcHitTestOptions = {},
+): boolean {
+  const radius = options.radius ?? DEFAULT_THUMB_ARC_HIT_OPTIONS.radius;
+  const radialTolerance = options.radialTolerance ?? DEFAULT_THUMB_ARC_HIT_OPTIONS.radialTolerance;
+  const angularToleranceDeg = options.angularToleranceDeg ?? DEFAULT_THUMB_ARC_HIT_OPTIONS.angularToleranceDeg;
+  const marginOffsetMm = options.marginOffsetMm ?? DEFAULT_THUMB_ARC_HIT_OPTIONS.marginOffsetMm;
+
+  const pivot = getThumbPivotPoint(containerWidth, containerHeight, handMode, marginOffsetMm);
+  const dist = Math.hypot(point.x - pivot.x, point.y - pivot.y);
+
+  // Check radial distance tolerance corridor
+  if (Math.abs(dist - radius) > radialTolerance) {
+    return false;
+  }
+
+  // Calculate angle in degrees from pivot
+  const angleRad = Math.atan2(point.y - pivot.y, point.x - pivot.x);
+  let angleDeg = (angleRad * 180) / Math.PI;
+
+  // Angular span based on hand mode:
+  // Right hand: natural sweep from -165 deg to -105 deg
+  // Left hand: natural sweep from -75 deg to -15 deg
+  if (handMode === 'right') {
+    if (angleDeg > 90) {
+      angleDeg -= 360;
+    }
+    const minDeg = -165 - angularToleranceDeg;
+    const maxDeg = -105 + angularToleranceDeg;
+    return angleDeg >= minDeg && angleDeg <= maxDeg;
+  } else {
+    if (angleDeg < -180 + angularToleranceDeg) {
+      angleDeg += 360;
+    }
+    const minDeg = -75 - angularToleranceDeg;
+    const maxDeg = -15 + angularToleranceDeg;
+    return angleDeg >= minDeg && angleDeg <= maxDeg;
+  }
+}
+

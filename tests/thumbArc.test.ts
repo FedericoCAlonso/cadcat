@@ -7,6 +7,7 @@ import {
   clampAndStepValue,
   evaluateHapticFeedback,
   computeThumbArcSvgPath,
+  isPointOnThumbArc,
   DEFAULT_THUMB_ARC_CONFIG,
 } from '../src/resolver';
 
@@ -145,6 +146,46 @@ describe('ThumbArc Mathematical Resolver (Modo Obra)', () => {
       expect(arc.pathD).toMatch(/^M \d+(\.\d+)? \d+(\.\d+)? A 220 220 0 0 1 \d+(\.\d+)? \d+(\.\d+)?$/);
       expect(arc.center.x).toBeLessThan(0);
       expect(arc.center.y).toBeGreaterThan(640);
+    });
+  });
+
+  describe('Thumb Arc Hit-Testing (isPointOnThumbArc)', () => {
+    const W = 360;
+    const H = 270;
+    const radius = 275;
+
+    it('returns true when touch point is on the right-hand arc track', () => {
+      // Pivot for right hand: (360 + 20, 270 + 20) = (380, 290)
+      // Point at 135 deg (-135 deg): x = 380 + 275 * cos(-135 deg) = 380 - 194.45 = 185.5
+      // y = 290 + 275 * sin(-135 deg) = 290 - 194.45 = 95.5
+      const pointOnArc = { x: 185.5, y: 95.5 };
+      expect(isPointOnThumbArc(pointOnArc, W, H, 'right', { radius })).toBe(true);
+
+      // Point near start of arc (-165 deg): x = 380 + 275 * cos(-165) = 114.4, y = 290 + 275 * sin(-165) = 218.8
+      const pointNearStart = { x: 114.4, y: 218.8 };
+      expect(isPointOnThumbArc(pointNearStart, W, H, 'right', { radius })).toBe(true);
+
+      // Point near end of arc (-105 deg): x = 380 + 275 * cos(-105) = 308.8, y = 290 + 275 * sin(-105) = 24.4
+      const pointNearEnd = { x: 308.8, y: 24.4 };
+      expect(isPointOnThumbArc(pointNearEnd, W, H, 'right', { radius })).toBe(true);
+    });
+
+    it('returns false when touch point is outside the arc (empty center or corners)', () => {
+      // Center of card: (180, 200) -> distance to pivot (380, 290) is sqrt(200^2 + 90^2) = 219.3 px (|219.3 - 275| = 55.7 > 40)
+      expect(isPointOnThumbArc({ x: 180, y: 200 }, W, H, 'right', { radius })).toBe(false);
+
+      // Top-left corner: (20, 20) -> distance to pivot is sqrt(360^2 + 270^2) = 450 px
+      expect(isPointOnThumbArc({ x: 20, y: 20 }, W, H, 'right', { radius })).toBe(false);
+
+      // Far right-bottom corner near pivot: (350, 250)
+      expect(isPointOnThumbArc({ x: 350, y: 250 }, W, H, 'right', { radius })).toBe(false);
+    });
+
+    it('returns true when touch point is on the left-hand arc track', () => {
+      // Left-hand pivot: (-20, 290)
+      // Point at -45 deg: x = -20 + 275 * cos(-45 deg) = -20 + 194.45 = 174.5, y = 290 - 194.45 = 95.5
+      const pointOnLeftArc = { x: 174.5, y: 95.5 };
+      expect(isPointOnThumbArc(pointOnLeftArc, W, H, 'left', { radius })).toBe(true);
     });
   });
 });

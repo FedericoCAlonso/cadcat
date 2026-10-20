@@ -129,4 +129,64 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     container.remove();
   });
+
+  it('does not capture movement when pointer down occurs outside the arc track', () => {
+    const handleChange = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Ancho"
+          value={800}
+          onChange={handleChange}
+        />,
+      );
+    });
+
+    const arcDiv = container.querySelector('div[style*="height: 260px"]') as HTMLDivElement;
+    expect(arcDiv).toBeDefined();
+
+    vi.spyOn(arcDiv, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 360,
+      height: 270,
+      right: 360,
+      bottom: 270,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+
+    const setPointerCaptureSpy = vi.fn();
+    arcDiv.setPointerCapture = setPointerCaptureSpy;
+
+    // Pointer down at center (180, 200) - far away from arc
+    act(() => {
+      const downEvent = new MouseEvent('pointerdown', { bubbles: true, clientX: 180, clientY: 200 }) as unknown as PointerEvent;
+      Object.defineProperty(downEvent, 'pointerId', { value: 1 });
+      arcDiv.dispatchEvent(downEvent);
+    });
+
+    // setPointerCapture must NOT be called for touches outside the arc
+    expect(setPointerCaptureSpy).not.toHaveBeenCalled();
+
+    // Pointer down directly on arc track: (185.5, 95.5)
+    act(() => {
+      const downEvent = new MouseEvent('pointerdown', { bubbles: true, clientX: 185.5, clientY: 95.5 }) as unknown as PointerEvent;
+      Object.defineProperty(downEvent, 'pointerId', { value: 2 });
+      arcDiv.dispatchEvent(downEvent);
+    });
+
+    // setPointerCapture MUST be called for touch on the arc
+    expect(setPointerCaptureSpy).toHaveBeenCalledWith(2);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });
