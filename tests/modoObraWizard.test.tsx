@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { createRoot } from 'react-dom/client';
 import { ModoObraWizard } from '../src/ui/ModoObraWizard';
+import { type Material } from '../src/model/material';
+import { type BayContent } from '../src/resolver';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -278,5 +280,148 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
     expect(html).toContain('◀ Anterior');
     expect(html).toContain('👁️ Ver Modelo 3D');
     expect(html).toContain('Siguiente ▶');
+  });
+
+  it('renders automatic workshop engineering notice in Step 1 explaining default tolerances and expert mode', () => {
+    const html = renderToString(
+      <ModoObraWizard
+        width={800}
+        height={750}
+        depth={580}
+        thickness={18}
+        templates={dummyTemplates}
+        onWidthChange={vi.fn()}
+        onHeightChange={vi.fn()}
+        onDepthChange={vi.fn()}
+        handMode="right"
+        onHandModeChange={vi.fn()}
+        onSwitchToExpertMode={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('Ingeniería Automática de Taller');
+    expect(html).toContain('2.5 mm perimetral');
+    expect(html).toContain('Modo Experto');
+    expect(html).toContain('configuraciones por defecto');
+  });
+
+  it('allows multi-role material selection (casco, frentes, cajones, fondos) in Step 8', () => {
+    const dummyMaterials = [
+      { id: 'mat-white', name: 'Melamina Blanca 18mm', thicknessMm: 18, color: '#ffffff', kind: 'melamine' as const, finish: 'matte' },
+      { id: 'mat-oak', name: 'Roble Kendal 18mm', thicknessMm: 18, color: '#d2b48c', kind: 'melamine' as const, finish: 'textured' },
+      { id: 'mat-mdf3', name: 'Fibrofácil 3mm', thicknessMm: 3, color: '#c4a482', kind: 'mdf' as const, finish: 'raw' },
+    ] as unknown as Material[];
+
+    const handleMaterialChange = vi.fn();
+    const handleFrontsMaterialChange = vi.fn();
+    const handleDrawerBoxesMaterialChange = vi.fn();
+    const handleBackingsMaterialChange = vi.fn();
+
+    const dummyBays = [
+      {
+        id: 'bay-1',
+        type: 'drawer-stack' as const,
+        drawerTracks: [{ id: 'dt-1', heightMm: 200 }, { id: 'dt-2', heightMm: 200 }],
+        drawerType: 'simple' as const,
+      },
+    ] as unknown as BayContent[];
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ModoObraWizard
+          width={800}
+          height={750}
+          depth={580}
+          thickness={18}
+          templates={dummyTemplates}
+          onWidthChange={vi.fn()}
+          onHeightChange={vi.fn()}
+          onDepthChange={vi.fn()}
+          materials={dummyMaterials}
+          selectedMaterialId="mat-white"
+          onMaterialChange={handleMaterialChange}
+          frontsMaterialId=""
+          onFrontsMaterialChange={handleFrontsMaterialChange}
+          drawerBoxesMaterialId=""
+          onDrawerBoxesMaterialChange={handleDrawerBoxesMaterialChange}
+          backingsMaterialId="mat-mdf3"
+          onBackingsMaterialChange={handleBackingsMaterialChange}
+          hasBacking={true}
+          backingType="groove"
+          bays={dummyBays}
+          handMode="right"
+          onHandModeChange={vi.fn()}
+          onSwitchToExpertMode={vi.fn()}
+        />,
+      );
+    });
+
+    // Advance 7 times to reach Step 8 (Tablero / Melamina)
+    const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Siguiente'),
+    );
+    expect(nextBtn).toBeDefined();
+
+    for (let i = 0; i < 7; i++) {
+      act(() => {
+        nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
+
+    expect(container.textContent).toContain('Paso 8 de 8');
+    expect(container.textContent).toContain('Tablero / Melamina');
+
+    // Role selector chips should be present: Casco, Frentes, Cajones, Fondos
+    expect(container.textContent).toContain('Casco');
+    expect(container.textContent).toContain('Frentes');
+    expect(container.textContent).toContain('Cajones');
+    expect(container.textContent).toContain('Fondos');
+
+    // Step 8 initially is on Casco -> click Roble Kendal
+    const oakBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Roble Kendal'),
+    );
+    expect(oakBtn).toBeDefined();
+    act(() => {
+      oakBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleMaterialChange).toHaveBeenCalledWith('mat-oak');
+
+    // Now switch to Frentes role tab
+    const frontsTabBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.getAttribute('role') === 'tab' && b.textContent?.includes('Frentes'),
+    );
+    expect(frontsTabBtn).toBeDefined();
+    act(() => {
+      frontsTabBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Frentes y Puertas');
+    expect(container.textContent).toContain('Placa exterior para hojas de puerta');
+
+    // Select Roble Kendal for Frentes
+    act(() => {
+      oakBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleFrontsMaterialChange).toHaveBeenCalledWith('mat-oak');
+
+    // Test reset button: click "🔗 Igual al Casco"
+    const syncBtn = container.querySelector(
+      'button[aria-label="Restablecer para usar la misma placa que el casco"]',
+    ) as HTMLButtonElement | null;
+    expect(syncBtn).not.toBeNull();
+    act(() => {
+      syncBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleFrontsMaterialChange).toHaveBeenCalledWith('');
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
   });
 });

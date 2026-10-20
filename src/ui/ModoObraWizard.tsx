@@ -76,6 +76,12 @@ export interface ModoObraWizardProps {
   materials?: Material[];
   selectedMaterialId?: string;
   onMaterialChange?: (id: string) => void;
+  frontsMaterialId?: string;
+  onFrontsMaterialChange?: (id: string) => void;
+  drawerBoxesMaterialId?: string;
+  onDrawerBoxesMaterialChange?: (id: string) => void;
+  backingsMaterialId?: string;
+  onBackingsMaterialChange?: (id: string) => void;
 
   // Global UI controls
   handMode: HandMode;
@@ -94,6 +100,8 @@ export interface ObraStepDefinition {
   subtitle: string;
 }
 
+export type MaterialRole = 'carcass' | 'fronts' | 'drawers' | 'backing';
+
 export const OBRA_STEPS: ObraStepDefinition[] = [
   { id: 'module-type', stepNumber: 1, title: 'Módulo y Tipo', subtitle: 'Seleccioná el mueble a relevar' },
   { id: 'dimensions', stepNumber: 2, title: 'Medidas Principales', subtitle: 'Ancho, alto, profundidad y placa' },
@@ -102,7 +110,7 @@ export const OBRA_STEPS: ObraStepDefinition[] = [
   { id: 'backing', stepNumber: 5, title: 'Fondo Trasero', subtitle: 'Ranurado 3mm, clavado o sin fondo' },
   { id: 'bays-division', stepNumber: 6, title: 'Columnas / Vanos', subtitle: 'División vertical del volumen' },
   { id: 'equipment', stepNumber: 7, title: 'Equipamiento', subtitle: 'Estantes, cajones o puertas' },
-  { id: 'material', stepNumber: 8, title: 'Tablero / Melamina', subtitle: 'Color y acabado del taller' },
+  { id: 'material', stepNumber: 8, title: 'Tablero / Melamina', subtitle: 'Placas para casco, frentes, cajones y fondos' },
 ];
 
 /**
@@ -155,6 +163,12 @@ export function ModoObraWizard({
   materials = [],
   selectedMaterialId = '',
   onMaterialChange,
+  frontsMaterialId = '',
+  onFrontsMaterialChange,
+  drawerBoxesMaterialId = '',
+  onDrawerBoxesMaterialChange,
+  backingsMaterialId = '',
+  onBackingsMaterialChange,
   handMode,
   onHandModeChange,
   onSwitchToExpertMode,
@@ -238,6 +252,160 @@ export function ModoObraWizard({
   const activeModule = useMemo(() => {
     return projectModules.find((m) => m.id === activeModuleId) ?? projectModules[0];
   }, [projectModules, activeModuleId]);
+
+  // Contextual role detection for multi-role materials
+  const [activeMaterialRole, setActiveMaterialRole] = useState<MaterialRole>('carcass');
+
+  const hasDoorsOrFronts = useMemo(() => {
+    return (
+      Boolean(frontsMaterialId) ||
+      bays.some(
+        (b) =>
+          b.type === 'doors' ||
+          b.type === 'bi-fold-closure' ||
+          (b.type === 'drawer-stack' && b.drawerType !== 'simple-interior'),
+      )
+    );
+  }, [frontsMaterialId, bays]);
+
+  const hasDrawers = useMemo(() => {
+    return (
+      Boolean(drawerBoxesMaterialId) ||
+      bays.some((b) => b.type === 'drawer-stack' || b.type === 'pull-out-tray')
+    );
+  }, [drawerBoxesMaterialId, bays]);
+
+  const hasBackingBoard = useMemo(() => {
+    return Boolean(backingsMaterialId) || (hasBacking && backingType !== 'none');
+  }, [backingsMaterialId, hasBacking, backingType]);
+
+  const availableRoles = useMemo(() => {
+    const list: Array<{
+      id: MaterialRole;
+      label: string;
+      shortLabel: string;
+      icon: string;
+      description: string;
+      currentMaterialName: string;
+      isInherited: boolean;
+    }> = [
+      {
+        id: 'carcass',
+        label: 'Casco / Estructura',
+        shortLabel: 'Casco',
+        icon: '🏛️',
+        description: 'Placa principal para laterales, piso, techo y estantes interiores.',
+        currentMaterialName: materials.find((m) => m.id === selectedMaterialId)?.name ?? 'Sin seleccionar',
+        isInherited: false,
+      },
+    ];
+
+    if (hasDoorsOrFronts) {
+      const isCustom = Boolean(frontsMaterialId);
+      const effectiveMat = materials.find((m) => m.id === (frontsMaterialId || selectedMaterialId));
+      list.push({
+        id: 'fronts',
+        label: 'Frentes y Puertas',
+        shortLabel: 'Frentes',
+        icon: '🚪',
+        description: 'Placa exterior para hojas de puerta y tapas frontales de cajón.',
+        currentMaterialName: isCustom ? (effectiveMat?.name ?? 'Personalizado') : `Igual al Casco (${effectiveMat?.name ?? ''})`,
+        isInherited: !isCustom,
+      });
+    }
+
+    if (hasDrawers) {
+      const isCustom = Boolean(drawerBoxesMaterialId);
+      const effectiveMat = materials.find((m) => m.id === (drawerBoxesMaterialId || selectedMaterialId));
+      list.push({
+        id: 'drawers',
+        label: 'Cajas de Cajones',
+        shortLabel: 'Cajones',
+        icon: '🗄️',
+        description: 'Placa para laterales, contrafrentes y traseras de cajones interiores.',
+        currentMaterialName: isCustom ? (effectiveMat?.name ?? 'Personalizado') : `Igual al Casco (${effectiveMat?.name ?? ''})`,
+        isInherited: !isCustom,
+      });
+    }
+
+    if (hasBackingBoard) {
+      const isCustom = Boolean(backingsMaterialId && backingsMaterialId !== selectedMaterialId);
+      const effectiveMat = materials.find((m) => m.id === (backingsMaterialId || selectedMaterialId));
+      list.push({
+        id: 'backing',
+        label: 'Fondos y Traseras',
+        shortLabel: 'Fondos',
+        icon: '🪵',
+        description: 'Placa para fondos del mueble y fondos de cajón (usualmente 3 mm o 18 mm).',
+        currentMaterialName: effectiveMat?.name ?? 'Sin seleccionar',
+        isInherited: !isCustom,
+      });
+    }
+
+    return list;
+  }, [
+    materials,
+    selectedMaterialId,
+    frontsMaterialId,
+    drawerBoxesMaterialId,
+    backingsMaterialId,
+    hasDoorsOrFronts,
+    hasDrawers,
+    hasBackingBoard,
+  ]);
+
+  const effectiveMaterialRole: MaterialRole = availableRoles.some((r) => r.id === activeMaterialRole)
+    ? activeMaterialRole
+    : 'carcass';
+
+  const activeRoleConfig = availableRoles.find((r) => r.id === effectiveMaterialRole) ?? availableRoles[0]!;
+
+  const currentRoleMaterialId = useMemo(() => {
+    switch (effectiveMaterialRole) {
+      case 'fronts':
+        return frontsMaterialId || selectedMaterialId;
+      case 'drawers':
+        return drawerBoxesMaterialId || selectedMaterialId;
+      case 'backing':
+        return backingsMaterialId || selectedMaterialId;
+      case 'carcass':
+      default:
+        return selectedMaterialId;
+    }
+  }, [effectiveMaterialRole, selectedMaterialId, frontsMaterialId, drawerBoxesMaterialId, backingsMaterialId]);
+
+  const handleSelectMaterialForRole = useCallback(
+    (matId: string) => {
+      triggerHaptic('major');
+      switch (effectiveMaterialRole) {
+        case 'fronts':
+          onFrontsMaterialChange?.(matId);
+          break;
+        case 'drawers':
+          onDrawerBoxesMaterialChange?.(matId);
+          break;
+        case 'backing':
+          onBackingsMaterialChange?.(matId);
+          break;
+        case 'carcass':
+        default:
+          onMaterialChange?.(matId);
+          break;
+      }
+    },
+    [effectiveMaterialRole, onMaterialChange, onFrontsMaterialChange, onDrawerBoxesMaterialChange, onBackingsMaterialChange],
+  );
+
+  const handleResetRoleToCarcass = useCallback(() => {
+    triggerHaptic('tick');
+    if (effectiveMaterialRole === 'fronts') {
+      onFrontsMaterialChange?.('');
+    } else if (effectiveMaterialRole === 'drawers') {
+      onDrawerBoxesMaterialChange?.('');
+    } else if (effectiveMaterialRole === 'backing') {
+      onBackingsMaterialChange?.(selectedMaterialId);
+    }
+  }, [effectiveMaterialRole, selectedMaterialId, onFrontsMaterialChange, onDrawerBoxesMaterialChange, onBackingsMaterialChange]);
 
   return (
     <section
@@ -552,6 +720,56 @@ export function ModoObraWizard({
               })}
             </div>
 
+            {/* Tarjeta Informativa M3: Ingeniería Automática de Taller */}
+            <div
+              style={{
+                padding: '0.65rem 0.8rem',
+                borderRadius: '14px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px solid var(--md-sys-color-primary)',
+                borderLeft: '4px solid var(--md-sys-color-primary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.35rem',
+                marginTop: '0.2rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span style={{ fontSize: '1.05rem' }}>📐</span>
+                <strong style={{ fontSize: '0.84rem', color: 'var(--md-sys-color-primary)' }}>
+                  Ingeniería Automática de Taller
+                </strong>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.76rem',
+                  lineHeight: '1.35',
+                  color: 'var(--md-sys-color-on-surface-variant)',
+                }}
+              >
+                En Modo Taller relevás volumen, distribución y placas de forma ágil. Las holguras (2.5 mm perimetral),
+                descuentos de correderas (26 mm) y ranuras de fondo se calculan automáticamente con las configuraciones por defecto del taller.
+              </p>
+              <div
+                style={{
+                  fontSize: '0.73rem',
+                  color: 'var(--md-sys-color-on-surface)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  padding: '0.3rem 0.5rem',
+                  borderRadius: '8px',
+                }}
+              >
+                <span>⚙️</span>
+                <span>
+                  Las holguras milimétricas y herrajes avanzados se configuran sí o sí en <strong>Modo Experto</strong>.
+                </span>
+              </div>
+            </div>
+
             <div
               style={{
                 padding: '0.6rem 0.75rem',
@@ -560,7 +778,7 @@ export function ModoObraWizard({
                 border: '1px solid var(--md-sys-color-outline-variant)',
                 fontSize: '0.78rem',
                 color: 'var(--md-sys-color-on-surface-variant)',
-                marginTop: '0.25rem',
+                marginTop: '0.15rem',
               }}
             >
               💡 <strong>Tip de Obra:</strong> Al elegir la plantilla base, el mueble se preconfigura con
@@ -1565,18 +1783,156 @@ export function ModoObraWizard({
 
         {/* STEP 8: MATERIAL / TABLERO DE MELAMINA */}
         {activeStep.id === 'material' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.45rem', width: '100%' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {/* 1. Selector Segmentado de Roles (Horizontal Scrollable Chips con >48px touch target) */}
+            <div
+              role="tablist"
+              aria-label="Roles de placa o tablero"
+              style={{
+                display: 'flex',
+                gap: '0.45rem',
+                width: '100%',
+                overflowX: 'auto',
+                paddingBottom: '0.35rem',
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {availableRoles.map((role) => {
+                const isActive = effectiveMaterialRole === role.id;
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => {
+                      triggerHaptic('tick');
+                      setActiveMaterialRole(role.id);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      justifyContent: 'center',
+                      minWidth: '125px',
+                      minHeight: '48px',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '12px',
+                      border: isActive
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isActive
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container)',
+                      color: isActive
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      <span>{role.icon}</span>
+                      <span>{role.shortLabel}</span>
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        opacity: 0.85,
+                        marginTop: '2px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '120px',
+                      }}
+                    >
+                      {role.currentMaterialName}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 2. Banner descriptivo del rol activo + Botón de Sincronización con el Casco */}
+            <div
+              style={{
+                padding: '0.5rem 0.7rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                  {activeRoleConfig.icon} {activeRoleConfig.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: 'var(--md-sys-color-on-surface-variant)',
+                    lineHeight: '1.25',
+                  }}
+                >
+                  {activeRoleConfig.description}
+                </span>
+              </div>
+
+              {effectiveMaterialRole !== 'carcass' && (
+                <button
+                  type="button"
+                  onClick={handleResetRoleToCarcass}
+                  title="Restablecer para usar el mismo tablero que el Casco"
+                  aria-label="Restablecer para usar la misma placa que el casco"
+                  style={{
+                    minHeight: '38px',
+                    padding: '0 0.55rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--md-sys-color-outline)',
+                    backgroundColor: 'var(--md-sys-color-surface)',
+                    color: 'var(--md-sys-color-primary)',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  🔗 Igual al Casco
+                </button>
+              )}
+            </div>
+
+            {/* 3. Grilla Táctil de Placas del Catálogo */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '0.45rem',
+                width: '100%',
+              }}
+            >
               {materials.map((mat) => {
-                const isSelected = selectedMaterialId === mat.id;
+                const isSelected = currentRoleMaterialId === mat.id;
                 return (
                   <button
                     key={mat.id}
                     type="button"
-                    onClick={() => {
-                      triggerHaptic('major');
-                      onMaterialChange?.(mat.id);
-                    }}
+                    onClick={() => handleSelectMaterialForRole(mat.id)}
                     style={{
                       minHeight: '62px',
                       padding: '0.5rem',
@@ -1596,8 +1952,23 @@ export function ModoObraWizard({
                       justifyContent: 'center',
                       cursor: 'pointer',
                       textAlign: 'center',
+                      position: 'relative',
                     }}
                   >
+                    {isSelected && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          color: 'var(--md-sys-color-primary)',
+                        }}
+                      >
+                        ✓
+                      </span>
+                    )}
                     <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>{mat.name}</span>
                     <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '2px' }}>
                       {`${mat.thicknessMm} mm · Tablero de taller`}

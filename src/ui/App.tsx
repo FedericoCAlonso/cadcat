@@ -484,6 +484,12 @@ export function App(): ReactElement {
                   materials={vm.materials}
                   selectedMaterialId={vm.selectedMaterialId}
                   onMaterialChange={vm.setSelectedMaterialId}
+                  frontsMaterialId={vm.frontsMaterialId}
+                  onFrontsMaterialChange={vm.setFrontsMaterialId}
+                  drawerBoxesMaterialId={vm.drawerBoxesMaterialId}
+                  onDrawerBoxesMaterialChange={vm.setDrawerBoxesMaterialId}
+                  backingsMaterialId={vm.backingsMaterialId}
+                  onBackingsMaterialChange={vm.setBackingsMaterialId}
                   handMode={vm.handMode}
                   onHandModeChange={vm.setHandMode}
                   onSwitchToExpertMode={() => vm.setUiMode('expert')}
