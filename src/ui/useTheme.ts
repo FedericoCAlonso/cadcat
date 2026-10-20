@@ -48,7 +48,7 @@ export function useTheme() {
     // Also update meta theme-color to match icon and surfaces
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', effectiveTheme === 'dark' ? '#101820' : '#f6f8fa');
+      metaThemeColor.setAttribute('content', effectiveTheme === 'dark' ? '#141815' : '#F6F3EC');
     }
   }, [effectiveTheme]);
 

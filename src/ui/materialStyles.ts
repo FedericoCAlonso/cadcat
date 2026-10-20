@@ -11,7 +11,7 @@ export interface PiecePbrStyle {
 }
 
 export const M3_SELECTED_PIECE_STYLE: PiecePbrStyle = {
-  color: 0x0b57d0, // M3 sys primary
+  color: 0x56705f, // M3 sys primary (salvia #56705F)
   roughness: 0.45,
   metalness: 0.1,
   wireframeColor: 0xffffff,

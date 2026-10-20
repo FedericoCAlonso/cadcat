@@ -164,7 +164,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     scene.add(dirLight2);
 
     // Grid Floor
-    const gridHelper = new THREE.GridHelper(maxDim * 2.5, 20, 0x0b57d0, 0xc4c7c5);
+    const gridHelper = new THREE.GridHelper(maxDim * 2.5, 20, 0x56705f, 0xd9d2c3);
     gridHelper.position.set(bounds.center.x, bounds.min.y, bounds.center.z);
     scene.add(gridHelper);
 
@@ -508,7 +508,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
       const isSelected = item.pieceId === selectedPieceId;
       const pbrStyle = resolvePiecePbrStyle(item.role, item.materialId, isSelected);
-      const emissiveColor = isSelected ? 0x0842a0 : 0x000000;
+      const emissiveColor = isSelected ? 0x56705f : 0x000000;
 
       const mat = new THREE.MeshStandardMaterial({
         color: pbrStyle.color,
