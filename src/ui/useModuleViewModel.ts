@@ -216,6 +216,7 @@ export interface ModuleViewModelState {
   setDrawerTopPullGap: (bayIndex: number, gapMm: number) => void;
   setDrawerBoxSideHeightOffset: (bayIndex: number, offsetMm: number) => void;
   setDoorCount: (bayIndex: number, count: 1 | 2) => void;
+  setDoorHingeSide: (bayIndex: number, hingeSide: 'left' | 'right') => void;
   setDoorMountType: (bayIndex: number, mount: DoorMountType) => void;
   setDoorInteriorShelvesCount: (bayIndex: number, count: number) => void;
   setDoorShelfType: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
@@ -1201,6 +1202,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         next[bayIndex] = { ...current, count };
       } else {
         next[bayIndex] = { type: 'doors', count, mountType: 'full-overlay' };
+      }
+      return next;
+    });
+  }, []);
+
+  const setDoorHingeSide = useCallback((bayIndex: number, hingeSide: 'left' | 'right') => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'doors') {
+        next[bayIndex] = { ...current, hingeSide };
       }
       return next;
     });
@@ -3031,6 +3044,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setDrawerTopPullGap,
     setDrawerBoxSideHeightOffset,
     setDoorCount,
+    setDoorHingeSide,
     setDoorMountType,
     setDoorInteriorShelvesCount,
     setDoorShelfType,

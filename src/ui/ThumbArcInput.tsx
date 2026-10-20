@@ -198,9 +198,11 @@ export function ThumbArcInput({
   const svgTrack = computeThumbArcSvgPath(340, 220, activeHandMode, 210);
 
   // Knob position along visual arc based on value percentage
+  // Sweeping up (elevating thumb) increases value (+); sweeping down decreases (-).
   const valueRatio = Math.max(0, Math.min(1, (value - min) / (max - min)));
-  const [minDeg, maxDeg] = activeHandMode === 'right' ? [-165, -105] : [-75, -15];
-  const knobAngleDeg = minDeg + valueRatio * (maxDeg - minDeg);
+  const knobAngleDeg = activeHandMode === 'right'
+    ? -165 + valueRatio * 60
+    : -15 - valueRatio * 60;
   const knobAngleRad = (knobAngleDeg * Math.PI) / 180;
   const knobX = svgTrack.center.x + svgTrack.radius * Math.cos(knobAngleRad);
   const knobY = svgTrack.center.y + svgTrack.radius * Math.sin(knobAngleRad);
@@ -503,7 +505,7 @@ export function ThumbArcInput({
             borderRadius: '12px',
           }}
         >
-          <span>{activeHandMode === 'right' ? '↺ Deslizar pulgar' : '↻ Deslizar pulgar'}</span>
+          <span>{activeHandMode === 'right' ? '⤴️ Deslizar pulgar (+)' : '⤴️ Deslizar pulgar (+)'}</span>
         </div>
       </div>
 

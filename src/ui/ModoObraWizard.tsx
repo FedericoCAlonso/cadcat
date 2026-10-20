@@ -4,76 +4,29 @@ import {
   useState,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 import { type HandMode, triggerHaptic } from '../resolver/thumbArc';
 import { ThumbArcInput } from './ThumbArcInput';
 import { DEFAULT_UI_CONFIG } from '../config';
+import { type ProjectModuleItem } from '../model/project';
+import { type Material } from '../model/material';
+import { type RoofType, type BackingType, type BayContent } from '../resolver';
 
-export interface ModoObraStep {
-  id: string;
-  title: string;
-  field: 'width' | 'height' | 'depth' | 'thickness';
-  unit: string;
-  min: number;
-  max: number;
-  step: number;
-  coarseStep: number;
-  presets: number[];
-  helpText: string;
-}
-
-export const MODO_OBRA_STEPS: ModoObraStep[] = [
-  {
-    id: 'step-width',
-    title: 'Ancho Total del Mueble',
-    field: 'width',
-    unit: 'mm',
-    min: DEFAULT_UI_CONFIG.dimensions.width.min,
-    max: DEFAULT_UI_CONFIG.dimensions.width.max,
-    step: 1,
-    coarseStep: 10,
-    presets: [400, 500, 600, 800, 900, 1000, 1200],
-    helpText: 'Ancho exterior de costado a costado.',
-  },
-  {
-    id: 'step-height',
-    title: 'Alto Total del Mueble',
-    field: 'height',
-    unit: 'mm',
-    min: DEFAULT_UI_CONFIG.dimensions.height.min,
-    max: DEFAULT_UI_CONFIG.dimensions.height.max,
-    step: 1,
-    coarseStep: 10,
-    presets: [700, 750, 800, 850, 900, 1800, 2100],
-    helpText: 'Altura exterior desde el piso/zócalo hasta la tapa superior.',
-  },
-  {
-    id: 'step-depth',
-    title: 'Profundidad Total',
-    field: 'depth',
-    unit: 'mm',
-    min: DEFAULT_UI_CONFIG.dimensions.depth.min,
-    max: DEFAULT_UI_CONFIG.dimensions.depth.max,
-    step: 1,
-    coarseStep: 10,
-    presets: [300, 350, 450, 500, 550, 580, 600],
-    helpText: 'Profundidad exterior del mueble (mesada estándar: 580-600 mm).',
-  },
-  {
-    id: 'step-thickness',
-    title: 'Espesor de Placa',
-    field: 'thickness',
-    unit: 'mm',
-    min: 12,
-    max: 30,
-    step: 1,
-    coarseStep: 1,
-    presets: [15, 18, 25],
-    helpText: 'Espesor nominal del tablero melamínico (18 mm recomendado).',
-  },
-];
+export type ObraGridType = '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
+export type ObraBayContentType = 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure';
 
 export interface ModoObraWizardProps {
+  // Project & Module management
+  projectModules?: ProjectModuleItem[];
+  activeModuleId?: string;
+  onSetActiveModule?: (id: string) => void;
+  onAddProjectModule?: () => void;
+  templates?: Array<{ id: string; name: string; description?: string; category?: string }>;
+  selectedTemplateId?: string;
+  onTemplateChange?: (templateId: string) => void;
+
+  // Dimensions
   width: number;
   height: number;
   depth: number;
@@ -82,6 +35,49 @@ export interface ModoObraWizardProps {
   onHeightChange: (val: number) => void;
   onDepthChange: (val: number) => void;
   onThicknessChange?: (val: number) => void;
+
+  // Base structure
+  hasPlinth?: boolean;
+  plinthHeightMm?: number;
+  onHasPlinthChange?: (val: boolean) => void;
+  onPlinthHeightChange?: (val: number) => void;
+  hasWallHangingRail?: boolean;
+  onHasWallHangingRailChange?: (val: boolean) => void;
+
+  // Roof / Top panel
+  roofType?: RoofType;
+  onRoofTypeChange?: (roof: RoofType) => void;
+
+  // Backing
+  hasBacking?: boolean;
+  backingType?: BackingType;
+  onHasBackingChange?: (val: boolean) => void;
+  onBackingTypeChange?: (val: BackingType) => void;
+
+  // Bays / Grid
+  gridType?: ObraGridType;
+  bays?: BayContent[];
+  activeBayIndex?: number;
+  onGridTypeChange?: (grid: ObraGridType) => void;
+  onActiveBayIndexChange?: (idx: number) => void;
+
+  // Bay content actions
+  onBayContentTypeChange?: (bayIdx: number, type: ObraBayContentType) => void;
+  onAddShelf?: (bayIdx: number) => void;
+  onRemoveShelf?: (bayIdx: number, shelfIdx?: number) => void;
+  onShelfTypeChange?: (bayIdx: number, type: 'fixed' | 'adjustable') => void;
+  onAddDrawer?: (bayIdx: number) => void;
+  onRemoveDrawer?: (bayIdx: number, drawerIdx?: number) => void;
+  onDoorCountChange?: (bayIdx: number, count: 1 | 2) => void;
+  onDoorHingeSideChange?: (bayIdx: number, hingeSide: 'left' | 'right') => void;
+  onDoorInteriorShelvesCountChange?: (bayIdx: number, count: number) => void;
+
+  // Materials
+  materials?: Material[];
+  selectedMaterialId?: string;
+  onMaterialChange?: (id: string) => void;
+
+  // Global UI controls
   handMode: HandMode;
   onHandModeChange: (mode: HandMode) => void;
   onSwitchToExpertMode: () => void;
@@ -89,12 +85,39 @@ export interface ModoObraWizardProps {
   is3dViewActive?: boolean;
 }
 
+export type DimensionSubField = 'width' | 'height' | 'depth' | 'thickness';
+
+export interface ObraStepDefinition {
+  id: string;
+  stepNumber: number;
+  title: string;
+  subtitle: string;
+}
+
+export const OBRA_STEPS: ObraStepDefinition[] = [
+  { id: 'module-type', stepNumber: 1, title: 'Módulo y Tipo', subtitle: 'Seleccioná el mueble a relevar' },
+  { id: 'dimensions', stepNumber: 2, title: 'Medidas Principales', subtitle: 'Ancho, alto, profundidad y placa' },
+  { id: 'base-support', stepNumber: 3, title: 'Base / Apoyo', subtitle: 'Zócalo, patas regulables o suspendido' },
+  { id: 'roof-structure', stepNumber: 4, title: 'Techo / Amarres', subtitle: 'Tapa sólida, fajas o sin tapa a techo' },
+  { id: 'backing', stepNumber: 5, title: 'Fondo Trasero', subtitle: 'Ranurado 3mm, clavado o sin fondo' },
+  { id: 'bays-division', stepNumber: 6, title: 'Columnas / Vanos', subtitle: 'División vertical del volumen' },
+  { id: 'equipment', stepNumber: 7, title: 'Equipamiento', subtitle: 'Estantes, cajones o puertas' },
+  { id: 'material', stepNumber: 8, title: 'Tablero / Melamina', subtitle: 'Color y acabado del taller' },
+];
+
 /**
- * Modo Obra: Gesture-controlled mobile-first interface.
- * Features vertical swipe navigation between steps, ergonomic radial thumb dial,
- * and a persistent 3D model inspection trigger at the bottom.
+ * Modo Obra: Fully immersive gesture-driven mobile wizard for workshops and job sites.
+ * Features 8 comprehensive carpentry configuration steps, zero vertical scroll,
+ * radial thumb dial physics, and persistent 3D inspection.
  */
 export function ModoObraWizard({
+  projectModules = [],
+  activeModuleId,
+  onSetActiveModule,
+  onAddProjectModule,
+  templates = [],
+  selectedTemplateId = 'base-modular',
+  onTemplateChange,
   width,
   height,
   depth,
@@ -103,6 +126,35 @@ export function ModoObraWizard({
   onHeightChange,
   onDepthChange,
   onThicknessChange,
+  hasPlinth = false,
+  plinthHeightMm = 100,
+  onHasPlinthChange,
+  onPlinthHeightChange,
+  hasWallHangingRail = false,
+  onHasWallHangingRailChange,
+  roofType = 'front-back-rails',
+  onRoofTypeChange,
+  hasBacking = true,
+  backingType = 'groove',
+  onHasBackingChange,
+  onBackingTypeChange,
+  gridType = '1-bay',
+  bays = [],
+  activeBayIndex = 0,
+  onGridTypeChange,
+  onActiveBayIndexChange,
+  onBayContentTypeChange,
+  onAddShelf,
+  onRemoveShelf,
+  onShelfTypeChange,
+  onAddDrawer,
+  onRemoveDrawer,
+  onDoorCountChange,
+  onDoorHingeSideChange,
+  onDoorInteriorShelvesCountChange,
+  materials = [],
+  selectedMaterialId = '',
+  onMaterialChange,
   handMode,
   onHandModeChange,
   onSwitchToExpertMode,
@@ -110,13 +162,15 @@ export function ModoObraWizard({
   is3dViewActive = false,
 }: ModoObraWizardProps): ReactElement {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [dimensionField, setDimensionField] = useState<DimensionSubField>('width');
+
   const touchStartYRef = useRef<number>(0);
   const touchStartXRef = useRef<number>(0);
 
-  const activeStep = MODO_OBRA_STEPS[currentStepIndex] ?? MODO_OBRA_STEPS[0]!;
+  const activeStep = OBRA_STEPS[currentStepIndex] ?? OBRA_STEPS[0]!;
 
   const goToNextStep = useCallback(() => {
-    if (currentStepIndex < MODO_OBRA_STEPS.length - 1) {
+    if (currentStepIndex < OBRA_STEPS.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
       triggerHaptic('major');
     }
@@ -129,7 +183,7 @@ export function ModoObraWizard({
     }
   }, [currentStepIndex]);
 
-  // Vertical swipe handling on the main card container (Swipe Up = Next, Swipe Down = Prev)
+  // Vertical swipe navigation on outer container
   const handleTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
     if (touch) {
@@ -146,263 +200,1338 @@ export function ModoObraWizard({
       const dy = touch.clientY - touchStartYRef.current;
       const dx = touch.clientX - touchStartXRef.current;
 
-      // Only trigger if primarily vertical swipe and greater than threshold (50px)
+      // 18px lateral safety margin to prevent conflicting with native Android/iOS back-swipe
+      if (touchStartXRef.current < 20 || touchStartXRef.current > window.innerWidth - 20) {
+        return;
+      }
+
+      // Only trigger vertical navigation if dy is prominent and over 50px
       if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5) {
         if (dy < 0) {
-          // Swiped UP -> Go to Next Step
-          goToNextStep();
+          goToNextStep(); // Swipe UP -> Next
         } else {
-          // Swiped DOWN -> Go to Previous Step
-          goToPrevStep();
+          goToPrevStep(); // Swipe DOWN -> Previous
         }
       }
     },
     [goToNextStep, goToPrevStep],
   );
 
-  const getCurrentValue = (): number => {
-    switch (activeStep.field) {
-      case 'width':
-        return width;
-      case 'height':
-        return height;
-      case 'depth':
-        return depth;
-      case 'thickness':
-        return thickness;
-      default:
-        return 0;
-    }
-  };
+  // Active bay reference
+  const currentBay: BayContent | undefined = bays[activeBayIndex];
+  const safeBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '2-bays-vertical' ? 2 : 1;
 
-  const handleStepValueChange = (newVal: number) => {
-    switch (activeStep.field) {
-      case 'width':
-        onWidthChange(newVal);
-        break;
-      case 'height':
-        onHeightChange(newVal);
-        break;
-      case 'depth':
-        onDepthChange(newVal);
-        break;
-      case 'thickness':
-        onThicknessChange?.(newVal);
-        break;
-    }
-  };
+  // Active module title
+  const activeModule = useMemo(() => {
+    return projectModules.find((m) => m.id === activeModuleId) ?? projectModules[0];
+  }, [projectModules, activeModuleId]);
 
   return (
-    <div
-      className="modo-obra-container"
+    <section
+      className="modo-obra-immersive-wrapper"
+      aria-label="Modo Obra - Control con una mano"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100%',
+        height: '100dvh',
+        maxHeight: '100dvh',
         width: '100%',
-        maxWidth: '480px',
+        maxWidth: '540px',
         margin: '0 auto',
-        padding: '0.75rem 0.5rem 5rem', // Bottom padding reserves space for persistent 3D bar
-        boxSizing: 'border-box',
+        backgroundColor: 'var(--md-sys-color-surface)',
+        overflow: 'hidden',
         position: 'relative',
+        boxSizing: 'border-box',
       }}
     >
-      {/* Top Header Mode Toggle: [ 🏗️ Modo Obra ] ⟷ [ ⚙️ Modo Experto ] */}
-      <div
+      {/* 1. Ultra-Compact Top Bar (Height ~44px) */}
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.25rem 0.5rem 0.75rem',
+          gap: '0.4rem',
+          padding: 'max(0.4rem, env(safe-area-inset-top, 0.4rem)) 0.6rem 0.35rem',
           borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-          marginBottom: '0.75rem',
+          backgroundColor: 'var(--md-sys-color-surface-container)',
+          flexShrink: 0,
+          zIndex: 10,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span
-            style={{
-              padding: '0.35rem 0.75rem',
-              borderRadius: '20px',
-              backgroundColor: 'var(--md-sys-color-primary)',
-              color: 'var(--md-sys-color-on-primary)',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-            }}
-          >
-            🏗️ Modo Obra
-          </span>
-        </div>
+        {/* Module Picker / Add Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', minWidth: 0 }}>
+          {projectModules.length > 0 && onSetActiveModule ? (
+            <select
+              value={activeModuleId ?? activeModule?.id}
+              onChange={(e) => onSetActiveModule(e.target.value)}
+              aria-label="Seleccionar módulo activo del proyecto"
+              style={{
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                padding: '0.3rem 0.5rem',
+                borderRadius: '12px',
+                border: '1px solid var(--md-sys-color-outline)',
+                backgroundColor: 'var(--md-sys-color-surface)',
+                color: 'var(--md-sys-color-on-surface)',
+                maxWidth: '140px',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {projectModules.map((mod, idx) => (
+                <option key={mod.id} value={mod.id}>
+                  {`📦 ${mod.name || `Módulo ${idx + 1}`}`}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+              {activeModule ? `📦 ${activeModule.name}` : '🏗️ Obra'}
+            </span>
+          )}
 
-        <button
-          type="button"
-          onClick={onSwitchToExpertMode}
-          className="m3-button m3-button--outlined"
-          aria-label="Cambiar a Modo Experto (formulario completo)"
-          title="Ver formulario completo con todos los parámetros"
-          style={{
-            minHeight: '48px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            borderRadius: '24px',
-            padding: '0 0.9rem',
-          }}
-        >
-          ⚙️ Modo Experto
-        </button>
-      </div>
-
-      {/* Step Indicators and Navigation Bar */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '0.2rem 0.5rem',
-          marginBottom: '0.75rem',
-        }}
-      >
-        <span
-          style={{
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            color: 'var(--md-sys-color-outline)',
-          }}
-        >
-          {`Paso ${currentStepIndex + 1} de ${MODO_OBRA_STEPS.length}`}
-        </span>
-
-        {/* Step dots */}
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
-          {MODO_OBRA_STEPS.map((step, idx) => (
+          {onAddProjectModule && (
             <button
-              key={step.id}
               type="button"
               onClick={() => {
-                setCurrentStepIndex(idx);
-                triggerHaptic('tick');
+                triggerHaptic('major');
+                onAddProjectModule();
               }}
-              aria-label={`Ir al paso ${idx + 1}: ${step.title}`}
+              className="m3-button m3-button--filled"
+              aria-label="Agregar nuevo módulo a la obra"
+              title="Agregar nuevo mueble a la obra"
               style={{
-                width: idx === currentStepIndex ? '24px' : '10px',
-                height: '10px',
-                borderRadius: '5px',
-                backgroundColor:
-                  idx === currentStepIndex
-                    ? 'var(--md-sys-color-primary)'
-                    : 'var(--md-sys-color-outline-variant)',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                minWidth: '40px',
+                height: '36px',
+                padding: '0 0.4rem',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
               }}
-            />
-          ))}
+            >
+              ➕
+            </button>
+          )}
         </div>
-      </div>
 
-      {/* Main Gesture Card: Thumb Radial Sweep Dial */}
-      <div style={{ width: '100%', flex: 1 }}>
-        <ThumbArcInput
-          id={activeStep.id}
-          label={activeStep.title}
-          value={getCurrentValue()}
-          onChange={handleStepValueChange}
-          min={activeStep.min}
-          max={activeStep.max}
-          step={activeStep.step}
-          coarseStep={activeStep.coarseStep}
-          unit={activeStep.unit}
-          helpText={activeStep.helpText}
-          handMode={handMode}
-          onHandModeChange={onHandModeChange}
-          quickPresets={activeStep.presets}
-        />
-      </div>
+        {/* Step Indicator */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <span
+            style={{
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: 'var(--md-sys-color-primary)',
+            }}
+          >
+            {`Paso ${activeStep.stepNumber} de ${OBRA_STEPS.length}`}
+          </span>
+          <div style={{ display: 'flex', gap: '3px', marginTop: '2px' }}>
+            {OBRA_STEPS.map((s, idx) => (
+              <span
+                key={s.id}
+                style={{
+                  width: idx === currentStepIndex ? '14px' : '5px',
+                  height: '4px',
+                  borderRadius: '2px',
+                  backgroundColor:
+                    idx === currentStepIndex
+                      ? 'var(--md-sys-color-primary)'
+                      : 'var(--md-sys-color-outline-variant)',
+                  transition: 'all 0.2s ease',
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
-      {/* Gesture Instruction & Step Buttons */}
-      <div
+        {/* Hand Toggle & Expert Switch */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const nextMode: HandMode = handMode === 'right' ? 'left' : 'right';
+              onHandModeChange(nextMode);
+              triggerHaptic('tick');
+            }}
+            aria-label={`Cambiar mano: actualmente ${handMode === 'right' ? 'Diestro' : 'Zurdo'}`}
+            title={`Mano activa: ${handMode === 'right' ? 'Diestro' : 'Zurdo'}`}
+            style={{
+              height: '36px',
+              padding: '0 0.5rem',
+              borderRadius: '10px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              backgroundColor: 'var(--md-sys-color-surface)',
+              color: 'var(--md-sys-color-on-surface)',
+              cursor: 'pointer',
+            }}
+          >
+            {handMode === 'right' ? '🖐️ D' : '🖐️ Z'}
+          </button>
+
+          <button
+            type="button"
+            onClick={onSwitchToExpertMode}
+            aria-label="Cambiar a Modo Experto (formulario completo)"
+            title="Abrir formulario técnico completo"
+            style={{
+              height: '36px',
+              padding: '0 0.5rem',
+              borderRadius: '10px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              backgroundColor: 'var(--md-sys-color-surface-container-high)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              color: 'var(--md-sys-color-on-surface)',
+              cursor: 'pointer',
+            }}
+          >
+            ⚙️
+          </button>
+        </div>
+      </header>
+
+      {/* 2. Scroll-Free Middle Body Container */}
+      <main
         style={{
+          flex: 1,
           display: 'flex',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
           alignItems: 'center',
-          gap: '0.5rem',
-          marginTop: '1rem',
-          padding: '0 0.5rem',
+          justifyContent: 'flex-start',
+          padding: '0.4rem 0.6rem',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          boxSizing: 'border-box',
+          width: '100%',
         }}
       >
-        <button
-          type="button"
-          onClick={goToPrevStep}
-          disabled={currentStepIndex === 0}
-          className="m3-button m3-button--tonal"
-          aria-label="Paso anterior (deslizar hacia abajo)"
-          style={{
-            minHeight: '48px',
-            borderRadius: '16px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            opacity: currentStepIndex === 0 ? 0.4 : 1,
-            flex: 1,
-          }}
-        >
-          🔼 Anterior
-        </button>
+        {/* Step Header Title */}
+        <div style={{ width: '100%', textAlign: 'center', marginBottom: '0.35rem' }}>
+          <h2
+            style={{
+              margin: '0.1rem 0 0',
+              fontSize: '1.08rem',
+              fontWeight: 700,
+              color: 'var(--md-sys-color-on-surface)',
+            }}
+          >
+            {activeStep.title}
+          </h2>
+          <p
+            style={{
+              margin: '0.1rem 0 0.25rem',
+              fontSize: '0.78rem',
+              color: 'var(--md-sys-color-outline)',
+            }}
+          >
+            {activeStep.subtitle}
+          </p>
+        </div>
 
-        <span
-          style={{
-            fontSize: '0.75rem',
-            color: 'var(--md-sys-color-outline)',
-            textAlign: 'center',
-            flex: 1.2,
-          }}
-        >
-          ↕️ Deslizá vertical para cambiar de paso
-        </span>
+        {/* STEP 1: MÓDULO Y TIPO (PLANTILLA) */}
+        {activeStep.id === 'module-type' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '0.5rem',
+                width: '100%',
+              }}
+            >
+              {templates.slice(0, 8).map((tpl) => {
+                const isSelected = selectedTemplateId === tpl.id;
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('major');
+                      onTemplateChange?.(tpl.id);
+                    }}
+                    style={{
+                      minHeight: '62px',
+                      padding: '0.5rem',
+                      borderRadius: '16px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                      {tpl.name.includes('Alacena')
+                        ? '🧗 '
+                        : tpl.name.includes('Cajonera')
+                          ? '🗄️ '
+                          : tpl.name.includes('Torre')
+                            ? '🏛️ '
+                            : '🪵 '}
+                      {tpl.name}
+                    </span>
+                    {tpl.category && (
+                      <span style={{ fontSize: '0.72rem', opacity: 0.8, marginTop: '2px' }}>
+                        {tpl.category}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
-        <button
-          type="button"
-          onClick={goToNextStep}
-          disabled={currentStepIndex === MODO_OBRA_STEPS.length - 1}
-          className="m3-button m3-button--filled"
-          aria-label="Siguiente paso (deslizar hacia arriba)"
-          style={{
-            minHeight: '48px',
-            borderRadius: '16px',
-            fontSize: '0.9rem',
-            fontWeight: 700,
-            opacity: currentStepIndex === MODO_OBRA_STEPS.length - 1 ? 0.4 : 1,
-            flex: 1,
-          }}
-        >
-          Siguiente 🔽
-        </button>
-      </div>
+            <div
+              style={{
+                padding: '0.6rem 0.75rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                fontSize: '0.78rem',
+                color: 'var(--md-sys-color-on-surface-variant)',
+                marginTop: '0.25rem',
+              }}
+            >
+              💡 <strong>Tip de Obra:</strong> Al elegir la plantilla base, el mueble se preconfigura con
+              las proporciones y holguras estándar de taller. Podés ajustar las medidas exactas en el siguiente paso.
+            </div>
+          </div>
+        )}
 
-      {/* Persistent Bottom 3D Inspection Bar (Point 1.3) */}
-      <div
-        className="modo-obra-bottom-bar"
+        {/* STEP 2: MEDIDAS PRINCIPALES */}
+        {activeStep.id === 'dimensions' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {/* Sub-selector for Dimension Field */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '0.35rem',
+                width: '100%',
+                marginBottom: '0.5rem',
+              }}
+            >
+              {(
+                [
+                  { id: 'width', label: 'Ancho', val: width },
+                  { id: 'height', label: 'Alto', val: height },
+                  { id: 'depth', label: 'Prof.', val: depth },
+                  { id: 'thickness', label: 'Espesor', val: thickness },
+                ] as const
+              ).map((dim) => {
+                const isSelected = dimensionField === dim.id;
+                return (
+                  <button
+                    key={dim.id}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('tick');
+                      setDimensionField(dim.id);
+                    }}
+                    style={{
+                      minHeight: '48px',
+                      padding: '0.2rem',
+                      borderRadius: '12px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.74rem', fontWeight: 600 }}>{dim.label}</span>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 800 }}>{`${dim.val}mm`}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Radial Dial for Selected Dimension */}
+            {dimensionField === 'width' && (
+              <ThumbArcInput
+                id="obra-dim-width"
+                label="Ancho Total del Mueble"
+                value={width}
+                onChange={onWidthChange}
+                min={DEFAULT_UI_CONFIG.dimensions.width.min}
+                max={DEFAULT_UI_CONFIG.dimensions.width.max}
+                step={1}
+                coarseStep={10}
+                unit="mm"
+                helpText="Ancho exterior de costado a costado."
+                handMode={handMode}
+                onHandModeChange={onHandModeChange}
+                quickPresets={[400, 500, 600, 800, 900, 1000, 1200]}
+              />
+            )}
+
+            {dimensionField === 'height' && (
+              <ThumbArcInput
+                id="obra-dim-height"
+                label="Alto Total del Mueble"
+                value={height}
+                onChange={onHeightChange}
+                min={DEFAULT_UI_CONFIG.dimensions.height.min}
+                max={DEFAULT_UI_CONFIG.dimensions.height.max}
+                step={1}
+                coarseStep={10}
+                unit="mm"
+                helpText="Altura exterior desde el piso/zócalo hasta la tapa superior."
+                handMode={handMode}
+                onHandModeChange={onHandModeChange}
+                quickPresets={[700, 750, 800, 850, 900, 1800, 2100]}
+              />
+            )}
+
+            {dimensionField === 'depth' && (
+              <ThumbArcInput
+                id="obra-dim-depth"
+                label="Profundidad Total"
+                value={depth}
+                onChange={onDepthChange}
+                min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+                max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+                step={1}
+                coarseStep={10}
+                unit="mm"
+                helpText="Profundidad exterior (bajo mesada: 580mm, alacena: 320-350mm)."
+                handMode={handMode}
+                onHandModeChange={onHandModeChange}
+                quickPresets={[300, 320, 350, 450, 500, 550, 580, 600]}
+              />
+            )}
+
+            {dimensionField === 'thickness' && (
+              <ThumbArcInput
+                id="obra-dim-thickness"
+                label="Espesor de Placa"
+                value={thickness}
+                onChange={(val) => onThicknessChange?.(val)}
+                min={12}
+                max={30}
+                step={1}
+                coarseStep={1}
+                unit="mm"
+                helpText="Espesor nominal del tablero melamínico (18 mm estándar)."
+                handMode={handMode}
+                onHandModeChange={onHandModeChange}
+                quickPresets={[15, 18, 25]}
+              />
+            )}
+          </div>
+        )}
+
+        {/* STEP 3: BASE / ESTRUCTURA DE PISO */}
+        {activeStep.id === 'base-support' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
+              {[
+                {
+                  id: 'plinth-wood',
+                  label: '🪚 Zócalo de Madera',
+                  desc: 'Frente y laterales de melamina con retroceso de 50mm.',
+                  active: hasPlinth && !hasWallHangingRail,
+                  onSelect: () => {
+                    onHasPlinthChange?.(true);
+                    onHasWallHangingRailChange?.(false);
+                  },
+                },
+                {
+                  id: 'legs-plastic',
+                  label: '🦵 Patas Regulables de Plástico',
+                  desc: 'Patas plásticas de 100/150 mm con clips de zócalo desmontable.',
+                  active: hasPlinth && !hasWallHangingRail,
+                  onSelect: () => {
+                    onHasPlinthChange?.(true);
+                    onHasWallHangingRailChange?.(false);
+                  },
+                },
+                {
+                  id: 'floor-direct',
+                  label: '🪵 Apoyo Directo al Piso',
+                  desc: 'Costados apoyan directo con regatones plásticos.',
+                  active: !hasPlinth && !hasWallHangingRail,
+                  onSelect: () => {
+                    onHasPlinthChange?.(false);
+                    onHasWallHangingRailChange?.(false);
+                  },
+                },
+                {
+                  id: 'wall-hanging',
+                  label: '🧗 Suspendido / Flotante (Alacena)',
+                  desc: 'Sin base inferior. Incluye faja trasera de colgado a pared.',
+                  active: hasWallHangingRail || (!hasPlinth && selectedTemplateId.includes('wall')),
+                  onSelect: () => {
+                    onHasPlinthChange?.(false);
+                    onHasWallHangingRailChange?.(true);
+                  },
+                },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('major');
+                    opt.onSelect();
+                  }}
+                  style={{
+                    minHeight: '52px',
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: '14px',
+                    border: opt.active
+                      ? '2px solid var(--md-sys-color-primary)'
+                      : '1px solid var(--md-sys-color-outline-variant)',
+                    backgroundColor: opt.active
+                      ? 'var(--md-sys-color-primary-container)'
+                      : 'var(--md-sys-color-surface-container-high)',
+                    color: opt.active
+                      ? 'var(--md-sys-color-on-primary-container)'
+                      : 'var(--md-sys-color-on-surface)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ fontSize: '0.92rem', fontWeight: 700 }}>{opt.label}</span>
+                  <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '2px' }}>{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {hasPlinth && onPlinthHeightChange && (
+              <div
+                style={{
+                  padding: '0.6rem',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  marginTop: '0.25rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Altura de Base / Zócalo:</span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--md-sys-color-primary)' }}>
+                    {`${plinthHeightMm} mm`}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', marginTop: '0.4rem' }}>
+                  {[80, 100, 120, 150].map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        onPlinthHeightChange(h);
+                      }}
+                      style={{
+                        minHeight: '44px',
+                        borderRadius: '10px',
+                        border: plinthHeightMm === h
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: plinthHeightMm === h
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface)',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {`${h}mm`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 4: TECHO / AMARRES SUPERIORES (Incluye alacena sin tapa hasta el techo) */}
+        {activeStep.id === 'roof-structure' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+            {[
+              {
+                id: 'solid-panel',
+                roof: 'solid-panel' as RoofType,
+                title: '🪵 Tapa Ciega Completa',
+                badge: 'Estándar cerrado',
+                desc: 'Tablero melamínico entero de 18 mm. Recomendado para alacenas bajas tradicionales y torres de hornos.',
+              },
+              {
+                id: 'none',
+                roof: 'none' as RoofType,
+                title: '🚫 Sin Tapa (Hasta el Techo)',
+                badge: 'Solución anti-mugre',
+                desc: 'Abierto superiormente. Para alacenas que van a cielorraso: evita la acumulación de grasa y polvo inaccesible, aprovecha la altura máxima y ahorra placa.',
+              },
+              {
+                id: 'front-back-rails',
+                roof: 'front-back-rails' as RoofType,
+                title: '📏 2 Fajas de Amarre (80 mm)',
+                badge: 'Bajo mesada',
+                desc: 'Fajas superior frontal y trasera. Estándar para muebles bajo mesada para asentar la mesada de granito, cuarzo o madera.',
+              },
+            ].map((opt) => {
+              const isSelected = roofType === opt.roof;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('major');
+                    onRoofTypeChange?.(opt.roof);
+                  }}
+                  style={{
+                    minHeight: '64px',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '14px',
+                    border: isSelected
+                      ? '2px solid var(--md-sys-color-primary)'
+                      : '1px solid var(--md-sys-color-outline-variant)',
+                    backgroundColor: isSelected
+                      ? 'var(--md-sys-color-primary-container)'
+                      : 'var(--md-sys-color-surface-container-high)',
+                    color: isSelected
+                      ? 'var(--md-sys-color-on-primary-container)'
+                      : 'var(--md-sys-color-on-surface)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.94rem', fontWeight: 700 }}>{opt.title}</span>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '8px',
+                        backgroundColor: isSelected
+                          ? 'var(--md-sys-color-primary)'
+                          : 'var(--md-sys-color-surface-container-highest)',
+                        color: isSelected
+                          ? 'var(--md-sys-color-on-primary)'
+                          : 'var(--md-sys-color-outline)',
+                      }}
+                    >
+                      {opt.badge}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '4px', lineHeight: 1.3 }}>
+                    {opt.desc}
+                  </span>
+                </button>
+              );
+            })}
+
+            {roofType === 'none' && (
+              <div
+                style={{
+                  padding: '0.55rem 0.75rem',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--md-sys-color-tertiary-container, #e8def8)',
+                  color: 'var(--md-sys-color-on-tertiary-container, #1d192b)',
+                  fontSize: '0.76rem',
+                  lineHeight: 1.35,
+                }}
+              >
+                ✨ <strong>Excelente elección:</strong> En cocinas modernas que llegan al techo se elimina
+                el tablero de tapa para evitar el hueco juntamugre inaccesible. El fondo ranurado de 3 mm se desliza
+                limpiamente desde arriba durante el armado.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 5: FONDO TRASERO */}
+        {activeStep.id === 'backing' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+            {[
+              {
+                id: 'groove',
+                title: '🔲 Fondo Ranurado (3 mm)',
+                badge: 'Taller profesional',
+                desc: 'MDF de 3 mm embutido en ranura a 10 mm del borde posterior. Escuadra perfecta y terminación oculta.',
+                onSelect: () => {
+                  onHasBackingChange?.(true);
+                  onBackingTypeChange?.('groove');
+                },
+                active: hasBacking && backingType === 'groove',
+              },
+              {
+                id: 'applied-back',
+                title: '🔨 Fondo Clavado / Atornillado',
+                badge: 'Montaje rápido',
+                desc: 'Tablero fijado por detrás con tornillos o clavos perimetrales.',
+                onSelect: () => {
+                  onHasBackingChange?.(true);
+                  onBackingTypeChange?.('overlay');
+                },
+                active: hasBacking && backingType !== 'groove',
+              },
+              {
+                id: 'none',
+                title: '❌ Sin Fondo',
+                badge: 'Vanos abiertos',
+                desc: 'Mueble abierto por detrás. Necesario para cajas de térmicas, llaves de paso o ventilación.',
+                onSelect: () => {
+                  onHasBackingChange?.(false);
+                  onBackingTypeChange?.('none');
+                },
+                active: !hasBacking,
+              },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  triggerHaptic('major');
+                  opt.onSelect();
+                }}
+                style={{
+                  minHeight: '60px',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '14px',
+                  border: opt.active
+                    ? '2px solid var(--md-sys-color-primary)'
+                    : '1px solid var(--md-sys-color-outline-variant)',
+                  backgroundColor: opt.active
+                    ? 'var(--md-sys-color-primary-container)'
+                    : 'var(--md-sys-color-surface-container-high)',
+                  color: opt.active
+                    ? 'var(--md-sys-color-on-primary-container)'
+                    : 'var(--md-sys-color-on-surface)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.94rem', fontWeight: 700 }}>{opt.title}</span>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: '8px',
+                      backgroundColor: opt.active
+                        ? 'var(--md-sys-color-primary)'
+                        : 'var(--md-sys-color-surface-container-highest)',
+                      color: opt.active
+                        ? 'var(--md-sys-color-on-primary)'
+                        : 'var(--md-sys-color-outline)',
+                    }}
+                  >
+                    {opt.badge}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '4px', lineHeight: 1.3 }}>
+                  {opt.desc}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* STEP 6: DIVISIONES / VANOS VERTICALES */}
+        {activeStep.id === 'bays-division' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', width: '100%' }}>
+              {[
+                { type: '1-bay' as ObraGridType, label: '1 Vano', desc: 'Sin división', enabled: true },
+                { type: '2-bays-vertical' as ObraGridType, label: '2 Vanos', desc: '1 divisoria', enabled: true },
+                {
+                  type: '3-bays-vertical' as ObraGridType,
+                  label: '3 Vanos',
+                  desc: '2 divisorias',
+                  enabled: width >= 800,
+                },
+              ].map((opt) => {
+                const isSelected = gridType === opt.type;
+                return (
+                  <button
+                    key={opt.type}
+                    type="button"
+                    disabled={!opt.enabled}
+                    onClick={() => {
+                      triggerHaptic('major');
+                      onGridTypeChange?.(opt.type);
+                    }}
+                    style={{
+                      minHeight: '64px',
+                      padding: '0.4rem',
+                      borderRadius: '14px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: opt.enabled ? 1 : 0.4,
+                      cursor: opt.enabled ? 'pointer' : 'not-allowed',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800 }}>{opt.label}</span>
+                    <span style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '2px' }}>{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {width < 800 && (
+              <span style={{ fontSize: '0.74rem', color: 'var(--md-sys-color-outline)', textAlign: 'center' }}>
+                ℹ️ 3 vanos requiere un ancho mínimo de 800 mm para garantizar holguras útiles.
+              </span>
+            )}
+
+            {/* Selector of which Bay to Equip in next step */}
+            {safeBayCount > 1 && (
+              <div
+                style={{
+                  padding: '0.65rem',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  marginTop: '0.35rem',
+                }}
+              >
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
+                  Seleccionar columna para equipar:
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${safeBayCount}, 1fr)`, gap: '0.35rem' }}>
+                  {Array.from({ length: safeBayCount }).map((_, idx) => {
+                    const isBayActive = activeBayIndex === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('tick');
+                          onActiveBayIndexChange?.(idx);
+                        }}
+                        style={{
+                          minHeight: '44px',
+                          borderRadius: '10px',
+                          border: isBayActive
+                            ? '2px solid var(--md-sys-color-primary)'
+                            : '1px solid var(--md-sys-color-outline-variant)',
+                          backgroundColor: isBayActive
+                            ? 'var(--md-sys-color-primary-container)'
+                            : 'var(--md-sys-color-surface)',
+                          fontWeight: 700,
+                          fontSize: '0.84rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {`Columna ${idx + 1}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 7: EQUIPAMIENTO INTERIOR (Estantes, Cajones, Puertas) */}
+        {activeStep.id === 'equipment' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+            {safeBayCount > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                  {`Equipando Columna ${activeBayIndex + 1} de ${safeBayCount}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextIdx = (activeBayIndex + 1) % safeBayCount;
+                    onActiveBayIndexChange?.(nextIdx);
+                    triggerHaptic('tick');
+                  }}
+                  style={{
+                    fontSize: '0.78rem',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cambiar Columna 🔄
+                </button>
+              </div>
+            )}
+
+            {/* Equipment Types */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem', width: '100%' }}>
+              {[
+                { type: 'shelves' as const, label: '📚 Estantes' },
+                { type: 'drawer-stack' as const, label: '🗄️ Cajonera' },
+                { type: 'doors' as const, label: '🚪 Puerta(s)' },
+                { type: 'empty' as const, label: '⬜ Vano Libre' },
+              ].map((eq) => {
+                const isSelected = currentBay?.type === eq.type;
+                return (
+                  <button
+                    key={eq.type}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('major');
+                      onBayContentTypeChange?.(activeBayIndex, eq.type);
+                    }}
+                    style={{
+                      minHeight: '48px',
+                      borderRadius: '12px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {eq.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sub-controls based on equipment type */}
+            {currentBay?.type === 'shelves' && (
+              <div
+                style={{
+                  padding: '0.65rem',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Cantidad de Estantes:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      disabled={!currentBay.count || currentBay.count <= 1}
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        onRemoveShelf?.(activeBayIndex);
+                      }}
+                      style={{
+                        minWidth: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: 'var(--md-sys-color-surface)',
+                        fontWeight: 700,
+                        fontSize: '1.1rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 800, minWidth: '24px', textAlign: 'center' }}>
+                      {currentBay.count ?? 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        onAddShelf?.(activeBayIndex);
+                      }}
+                      style={{
+                        minWidth: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: 'var(--md-sys-color-surface)',
+                        fontWeight: 700,
+                        fontSize: '1.1rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Fixed vs Adjustable */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem' }}>
+                  {['fixed', 'adjustable'].map((st) => {
+                    const isFix = st === 'fixed';
+                    const active = (currentBay.shelfType ?? 'adjustable') === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('tick');
+                          onShelfTypeChange?.(activeBayIndex, st as 'fixed' | 'adjustable');
+                        }}
+                        style={{
+                          height: '38px',
+                          borderRadius: '8px',
+                          border: active
+                            ? '2px solid var(--md-sys-color-primary)'
+                            : '1px solid var(--md-sys-color-outline-variant)',
+                          backgroundColor: active
+                            ? 'var(--md-sys-color-primary-container)'
+                            : 'var(--md-sys-color-surface)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isFix ? '📌 Estantes Fijos' : '⚙️ Regulables'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {currentBay?.type === 'drawer-stack' && (
+              <div
+                style={{
+                  padding: '0.65rem',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Cantidad de Cajones:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      disabled={!currentBay.drawerTracks || currentBay.drawerTracks.length <= 1}
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        const curLen = currentBay.drawerTracks?.length ?? 3;
+                        onRemoveDrawer?.(activeBayIndex, curLen - 1);
+                      }}
+                      style={{
+                        minWidth: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: 'var(--md-sys-color-surface)',
+                        fontWeight: 700,
+                        fontSize: '1.1rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      -
+                    </button>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 800, minWidth: '24px', textAlign: 'center' }}>
+                      {currentBay.drawerTracks ? currentBay.drawerTracks.length : 3}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        onAddDrawer?.(activeBayIndex);
+                      }}
+                      style={{
+                        minWidth: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: 'var(--md-sys-color-surface)',
+                        fontWeight: 700,
+                        fontSize: '1.1rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentBay?.type === 'doors' && (
+              <div
+                style={{
+                  padding: '0.65rem',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                }}
+              >
+                {/* 1 or 2 Doors */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Hojas de Puerta:</span>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    {[1, 2].map((cnt) => {
+                      const isCnt = (currentBay.count ?? 1) === cnt;
+                      return (
+                        <button
+                          key={cnt}
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('tick');
+                            onDoorCountChange?.(activeBayIndex, cnt as 1 | 2);
+                          }}
+                          style={{
+                            minWidth: '50px',
+                            height: '38px',
+                            borderRadius: '8px',
+                            border: isCnt
+                              ? '2px solid var(--md-sys-color-primary)'
+                              : '1px solid var(--md-sys-color-outline-variant)',
+                            backgroundColor: isCnt
+                              ? 'var(--md-sys-color-primary-container)'
+                              : 'var(--md-sys-color-surface)',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {cnt === 1 ? '1 Hoja' : '2 Hojas'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* If 1 Door: Hinge Side Left or Right */}
+                {(currentBay.count ?? 1) === 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Lado Bisagras:</span>
+                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                      {[
+                        { side: 'left' as const, label: '👈 Izquierda' },
+                        { side: 'right' as const, label: '👉 Derecha' },
+                      ].map((hSide) => {
+                        const isSide = (currentBay.hingeSide ?? 'left') === hSide.side;
+                        return (
+                          <button
+                            key={hSide.side}
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic('tick');
+                              onDoorHingeSideChange?.(activeBayIndex, hSide.side);
+                            }}
+                            style={{
+                              height: '38px',
+                              padding: '0 0.6rem',
+                              borderRadius: '8px',
+                              border: isSide
+                                ? '2px solid var(--md-sys-color-primary)'
+                                : '1px solid var(--md-sys-color-outline-variant)',
+                              backgroundColor: isSide
+                                ? 'var(--md-sys-color-primary-container)'
+                                : 'var(--md-sys-color-surface)',
+                              fontWeight: 700,
+                              fontSize: '0.82rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {hSide.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Interior shelves behind door */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Estantes interiores:</span>
+                  <div style={{ display: 'flex', gap: '0.3rem' }}>
+                    {[0, 1, 2, 3].map((num) => {
+                      const isNum = (currentBay.interiorShelvesCount ?? 0) === num;
+                      return (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('tick');
+                            onDoorInteriorShelvesCountChange?.(activeBayIndex, num);
+                          }}
+                          style={{
+                            minWidth: '36px',
+                            height: '36px',
+                            borderRadius: '8px',
+                            border: isNum
+                              ? '2px solid var(--md-sys-color-primary)'
+                              : '1px solid var(--md-sys-color-outline-variant)',
+                            backgroundColor: isNum
+                              ? 'var(--md-sys-color-primary-container)'
+                              : 'var(--md-sys-color-surface)',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {num}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentBay?.type === 'empty' && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-outline)', textAlign: 'center', marginTop: '0.5rem' }}>
+                Columna sin accesorios interiores (hueco libre).
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* STEP 8: MATERIAL / TABLERO DE MELAMINA */}
+        {activeStep.id === 'material' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.45rem', width: '100%' }}>
+              {materials.map((mat) => {
+                const isSelected = selectedMaterialId === mat.id;
+                return (
+                  <button
+                    key={mat.id}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('major');
+                      onMaterialChange?.(mat.id);
+                    }}
+                    style={{
+                      minHeight: '62px',
+                      padding: '0.5rem',
+                      borderRadius: '14px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>{mat.name}</span>
+                    <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '2px' }}>
+                      {`${mat.thicknessMm} mm · Tablero de taller`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* 3. Ergonomic Bottom Navigation Bar (~52px + safe-area) */}
+      <footer
         style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px))',
-          backgroundColor: 'var(--md-sys-color-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.35rem',
+          padding: '0.4rem 0.6rem max(0.4rem, env(safe-area-inset-bottom, 0.4rem))',
+          backgroundColor: 'var(--md-sys-color-surface-container)',
           borderTop: '1px solid var(--md-sys-color-outline-variant)',
-          boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.08)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '1rem',
-          zIndex: 100,
+          flexShrink: 0,
+          zIndex: 10,
         }}
       >
+        {/* Step Prev / Next Buttons */}
+        <div style={{ display: 'flex', gap: '0.4rem', width: '100%' }}>
+          <button
+            type="button"
+            onClick={goToPrevStep}
+            disabled={currentStepIndex === 0}
+            className="m3-button m3-button--tonal"
+            aria-label="Paso anterior (o deslizar hacia abajo)"
+            style={{
+              flex: 1,
+              minHeight: '44px',
+              borderRadius: '12px',
+              fontSize: '0.86rem',
+              fontWeight: 700,
+              opacity: currentStepIndex === 0 ? 0.35 : 1,
+            }}
+          >
+            ◀ Anterior
+          </button>
+
+          <button
+            type="button"
+            onClick={goToNextStep}
+            disabled={currentStepIndex === OBRA_STEPS.length - 1}
+            className="m3-button m3-button--filled"
+            aria-label="Siguiente paso (o deslizar hacia arriba)"
+            style={{
+              flex: 1.2,
+              minHeight: '44px',
+              borderRadius: '12px',
+              fontSize: '0.86rem',
+              fontWeight: 700,
+              opacity: currentStepIndex === OBRA_STEPS.length - 1 ? 0.35 : 1,
+            }}
+          >
+            Siguiente ▶
+          </button>
+        </div>
+
+        {/* Persistent 3D Inspector Full Button (Point 1.3) */}
         <button
           type="button"
           onClick={() => {
@@ -410,24 +1539,23 @@ export function ModoObraWizard({
             onView3dClick?.();
           }}
           className={`m3-button ${is3dViewActive ? 'm3-button--tonal' : 'm3-button--filled'}`}
-          aria-label={is3dViewActive ? 'Volver al formulario de medidas' : 'Ver modelo 3D en pantalla completa'}
+          aria-label={is3dViewActive ? 'Volver al formulario de obra' : 'Ver modelo 3D en pantalla completa'}
           style={{
             width: '100%',
-            maxWidth: '440px',
-            minHeight: '52px',
-            borderRadius: '26px',
-            fontSize: '1.05rem',
-            fontWeight: 700,
-            boxShadow: '0 3px 8px rgba(0,0,0,0.15)',
+            minHeight: '48px',
+            borderRadius: '24px',
+            fontSize: '0.96rem',
+            fontWeight: 800,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.5rem',
+            gap: '0.4rem',
+            boxShadow: '0 3px 8px rgba(0, 0, 0, 0.12)',
           }}
         >
-          <span>{is3dViewActive ? '✏️ Volver a Medidas' : '👁️ Ver Modelo 3D'}</span>
+          <span>{is3dViewActive ? '✏️ Volver a Ajustes' : '👁️ Ver Modelo 3D'}</span>
         </button>
-      </div>
-    </div>
+      </footer>
+    </section>
   );
 }

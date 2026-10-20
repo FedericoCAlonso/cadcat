@@ -84,15 +84,15 @@ export function getThumbPivotPoint(
 
 /**
  * Calculates the value change (delta) resulting from an angular thumb movement.
- * - Right hand: sweeping counter-clockwise (upwards/inwards) increases value; clockwise decreases.
- * - Left hand: sweeping clockwise (upwards/inwards) increases value; counter-clockwise decreases.
+ * - Right hand: sweeping upwards along natural thumb arc increases value; downwards decreases.
+ * - Left hand: sweeping upwards along natural thumb arc increases value; downwards decreases.
  */
 export function calculateArcDeltaValue(
   angularDeltaRad: number,
   config: ThumbArcConfig,
   angularVelocityRadPerSec: number = 0,
 ): number {
-  const directionMultiplier = config.handMode === 'right' ? -1 : 1;
+  const directionMultiplier = config.handMode === 'right' ? 1 : -1;
   const rawDirectionalDelta = angularDeltaRad * directionMultiplier;
 
   const isFast = Math.abs(angularVelocityRadPerSec) >= config.fastAngularVelocityThreshold;

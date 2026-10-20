@@ -2490,4 +2490,41 @@ legend.builder-section-title {
   }
 }
 
+/* Modo Obra Immersive Full-Screen Layout (zero scroll, 100dvh) */
+.app-wrapper--site-immersive {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+
+.m3-container--site-immersive {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+.m3-container--site-immersive .layout-grid {
+  height: 100dvh;
+  max-height: 100dvh;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.m3-container--site-immersive .layout-aside,
+.m3-container--site-immersive .layout-main {
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+
+
 

@@ -54,22 +54,32 @@ describe('ThumbArc Mathematical Resolver (Modo Obra)', () => {
   });
 
   describe('Value Delta and Direction Calculation', () => {
-    it('increases value when right thumb sweeps counter-clockwise', () => {
+    it('increases value when right thumb sweeps upward along natural arc', () => {
       const config = { ...DEFAULT_THUMB_ARC_CONFIG, handMode: 'right' as const };
-      // Counter-clockwise sweep is negative angle delta in standard screen coordinates
-      const deltaRad = -0.1;
-      const deltaVal = calculateArcDeltaValue(deltaRad, config, 1.0);
-      expect(deltaVal).toBeGreaterThan(0);
-      expect(deltaVal).toBeCloseTo(0.1 * config.mmPerRadian, 1);
-    });
-
-    it('increases value when left thumb sweeps clockwise', () => {
-      const config = { ...DEFAULT_THUMB_ARC_CONFIG, handMode: 'left' as const };
-      // Clockwise sweep is positive angle delta
+      // Upward sweep from bottom-left to top is positive angle delta
       const deltaRad = 0.1;
       const deltaVal = calculateArcDeltaValue(deltaRad, config, 1.0);
       expect(deltaVal).toBeGreaterThan(0);
       expect(deltaVal).toBeCloseTo(0.1 * config.mmPerRadian, 1);
+
+      // Downward sweep decreases value
+      const reverseDelta = calculateArcDeltaValue(-0.1, config, 1.0);
+      expect(reverseDelta).toBeLessThan(0);
+      expect(reverseDelta).toBeCloseTo(-0.1 * config.mmPerRadian, 1);
+    });
+
+    it('increases value when left thumb sweeps upward along natural arc', () => {
+      const config = { ...DEFAULT_THUMB_ARC_CONFIG, handMode: 'left' as const };
+      // Upward sweep from bottom-right to top is negative angle delta
+      const deltaRad = -0.1;
+      const deltaVal = calculateArcDeltaValue(deltaRad, config, 1.0);
+      expect(deltaVal).toBeGreaterThan(0);
+      expect(deltaVal).toBeCloseTo(0.1 * config.mmPerRadian, 1);
+
+      // Downward sweep decreases value
+      const reverseDelta = calculateArcDeltaValue(0.1, config, 1.0);
+      expect(reverseDelta).toBeLessThan(0);
+      expect(reverseDelta).toBeCloseTo(-0.1 * config.mmPerRadian, 1);
     });
 
     it('applies fast velocity multiplier when movement exceeds threshold', () => {
@@ -77,10 +87,11 @@ describe('ThumbArc Mathematical Resolver (Modo Obra)', () => {
         ...DEFAULT_THUMB_ARC_CONFIG,
         fastAngularVelocityThreshold: 3.0,
         fastMultiplier: 4,
+        handMode: 'right' as const,
       };
 
-      const normalDelta = calculateArcDeltaValue(-0.1, config, 1.5);
-      const fastDelta = calculateArcDeltaValue(-0.1, config, 4.5);
+      const normalDelta = calculateArcDeltaValue(0.1, config, 1.5);
+      const fastDelta = calculateArcDeltaValue(0.1, config, 4.5);
 
       expect(fastDelta).toBeCloseTo(normalDelta * 4, 1);
     });

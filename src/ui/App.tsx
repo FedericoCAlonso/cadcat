@@ -46,10 +46,12 @@ export function App(): ReactElement {
 
   const logoFileName = effectiveTheme === 'dark' ? 'mobilius-icon-dark.svg' : 'mobilius-icon-light.svg';
   const logoUrl = `${import.meta.env?.BASE_URL || '/'}icons/${logoFileName}`;
+  const isSiteImmersive = vm.uiMode === 'site' && vm.isOneHandDevice;
 
   return (
-    <div className="app-wrapper">
-      <header className="m3-top-app-bar">
+    <div className={`app-wrapper ${isSiteImmersive ? 'app-wrapper--site-immersive' : ''}`}>
+      {!isSiteImmersive && (
+        <header className="m3-top-app-bar">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img
@@ -161,8 +163,9 @@ export function App(): ReactElement {
           </button>
         </nav>
       </header>
+      )}
 
-      <main className="m3-container">
+      <main className={`m3-container ${isSiteImmersive ? 'm3-container--site-immersive' : ''}`}>
         {vm.isLoading && (
           <p className="loading-state">
             <span>Cargando catálogos de base de datos...</span>
@@ -193,6 +196,13 @@ export function App(): ReactElement {
             <aside aria-label="Module Parameters" className="layout-aside">
               {vm.uiMode === 'site' && vm.isOneHandDevice ? (
                 <ModoObraWizard
+                  projectModules={vm.projectModules}
+                  activeModuleId={vm.activeModuleId}
+                  onSetActiveModule={vm.setActiveModule}
+                  onAddProjectModule={vm.addProjectModule}
+                  templates={vm.templates}
+                  selectedTemplateId={vm.selectedTemplateId}
+                  onTemplateChange={vm.setSelectedTemplateId}
                   width={vm.width}
                   height={vm.height}
                   depth={vm.depth}
@@ -210,6 +220,35 @@ export function App(): ReactElement {
                       vm.setSelectedMaterialId(match.id);
                     }
                   }}
+                  hasPlinth={vm.hasPlinth}
+                  plinthHeightMm={vm.plinthHeightMm}
+                  onHasPlinthChange={vm.setHasPlinth}
+                  onPlinthHeightChange={vm.setPlinthHeightMm}
+                  hasWallHangingRail={vm.hasWallHangingRail}
+                  onHasWallHangingRailChange={vm.setHasWallHangingRail}
+                  roofType={vm.roofType}
+                  onRoofTypeChange={vm.setRoofType}
+                  hasBacking={vm.hasBacking}
+                  backingType={vm.backingType}
+                  onHasBackingChange={vm.setHasBacking}
+                  onBackingTypeChange={vm.setBackingType}
+                  gridType={vm.gridType}
+                  bays={vm.bays}
+                  activeBayIndex={vm.activeBayIndex}
+                  onGridTypeChange={vm.setGridType}
+                  onActiveBayIndexChange={vm.setActiveBayIndex}
+                  onBayContentTypeChange={vm.setBayContentType}
+                  onAddShelf={vm.addShelf}
+                  onRemoveShelf={vm.removeShelf}
+                  onShelfTypeChange={vm.setShelfType}
+                  onAddDrawer={vm.addDrawer}
+                  onRemoveDrawer={vm.removeDrawer}
+                  onDoorCountChange={vm.setDoorCount}
+                  onDoorHingeSideChange={vm.setDoorHingeSide}
+                  onDoorInteriorShelvesCountChange={vm.setDoorInteriorShelvesCount}
+                  materials={vm.materials}
+                  selectedMaterialId={vm.selectedMaterialId}
+                  onMaterialChange={vm.setSelectedMaterialId}
                   handMode={vm.handMode}
                   onHandModeChange={vm.setHandMode}
                   onSwitchToExpertMode={() => vm.setUiMode('expert')}
@@ -518,89 +557,91 @@ export function App(): ReactElement {
       </main>
 
       {/* Material Design 3 Bottom Navigation Bar for Mobile (< 1024px) */}
-      <nav aria-label="Navegación móvil" className="m3-bottom-nav">
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'form' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('form')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
-          </div>
-          <span className="m3-bottom-nav__label">Armar</span>
-          <span className="visually-hidden"> Parameters and Modular Builder</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === '3d' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('3d')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">🧊</span>
-          </div>
-          <span className="m3-bottom-nav__label">Vista 3D</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'pieces' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('pieces')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">📋</span>
-          </div>
-          <span className="m3-bottom-nav__label">Despiece</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'machining' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('machining')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
-          </div>
-          <span className="m3-bottom-nav__label">Mecanizado</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'assembly' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('assembly')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">📖</span>
-          </div>
-          <span className="m3-bottom-nav__label">Armado</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'countertop' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('countertop')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">🪨</span>
-          </div>
-          <span className="m3-bottom-nav__label">Mesada</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('catalogs')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">🗄️</span>
-          </div>
-          <span className="m3-bottom-nav__label">Catálogos</span>
-        </button>
-        <button
-          type="button"
-          className={`m3-bottom-nav__item ${vm.activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => vm.setActiveTab('settings')}
-        >
-          <div className="m3-bottom-nav__indicator">
-            <span className="m3-bottom-nav__icon" aria-hidden="true">⚙️</span>
-          </div>
-          <span className="m3-bottom-nav__label">Taller</span>
-        </button>
-      </nav>
+      {!isSiteImmersive && (
+        <nav aria-label="Navegación móvil" className="m3-bottom-nav">
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'form' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('form')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
+            </div>
+            <span className="m3-bottom-nav__label">Armar</span>
+            <span className="visually-hidden"> Parameters and Modular Builder</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === '3d' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('3d')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">🧊</span>
+            </div>
+            <span className="m3-bottom-nav__label">Vista 3D</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'pieces' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('pieces')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">📋</span>
+            </div>
+            <span className="m3-bottom-nav__label">Despiece</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'machining' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('machining')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">🛠️</span>
+            </div>
+            <span className="m3-bottom-nav__label">Mecanizado</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'assembly' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('assembly')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">📖</span>
+            </div>
+            <span className="m3-bottom-nav__label">Armado</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'countertop' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('countertop')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">🪨</span>
+            </div>
+            <span className="m3-bottom-nav__label">Mesada</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('catalogs')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">🗄️</span>
+            </div>
+            <span className="m3-bottom-nav__label">Catálogos</span>
+          </button>
+          <button
+            type="button"
+            className={`m3-bottom-nav__item ${vm.activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => vm.setActiveTab('settings')}
+          >
+            <div className="m3-bottom-nav__indicator">
+              <span className="m3-bottom-nav__icon" aria-hidden="true">⚙️</span>
+            </div>
+            <span className="m3-bottom-nav__label">Taller</span>
+          </button>
+        </nav>
+      )}
 
       {/* Interactive 2D Machining Editor Modal (Point 8) */}
       {machiningPieceId && (
