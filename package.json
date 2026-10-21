@@ -1,7 +1,7 @@
 {
   "name": "cadcat",
   "private": true,
-  "version": "0.17.2",
+  "version": "0.17.3",
   "author": "Federico C. Alonso <federico.c.alonso@outlook.com.ar>",
   "license": "UNLICENSED",
   "type": "module",

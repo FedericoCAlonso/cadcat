@@ -8,13 +8,13 @@ import { type BayContent } from '../src/resolver';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', () => {
+describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', () => {
   const dummyTemplates = [
     { id: 'base-modular', name: 'Bajo Mesada Estándar', category: 'Cocina' },
     { id: 'wall-cabinet', name: 'Alacena Colgante', category: 'Cocina' },
   ];
 
-  it('renders initial step (Módulo y Tipo) with 8-step indicator and persistent 3D inspection button', () => {
+  it('renders initial step (Módulo y Tipo) with 7-step indicator and persistent 3D inspection button', () => {
     const html = renderToString(
       <ModoObraWizard
         width={900}
@@ -31,7 +31,7 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
       />,
     );
 
-    expect(html).toContain('Paso 1 de 8');
+    expect(html).toContain('Paso 1 de 7');
     expect(html).toContain('Módulo y Tipo');
     expect(html).toContain('Bajo Mesada Estándar');
     expect(html).toContain('Alacena Colgante');
@@ -67,7 +67,7 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
     });
 
     expect(container.textContent).toContain('Módulo y Tipo');
-    expect(container.textContent).toContain('Paso 1 de 8');
+    expect(container.textContent).toContain('Paso 1 de 7');
 
     // Click "Siguiente ▶" button to go to Step 2 (Medidas Principales)
     const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -79,21 +79,21 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
     });
 
     expect(container.textContent).toContain('Medidas Principales');
-    expect(container.textContent).toContain('Paso 2 de 8');
+    expect(container.textContent).toContain('Paso 2 de 7');
 
     // Click "Siguiente ▶" again to go to Step 3 (Base / Apoyo)
     act(() => {
       nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(container.textContent).toContain('Base / Apoyo');
-    expect(container.textContent).toContain('Paso 3 de 8');
+    expect(container.textContent).toContain('Paso 3 de 7');
 
     // Click "Siguiente ▶" again to go to Step 4 (Techo / Amarres)
     act(() => {
       nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(container.textContent).toContain('Techo / Amarres');
-    expect(container.textContent).toContain('Paso 4 de 8');
+    expect(container.textContent).toContain('Paso 4 de 7');
     expect(container.textContent).toContain('Sin Tapa (Hasta el Techo)');
 
     // Click the "Sin Tapa (Hasta el Techo)" button to test ceiling-flush alacena selection
@@ -125,7 +125,7 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
       prevBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(container.textContent).toContain('Base / Apoyo');
-    expect(container.textContent).toContain('Paso 3 de 8');
+    expect(container.textContent).toContain('Paso 3 de 7');
 
     act(() => {
       rootInstance.unmount();
@@ -271,7 +271,7 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
     );
 
     // Header has step counter and title
-    expect(html).toContain('Paso 1 de 8:');
+    expect(html).toContain('Paso 1 de 7:');
     expect(html).toContain('Módulo y Tipo');
     expect(html).toContain('Modo Experto');
     expect(html).toContain('🖐️ D');
@@ -305,7 +305,103 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
     expect(html).toContain('configuraciones por defecto');
   });
 
-  it('allows multi-role material selection (casco, frentes, cajones, fondos) in Step 8', () => {
+  it('configures bay distribution and interior equipment in unified Step 6 (Vanos y Equipamiento)', () => {
+    const handleGridTypeChange = vi.fn();
+    const handleBayContentTypeChange = vi.fn();
+    const handleActiveBayIndexChange = vi.fn();
+    const handleAddShelf = vi.fn();
+
+    const dummyBays: BayContent[] = [
+      { type: 'shelves', count: 2, shelfType: 'adjustable' },
+      { type: 'doors', count: 1, hingeSide: 'left', mountType: 'overlay', interiorShelvesCount: 1 },
+    ];
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const rootInstance = createRoot(container);
+
+    act(() => {
+      rootInstance.render(
+        <ModoObraWizard
+          width={900}
+          height={750}
+          depth={580}
+          thickness={18}
+          onWidthChange={vi.fn()}
+          onHeightChange={vi.fn()}
+          onDepthChange={vi.fn()}
+          gridType="2-bays-vertical"
+          bays={dummyBays}
+          activeBayIndex={0}
+          onGridTypeChange={handleGridTypeChange}
+          onActiveBayIndexChange={handleActiveBayIndexChange}
+          onBayContentTypeChange={handleBayContentTypeChange}
+          onAddShelf={handleAddShelf}
+          handMode="right"
+          onHandModeChange={vi.fn()}
+          onSwitchToExpertMode={vi.fn()}
+        />,
+      );
+    });
+
+    // Advance 5 times to reach Step 6 (Vanos y Equipamiento)
+    const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Siguiente'),
+    );
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
+
+    expect(container.textContent).toContain('Paso 6 de 7');
+    expect(container.textContent).toContain('Vanos y Equipamiento');
+
+    // Both Bay count (1 Vano, 2 Vanos, 3 Vanos) and Equipment options are present in same view
+    expect(container.textContent).toContain('1 Vano');
+    expect(container.textContent).toContain('2 Vanos');
+    expect(container.textContent).toContain('3 Vanos');
+    expect(container.textContent).toContain('📚 Estantes');
+    expect(container.textContent).toContain('🗄️ Cajonera');
+    expect(container.textContent).toContain('🚪 Puerta(s)');
+
+    // Click on 3 Vanos button
+    const threeBaysBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('3 Vanos'),
+    );
+    expect(threeBaysBtn).toBeDefined();
+    act(() => {
+      threeBaysBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleGridTypeChange).toHaveBeenCalledWith('3-bays-vertical');
+
+    // Click on Cajonera equipment type
+    const drawerBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Cajonera'),
+    );
+    expect(drawerBtn).toBeDefined();
+    act(() => {
+      drawerBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleBayContentTypeChange).toHaveBeenCalledWith(0, 'drawer-stack');
+
+    // Test shelf addition (+)
+    const addShelfBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent === '+',
+    );
+    expect(addShelfBtn).toBeDefined();
+    act(() => {
+      addShelfBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleAddShelf).toHaveBeenCalledWith(0);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
+
+  it('allows multi-role material selection (casco, frentes, cajones, fondos) in Step 7', () => {
     const dummyMaterials = [
       { id: 'mat-white', name: 'Melamina Blanca 18mm', thicknessMm: 18, color: '#ffffff', kind: 'melamine' as const, finish: 'matte' },
       { id: 'mat-oak', name: 'Roble Kendal 18mm', thicknessMm: 18, color: '#d2b48c', kind: 'melamine' as const, finish: 'textured' },
@@ -360,19 +456,19 @@ describe('ModoObraWizard Component (Modo Obra 8-Step Navigation & Gestures)', ()
       );
     });
 
-    // Advance 7 times to reach Step 8 (Tablero / Melamina)
+    // Advance 6 times to reach Step 7 (Tablero / Melamina)
     const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Siguiente'),
     );
     expect(nextBtn).toBeDefined();
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 6; i++) {
       act(() => {
         nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
     }
 
-    expect(container.textContent).toContain('Paso 8 de 8');
+    expect(container.textContent).toContain('Paso 7 de 7');
     expect(container.textContent).toContain('Tablero / Melamina');
 
     // Role selector chips should be present: Casco, Frentes, Cajones, Fondos

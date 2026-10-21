@@ -108,9 +108,8 @@ export const OBRA_STEPS: ObraStepDefinition[] = [
   { id: 'base-support', stepNumber: 3, title: 'Base / Apoyo', subtitle: 'Zócalo, patas regulables o suspendido' },
   { id: 'roof-structure', stepNumber: 4, title: 'Techo / Amarres', subtitle: 'Tapa sólida, fajas o sin tapa a techo' },
   { id: 'backing', stepNumber: 5, title: 'Fondo Trasero', subtitle: 'Ranurado 3mm, clavado o sin fondo' },
-  { id: 'bays-division', stepNumber: 6, title: 'Columnas / Vanos', subtitle: 'División vertical del volumen' },
-  { id: 'equipment', stepNumber: 7, title: 'Equipamiento', subtitle: 'Estantes, cajones o puertas' },
-  { id: 'material', stepNumber: 8, title: 'Tablero / Melamina', subtitle: 'Placas para casco, frentes, cajones y fondos' },
+  { id: 'bays-equipment', stepNumber: 6, title: 'Vanos y Equipamiento', subtitle: 'División vertical y equipamiento interior' },
+  { id: 'material', stepNumber: 7, title: 'Tablero / Melamina', subtitle: 'Placas para casco, frentes, cajones y fondos' },
 ];
 
 /**
@@ -1380,29 +1379,29 @@ export function ModoObraWizard({
           </div>
         )}
 
-        {/* STEP 6: DIVISIONES / VANOS VERTICALES */}
-        {activeStep.id === 'bays-division' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
+        {/* STEP 6: DISTRIBUCIÓN Y EQUIPAMIENTO DE VANOS */}
+        {activeStep.id === 'bays-equipment' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
             {/* Informative advice at the top */}
             <div
               style={{
-                padding: '0.55rem 0.75rem',
+                padding: '0.45rem 0.65rem',
                 borderRadius: '12px',
                 backgroundColor: 'var(--md-sys-color-surface-container)',
                 border: '1px solid var(--md-sys-color-outline-variant)',
-                fontSize: '0.76rem',
+                fontSize: '0.74rem',
                 color: 'var(--md-sys-color-on-surface-variant)',
               }}
             >
               {width < 800 ? (
-                <>ℹ️ 3 vanos requiere un ancho mínimo de 800 mm para garantizar holguras útiles.</>
+                <>ℹ️ 3 vanos requiere un ancho mínimo de 800 mm. Definí columnas y equipamiento en un solo paso.</>
               ) : (
-                <>💡 <strong>División del Volumen:</strong> Podés dividir el ancho del mueble en 1, 2 o 3 columnas y luego equipar cada vano de forma independiente.</>
+                <>💡 <strong>Distribución y Equipamiento:</strong> Elegí la cantidad de columnas y equipá cada vano con estantes, cajonera o puertas.</>
               )}
             </div>
 
-            {/* Bay selection buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', width: '100%' }}>
+            {/* Bay count selection buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', width: '100%' }}>
               {[
                 { type: '1-bay' as ObraGridType, label: '1 Vano', desc: 'Sin división', enabled: true },
                 { type: '2-bays-vertical' as ObraGridType, label: '2 Vanos', desc: '1 divisoria', enabled: true },
@@ -1424,9 +1423,9 @@ export function ModoObraWizard({
                       onGridTypeChange?.(opt.type);
                     }}
                     style={{
-                      minHeight: '64px',
-                      padding: '0.4rem',
-                      borderRadius: '14px',
+                      minHeight: '48px',
+                      padding: '0.25rem 0.2rem',
+                      borderRadius: '12px',
                       border: isSelected
                         ? '2px solid var(--md-sys-color-primary)'
                         : '1px solid var(--md-sys-color-outline-variant)',
@@ -1445,30 +1444,47 @@ export function ModoObraWizard({
                       textAlign: 'center',
                     }}
                   >
-                    <span style={{ fontSize: '0.88rem', fontWeight: 800 }}>{opt.label}</span>
-                    <span style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '2px' }}>{opt.desc}</span>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 800 }}>{opt.label}</span>
+                    <span style={{ fontSize: '0.67rem', opacity: 0.8, marginTop: '1px' }}>{opt.desc}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Selector of which Bay to Equip in next step (Directly at bottom above footer!) */}
+            {/* Column Selector when safeBayCount > 1 */}
             {safeBayCount > 1 && (
               <div
                 style={{
-                  padding: '0.65rem',
-                  borderRadius: '14px',
+                  padding: '0.4rem 0.5rem',
+                  borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
-                  marginTop: '0.15rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.3rem',
                 }}
               >
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
-                  Seleccionar columna para equipar:
-                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                    Columna a equipar:
+                  </span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--md-sys-color-primary)' }}>
+                    {`Editando Columna ${activeBayIndex + 1} de ${safeBayCount}`}
+                  </span>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(${safeBayCount}, 1fr)`, gap: '0.35rem' }}>
                   {Array.from({ length: safeBayCount }).map((_, idx) => {
                     const isBayActive = activeBayIndex === idx;
+                    const bayObj = bays[idx];
+                    const bayIcon =
+                      bayObj?.type === 'shelves' ? '📚' :
+                      bayObj?.type === 'drawer-stack' ? '🗄️' :
+                      bayObj?.type === 'doors' ? '🚪' : '⬜';
+                    const bayName =
+                      bayObj?.type === 'shelves' ? 'Estantes' :
+                      bayObj?.type === 'drawer-stack' ? 'Cajonera' :
+                      bayObj?.type === 'doors' ? 'Puertas' : 'Libre';
+
                     return (
                       <button
                         key={idx}
@@ -1479,6 +1495,7 @@ export function ModoObraWizard({
                         }}
                         style={{
                           minHeight: '44px',
+                          padding: '0.2rem 0.35rem',
                           borderRadius: '10px',
                           border: isBayActive
                             ? '2px solid var(--md-sys-color-primary)'
@@ -1486,65 +1503,31 @@ export function ModoObraWizard({
                           backgroundColor: isBayActive
                             ? 'var(--md-sys-color-primary-container)'
                             : 'var(--md-sys-color-surface)',
+                          color: isBayActive
+                            ? 'var(--md-sys-color-on-primary-container)'
+                            : 'var(--md-sys-color-on-surface)',
                           fontWeight: 700,
-                          fontSize: '0.84rem',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           cursor: 'pointer',
                         }}
                       >
-                        {`Columna ${idx + 1}`}
+                        <span>{`Columna ${idx + 1}`}</span>
+                        <span style={{ fontSize: '0.67rem', opacity: 0.85, fontWeight: 500 }}>
+                          {`${bayIcon} ${bayName}`}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        {/* STEP 7: EQUIPAMIENTO INTERIOR (Estantes, Cajones, Puertas) */}
-        {activeStep.id === 'equipment' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
-            {/* Informative Column Title & Switcher at Top */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.45rem 0.65rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-              }}
-            >
-              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
-                {safeBayCount > 1
-                  ? `Equipando Columna ${activeBayIndex + 1} de ${safeBayCount}`
-                  : 'Equipamiento del Mueble'}
-              </span>
-              {safeBayCount > 1 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextIdx = (activeBayIndex + 1) % safeBayCount;
-                    onActiveBayIndexChange?.(nextIdx);
-                    triggerHaptic('tick');
-                  }}
-                  style={{
-                    fontSize: '0.78rem',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                    border: '1px solid var(--md-sys-color-outline-variant)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cambiar Columna 🔄
-                </button>
-              )}
-            </div>
-
-            {/* Equipment Types */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem', width: '100%' }}>
+            {/* Equipment Types (Estantes, Cajonera, Puertas, Vano Libre) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem', width: '100%' }}>
               {[
                 { type: 'shelves' as const, label: '📚 Estantes' },
                 { type: 'drawer-stack' as const, label: '🗄️ Cajonera' },
@@ -1561,7 +1544,7 @@ export function ModoObraWizard({
                       onBayContentTypeChange?.(activeBayIndex, eq.type);
                     }}
                     style={{
-                      minHeight: '48px',
+                      minHeight: '44px',
                       borderRadius: '12px',
                       border: isSelected
                         ? '2px solid var(--md-sys-color-primary)'
@@ -1572,7 +1555,7 @@ export function ModoObraWizard({
                       color: isSelected
                         ? 'var(--md-sys-color-on-primary-container)'
                         : 'var(--md-sys-color-on-surface)',
-                      fontSize: '0.88rem',
+                      fontSize: '0.84rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                     }}
@@ -1587,17 +1570,17 @@ export function ModoObraWizard({
             {currentBay?.type === 'shelves' && (
               <div
                 style={{
-                  padding: '0.65rem',
-                  borderRadius: '14px',
+                  padding: '0.55rem 0.65rem',
+                  borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.5rem',
+                  gap: '0.45rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Cantidad de Estantes:</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>Cantidad de Estantes:</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <button
                       type="button"
@@ -1682,17 +1665,17 @@ export function ModoObraWizard({
             {currentBay?.type === 'drawer-stack' && (
               <div
                 style={{
-                  padding: '0.65rem',
-                  borderRadius: '14px',
+                  padding: '0.55rem 0.65rem',
+                  borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.5rem',
+                  gap: '0.45rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Cantidad de Cajones:</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>Cantidad de Cajones:</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <button
                       type="button"
@@ -1745,13 +1728,13 @@ export function ModoObraWizard({
             {currentBay?.type === 'doors' && (
               <div
                 style={{
-                  padding: '0.65rem',
-                  borderRadius: '14px',
+                  padding: '0.55rem 0.65rem',
+                  borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.5rem',
+                  gap: '0.45rem',
                 }}
               >
                 {/* 1 or 2 Doors */}
@@ -1818,6 +1801,9 @@ export function ModoObraWizard({
                               backgroundColor: isSide
                                 ? 'var(--md-sys-color-primary-container)'
                                 : 'var(--md-sys-color-surface)',
+                              color: isSide
+                                ? 'var(--md-sys-color-on-primary-container)'
+                                : 'var(--md-sys-color-on-surface)',
                               fontWeight: 700,
                               fontSize: '0.82rem',
                               cursor: 'pointer',
@@ -1855,6 +1841,9 @@ export function ModoObraWizard({
                             backgroundColor: isNum
                               ? 'var(--md-sys-color-primary-container)'
                               : 'var(--md-sys-color-surface)',
+                            color: isNum
+                              ? 'var(--md-sys-color-on-primary-container)'
+                              : 'var(--md-sys-color-on-surface)',
                             fontWeight: 700,
                             fontSize: '0.85rem',
                             cursor: 'pointer',
@@ -1870,14 +1859,14 @@ export function ModoObraWizard({
             )}
 
             {currentBay?.type === 'empty' && (
-              <span style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-outline)', textAlign: 'center', marginTop: '0.5rem' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-outline)', textAlign: 'center', marginTop: '0.35rem' }}>
                 Columna sin accesorios interiores (hueco libre).
               </span>
             )}
           </div>
         )}
 
-        {/* STEP 8: MATERIAL / TABLERO DE MELAMINA */}
+        {/* STEP 7: MATERIAL / TABLERO DE MELAMINA */}
         {activeStep.id === 'material' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto' }}>
             {/* 1. Banner descriptivo del rol activo + Botón de Sincronización con el Casco (at Top) */}
