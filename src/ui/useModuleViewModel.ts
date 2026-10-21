@@ -100,6 +100,7 @@ import {
   type DrawerBottomMount,
   type DoorMountType,
   type BayGridDefinition,
+  type BayBoundingBox,
   type TrackSize,
   type ModularModuleDefinition,
   type PieceEdgeBandOverride,
@@ -178,7 +179,9 @@ export interface ModuleViewModelState {
   jointPriority: JointPriority;
   hasBacking: boolean;
   gridType: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
+  bayTracks: TrackSize[];
   bays: BayContent[];
+  bayBoxes: BayBoundingBox[];
   activeBayIndex: number;
   frontsMaterialId: string;
   drawerBoxesMaterialId: string;
@@ -201,6 +204,7 @@ export interface ModuleViewModelState {
   setJointPriority: (priority: JointPriority) => void;
   setHasBacking: (hasBacking: boolean) => void;
   setGridType: (gridType: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal') => void;
+  setBayTracks: (tracks: TrackSize[]) => void;
   setActiveBayIndex: (idx: number) => void;
   setBayContentType: (bayIndex: number, type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure') => void;
   addShelf: (bayIndex: number) => void;
@@ -687,6 +691,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     DEFAULT_UI_CONFIG.defaultCarcassSettings.hasBacking,
   );
   const [gridType, setGridTypeState] = useState<'1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal'>('1-bay');
+  const [bayTracks, setBayTracksState] = useState<TrackSize[]>([
+    { type: 'fractional', valueFr: 1 },
+  ]);
   const [bays, setBaysState] = useState<BayContent[]>([
     { type: 'empty' },
   ]);
@@ -943,6 +950,25 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const setGridType = useCallback((type: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal') => {
     setGridTypeState(type);
     setIsCustomModular(true);
+    if (type === '1-bay') {
+      setBayTracksState([{ type: 'fractional', valueFr: 1 }]);
+    } else if (type === '2-bays-vertical') {
+      setBayTracksState([
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ]);
+    } else if (type === '3-bays-vertical') {
+      setBayTracksState([
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ]);
+    } else if (type === '2-bays-horizontal') {
+      setBayTracksState([
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ]);
+    }
     setBaysState((prev) => {
       const targetCount = type === '3-bays-vertical' ? 3 : type === '1-bay' ? 1 : 2;
       const next = [...prev];
@@ -955,6 +981,28 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       const targetCount = type === '3-bays-vertical' ? 3 : type === '1-bay' ? 1 : 2;
       return idx >= targetCount ? 0 : idx;
     });
+  }, []);
+
+  const setBayTracks = useCallback((tracks: TrackSize[]) => {
+    if (!tracks || tracks.length === 0) return;
+    setBayTracksState(tracks);
+    setIsCustomModular(true);
+    const targetCount = tracks.length;
+    if (targetCount === 1) {
+      setGridTypeState('1-bay');
+    } else if (targetCount === 2) {
+      setGridTypeState((prev) => (prev === '2-bays-horizontal' ? '2-bays-horizontal' : '2-bays-vertical'));
+    } else {
+      setGridTypeState('3-bays-vertical');
+    }
+    setBaysState((prev) => {
+      const next = [...prev];
+      while (next.length < targetCount) {
+        next.push({ type: 'empty' });
+      }
+      return next.slice(0, targetCount);
+    });
+    setActiveBayIndex((idx) => (idx >= targetCount ? 0 : idx));
   }, []);
 
   const setBayContentType = useCallback(
@@ -1547,6 +1595,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             rearStructuralRailsWidthMm,
           },
           gridType,
+          bayTracks,
           bays,
           materials: {
             carcassMaterialId: selectedMaterialId,
@@ -1584,6 +1633,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       plinthHeightMm,
       plinthSetbackMm,
       gridType,
+      bayTracks,
       bays,
       selectedMaterialId,
       frontsMaterialId,
@@ -1911,31 +1961,28 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         selectedTemplateId.startsWith('preset-') ||
         selectedTemplateId !== 'wall-shelves'
       ) {
-        const gridDef: BayGridDefinition | undefined =
-          gridType === '2-bays-vertical'
-            ? {
-                axis: 'horizontal',
-                tracks: [
-                  { type: 'fractional', valueFr: 1 },
-                  { type: 'fractional', valueFr: 1 },
-                ],
-              }
+        const isHorizontalAxis = gridType !== '2-bays-horizontal';
+        const activeTracks =
+          bayTracks && bayTracks.length > 1
+            ? bayTracks
+            : gridType === '2-bays-vertical' || gridType === '2-bays-horizontal'
+            ? [
+                { type: 'fractional' as const, valueFr: 1 },
+                { type: 'fractional' as const, valueFr: 1 },
+              ]
             : gridType === '3-bays-vertical'
+            ? [
+                { type: 'fractional' as const, valueFr: 1 },
+                { type: 'fractional' as const, valueFr: 1 },
+                { type: 'fractional' as const, valueFr: 1 },
+              ]
+            : undefined;
+
+        const gridDef: BayGridDefinition | undefined =
+          activeTracks && activeTracks.length > 1 && gridType !== '1-bay'
             ? {
-                axis: 'horizontal',
-                tracks: [
-                  { type: 'fractional', valueFr: 1 },
-                  { type: 'fractional', valueFr: 1 },
-                  { type: 'fractional', valueFr: 1 },
-                ],
-              }
-            : gridType === '2-bays-horizontal'
-            ? {
-                axis: 'vertical',
-                tracks: [
-                  { type: 'fractional', valueFr: 1 },
-                  { type: 'fractional', valueFr: 1 },
-                ],
+                axis: isHorizontalAxis ? 'horizontal' : 'vertical',
+                tracks: activeTracks,
               }
             : undefined;
 
@@ -2106,6 +2153,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     pieceThicknessOverrides,
     pieceEdgeBandOverrides,
     gridType,
+    bayTracks,
     bays,
     frontsMaterialId,
     drawerBoxesMaterialId,
@@ -2479,6 +2527,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       rearStructuralRailsWidthMm,
       partitionPassThroughRoof,
       gridType,
+      bayTracks,
       bays,
       jointStrategy,
       pieceJointOverrides: Object.fromEntries(
@@ -2514,6 +2563,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     rearStructuralRailsWidthMm,
     partitionPassThroughRoof,
     gridType,
+    bayTracks,
     bays,
     jointStrategy,
     pieceJointOverrides,
@@ -2556,6 +2606,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (targetModule.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(targetModule.rearStructuralRailsWidthMm);
     if (typeof targetModule.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(targetModule.partitionPassThroughRoof);
     if (targetModule.gridType) setGridTypeState(targetModule.gridType as any);
+    if (targetModule.bayTracks) setBayTracksState(targetModule.bayTracks);
     if (targetModule.bays) setBaysState(targetModule.bays);
     if (targetModule.jointStrategy) setJointStrategy(targetModule.jointStrategy);
     if (targetModule.pieceJointOverrides) setPieceJointOverrides(targetModule.pieceJointOverrides as any);
@@ -2702,6 +2753,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
         if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
         if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
+        if (activeMod.bayTracks) setBayTracksState(activeMod.bayTracks);
         if (activeMod.bays) setBaysState(activeMod.bays);
         if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
         setStatusMessage(`Proyecto "${loaded.name}" cargado desde la base de datos.`);
@@ -3136,6 +3188,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     jointPriority,
     hasBacking,
     gridType,
+    bayTracks,
     bays,
     activeBayIndex,
     frontsMaterialId,
@@ -3155,6 +3208,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setJointPriority,
     setHasBacking,
     setGridType,
+    setBayTracks,
+    bayBoxes,
     setActiveBayIndex,
     setBayContentType,
     addShelf,

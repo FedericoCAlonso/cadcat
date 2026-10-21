@@ -34,6 +34,26 @@ export type MachiningOpType =
   | 'edge-profile'
   | 'fastener';
 
+export type DatumCorner = 'bottom-left' | 'top-left' | 'bottom-right' | 'top-right';
+export type RotationDeg = 0 | 90 | 180 | 270;
+export type DimensionMode = 'datum' | 'pitch';
+
+export interface BenchOperationRow {
+  id: string;
+  opNumber: number;
+  kind: string;
+  label: string;
+  faceType: 'face-A' | 'face-B';
+  xMm: number;
+  yMm: number;
+  datumX: number;
+  datumY: number;
+  sizeDescription: string;
+  depthMm: number;
+  toolDescription: string;
+  isCustom: boolean;
+}
+
 export interface UseMachiningEditorViewModelProps {
   piece: ResolvedPieceWithCutSize | null;
   customOperations: CustomPieceOperation[];
@@ -66,6 +86,18 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
   const [faceType, setFaceType] = useState<'face-A' | 'face-B'>('face-A');
   const [opType, setOpType] = useState<MachiningOpType>('groove');
   const [enableSnaps, setEnableSnaps] = useState<boolean>(true);
+
+  // Advanced Shop View Configurations
+  const [datumCorner, setDatumCorner] = useState<DatumCorner>('bottom-left');
+  const [rotationDeg, setRotationDeg] = useState<RotationDeg>(0);
+  const [showDimensions, setShowDimensions] = useState<boolean>(true);
+  const [dimensionMode, setDimensionMode] = useState<DimensionMode>('datum');
+  const [showGrid, setShowGrid] = useState<boolean>(false);
+  const [gridPitch, setGridPitch] = useState<32 | 50>(32);
+  const [showProjections, setShowProjections] = useState<boolean>(true);
+  const [showEdgeBanding, setShowEdgeBanding] = useState<boolean>(true);
+  const [showCoordsTable, setShowCoordsTable] = useState<boolean>(false);
+  const [completedOps, setCompletedOps] = useState<Record<string, boolean>>({});
 
   // Filtered tools by kind
   const drillTools = useMemo(() => tools.filter((t) => t.kind === 'drill-bit'), [tools]);
@@ -525,6 +557,238 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
     triggerBrowserDownload(fileName, dxfContent, 'application/dxf');
   }, [piece, faceType, pieceCustomOps, derivedOperations]);
 
+  const toDatumCoords = useCallback(
+    (xMm: number, yMm: number) => {
+      let datumX = xMm;
+      let datumY = yMm;
+      if (datumCorner === 'top-left') {
+        datumX = xMm;
+        datumY = pieceHeight - yMm;
+      } else if (datumCorner === 'bottom-right') {
+        datumX = pieceWidth - xMm;
+        datumY = yMm;
+      } else if (datumCorner === 'top-right') {
+        datumX = pieceWidth - xMm;
+        datumY = pieceHeight - yMm;
+      }
+      return {
+        x: Math.round(datumX * 10) / 10,
+        y: Math.round(datumY * 10) / 10,
+      };
+    },
+    [datumCorner, pieceWidth, pieceHeight],
+  );
+
+  const handleRotateClockwise = useCallback(() => {
+    setRotationDeg((prev) => ((prev + 90) % 360) as RotationDeg);
+  }, []);
+
+  const handleRotateReset = useCallback(() => {
+    setRotationDeg(0);
+  }, []);
+
+  const toggleOpCompleted = useCallback((opId: string) => {
+    setCompletedOps((prev) => ({ ...prev, [opId]: !prev[opId] }));
+  }, []);
+
+  // One-click Cup Hinges preset (Ø35mm at 21.5mm from front/left edge, 100mm from ends)
+  const applyCupHingesPreset = useCallback(
+    (options?: { setbackMm?: number; topDistMm?: number; bottomDistMm?: number; edge?: 'left' | 'right' }) => {
+      if (!piece) return;
+      const setback = options?.setbackMm ?? 21.5;
+      const topDist = options?.topDistMm ?? 100;
+      const bottomDist = options?.bottomDistMm ?? 100;
+      const isRight = options?.edge === 'right';
+      const xPos = isRight ? pieceWidth - setback : setback;
+      const depth = 11.5;
+      const dia = 35;
+
+      const op1: CustomPieceOperation = {
+        kind: 'drill',
+        id: `hinge-bottom-${Date.now()}`,
+        pieceId: piece.id,
+        faceType,
+        xMm: xPos,
+        yMm: bottomDist,
+        diameterMm: dia,
+        depthMm: depth,
+        isThrough: false,
+        description: 'Cazoleta Bisagra Ø35mm (Inferior)',
+      };
+      const op2: CustomPieceOperation = {
+        kind: 'drill',
+        id: `hinge-top-${Date.now() + 1}`,
+        pieceId: piece.id,
+        faceType,
+        xMm: xPos,
+        yMm: pieceHeight - topDist,
+        diameterMm: dia,
+        depthMm: depth,
+        isThrough: false,
+        description: 'Cazoleta Bisagra Ø35mm (Superior)',
+      };
+
+      onAddOperation(piece.id, op1);
+      onAddOperation(piece.id, op2);
+    },
+    [piece, pieceWidth, pieceHeight, faceType, onAddOperation],
+  );
+
+  // One-click System 32 Shelf Pins row preset (Front & Rear rows at 37mm setback, 32mm pitch)
+  const applySystem32ShelfPinsPreset = useCallback(
+    (options?: { frontSetbackMm?: number; rearSetbackMm?: number; pitchMm?: number }) => {
+      if (!piece) return;
+      const frontSetback = options?.frontSetbackMm ?? 37;
+      const rearSetback = options?.rearSetbackMm ?? 37;
+      const pitch = options?.pitchMm ?? 32;
+      const dia = 5;
+      const depth = 12;
+      const marginY = 96;
+
+      const availableY = pieceHeight - 2 * marginY;
+      const count = Math.max(2, Math.floor(availableY / pitch) + 1);
+
+      const opFront: CustomPieceOperation = {
+        kind: 'hole-series',
+        id: `sys32-front-${Date.now()}`,
+        pieceId: piece.id,
+        faceType,
+        startXMm: frontSetback,
+        startYMm: marginY,
+        axis: 'y',
+        pitchMm: pitch,
+        count,
+        diameterMm: dia,
+        depthMm: depth,
+        isThrough: false,
+        description: `Cremallera Sist. 32 Frontal (${count}x Ø5)`,
+      };
+
+      const opRear: CustomPieceOperation = {
+        kind: 'hole-series',
+        id: `sys32-rear-${Date.now() + 1}`,
+        pieceId: piece.id,
+        faceType,
+        startXMm: pieceWidth - rearSetback,
+        startYMm: marginY,
+        axis: 'y',
+        pitchMm: pitch,
+        count,
+        diameterMm: dia,
+        depthMm: depth,
+        isThrough: false,
+        description: `Cremallera Sist. 32 Trasera (${count}x Ø5)`,
+      };
+
+      onAddOperation(piece.id, opFront);
+      onAddOperation(piece.id, opRear);
+    },
+    [piece, pieceWidth, pieceHeight, faceType, onAddOperation],
+  );
+
+  // One-click Backing Groove preset
+  const applyBackingGroovePreset = useCallback(
+    (options?: { offsetMm?: number; widthMm?: number; depthMm?: number; axis?: 'x' | 'y' }) => {
+      if (!piece) return;
+      const offset = options?.offsetMm ?? 15;
+      const width = options?.widthMm ?? 4;
+      const depth = options?.depthMm ?? 8;
+      const axis = options?.axis ?? 'y';
+
+      const op: CustomPieceOperation = {
+        kind: 'groove',
+        id: `groove-back-${Date.now()}`,
+        pieceId: piece.id,
+        faceType,
+        axis,
+        offsetMm: offset,
+        widthMm: width,
+        depthMm: depth,
+        description: `Ranura para Fondo (${width}x${depth}mm a ${offset}mm)`,
+      };
+
+      onAddOperation(piece.id, op);
+    },
+    [piece, faceType, onAddOperation],
+  );
+
+  // Bench table listing all operations on active face with Datum-referenced coordinates
+  const benchOperationsTable: BenchOperationRow[] = useMemo(() => {
+    if (!piece) return [];
+    const rows: BenchOperationRow[] = [];
+    let num = 1;
+
+    // Derived ops
+    if (previewSheet) {
+      const ops = faceType === 'face-A' ? previewSheet.faceAOperations : previewSheet.faceBOperations;
+      for (const op of ops) {
+        const { x: dX, y: dY } = toDatumCoords(op.xMm, op.yMm);
+        rows.push({
+          id: op.id,
+          opNumber: num++,
+          kind: 'drill',
+          label: op.description || `Perforación Ø${op.diameterMm}mm`,
+          faceType,
+          xMm: op.xMm,
+          yMm: op.yMm,
+          datumX: dX,
+          datumY: dY,
+          sizeDescription: `Ø${op.diameterMm} mm`,
+          depthMm: op.depthMm,
+          toolDescription: op.isThrough ? 'Pasante' : `${op.depthMm} mm prof.`,
+          isCustom: false,
+        });
+      }
+    }
+
+    // Custom ops
+    for (const cop of pieceCustomOps.filter((c) => c.faceType === faceType)) {
+      const x = (cop as any).xMm ?? (cop as any).startXMm ?? (cop as any).offsetMm ?? 0;
+      const y = (cop as any).yMm ?? (cop as any).startYMm ?? (cop as any).offsetMm ?? 0;
+      const { x: dX, y: dY } = toDatumCoords(x, y);
+
+      let sizeDesc = '';
+      let depth = 0;
+      if (cop.kind === 'drill') {
+        sizeDesc = `Ø${cop.diameterMm} mm`;
+        depth = cop.depthMm;
+      } else if (cop.kind === 'hole-series') {
+        sizeDesc = `${cop.count}x Ø${cop.diameterMm} (Paso ${cop.pitchMm}mm)`;
+        depth = cop.depthMm;
+      } else if (cop.kind === 'groove') {
+        sizeDesc = `Ranura Eje ${cop.axis.toUpperCase()} (${cop.widthMm}mm)`;
+        depth = cop.depthMm;
+      } else if (cop.kind === 'rebate') {
+        sizeDesc = `Rebaje Canto ${cop.edge} (${cop.widthMm}mm)`;
+        depth = cop.depthMm;
+      } else if (cop.kind === 'cutout') {
+        sizeDesc = `Cajeado ${cop.widthMm} × ${cop.heightMm} mm`;
+        depth = cop.depthMm;
+      } else if (cop.kind === 'edge-profile') {
+        sizeDesc = `Perfil ${cop.profileKind} (${cop.edge})`;
+        depth = cop.depthMm;
+      }
+
+      rows.push({
+        id: cop.id,
+        opNumber: num++,
+        kind: cop.kind,
+        label: cop.description || `${cop.kind.toUpperCase()} (Taller)`,
+        faceType,
+        xMm: x,
+        yMm: y,
+        datumX: dX,
+        datumY: dY,
+        sizeDescription: sizeDesc,
+        depthMm: depth,
+        toolDescription: (cop as any).isThrough ? 'Pasante' : `${depth} mm prof.`,
+        isCustom: true,
+      });
+    }
+
+    return rows;
+  }, [piece, previewSheet, faceType, pieceCustomOps, toDatumCoords]);
+
   return {
     piece,
     handleExportDxf,
@@ -654,6 +918,35 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
     previewSheet,
     validationIssues,
     getPocketCornerReliefPath,
+    // Advanced Shop View Configuration State & Handlers
+    datumCorner,
+    setDatumCorner,
+    toDatumCoords,
+    rotationDeg,
+    setRotationDeg,
+    handleRotateClockwise,
+    handleRotateReset,
+    showDimensions,
+    setShowDimensions,
+    dimensionMode,
+    setDimensionMode,
+    showGrid,
+    setShowGrid,
+    gridPitch,
+    setGridPitch,
+    showProjections,
+    setShowProjections,
+    showEdgeBanding,
+    setShowEdgeBanding,
+    showCoordsTable,
+    setShowCoordsTable,
+    completedOps,
+    toggleOpCompleted,
+    // Shop one-click presets
+    applyCupHingesPreset,
+    applySystem32ShelfPinsPreset,
+    applyBackingGroovePreset,
+    benchOperationsTable,
     // Action handlers
     handleAddOperation,
     handleRemoveOperation: (opId: string) => piece && onRemoveOperation(piece.id, opId),

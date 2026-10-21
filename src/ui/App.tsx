@@ -545,6 +545,8 @@ export function App(): ReactElement {
                 jointPriority={vm.jointPriority}
                 hasBacking={vm.hasBacking}
                 gridType={vm.gridType}
+                bayTracks={vm.bayTracks}
+                bayBoxes={vm.bayBoxes}
                 bays={vm.bays}
                 activeBayIndex={vm.activeBayIndex}
                 frontsMaterialId={vm.frontsMaterialId}
@@ -554,6 +556,7 @@ export function App(): ReactElement {
                 onJointPriorityChange={vm.setJointPriority}
                 onHasBackingChange={vm.setHasBacking}
                 onGridTypeChange={vm.setGridType}
+                onBayTracksChange={vm.setBayTracks}
                 onActiveBayIndexChange={vm.setActiveBayIndex}
                 onBayContentTypeChange={vm.setBayContentType}
                 onAddShelf={vm.addShelf}

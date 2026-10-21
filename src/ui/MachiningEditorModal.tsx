@@ -39,7 +39,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   const { piece } = props;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'canvas' | 'controls' | 'list'>('canvas');
+  const [mobileTab, setMobileTab] = useState<'canvas' | 'controls' | 'list' | 'table'>('canvas');
 
   const vm = useMachiningEditorViewModel(props);
   const panZoom = usePanZoom({
@@ -130,8 +130,22 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
     const unpannedSvgX = (svgPxX - panZoom.pan.x) / panZoom.zoom;
     const unpannedSvgY = (svgPxY - panZoom.pan.y) / panZoom.zoom;
 
-    const rawMmX = (unpannedSvgX - datumX) / scale;
-    const rawMmY = (datumY - unpannedSvgY) / scale;
+    let unrotatedSvgX = unpannedSvgX;
+    let unrotatedSvgY = unpannedSvgY;
+    if (vm.rotationDeg !== 0) {
+      const rad = (-vm.rotationDeg * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const cx = originX + drawW / 2;
+      const cy = originY + drawH / 2;
+      const dx = unpannedSvgX - cx;
+      const dy = unpannedSvgY - cy;
+      unrotatedSvgX = cos * dx - sin * dy + cx;
+      unrotatedSvgY = sin * dx + cos * dy + cy;
+    }
+
+    const rawMmX = (unrotatedSvgX - datumX) / scale;
+    const rawMmY = (datumY - unrotatedSvgY) / scale;
 
     if (isClick) {
       vm.handleCanvasClick(rawMmX, rawMmY);
@@ -235,6 +249,179 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
           </div>
         </div>
 
+        {/* Workshop Technical Configuration Bar */}
+        <div
+          className="machining-shop-config-bar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.4rem 0.75rem',
+            backgroundColor: 'var(--md-sys-color-surface-container-high)',
+            borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          {/* Left: Datum Reference & Rotation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+              📍 Origen Datum (0,0):
+            </span>
+            <div className="m3-segmented-button" style={{ height: '30px' }}>
+              <button
+                type="button"
+                className={`m3-chip ${vm.datumCorner === 'bottom-left' ? 'm3-chip--selected' : ''}`}
+                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                onClick={() => vm.setDatumCorner('bottom-left')}
+                title="Origen en esquina Inferior Izquierda (estándar)"
+              >
+                ↙️ Inf-Izq
+              </button>
+              <button
+                type="button"
+                className={`m3-chip ${vm.datumCorner === 'top-left' ? 'm3-chip--selected' : ''}`}
+                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                onClick={() => vm.setDatumCorner('top-left')}
+                title="Origen en esquina Superior Izquierda"
+              >
+                ↖️ Sup-Izq
+              </button>
+              <button
+                type="button"
+                className={`m3-chip ${vm.datumCorner === 'bottom-right' ? 'm3-chip--selected' : ''}`}
+                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                onClick={() => vm.setDatumCorner('bottom-right')}
+                title="Origen en esquina Inferior Derecha"
+              >
+                ↘️ Inf-Der
+              </button>
+              <button
+                type="button"
+                className={`m3-chip ${vm.datumCorner === 'top-right' ? 'm3-chip--selected' : ''}`}
+                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                onClick={() => vm.setDatumCorner('top-right')}
+                title="Origen en esquina Superior Derecha"
+              >
+                ↗️ Sup-Der
+              </button>
+            </div>
+
+            {/* Rotation */}
+            <button
+              type="button"
+              className="m3-btn m3-btn--small m3-btn--tonal"
+              style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.75rem' }}
+              onClick={vm.handleRotateClockwise}
+              title="Girar la pieza 90 grados para acomodarla como en el banco de trabajo"
+            >
+              🔄 Girar {vm.rotationDeg !== 0 ? `(${vm.rotationDeg}°)` : '90°'}
+            </button>
+          </div>
+
+          {/* Right: Technical Layer Toggles */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {/* Grid Toggle */}
+            <button
+              type="button"
+              className={`m3-chip ${vm.showGrid ? 'm3-chip--selected' : ''}`}
+              style={{ height: '28px', padding: '0 0.5rem', fontSize: '0.72rem' }}
+              onClick={() => vm.setShowGrid(!vm.showGrid)}
+              title="Activar/desactivar cuadrícula de taller en milímetros"
+            >
+              🏁 Red {vm.showGrid ? `(${vm.gridPitch}mm)` : ''}
+            </button>
+            {vm.showGrid && (
+              <select
+                className="m3-select"
+                style={{ height: '28px', padding: '0 0.3rem', fontSize: '0.72rem' }}
+                value={vm.gridPitch}
+                onChange={(e) => vm.setGridPitch(Number(e.target.value) as 32 | 50)}
+              >
+                <option value={32}>Paso 32 mm</option>
+                <option value={50}>Paso 50 mm</option>
+              </select>
+            )}
+
+            {/* Projections Toggle */}
+            <button
+              type="button"
+              className={`m3-chip ${vm.showProjections ? 'm3-chip--selected' : ''}`}
+              style={{ height: '28px', padding: '0 0.5rem', fontSize: '0.72rem' }}
+              onClick={() => vm.setShowProjections(!vm.showProjections)}
+              title="Mostrar u ocultar siluetas fantasma de piezas en contacto"
+            >
+              👻 Huellas Contacto
+            </button>
+
+            {/* Edge banding Toggle */}
+            <button
+              type="button"
+              className={`m3-chip ${vm.showEdgeBanding ? 'm3-chip--selected' : ''}`}
+              style={{ height: '28px', padding: '0 0.5rem', fontSize: '0.72rem' }}
+              onClick={() => vm.setShowEdgeBanding(!vm.showEdgeBanding)}
+              title="Resaltar bordes con tapacantos aplicados"
+            >
+              🏷️ Tapacantos
+            </button>
+
+            {/* Table view toggle */}
+            <button
+              type="button"
+              className={`m3-btn m3-btn--small ${vm.showCoordsTable ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+              style={{ height: '28px', padding: '0 0.6rem', fontSize: '0.75rem', fontWeight: 700 }}
+              onClick={() => vm.setShowCoordsTable(!vm.showCoordsTable)}
+              title="Ver u ocultar tabla de cotas ordenadas para punzonado en banco"
+            >
+              📋 {vm.showCoordsTable ? 'Ocultar Tabla' : 'Tabla de Banco'} ({vm.benchOperationsTable.length})
+            </button>
+          </div>
+        </div>
+
+        {/* One-Click Workshop Presets Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.3rem 0.75rem',
+            backgroundColor: 'var(--md-sys-color-surface-container-low)',
+            borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+            overflowX: 'auto',
+          }}
+        >
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface-variant)', whiteSpace: 'nowrap' }}>
+            ⚡ Atajos de Banco:
+          </span>
+          <button
+            type="button"
+            className="m3-chip"
+            style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
+            onClick={() => vm.applyCupHingesPreset()}
+            title="Generar 2 perforaciones de bisagra cazoleta Ø35mm a 100mm de extremos y 21.5mm del borde"
+          >
+            🗄️ Bisagras Ø35 mm (Par)
+          </button>
+          <button
+            type="button"
+            className="m3-chip"
+            style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
+            onClick={() => vm.applySystem32ShelfPinsPreset()}
+            title="Generar dos filas de cremallera Sistema 32 mm a 37mm de frente y fondo"
+          >
+            📏 Cremalleras Sist. 32 (Frente + Fondo)
+          </button>
+          <button
+            type="button"
+            className="m3-chip"
+            style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
+            onClick={() => vm.applyBackingGroovePreset()}
+            title="Generar ranura longitudinal para fondo de 4x8 mm a 15 mm del borde"
+          >
+            ➖ Ranura Fondo (15 mm)
+          </button>
+        </div>
+
         {/* Mobile View Switcher (Tabs) */}
         <div className="machining-editor-mobile-tabs" role="tablist" aria-label="Vistas del editor de mecanizados">
           <div className="m3-segmented-button" style={{ width: '100%' }}>
@@ -257,7 +444,14 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
               className={`m3-segmented-button__item ${mobileTab === 'list' ? 'selected' : ''}`}
               onClick={() => setMobileTab('list')}
             >
-              📋 Lista ({vm.pieceCustomOps.length})
+              📋 Manuales ({vm.pieceCustomOps.length})
+            </button>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'table' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('table')}
+            >
+              📊 Tabla ({vm.benchOperationsTable.length})
             </button>
           </div>
         </div>
@@ -1178,11 +1372,99 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       borderRadius: '4px',
                     }}
                   >
-                    X:{Math.round(vm.cursorPosMm.x)} Y:{Math.round(vm.cursorPosMm.y)}
+                    X:{vm.toDatumCoords(vm.cursorPosMm.x, vm.cursorPosMm.y).x} Y:{vm.toDatumCoords(vm.cursorPosMm.x, vm.cursorPosMm.y).y} mm ({vm.datumCorner})
                     {vm.snapResult?.label ? ` • ${vm.snapResult.label}` : ''}
                   </span>
                 )}
               </div>
+
+              {/* Bench Coordinates Table (Checklist de Taller) */}
+              {(vm.showCoordsTable || mobileTab === 'table') && (
+                <div
+                  className="bench-coordinates-table-card"
+                  style={{
+                    backgroundColor: 'var(--md-sys-color-surface-container)',
+                    borderRadius: 'var(--md-sys-shape-corner-sm)',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                    padding: '0.65rem 0.85rem',
+                    marginBottom: '0.5rem',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <strong style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-primary)' }}>
+                        📋 Checklist de Banco (Cotas relativas a: {vm.datumCorner.toUpperCase()})
+                      </strong>
+                      <span style={{ fontSize: '0.72rem', padding: '0.1rem 0.4rem', borderRadius: '10px', backgroundColor: 'var(--md-sys-color-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
+                        {vm.benchOperationsTable.filter((r) => vm.completedOps[r.id]).length} / {vm.benchOperationsTable.length} hechos
+                      </span>
+                    </div>
+                  </div>
+
+                  {vm.benchOperationsTable.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                      No hay mecanizados registrados en esta cara. Usá los atajos de banco o el menú lateral para agregar perforaciones o ranuras.
+                    </p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="m3-table" style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--md-sys-color-outline-variant)', textAlign: 'left' }}>
+                            <th style={{ width: '28px', padding: '0.3rem' }}>✓</th>
+                            <th style={{ padding: '0.3rem' }}>#</th>
+                            <th style={{ padding: '0.3rem' }}>Operación</th>
+                            <th style={{ padding: '0.3rem' }}>X (Datum)</th>
+                            <th style={{ padding: '0.3rem' }}>Y (Datum)</th>
+                            <th style={{ padding: '0.3rem' }}>Medida / Ø</th>
+                            <th style={{ padding: '0.3rem' }}>Prof.</th>
+                            <th style={{ padding: '0.3rem' }}>Origen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {vm.benchOperationsTable.map((row) => {
+                            const isDone = Boolean(vm.completedOps[row.id]);
+                            return (
+                              <tr
+                                key={row.id}
+                                style={{
+                                  borderBottom: '1px solid var(--md-sys-color-surface-container-highest)',
+                                  backgroundColor: isDone ? 'rgba(34, 197, 94, 0.1)' : undefined,
+                                  textDecoration: isDone ? 'line-through' : undefined,
+                                  opacity: isDone ? 0.65 : 1,
+                                }}
+                              >
+                                <td style={{ padding: '0.3rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isDone}
+                                    onChange={() => vm.toggleOpCompleted(row.id)}
+                                    aria-label={`Marcar operación ${row.opNumber} como realizada`}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.3rem' }}><strong>{row.opNumber}</strong></td>
+                                <td style={{ padding: '0.3rem' }}>{row.label}</td>
+                                <td style={{ padding: '0.3rem', fontFamily: 'monospace', fontWeight: 700 }}>
+                                  {row.datumX} mm
+                                </td>
+                                <td style={{ padding: '0.3rem', fontFamily: 'monospace', fontWeight: 700 }}>
+                                  {row.datumY} mm
+                                </td>
+                                <td style={{ padding: '0.3rem' }}>{row.sizeDescription}</td>
+                                <td style={{ padding: '0.3rem' }}>{row.toolDescription}</td>
+                                <td style={{ padding: '0.3rem', fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                                  {row.isCustom ? '🛠️ Manual' : '⚙️ Auto'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="m3-modal-svg-canvas" style={{ width: '100%', position: 'relative', overflow: 'hidden' }}>
                 {/* Floating CAD Zoom Toolbar */}
@@ -1300,41 +1582,102 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       </g>
                     )}
 
-                    {/* Piece Board Outline */}
-                  <rect
-                    x={originX}
-                    y={originY}
-                    width={drawW}
-                    height={drawH}
-                    fill="#e8eaed"
-                    stroke="#1f1f1f"
-                    strokeWidth="2"
-                  />
+                    {/* Rotatable Piece Group for Workshop Bench Alignment */}
+                    <g transform={`rotate(${vm.rotationDeg}, ${originX + drawW / 2}, ${originY + drawH / 2})`}>
+                      {/* Piece Board Outline */}
+                      <rect
+                        x={originX}
+                        y={originY}
+                        width={drawW}
+                        height={drawH}
+                        fill="#e8eaed"
+                        stroke="#1f1f1f"
+                        strokeWidth="2"
+                      />
 
-                  {/* Banded Edges */}
-                  {vm.previewSheet?.bandedEdges.top && (
-                    <line x1={originX} y1={originY} x2={originX + drawW} y2={originY} stroke="#0b57d0" strokeWidth="4" />
-                  )}
-                  {vm.previewSheet?.bandedEdges.bottom && (
-                    <line x1={originX} y1={originY + drawH} x2={originX + drawW} y2={originY + drawH} stroke="#0b57d0" strokeWidth="4" />
-                  )}
-                  {vm.previewSheet?.bandedEdges.left && (
-                    <line x1={originX} y1={originY} x2={originX} y2={originY + drawH} stroke="#0b57d0" strokeWidth="4" />
-                  )}
-                  {vm.previewSheet?.bandedEdges.right && (
-                    <line x1={originX + drawW} y1={originY} x2={originX + drawW} y2={originY + drawH} stroke="#0b57d0" strokeWidth="4" />
-                  )}
+                      {/* Millimetric Shop Bench Grid */}
+                      {vm.showGrid && (
+                        <g style={{ opacity: 0.35, pointerEvents: 'none' }}>
+                          {Array.from({ length: Math.floor(vm.pieceWidth / vm.gridPitch) }, (_, i) => {
+                            const gx = originX + (i + 1) * vm.gridPitch * scale;
+                            return (
+                              <line
+                                key={`gx-${i}`}
+                                x1={gx}
+                                y1={originY}
+                                x2={gx}
+                                y2={originY + drawH}
+                                stroke="#0b57d0"
+                                strokeWidth="0.8"
+                                strokeDasharray="2 2"
+                              />
+                            );
+                          })}
+                          {Array.from({ length: Math.floor(vm.pieceHeight / vm.gridPitch) }, (_, i) => {
+                            const gy = datumY - (i + 1) * vm.gridPitch * scale;
+                            return (
+                              <line
+                                key={`gy-${i}`}
+                                x1={originX}
+                                y1={gy}
+                                x2={originX + drawW}
+                                y2={gy}
+                                stroke="#0b57d0"
+                                strokeWidth="0.8"
+                                strokeDasharray="2 2"
+                              />
+                            );
+                          })}
+                        </g>
+                      )}
 
-                  {/* Datum (0, 0) Marker at bottom-left */}
-                  <g transform={`translate(${datumX}, ${datumY})`}>
-                    <circle cx="0" cy="0" r="4" fill="#ba1a1a" />
-                    <line x1="-12" y1="0" x2="25" y2="0" stroke="#ba1a1a" strokeWidth="1.5" />
-                    <line x1="0" y1="12" x2="0" y2="-25" stroke="#ba1a1a" strokeWidth="1.5" />
-                    <text x="-8" y="18" fontSize="10" fontWeight="bold" fill="#ba1a1a">Datum (0,0)</text>
-                  </g>
+                      {/* Banded Edges */}
+                      {vm.showEdgeBanding && (
+                        <>
+                          {vm.previewSheet?.bandedEdges.top && (
+                            <line x1={originX} y1={originY} x2={originX + drawW} y2={originY} stroke="#0b57d0" strokeWidth="4" />
+                          )}
+                          {vm.previewSheet?.bandedEdges.bottom && (
+                            <line x1={originX} y1={originY + drawH} x2={originX + drawW} y2={originY + drawH} stroke="#0b57d0" strokeWidth="4" />
+                          )}
+                          {vm.previewSheet?.bandedEdges.left && (
+                            <line x1={originX} y1={originY} x2={originX} y2={originY + drawH} stroke="#0b57d0" strokeWidth="4" />
+                          )}
+                          {vm.previewSheet?.bandedEdges.right && (
+                            <line x1={originX + drawW} y1={originY} x2={originX + drawW} y2={originY + drawH} stroke="#0b57d0" strokeWidth="4" />
+                          )}
+                        </>
+                      )}
 
-                  {/* Contact Footprints (Ghost projections of adjacent pieces) */}
-                  {vm.currentFaceProjections.map((proj) => {
+                      {/* Dynamic Datum (0, 0) Marker based on active datumCorner */}
+                      {(() => {
+                        const isLeft = vm.datumCorner === 'bottom-left' || vm.datumCorner === 'top-left';
+                        const isBottom = vm.datumCorner === 'bottom-left' || vm.datumCorner === 'bottom-right';
+                        const dX = isLeft ? datumX : datumX + drawW;
+                        const dY = isBottom ? datumY : originY;
+                        const dirX = isLeft ? 1 : -1;
+                        const dirY = isBottom ? -1 : 1;
+                        return (
+                          <g transform={`translate(${dX}, ${dY})`}>
+                            <circle cx="0" cy="0" r="5" fill="#ba1a1a" />
+                            <line x1={-6 * dirX} y1="0" x2={26 * dirX} y2="0" stroke="#ba1a1a" strokeWidth="2" />
+                            <line x1="0" y1={-6 * dirY} x2="0" y2={26 * dirY} stroke="#ba1a1a" strokeWidth="2" />
+                            <text
+                              x={8 * dirX}
+                              y={16 * (dirY > 0 ? 1 : -1)}
+                              fontSize="10"
+                              fontWeight="bold"
+                              fill="#ba1a1a"
+                              textAnchor={dirX > 0 ? 'start' : 'end'}
+                            >
+                              Datum (0,0)
+                            </text>
+                          </g>
+                        );
+                      })()}
+
+                      {/* Contact Footprints (Ghost projections of adjacent pieces) */}
+                      {vm.showProjections && vm.currentFaceProjections.map((proj) => {
                     const pxX = toSvgX(proj.xMm);
                     const pxY = toSvgY(proj.yMm + proj.heightMm);
                     const pW = proj.widthMm * scale;
@@ -1686,6 +2029,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       />
                     </g>
                   )}
+                  </g>
                   </g>
                 </svg>
               </div>

@@ -13,6 +13,7 @@ import type {
   DrawerBottomMount,
   DoorMountType,
   TrackSize,
+  BayBoundingBox,
   BracketType,
   WallType,
   LoadCategory,
@@ -24,6 +25,7 @@ import { resolveTracks } from '../resolver';
 import { translateTemplateName, translateEdgeBandKind, t } from './localization';
 import { NumericInput } from './NumericInput';
 import { DrawerTracksInput } from './DrawerTracksInput';
+import { BayTracksInput } from './BayTracksInput';
 import { DEFAULT_UI_CONFIG } from '../config';
 
 export interface ModuleFormProps {
@@ -67,6 +69,8 @@ export interface ModuleFormProps {
   jointPriority?: JointPriority;
   hasBacking?: boolean;
   gridType?: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
+  bayTracks?: TrackSize[];
+  bayBoxes?: BayBoundingBox[];
   bays?: BayContent[];
   activeBayIndex?: number;
   frontsMaterialId?: string;
@@ -76,6 +80,7 @@ export interface ModuleFormProps {
   onJointPriorityChange?: (priority: JointPriority) => void;
   onHasBackingChange?: (hasBacking: boolean) => void;
   onGridTypeChange?: (gridType: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal') => void;
+  onBayTracksChange?: (tracks: TrackSize[]) => void;
   onActiveBayIndexChange?: (idx: number) => void;
   onBayContentTypeChange?: (
     bayIndex: number,
@@ -214,6 +219,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     jointPriority = 'lateral-over-bottom',
     hasBacking = true,
     gridType = '1-bay',
+    bayTracks,
+    bayBoxes = [],
     bays = [{ type: 'shelves', count: 1, shelfType: 'adjustable', setbackMm: 20 }],
     activeBayIndex = 0,
     frontsMaterialId = '',
@@ -223,6 +230,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onJointPriorityChange,
     onHasBackingChange,
     onGridTypeChange,
+    onBayTracksChange,
     onActiveBayIndexChange,
     onBayContentTypeChange,
     onAddShelf,
@@ -309,7 +317,16 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
   const isWallShelves = selectedTemplateId === 'wall-shelves';
 
-  const currentBayCount = gridType === '3-bays-vertical' ? 3 : gridType === '1-bay' ? 1 : 2;
+  const currentBayCount =
+    bayBoxes.length > 0
+      ? bayBoxes.length
+      : bayTracks && bayTracks.length > 0
+      ? bayTracks.length
+      : gridType === '3-bays-vertical'
+      ? 3
+      : gridType === '1-bay'
+      ? 1
+      : 2;
   const currentActiveIndex = Math.min(activeBayIndex, currentBayCount - 1);
   const activeBay = bays[currentActiveIndex] ?? { type: 'empty' };
 
@@ -1890,6 +1907,122 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </button>
           </div>
         </div>
+
+        {gridType && gridType !== '1-bay' && (
+          <div
+            className="form-group"
+            style={{
+              padding: '0.75rem',
+              backgroundColor: 'var(--md-sys-color-surface-container-low)',
+              borderRadius: 'var(--md-sys-shape-corner-sm)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              marginTop: '0.5rem',
+            }}
+          >
+            <label
+              htmlFor="input-bay-grid-tracks"
+              style={{
+                fontWeight: 600,
+                color: 'var(--md-sys-color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                marginBottom: '0.35rem',
+              }}
+            >
+              📐 Distribución de vanos (mm, fr o mixto):
+            </label>
+            <BayTracksInput
+              tracks={
+                bayTracks && bayTracks.length > 0
+                  ? bayTracks
+                  : gridType === '3-bays-vertical'
+                  ? [
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                    ]
+                  : [
+                      { type: 'fractional', valueFr: 1 },
+                      { type: 'fractional', valueFr: 1 },
+                    ]
+              }
+              axis={gridType === '2-bays-horizontal' ? 'vertical' : 'horizontal'}
+              onChange={onBayTracksChange}
+            />
+
+            {/* Visual preview of bays with calculated interior widths */}
+            {bayBoxes && bayBoxes.length > 0 && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--md-sys-color-on-surface-variant)',
+                    display: 'block',
+                    marginBottom: '0.35rem',
+                  }}
+                >
+                  📊 Medidas libres por vano (luz interior neta):
+                </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: gridType === '2-bays-horizontal' ? 'column' : 'row',
+                    gap: '4px',
+                    width: '100%',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {bayBoxes.map((bb, bIdx) => {
+                    const isSelected = currentActiveIndex === bIdx;
+                    const dimLabel =
+                      gridType === '2-bays-horizontal'
+                        ? `${Math.round(bb.height)} mm alto`
+                        : `${Math.round(bb.width)} mm ancho`;
+                    return (
+                      <button
+                        key={bIdx}
+                        type="button"
+                        onClick={() => onActiveBayIndexChange?.(bIdx)}
+                        style={{
+                          flex: gridType === '2-bays-horizontal' ? undefined : (bb.width || 1),
+                          height: gridType === '2-bays-horizontal' ? '32px' : '44px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: isSelected
+                            ? 'var(--md-sys-color-primary)'
+                            : 'var(--md-sys-color-surface-container-high)',
+                          color: isSelected
+                            ? 'var(--md-sys-color-on-primary)'
+                            : 'var(--md-sys-color-on-surface)',
+                          border: isSelected
+                            ? '2px solid var(--md-sys-color-primary)'
+                            : '1px solid var(--md-sys-color-outline-variant)',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          padding: '0.2rem 0.4rem',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title={`Clic para equipar Vano ${bIdx + 1} (${dimLabel})`}
+                      >
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                          Vano {bIdx + 1} {isSelected ? '●' : ''}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>
+                          {dimLabel}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </fieldset>
       )}
 

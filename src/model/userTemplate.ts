@@ -104,6 +104,7 @@ export const userTemplateSchema = z.object({
     backingMultiBayMode: z.enum(['split-per-bay', 'continuous']).optional(),
   }),
   gridType: z.enum(['1-bay', '2-bays-vertical', '3-bays-vertical', '2-bays-horizontal']),
+  bayTracks: z.array(trackSizeSchema).optional(),
   bays: z.array(bayContentSchema),
   materials: z
     .object({

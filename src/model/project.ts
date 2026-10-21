@@ -27,6 +27,7 @@ export const projectModuleItemSchema = z.object({
   partitionPassThroughRoof: z.boolean().default(false),
   gridType: z.enum(['1-bay', '2-bays-vertical', '3-bays-vertical', '2-bays-horizontal']).default('1-bay'),
   bays: z.array(z.any()).default([]),
+  bayTracks: z.array(z.any()).optional(),
   jointStrategy: jointStrategySchema.default('confirmat'),
   pieceJointOverrides: z.record(z.string(), z.string()).optional(),
   pieceMaterialOverrides: z.record(z.string(), z.string()).optional(),
