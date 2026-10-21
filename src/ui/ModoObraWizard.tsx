@@ -635,7 +635,7 @@ export function ModoObraWizard({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-start',
+          justifyContent: 'flex-end',
           padding: '0.35rem 0.6rem',
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -660,67 +660,8 @@ export function ModoObraWizard({
 
         {/* STEP 1: MÓDULO Y TIPO (PLANTILLA) */}
         {activeStep.id === 'module-type' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '0.5rem',
-                width: '100%',
-              }}
-            >
-              {templates.slice(0, 8).map((tpl) => {
-                const isSelected = selectedTemplateId === tpl.id;
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('major');
-                      onTemplateChange?.(tpl.id);
-                    }}
-                    style={{
-                      minHeight: '62px',
-                      padding: '0.5rem',
-                      borderRadius: '16px',
-                      border: isSelected
-                        ? '2px solid var(--md-sys-color-primary)'
-                        : '1px solid var(--md-sys-color-outline-variant)',
-                      backgroundColor: isSelected
-                        ? 'var(--md-sys-color-primary-container)'
-                        : 'var(--md-sys-color-surface-container-high)',
-                      color: isSelected
-                        ? 'var(--md-sys-color-on-primary-container)'
-                        : 'var(--md-sys-color-on-surface)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                      {tpl.name.includes('Alacena')
-                        ? '🧗 '
-                        : tpl.name.includes('Cajonera')
-                          ? '🗄️ '
-                          : tpl.name.includes('Torre')
-                            ? '🏛️ '
-                            : '🪵 '}
-                      {tpl.name}
-                    </span>
-                    {tpl.category && (
-                      <span style={{ fontSize: '0.72rem', opacity: 0.8, marginTop: '2px' }}>
-                        {tpl.category}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Tarjeta Informativa M3: Ingeniería Automática de Taller */}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto' }}>
+            {/* Tarjeta Informativa M3: Ingeniería Automática de Taller (Descriptive at Top) */}
             <div
               style={{
                 padding: '0.65rem 0.8rem',
@@ -731,7 +672,6 @@ export function ModoObraWizard({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.35rem',
-                marginTop: '0.2rem',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
@@ -772,17 +712,81 @@ export function ModoObraWizard({
 
             <div
               style={{
-                padding: '0.6rem 0.75rem',
+                padding: '0.55rem 0.75rem',
                 borderRadius: '12px',
                 backgroundColor: 'var(--md-sys-color-surface-container)',
                 border: '1px solid var(--md-sys-color-outline-variant)',
-                fontSize: '0.78rem',
+                fontSize: '0.76rem',
                 color: 'var(--md-sys-color-on-surface-variant)',
-                marginTop: '0.15rem',
               }}
             >
               💡 <strong>Tip de Obra:</strong> Al elegir la plantilla base, el mueble se preconfigura con
               las proporciones y holguras estándar de taller. Podés ajustar las medidas exactas en el siguiente paso.
+            </div>
+
+            {/* Template Selection Grid (Directly at bottom in the Thumb Zone!) */}
+            <div style={{ marginTop: '0.2rem' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.35rem' }}>
+                Seleccionar Plantilla:
+              </span>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '0.5rem',
+                  width: '100%',
+                }}
+              >
+                {templates.slice(0, 8).map((tpl) => {
+                  const isSelected = selectedTemplateId === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('major');
+                        onTemplateChange?.(tpl.id);
+                      }}
+                      style={{
+                        minHeight: '62px',
+                        padding: '0.5rem',
+                        borderRadius: '16px',
+                        border: isSelected
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: isSelected
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface-container-high)',
+                        color: isSelected
+                          ? 'var(--md-sys-color-on-primary-container)'
+                          : 'var(--md-sys-color-on-surface)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                        {tpl.name.includes('Alacena')
+                          ? '🧗 '
+                          : tpl.name.includes('Cajonera')
+                            ? '🗄️ '
+                            : tpl.name.includes('Torre')
+                              ? '🏛️ '
+                              : '🪵 '}
+                        {tpl.name}
+                      </span>
+                      {tpl.category && (
+                        <span style={{ fontSize: '0.72rem', opacity: 0.8, marginTop: '2px' }}>
+                          {tpl.category}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -797,12 +801,43 @@ export function ModoObraWizard({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               flex: 1,
               minHeight: 0,
+              marginTop: 'auto',
+              gap: '0.4rem',
             }}
           >
-            {/* Carousel Stepper Header for Dimension Field */}
+            {/* Informative Readout Card at the Top */}
+            <div
+              style={{
+                padding: '0.45rem 0.75rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                width: '100%',
+                maxWidth: '460px',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                  {currentDimConfig.label}:
+                </span>
+                <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
+                  {`${currentDimConfig.value} mm`}
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
+                  {`(${activeDimIndex + 1}/4)`}
+                </span>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', display: 'block', marginTop: '2px' }}>
+                👈 Deslizá la pantalla o usá los botones para cambiar de cota 👉
+              </span>
+            </div>
+
+            {/* Carousel Stepper Header for Dimension Field (Directly above the Dial in Thumb Zone) */}
             <div
               style={{
                 display: 'flex',
@@ -810,7 +845,7 @@ export function ModoObraWizard({
                 justifyContent: 'space-between',
                 width: '100%',
                 maxWidth: '460px',
-                padding: '0.2rem 0.2rem 0.45rem',
+                padding: '0.15rem 0.2rem',
                 boxSizing: 'border-box',
               }}
             >
@@ -845,20 +880,8 @@ export function ModoObraWizard({
                   padding: '0 0.4rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
-                    {currentDimConfig.label}:
-                  </span>
-                  <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
-                    {`${currentDimConfig.value} mm`}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
-                    {`(${activeDimIndex + 1}/4)`}
-                  </span>
-                </div>
-
                 {/* Micro-dot navigation pills (clickable) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {dimensionFieldsList.map((f) => {
                     const isSelected = f.id === dimensionField;
                     return (
@@ -872,8 +895,8 @@ export function ModoObraWizard({
                         aria-label={`Seleccionar medida: ${f.label}`}
                         title={`${f.label} (${f.value} mm)`}
                         style={{
-                          width: isSelected ? '24px' : '8px',
-                          height: '8px',
+                          width: isSelected ? '26px' : '9px',
+                          height: '9px',
                           borderRadius: '4px',
                           backgroundColor: isSelected
                             ? 'var(--md-sys-color-primary)'
@@ -887,6 +910,9 @@ export function ModoObraWizard({
                     );
                   })}
                 </div>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', marginTop: '3px' }}>
+                  {currentDimConfig.label}
+                </span>
               </div>
 
               <button
@@ -993,7 +1019,22 @@ export function ModoObraWizard({
 
         {/* STEP 3: BASE / ESTRUCTURA DE PISO */}
         {activeStep.id === 'base-support' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
+            {/* Informative advice at the top */}
+            <div
+              style={{
+                padding: '0.55rem 0.75rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                fontSize: '0.76rem',
+                color: 'var(--md-sys-color-on-surface-variant)',
+              }}
+            >
+              💡 <strong>Estructura de Base:</strong> Define el apoyo inferior del módulo, el despeje de humedad respecto al piso y el método de nivelación en obra.
+            </div>
+
+            {/* Base Option Buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
               {[
                 {
@@ -1077,7 +1118,7 @@ export function ModoObraWizard({
                   borderRadius: '14px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
-                  marginTop: '0.25rem',
+                  marginTop: '0.15rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1120,7 +1161,36 @@ export function ModoObraWizard({
 
         {/* STEP 4: TECHO / AMARRES SUPERIORES (Incluye alacena sin tapa hasta el techo) */}
         {activeStep.id === 'roof-structure' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
+            {/* Informative advice at the top */}
+            <div
+              style={{
+                padding: '0.55rem 0.75rem',
+                borderRadius: '12px',
+                backgroundColor: roofType === 'none'
+                  ? 'var(--md-sys-color-tertiary-container, #e8def8)'
+                  : 'var(--md-sys-color-surface-container)',
+                color: roofType === 'none'
+                  ? 'var(--md-sys-color-on-tertiary-container, #1d192b)'
+                  : 'var(--md-sys-color-on-surface-variant)',
+                fontSize: '0.76rem',
+                lineHeight: 1.35,
+              }}
+            >
+              {roofType === 'none' ? (
+                <>
+                  ✨ <strong>Excelente elección:</strong> En cocinas modernas que llegan al techo se elimina
+                  el tablero de tapa para evitar el hueco juntamugre inaccesible. El fondo ranurado de 3 mm se desliza
+                  limpiamente desde arriba durante el armado.
+                </>
+              ) : (
+                <>
+                  💡 <strong>Amarre Superior:</strong> Los muebles bajo mesada utilizan fajas de 80 mm para fijación de mesada de granito/cuarzo, mientras que las alacenas usan tapa ciega o van abiertas al cielo raso.
+                </>
+              )}
+            </div>
+
+            {/* Option Buttons in Thumb Zone */}
             {[
               {
                 id: 'solid-panel',
@@ -1198,29 +1268,29 @@ export function ModoObraWizard({
                 </button>
               );
             })}
-
-            {roofType === 'none' && (
-              <div
-                style={{
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '12px',
-                  backgroundColor: 'var(--md-sys-color-tertiary-container, #e8def8)',
-                  color: 'var(--md-sys-color-on-tertiary-container, #1d192b)',
-                  fontSize: '0.76rem',
-                  lineHeight: 1.35,
-                }}
-              >
-                ✨ <strong>Excelente elección:</strong> En cocinas modernas que llegan al techo se elimina
-                el tablero de tapa para evitar el hueco juntamugre inaccesible. El fondo ranurado de 3 mm se desliza
-                limpiamente desde arriba durante el armado.
-              </div>
-            )}
           </div>
         )}
 
         {/* STEP 5: FONDO TRASERO */}
         {activeStep.id === 'backing' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
+            {/* Informative advice at the top */}
+            <div
+              style={{
+                padding: '0.55rem 0.75rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                fontSize: '0.76rem',
+                color: 'var(--md-sys-color-on-surface-variant)',
+                lineHeight: 1.35,
+              }}
+            >
+              💡 <strong>Rigidez y Escuadra:</strong> El fondo ranurado de 3 mm embutido a 10 mm del borde posterior
+              asegura la perpendicularidad exacta de la caja sin necesidad de diagonales auxiliares en el armado.
+            </div>
+
+            {/* Backing Option Buttons in Thumb Zone */}
             {[
               {
                 id: 'groove',
@@ -1312,7 +1382,26 @@ export function ModoObraWizard({
 
         {/* STEP 6: DIVISIONES / VANOS VERTICALES */}
         {activeStep.id === 'bays-division' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
+            {/* Informative advice at the top */}
+            <div
+              style={{
+                padding: '0.55rem 0.75rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                fontSize: '0.76rem',
+                color: 'var(--md-sys-color-on-surface-variant)',
+              }}
+            >
+              {width < 800 ? (
+                <>ℹ️ 3 vanos requiere un ancho mínimo de 800 mm para garantizar holguras útiles.</>
+              ) : (
+                <>💡 <strong>División del Volumen:</strong> Podés dividir el ancho del mueble en 1, 2 o 3 columnas y luego equipar cada vano de forma independiente.</>
+              )}
+            </div>
+
+            {/* Bay selection buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', width: '100%' }}>
               {[
                 { type: '1-bay' as ObraGridType, label: '1 Vano', desc: 'Sin división', enabled: true },
@@ -1363,13 +1452,7 @@ export function ModoObraWizard({
               })}
             </div>
 
-            {width < 800 && (
-              <span style={{ fontSize: '0.74rem', color: 'var(--md-sys-color-outline)', textAlign: 'center' }}>
-                ℹ️ 3 vanos requiere un ancho mínimo de 800 mm para garantizar holguras útiles.
-              </span>
-            )}
-
-            {/* Selector of which Bay to Equip in next step */}
+            {/* Selector of which Bay to Equip in next step (Directly at bottom above footer!) */}
             {safeBayCount > 1 && (
               <div
                 style={{
@@ -1377,7 +1460,7 @@ export function ModoObraWizard({
                   borderRadius: '14px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
-                  marginTop: '0.35rem',
+                  marginTop: '0.15rem',
                 }}
               >
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, display: 'block', marginBottom: '0.4rem' }}>
@@ -1420,12 +1503,25 @@ export function ModoObraWizard({
 
         {/* STEP 7: EQUIPAMIENTO INTERIOR (Estantes, Cajones, Puertas) */}
         {activeStep.id === 'equipment' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-            {safeBayCount > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
-                  {`Equipando Columna ${activeBayIndex + 1} de ${safeBayCount}`}
-                </span>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
+            {/* Informative Column Title & Switcher at Top */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '0.45rem 0.65rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+              }}
+            >
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                {safeBayCount > 1
+                  ? `Equipando Columna ${activeBayIndex + 1} de ${safeBayCount}`
+                  : 'Equipamiento del Mueble'}
+              </span>
+              {safeBayCount > 1 && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1444,8 +1540,8 @@ export function ModoObraWizard({
                 >
                   Cambiar Columna 🔄
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Equipment Types */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem', width: '100%' }}>
@@ -1783,8 +1879,61 @@ export function ModoObraWizard({
 
         {/* STEP 8: MATERIAL / TABLERO DE MELAMINA */}
         {activeStep.id === 'material' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {/* 1. Selector Segmentado de Roles (Horizontal Scrollable Chips con >48px touch target) */}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto' }}>
+            {/* 1. Banner descriptivo del rol activo + Botón de Sincronización con el Casco (at Top) */}
+            <div
+              style={{
+                padding: '0.5rem 0.7rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                  {activeRoleConfig.icon} {activeRoleConfig.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: 'var(--md-sys-color-on-surface-variant)',
+                    lineHeight: '1.25',
+                  }}
+                >
+                  {activeRoleConfig.description}
+                </span>
+              </div>
+
+              {effectiveMaterialRole !== 'carcass' && (
+                <button
+                  type="button"
+                  onClick={handleResetRoleToCarcass}
+                  title="Restablecer para usar el mismo tablero que el Casco"
+                  aria-label="Restablecer para usar la misma placa que el casco"
+                  style={{
+                    minHeight: '38px',
+                    padding: '0 0.55rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--md-sys-color-outline)',
+                    backgroundColor: 'var(--md-sys-color-surface)',
+                    color: 'var(--md-sys-color-primary)',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  🔗 Igual al Casco
+                </button>
+              )}
+            </div>
+
+            {/* 2. Selector Segmentado de Roles (Horizontal Scrollable Chips con >48px touch target) */}
             <div
               role="tablist"
               aria-label="Roles de placa o tablero"
@@ -1793,7 +1942,7 @@ export function ModoObraWizard({
                 gap: '0.45rem',
                 width: '100%',
                 overflowX: 'auto',
-                paddingBottom: '0.35rem',
+                paddingBottom: '0.2rem',
                 scrollbarWidth: 'none',
                 WebkitOverflowScrolling: 'touch',
               }}
@@ -1864,60 +2013,7 @@ export function ModoObraWizard({
               })}
             </div>
 
-            {/* 2. Banner descriptivo del rol activo + Botón de Sincronización con el Casco */}
-            <div
-              style={{
-                padding: '0.5rem 0.7rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
-                  {activeRoleConfig.icon} {activeRoleConfig.label}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.72rem',
-                    color: 'var(--md-sys-color-on-surface-variant)',
-                    lineHeight: '1.25',
-                  }}
-                >
-                  {activeRoleConfig.description}
-                </span>
-              </div>
-
-              {effectiveMaterialRole !== 'carcass' && (
-                <button
-                  type="button"
-                  onClick={handleResetRoleToCarcass}
-                  title="Restablecer para usar el mismo tablero que el Casco"
-                  aria-label="Restablecer para usar la misma placa que el casco"
-                  style={{
-                    minHeight: '38px',
-                    padding: '0 0.55rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--md-sys-color-outline)',
-                    backgroundColor: 'var(--md-sys-color-surface)',
-                    color: 'var(--md-sys-color-primary)',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  🔗 Igual al Casco
-                </button>
-              )}
-            </div>
-
-            {/* 3. Grilla Táctil de Placas del Catálogo */}
+            {/* 3. Grilla Táctil de Placas del Catálogo (Directly at bottom above footer!) */}
             <div
               style={{
                 display: 'grid',
