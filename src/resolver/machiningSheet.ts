@@ -533,7 +533,7 @@ export function renderPieceMachiningSvg(
  */
 export function exportMachiningSheetPdf(
   sheets: PieceMachiningSheet | PieceMachiningSheet[],
-  documentTitle = 'Mobilius - Plano de Mecanizado de Taller',
+  documentTitle = 'CadCat - Plano de Mecanizado de Taller',
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',

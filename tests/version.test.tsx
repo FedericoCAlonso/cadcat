@@ -17,6 +17,6 @@ describe('Application Version Management', () => {
   it('renders current version and brand logo in the App header without hardcoding', () => {
     const html = renderToString(<App />);
     expect(html).toContain(`v${APP_VERSION}`);
-    expect(html).toContain('alt="Mobilius Icon"');
+    expect(html).toContain('alt="CadCat Icon"');
   });
 });

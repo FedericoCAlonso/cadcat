@@ -67,7 +67,7 @@ export function runDemo(customInput?: OptimizerInput): void {
 
   const layout = res.alternatives[res.selectedIndex]!;
 
-  console.log('=== MOBILIUS CUTTING OPTIMIZER DEMO ===');
+  console.log('=== CADCAT CUTTING OPTIMIZER DEMO ===');
   console.log(`Sheets used: ${layout.metrics.sheetsUsed} (Lower bound: ${layout.metrics.lowerBoundSheets})`);
   console.log(`Utilization: ${(layout.metrics.utilization * 100).toFixed(1)}%`);
   console.log(`Passes: ${layout.metrics.passes}, Total cut length: ${layout.metrics.cutLengthM}m`);

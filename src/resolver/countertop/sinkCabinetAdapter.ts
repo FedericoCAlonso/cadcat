@@ -79,7 +79,7 @@ export function adaptCabinetForEquipment(
   const isSink = equipment.kind.startsWith('sink');
   if (isSink && placement.sinkDrawerAdaptation === 'false-front') {
     const getVerticalElevation = (p: ResolvedPiece) => {
-      // In Mobilius standard coordinate system, Y is vertical elevation. If Y is 0, fallback to Z.
+      // In CadCat standard coordinate system, Y is vertical elevation. If Y is 0, fallback to Z.
       return p.positionMm.y !== 0 ? p.positionMm.y : p.positionMm.z;
     };
 

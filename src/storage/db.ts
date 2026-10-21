@@ -7,7 +7,7 @@ export interface StoredEntity {
   schemaVersion: number;
 }
 
-export const DB_NAME = 'mobilius_db';
+export const DB_NAME = 'cadcat_db';
 export const DB_VERSION = 4;
 export const DEFAULT_STORES = ['modules', 'catalogs', 'configs', 'user_templates', 'projects'] as const;
 

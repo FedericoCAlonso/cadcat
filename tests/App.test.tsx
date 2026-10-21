@@ -6,7 +6,7 @@ import { App } from '../src/ui/App';
 describe('App component', () => {
   it('renders heading with application title', () => {
     const html = renderToString(<App />);
-    expect(html).toContain('Mobilius');
+    expect(html).toContain('CadCat');
     expect(html).toContain('Furniture design progressive web application.');
   });
 });

@@ -45,7 +45,7 @@ describe('Project Configuration System', () => {
   it('seeds configuration into IndexedDB on first load and persists changes', async () => {
     const loaded = await loadProjectConfigFromDb(DEFAULT_PROJECT_ID);
     expect(loaded).toBeDefined();
-    expect(loaded.projectName).toContain('Mobilius');
+    expect(loaded.projectName).toContain('CadCat');
 
     // Modify machining tolerance and project name
     const modified: ProjectConfig = {

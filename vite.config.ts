@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { createPwaManifest } from './src/pwaConfig';
 
 export default defineConfig(({ mode }) => {
-  const base = mode === 'production' ? '/mobilius/' : '/';
+  const base = mode === 'production' ? '/cadcat/' : '/';
 
   return {
     base,
@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => {
           'pwa-192x192.png',
           'pwa-512x512.png',
           'favicon.ico',
-          'icons/mobilius-icon-dark.svg',
-          'icons/mobilius-icon-light.svg',
+          'icons/cadcat-icon-dark.svg',
+          'icons/cadcat-icon-light.svg',
           'icons/icon-192.png',
           'icons/icon-512.png',
           'icons/icon-512-maskable.png',
@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
         ],
         manifest: createPwaManifest(base),
         workbox: {
-          cacheId: 'mobilius',
+          cacheId: 'cadcat',
           globPatterns: ['**/*.{js,css,html,svg,json,png,ico}'],
           skipWaiting: true,
           clientsClaim: true,

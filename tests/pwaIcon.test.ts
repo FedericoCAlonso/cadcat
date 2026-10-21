@@ -6,8 +6,8 @@ import { pwaManifest } from '../src/pwaConfig';
 describe('PWA Icon and Adaptive Shape Compliance', () => {
   const publicDir = path.resolve(__dirname, '../public');
 
-  it('provides public/icons/mobilius-icon-dark.svg conforming to the vector icon standard', () => {
-    const iconSvgPath = path.join(publicDir, 'icons/mobilius-icon-dark.svg');
+  it('provides public/icons/cadcat-icon-dark.svg conforming to the vector icon standard', () => {
+    const iconSvgPath = path.join(publicDir, 'icons/cadcat-icon-dark.svg');
     expect(fs.existsSync(iconSvgPath)).toBe(true);
     const content = fs.readFileSync(iconSvgPath, 'utf-8');
     expect(content).toContain('viewBox="0 0 40 40"');
@@ -15,8 +15,8 @@ describe('PWA Icon and Adaptive Shape Compliance', () => {
     expect(content).toContain('fill="#101820"');
   });
 
-  it('provides public/icons/mobilius-icon-light.svg for light mode', () => {
-    const iconLightSvgPath = path.join(publicDir, 'icons/mobilius-icon-light.svg');
+  it('provides public/icons/cadcat-icon-light.svg for light mode', () => {
+    const iconLightSvgPath = path.join(publicDir, 'icons/cadcat-icon-light.svg');
     expect(fs.existsSync(iconLightSvgPath)).toBe(true);
     const content = fs.readFileSync(iconLightSvgPath, 'utf-8');
     expect(content).toContain('viewBox="0 0 40 40"');

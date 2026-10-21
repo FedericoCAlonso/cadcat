@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
-const STORAGE_KEY = 'mobilius_theme';
+const STORAGE_KEY = 'cadcat_theme';
+const LEGACY_STORAGE_KEY = 'mobilius_theme';
 
 /**
  * Custom hook to manage Light / Dark / System themes.
@@ -11,7 +12,7 @@ const STORAGE_KEY = 'mobilius_theme';
 export function useTheme() {
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'system';
-    const saved = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
+    const saved = (localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)) as ThemeMode | null;
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved;
     }

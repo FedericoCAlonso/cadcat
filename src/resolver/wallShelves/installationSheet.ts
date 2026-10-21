@@ -135,7 +135,7 @@ export function generateInstallationSheetSvg(
         PLANO DE REPLANTEO Y TALADRADO DE PARED - ESTANTERÍA CON MÉNSULAS
       </text>
       <text x="0" y="38" font-family="system-ui, sans-serif" font-size="12" fill="#64748b">
-        Mobilius Workshop Engine • Tipo: ${bracketType.toUpperCase()} • Pared: ${wallType.toUpperCase()}
+        CadCat Workshop Engine • Tipo: ${bracketType.toUpperCase()} • Pared: ${wallType.toUpperCase()}
       </text>
     </g>
     <g transform="translate(${svgWidth - 360}, 25)">
@@ -192,7 +192,7 @@ export function exportWallShelvesInstallationPdf(
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Estantería de pared con ménsulas | Mobilius Workshop System', margin, y);
+  doc.text('Estantería de pared con ménsulas | CadCat Workshop System', margin, y);
   y += 8;
 
   // Parameter Summary Box

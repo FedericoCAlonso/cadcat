@@ -4,8 +4,8 @@ import { registerServiceWorker } from '../src/registerServiceWorker';
 
 describe('PWA Manifest configuration', () => {
   it('has required PWA manifest fields', () => {
-    expect(pwaManifest.name).toBe('Mobilius');
-    expect(pwaManifest.short_name).toBe('Mobilius');
+    expect(pwaManifest.name).toBe('CadCat');
+    expect(pwaManifest.short_name).toBe('CadCat');
     expect(pwaManifest.id).toBe('/');
     expect(pwaManifest.start_url).toBe('/');
     expect(pwaManifest.scope).toBe('/');
@@ -15,16 +15,16 @@ describe('PWA Manifest configuration', () => {
   });
 
   it('generates unique id, scope, start_url, and icon paths for GitHub Pages subpath isolation', () => {
-    const ghManifest = createPwaManifest('/mobilius/');
+    const ghManifest = createPwaManifest('/cadcat/');
 
     // Crucial for allowing multiple PWAs on the same domain (e.g. *.github.io):
-    expect(ghManifest.id).toBe('/mobilius/');
-    expect(ghManifest.scope).toBe('/mobilius/');
-    expect(ghManifest.start_url).toBe('/mobilius/');
+    expect(ghManifest.id).toBe('/cadcat/');
+    expect(ghManifest.scope).toBe('/cadcat/');
+    expect(ghManifest.start_url).toBe('/cadcat/');
 
     // Icons must be served from the subpath without double slashes
     for (const icon of ghManifest.icons) {
-      expect(icon.src.startsWith('/mobilius/')).toBe(true);
+      expect(icon.src.startsWith('/cadcat/')).toBe(true);
       expect(icon.src).not.toContain('//');
     }
 

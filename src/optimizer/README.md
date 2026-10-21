@@ -1,4 +1,4 @@
-# Mobilius Sheet Cutting Optimizer
+# CadCat Sheet Cutting Optimizer
 
 High-performance 2D sheet cutting optimization engine for furniture panels, panel saws, and CNC routers. Implemented as a pure, dependency-free TypeScript library that runs seamlessly in the browser (Web Worker) or Node.js.
 

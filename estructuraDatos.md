@@ -1,6 +1,6 @@
-# Estructura de Datos de Mobilius
+# Estructura de Datos de CadCat
 
-Este documento describe en detalle la arquitectura y las estructuras de datos que sustentan el funcionamiento de **Mobilius**.
+Este documento describe en detalle la arquitectura y las estructuras de datos que sustentan el funcionamiento de **CadCat**.
 
 ---
 
@@ -533,7 +533,7 @@ export interface ModuleCostSummary {
 
 ## 5. Capa de Persistencia en IndexedDB (`src/storage/db.ts`)
 
-La base de datos local del navegador se llama **`mobilius_db`** (versión 2) y cuenta con tres almacenes principales:
+La base de datos local del navegador se llama **`cadcat_db`** (versión 2) y cuenta con tres almacenes principales:
 
 | Almacén (*Object Store*) | Clave Primaria (*keyPath*) | Estructura Almacenada | Descripción |
 |---|---|---|---|

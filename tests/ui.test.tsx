@@ -578,7 +578,7 @@ describe('ProjectSettingsView Component', () => {
 describe('App MVVM Integration', () => {
   it('renders application header, tabs (including Mecanizado and Configuración), and main container', () => {
     const html = renderToString(<App />);
-    expect(html).toContain('Mobilius');
+    expect(html).toContain('CadCat');
     expect(html).toContain('Furniture design progressive web application.');
     expect(html).toContain('Mecanizado');
     expect(html).toContain('Configuración');

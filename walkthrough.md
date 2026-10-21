@@ -1,6 +1,6 @@
-# Recorrido del Proyecto: Mobilius (Walkthrough)
+# Recorrido del Proyecto: CadCat (Walkthrough)
 
-**Mobilius** es una aplicación web progresiva (**PWA**) diseñada para carpinteros y fabricantes de muebles a medida a partir de tableros de madera (melamina, MDF, aglomerado, tableros Egger, etc.). Funciona de forma 100% autónoma en el navegador (**sin servidor**) y con soporte completo **offline** mediante IndexedDB y Service Workers.
+**CadCat** es una aplicación web progresiva (**PWA**) diseñada para carpinteros y fabricantes de muebles a medida a partir de tableros de madera (melamina, MDF, aglomerado, tableros Egger, etc.). Funciona de forma 100% autónoma en el navegador (**sin servidor**) y con soporte completo **offline** mediante IndexedDB y Service Workers.
 
 ---
 
@@ -74,7 +74,7 @@ flowchart TD
 ### 3.1. Fase 0: Cimientos (*Foundation*)
 - **Estructura del Proyecto:** Configuración de Vite, React 19, TypeScript estricto y Vitest con `fake-indexeddb` y `jsdom`.
 - **Soporte Offline PWA:** Integración de `vite-plugin-pwa` con Workbox precargando HTML, JS, CSS y assets con estrategia de actualización inmediata.
-- **Capa de Persistencia IndexedDB ([`src/storage/db.ts`](file:///home/federico@uba-ilse.com.ar/mobilius/src/storage/db.ts)):** Base de datos `mobilius_db` con almacenes para `materials`, `edgeBands`, `hardware`, `modules` y `configs`.
+- **Capa de Persistencia IndexedDB ([`src/storage/db.ts`](file:///home/federico@uba-ilse.com.ar/mobilius/src/storage/db.ts)):** Base de datos `cadcat_db` con almacenes para `materials`, `edgeBands`, `hardware`, `modules` y `configs`.
 - **Modelos y Schemas Zod ([`src/model/`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/index.ts)):** Validación rigurosa en runtime de entidades: `Material`, `EdgeBand`, `Hardware`, `Piece`, `Joint`, `Module`.
 - **Catálogos Semilla ([`src/catalog/`](file:///home/federico@uba-ilse.com.ar/mobilius/src/catalog/index.ts)):** Carga inicial de tableros Egger (Blanco 18mm, Roble 18mm), tapacantos de PVC/ABS y herrajes típicos.
 

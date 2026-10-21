@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "projectId": "default-project",
-  "projectName": "Proyecto Mobilius",
+  "projectName": "Proyecto CadCat",
   "clientName": "Cliente de Taller",
-  "description": "Configuración estándar de taller y proyecto para Mobilius.",
+  "description": "Configuración estándar de taller y proyecto para CadCat.",
   "units": {
     "length": "mm",
     "currency": "ARS"

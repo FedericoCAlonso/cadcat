@@ -39,9 +39,9 @@ describe('Theme System & ThemeToggle component', () => {
   });
 
   it('sets and reads localStorage for theme preference', () => {
-    localStorage.setItem('mobilius_theme', 'dark');
-    expect(localStorage.getItem('mobilius_theme')).toBe('dark');
-    localStorage.setItem('mobilius_theme', 'light');
-    expect(localStorage.getItem('mobilius_theme')).toBe('light');
+    localStorage.setItem('cadcat_theme', 'dark');
+    expect(localStorage.getItem('cadcat_theme')).toBe('dark');
+    localStorage.setItem('cadcat_theme', 'light');
+    expect(localStorage.getItem('cadcat_theme')).toBe('light');
   });
 });

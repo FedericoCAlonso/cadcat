@@ -1,6 +1,6 @@
-# Directivas de Calidad y Arquitectura de Agentes — Mobilius
+# Directivas de Calidad y Arquitectura de Agentes — CadCat
 
-Este documento establece las directivas de calidad, diseño y arquitectura **estrictas y no negociables** para el desarrollo y mantenimiento del proyecto **Mobilius**.
+Este documento establece las directivas de calidad, diseño y arquitectura **estrictas y no negociables** para el desarrollo y mantenimiento del proyecto **CadCat**.
 
 ---
 

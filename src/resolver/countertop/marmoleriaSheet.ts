@@ -238,7 +238,7 @@ export function exportMarmoleriaPdf(
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139); // #64748b
   doc.text(
-    `Mobilius PWA · Documento técnico para corte, calado y pulido de marmolería · Fecha: ${new Date().toLocaleDateString()}`,
+    `CadCat PWA · Documento técnico para corte, calado y pulido de marmolería · Fecha: ${new Date().toLocaleDateString()}`,
     margin,
     margin + 10,
   );

@@ -579,7 +579,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [uiMode, setUiModeState] = useState<'site' | 'expert'>(() => {
     try {
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('mobilius_ui_mode');
+        const saved = localStorage.getItem('cadcat_ui_mode') ?? localStorage.getItem('mobilius_ui_mode');
         if (saved === 'expert' || saved === 'site') return saved;
       }
     } catch {
@@ -590,7 +590,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [handMode, setHandModeState] = useState<HandMode>(() => {
     try {
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('mobilius_hand_mode');
+        const saved = localStorage.getItem('cadcat_hand_mode') ?? localStorage.getItem('mobilius_hand_mode');
         if (saved === 'right' || saved === 'left') return saved;
       }
     } catch {
@@ -602,7 +602,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const setUiMode = useCallback((mode: 'site' | 'expert') => {
     setUiModeState(mode);
     try {
-      localStorage.setItem('mobilius_ui_mode', mode);
+      localStorage.setItem('cadcat_ui_mode', mode);
     } catch {
       // ignore
     }
@@ -611,7 +611,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const setHandMode = useCallback((mode: HandMode) => {
     setHandModeState(mode);
     try {
-      localStorage.setItem('mobilius_hand_mode', mode);
+      localStorage.setItem('cadcat_hand_mode', mode);
     } catch {
       // ignore
     }
@@ -2599,7 +2599,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       const projToSave: Project = {
         schemaVersion: 1,
         id: project?.id ?? 'proj-default',
-        name: project?.name ?? 'Proyecto Mobilius',
+        name: project?.name ?? 'Proyecto CadCat',
         clientName: project?.clientName ?? 'Cliente Estándar',
         description: project?.description ?? '',
         modules: allMods,

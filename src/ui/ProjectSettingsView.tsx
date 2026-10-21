@@ -873,7 +873,7 @@ export function ProjectSettingsView({
             <div className="settings-group-card" style={{ gridColumn: '1 / -1' }}>
               <h4 className="group-title">Mantenimiento de la Aplicación y Caché</h4>
               <p style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-outline)', margin: '0.25rem 0 0.85rem', lineHeight: 1.4 }}>
-                Si experimentás inconsistencias visuales o deseás forzar la descarga de la última versión de Mobilius desde el servidor, podés purgar la caché del Service Worker y reiniciar la app.
+                Si experimentás inconsistencias visuales o deseás forzar la descarga de la última versión de CadCat desde el servidor, podés purgar la caché del Service Worker y reiniciar la app.
               </p>
               {onForcePurgeCacheAndReload && (
                 <button

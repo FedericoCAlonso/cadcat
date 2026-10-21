@@ -16,7 +16,7 @@ interface TestModule extends StoredEntity {
   width: number;
 }
 
-const TEST_DB = 'test_mobilius_db';
+const TEST_DB = 'test_cadcat_db';
 
 describe('IndexedDB Storage Layer', () => {
   let db: IDBDatabase;

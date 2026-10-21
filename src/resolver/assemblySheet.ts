@@ -849,20 +849,20 @@ export function exportAssemblyGuidePdf(
   // PÁGINA 1: Carátula, Especificaciones, BOM y Mapa Explotado
   // -------------------------------------------------------------
   // Header banner
-  doc.setFillColor(86, 112, 95); // Mobilius Salvia (#56705F)
+  doc.setFillColor(86, 112, 95); // CadCat Salvia (#56705F)
   doc.rect(margin, y, pageWidth - 2 * margin, 18, 'F');
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('MOBILIUS — MANUAL TÉCNICO DE ARMADO EN TALLER', margin + 4, y + 8);
+  doc.text('CADCAT — MANUAL TÉCNICO DE ARMADO EN TALLER', margin + 4, y + 8);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`Módulo: ${sheet.moduleId} | Dimensiones: ${sheet.moduleDimensionsMm.width} x ${sheet.moduleDimensionsMm.height} x ${sheet.moduleDimensionsMm.depth} mm | Diagonal Escuadra: ${sheet.squaringDiagonalMm} mm`, margin + 4, y + 14);
 
   y += 24;
-  doc.setTextColor(31, 38, 34); // Mobilius Text (#1F2622)
+  doc.setTextColor(31, 38, 34); // CadCat Text (#1F2622)
 
   // Subtitle
   doc.setFontSize(16);
@@ -876,7 +876,7 @@ export function exportAssemblyGuidePdf(
   doc.text('1. Cómputo Total de Herrajes y Fijaciones (BOM)', margin, y);
   y += 5;
 
-  doc.setFillColor(237, 232, 220); // Mobilius Surface-2 (#EDE8DC)
+  doc.setFillColor(237, 232, 220); // CadCat Surface-2 (#EDE8DC)
   doc.rect(margin, y, pageWidth - 2 * margin, 6, 'F');
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
@@ -1067,7 +1067,7 @@ export function exportAssemblyGuidePdf(
     if (step.criticalDimensionMm) {
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(179, 65, 47); // Mobilius Danger
+      doc.setTextColor(179, 65, 47); // CadCat Danger
       doc.text(`★ COTA CRÍTICA: ${step.criticalDimensionMm.label} = ${step.criticalDimensionMm.valueMm} mm (Tol: ±${step.criticalDimensionMm.toleranceMm} mm)`, margin + 4, y);
       doc.setTextColor(31, 38, 34);
       y += 4.2;
@@ -1077,7 +1077,7 @@ export function exportAssemblyGuidePdf(
     if (step.gaugesInvolved.length > 0) {
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(63, 125, 78); // Mobilius Success
+      doc.setTextColor(63, 125, 78); // CadCat Success
       doc.text(`→ Calibres Requeridos: ${step.gaugesInvolved.join(', ')}`, margin + 4, y);
       doc.setTextColor(31, 38, 34);
       y += 4.2;

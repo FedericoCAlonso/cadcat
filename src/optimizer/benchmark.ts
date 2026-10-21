@@ -234,7 +234,7 @@ export function runBenchmark(): BenchmarkResultItem[] {
 }
 
 if (process.argv[1]?.endsWith('benchmark.ts') || process.argv[1]?.endsWith('benchmark.js')) {
-  console.log('Running Mobilius Cutting Optimizer Benchmark Suite...\n');
+  console.log('Running CadCat Cutting Optimizer Benchmark Suite...\n');
   const items = runBenchmark();
   console.table(items);
 }

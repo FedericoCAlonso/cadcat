@@ -119,7 +119,7 @@ export function translatePieceLabel(pieceId: string): string {
  */
 export function exportCutPlanPdf(
   nestingResult: NestingResult,
-  documentTitle = 'Plano de Corte Mobilius',
+  documentTitle = 'Plano de Corte CadCat',
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'landscape',

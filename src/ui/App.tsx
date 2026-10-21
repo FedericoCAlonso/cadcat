@@ -76,7 +76,7 @@ export function App(): ReactElement {
     }
   }, [isLandscape, vm.uiMode, vm.isOneHandDevice, vm.activeTab]);
 
-  const logoFileName = effectiveTheme === 'dark' ? 'mobilius-icon-dark.svg' : 'mobilius-icon-light.svg';
+  const logoFileName = effectiveTheme === 'dark' ? 'cadcat-icon-dark.svg' : 'cadcat-icon-light.svg';
   const logoUrl = `${import.meta.env?.BASE_URL || '/'}icons/${logoFileName}`;
   const isSiteImmersive = vm.uiMode === 'site' && vm.isOneHandDevice;
 
@@ -88,7 +88,7 @@ export function App(): ReactElement {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img
               src={logoUrl}
-              alt="Mobilius Icon"
+              alt="CadCat Icon"
               width="42"
               height="42"
               style={{
@@ -100,7 +100,7 @@ export function App(): ReactElement {
             />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <h1 className="m3-top-app-bar__title">Mobilius</h1>
+                <h1 className="m3-top-app-bar__title">CadCat</h1>
                 <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', fontWeight: 600 }}>
                   Taller CAD
                 </span>
@@ -199,7 +199,7 @@ export function App(): ReactElement {
         {!isSiteImmersive && vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
         {!isSiteImmersive && updateAvailable && (
           <div className="m3-banner m3-banner--warning" role="alert" style={{ margin: '0 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span>🎉 ¡Nueva versión de Mobilius disponible con mejoras de cajones y CAD móvil!</span>
+            <span>🎉 ¡Nueva versión de CadCat disponible con mejoras de cajones y CAD móvil!</span>
             <button
               type="button"
               className="m3-button m3-button--primary"

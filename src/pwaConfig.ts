@@ -30,8 +30,8 @@ export function createPwaManifest(base: string = '/'): WebAppManifest {
 
   return {
     id: normalizedBase,
-    name: 'Mobilius',
-    short_name: 'Mobilius',
+    name: 'CadCat',
+    short_name: 'CadCat',
     description: 'Progressive Web App for panel furniture design',
     theme_color: '#101820',
     background_color: '#101820',

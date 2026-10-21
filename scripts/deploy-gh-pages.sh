@@ -16,4 +16,4 @@ git push -u origin gh-pages --force
 cd - > /dev/null
 git worktree remove "$TEMP_DIR"
 
-echo "Successfully deployed to https://federicocalonso.github.io/mobilius/"
+echo "Successfully deployed to https://federicocalonso.github.io/cadcat/"

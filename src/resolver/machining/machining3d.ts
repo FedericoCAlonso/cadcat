@@ -33,7 +33,7 @@ export function getPieceFaceNormalSign(
   }
 
   // normal === 'z'
-  // In Mobilius coordinate frame:
+  // In CadCat coordinate frame:
   // - Camera and exterior face are towards -Z (Face A: -1).
   // - Cabinet interior and hinge cup mortises are towards +Z (Face B: +1).
   return isFaceA ? -1 : 1;

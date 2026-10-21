@@ -370,7 +370,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <div>
               <h3 id="project-modules-heading" style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>📦 Proyecto: {project?.name ?? 'Mobilius CAD'}</span>
+                <span>📦 Proyecto: {project?.name ?? 'CadCat CAD'}</span>
               </h3>
               <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
                 {totalProjectUnits} unidad(es) en {projectModules.length} tipo(s) de módulo

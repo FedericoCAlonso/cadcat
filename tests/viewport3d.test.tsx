@@ -173,7 +173,7 @@ describe('App Component M3 Navigation Tabs', () => {
   it('renders Material 3 top app bar with navigation tabs', () => {
     const html = renderToString(<App />);
 
-    expect(html).toContain('Mobilius');
+    expect(html).toContain('CadCat');
     expect(html).toContain('3D Viewport');
     expect(html).toContain('Piece List');
     expect(html).toContain('Parameters');

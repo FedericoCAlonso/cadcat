@@ -1,5 +1,5 @@
 /**
- * Spanish localization dictionary and formatting helpers for Mobilius.
+ * Spanish localization dictionary and formatting helpers for CadCat.
  * Provides workshop and carpentry terminology for UI display.
  */
 import { t, getLocale, setLocale, type LocaleCode } from '../locales';
