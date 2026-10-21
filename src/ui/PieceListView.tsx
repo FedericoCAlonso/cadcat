@@ -5,8 +5,10 @@ import type {
   PieceEdgeBandOverride,
   ConsolidatedPiece,
 } from '../resolver';
-import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
+import type { JointKind, JointStrategy, Material, EdgeBand, Piece } from '../model';
+import type { PieceMachining } from '../model/operation';
 import { translatePieceRole } from './localization';
+import { LabelExportModal } from './LabelExportModal';
 
 export interface PieceListViewProps {
   pieces: (ResolvedPieceWithCutSize | ConsolidatedPiece)[];
@@ -32,6 +34,12 @@ export interface PieceListViewProps {
   onProjectScopeChange?: (scope: 'current-module' | 'all-modules') => void;
   projectModulesCount?: number;
   currentModuleName?: string;
+  // Label Printing (Hito 1)
+  enablePieceLabels?: boolean;
+  orderId?: string;
+  clientName?: string;
+  moduleId?: string;
+  machiningList?: PieceMachining[];
 }
 
 /**
@@ -60,6 +68,11 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     onProjectScopeChange,
     projectModulesCount,
     currentModuleName,
+    enablePieceLabels = true,
+    orderId,
+    clientName,
+    moduleId,
+    machiningList,
   } = props;
 
   const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
@@ -67,6 +80,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
   const [displayFormat, setDisplayFormat] = useState<'cards' | 'table'>(() =>
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table',
   );
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
 
   if (pieces.length === 0) {
     return (
@@ -469,13 +483,32 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
               Planilla de corte con medidas finales terminadas y descuento de tapacantos para escuadradora.
             </p>
           </div>
-          <div className="piece-summary-badges">
+          <div className="piece-summary-badges" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span className="m3-badge m3-badge--neutral">
               Total: <strong>{filteredPieces.length} piezas</strong>
             </span>
             <span className="m3-badge m3-badge--neutral">
               Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
             </span>
+            {enablePieceLabels !== false && filteredPieces.length > 0 && (
+              <button
+                type="button"
+                className="m3-button m3-button--primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  minHeight: '44px',
+                  padding: '0.35rem 0.85rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                }}
+                onClick={() => setIsLabelModalOpen(true)}
+              >
+                <span>🏷️ Imprimir Etiquetas</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -757,6 +790,20 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
           </div>
         </div>
       )}
+
+      {/* Label Export Modal */}
+      <LabelExportModal
+        isOpen={isLabelModalOpen}
+        onClose={() => setIsLabelModalOpen(false)}
+        pieces={filteredPieces as unknown as Piece[]}
+        materials={materials ?? []}
+        edgeBands={edgeBands ?? []}
+        machiningList={machiningList}
+        orderId={orderId}
+        clientName={clientName}
+        moduleId={moduleId}
+        moduleName={currentModuleName}
+      />
     </section>
   );
 }

@@ -114,6 +114,18 @@ export type HardwareConfig = z.infer<typeof hardwareConfigSchema>;
 
 export const DEFAULT_HARDWARE_CONFIG: HardwareConfig = hardwareConfigSchema.parse({});
 
+export const featuresConfigSchema = z.object({
+  enablePieceLabels: z.boolean().default(true),
+  enableInterferencesLab: z.boolean().default(false),
+  enableSecondaryContourCuts: z.boolean().default(false),
+  enableLedInstallations: z.boolean().default(false),
+  enableElectricalCutouts: z.boolean().default(false),
+  enableCncExport: z.boolean().default(false),
+});
+export type FeaturesConfig = z.infer<typeof featuresConfigSchema>;
+
+export const DEFAULT_FEATURES_CONFIG: FeaturesConfig = featuresConfigSchema.parse({});
+
 export const projectConfigSchema = z.object({
   schemaVersion: z.literal(1),
   projectId: z.string().min(1),
@@ -126,6 +138,7 @@ export const projectConfigSchema = z.object({
   cost: costConfigSchema,
   deflection: deflectionConfigSchema,
   hardware: hardwareConfigSchema.default(DEFAULT_HARDWARE_CONFIG),
+  features: featuresConfigSchema.default(DEFAULT_FEATURES_CONFIG),
 });
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 

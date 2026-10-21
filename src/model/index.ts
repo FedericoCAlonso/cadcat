@@ -201,4 +201,16 @@ export {
   createDefaultProject,
 } from './project';
 
+export {
+  labelLayoutFormatSchema,
+  type LabelLayoutFormat,
+  labelLayoutConfigSchema,
+  type LabelLayoutConfig,
+  LABEL_LAYOUT_PRESETS,
+  pieceLabelEdgeBandSchema,
+  type PieceLabelEdgeBand,
+  pieceLabelDataSchema,
+  type PieceLabelData,
+} from './labels';
+
 

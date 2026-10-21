@@ -707,6 +707,11 @@ export function App(): ReactElement {
                   onSetPieceThickness={vm.setPieceThickness}
                   onSetPieceEdgeBands={vm.setPieceEdgeBands}
                   onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                  enablePieceLabels={vm.projectConfig?.features?.enablePieceLabels ?? true}
+                  orderId={vm.projectConfig?.projectId ?? 'ORD-001'}
+                  clientName={vm.projectConfig?.clientName ?? 'Cliente Taller'}
+                  moduleId={vm.activeModuleId}
+                  machiningList={vm.pieceMachiningList}
                 />
               )}
 

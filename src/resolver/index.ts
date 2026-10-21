@@ -330,3 +330,4 @@ export {
 
 export * from './dxf';
 export * from './thumbArc';
+export * from './labels';

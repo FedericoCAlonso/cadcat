@@ -88,6 +88,23 @@ export function ProjectSettingsView({
     });
   };
 
+  const updateFeature = (field: keyof NonNullable<ProjectConfig['features']>, value: boolean) => {
+    onUpdateConfig({
+      ...config,
+      features: {
+        ...(config.features ?? {
+          enablePieceLabels: true,
+          enableInterferencesLab: false,
+          enableSecondaryContourCuts: false,
+          enableLedInstallations: false,
+          enableElectricalCutouts: false,
+          enableCncExport: false,
+        }),
+        [field]: value,
+      },
+    });
+  };
+
   const updateNesting = <K extends keyof ProjectConfig['nesting']>(
     field: K,
     value: ProjectConfig['nesting'][K]
@@ -866,6 +883,111 @@ export function ProjectSettingsView({
                   disabled
                   value={config.units.length}
                 />
+              </div>
+            </div>
+
+            {/* Workshop & Service Modules (Feature Flags) */}
+            <div className="settings-group-card" style={{ gridColumn: '1 / -1' }}>
+              <h4 className="group-title">Módulos y Herramientas del Taller</h4>
+              <p style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-outline)', margin: '0.25rem 0 0.85rem', lineHeight: 1.4 }}>
+                Activa o desactiva herramientas según los servicios que prestas en tu taller o los que ofrece tu proveedor de corte. Los módulos desactivados no saturarán los formularios.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                <div className="input-field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', minHeight: '48px', padding: '0.35rem 0' }}>
+                  <label htmlFor="feature-labels" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input
+                      id="feature-labels"
+                      type="checkbox"
+                      checked={config.features?.enablePieceLabels ?? true}
+                      onChange={(e) => updateFeature('enablePieceLabels', e.target.checked)}
+                      style={{ marginTop: '0.2rem', minWidth: '20px', minHeight: '20px' }}
+                    />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>🏷️ Impresión de Etiquetas</strong>
+                      <span className="field-hint">Generación de etiquetas A4 troqueladas y rollo térmico continuo para piezas.</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="input-field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', minHeight: '48px', padding: '0.35rem 0' }}>
+                  <label htmlFor="feature-interferences" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input
+                      id="feature-interferences"
+                      type="checkbox"
+                      checked={config.features?.enableInterferencesLab ?? false}
+                      onChange={(e) => updateFeature('enableInterferencesLab', e.target.checked)}
+                      style={{ marginTop: '0.2rem', minWidth: '20px', minHeight: '20px' }}
+                    />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>🏗️ Laboratorio de Interferencias</strong>
+                      <span className="field-hint">Deducciones automáticas para columnas, vigas y paredes en falsa escuadra.</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="input-field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', minHeight: '48px', padding: '0.35rem 0' }}>
+                  <label htmlFor="feature-contour" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input
+                      id="feature-contour"
+                      type="checkbox"
+                      checked={config.features?.enableSecondaryContourCuts ?? false}
+                      onChange={(e) => updateFeature('enableSecondaryContourCuts', e.target.checked)}
+                      style={{ marginTop: '0.2rem', minWidth: '20px', minHeight: '20px' }}
+                    />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>🪚 Cortes Secundarios de Taller</strong>
+                      <span className="field-hint">Chaflanes, cortes diagonales y cortes curvos con caladora o circular.</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="input-field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', minHeight: '48px', padding: '0.35rem 0' }}>
+                  <label htmlFor="feature-led" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input
+                      id="feature-led"
+                      type="checkbox"
+                      checked={config.features?.enableLedInstallations ?? false}
+                      onChange={(e) => updateFeature('enableLedInstallations', e.target.checked)}
+                      style={{ marginTop: '0.2rem', minWidth: '20px', minHeight: '20px' }}
+                    />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>💡 Iluminación LED</strong>
+                      <span className="field-hint">Ranuras para perfiles de aluminio bajo alacena, estantes y pasacables.</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="input-field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', minHeight: '48px', padding: '0.35rem 0' }}>
+                  <label htmlFor="feature-electrical" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input
+                      id="feature-electrical"
+                      type="checkbox"
+                      checked={config.features?.enableElectricalCutouts ?? false}
+                      onChange={(e) => updateFeature('enableElectricalCutouts', e.target.checked)}
+                      style={{ marginTop: '0.2rem', minWidth: '20px', minHeight: '20px' }}
+                    />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>🔌 Cajas Eléctricas & Pasacables</strong>
+                      <span className="field-hint">Calados estándar para enchufes 5x10cm y pasacables de escritorio.</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="input-field-checkbox" style={{ display: 'flex', alignItems: 'flex-start', minHeight: '48px', padding: '0.35rem 0' }}>
+                  <label htmlFor="feature-cnc" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer' }}>
+                    <input
+                      id="feature-cnc"
+                      type="checkbox"
+                      checked={config.features?.enableCncExport ?? false}
+                      onChange={(e) => updateFeature('enableCncExport', e.target.checked)}
+                      style={{ marginTop: '0.2rem', minWidth: '20px', minHeight: '20px' }}
+                    />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.9rem' }}>⚙️ Exportación CNC</strong>
+                      <span className="field-hint">Generación de archivos DXF por capas para centros de maquinado.</span>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
 
