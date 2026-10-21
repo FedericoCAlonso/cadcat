@@ -27,8 +27,10 @@ export interface PieceListViewProps {
   onSetPieceMaterial?: (pieceId: string, materialId: string | null) => void;
   onSetPieceThickness?: (pieceId: string, thicknessMm: number | null) => void;
   onSetPieceEdgeBands?: (pieceId: string, overrides: PieceEdgeBandOverride | null) => void;
-  // Machining modal (Point 8)
+  // Machining modal & export (Point 8)
   onOpenMachiningModal?: (pieceId: string) => void;
+  onExportMachiningPdf?: (pieceId?: string) => void;
+  onExportMachiningDxf?: (pieceId?: string) => void;
   // Multi-module project scope
   projectScope?: 'current-module' | 'all-modules';
   onProjectScopeChange?: (scope: 'current-module' | 'all-modules') => void;
@@ -64,6 +66,8 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     onSetPieceThickness,
     onSetPieceEdgeBands,
     onOpenMachiningModal,
+    onExportMachiningPdf,
+    onExportMachiningDxf,
     projectScope = 'current-module',
     onProjectScopeChange,
     projectModulesCount,
@@ -257,10 +261,11 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                       <button
                         type="button"
                         className="m3-btn m3-btn--small m3-btn--tonal"
-                        style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                        style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '4px' }}
                         onClick={() => onOpenMachiningModal(piece.id)}
+                        title="Ver y editar plano técnico 2D con cotas de taller (Cara A / Cara B)"
                       >
-                        🛠️ Mecanizados
+                        <span>🛠️ Plano / Cotas</span>
                       </button>
                     )}
                   </div>
@@ -464,8 +469,9 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                     e.stopPropagation();
                     onOpenMachiningModal(piece.id);
                   }}
+                  title="Ver y editar plano técnico 2D con cotas de taller (Cara A / Cara B)"
                 >
-                  🛠️ Mecanizar Placa (Ranuras / Fresados)
+                  🛠️ Plano de Taller / Cotas (Cara A/B)
                 </button>
               </div>
             )}
@@ -529,6 +535,46 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             <span className="m3-badge m3-badge--neutral">
               Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
             </span>
+            {onExportMachiningPdf && filteredPieces.length > 0 && (
+              <button
+                type="button"
+                className="m3-button m3-button--tonal"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  minHeight: '40px',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                }}
+                onClick={() => onExportMachiningPdf()}
+                title="Descargar planos de mecanizado de taller en PDF para todas las piezas"
+              >
+                <span>📑 Planos PDF</span>
+              </button>
+            )}
+            {onExportMachiningDxf && filteredPieces.length > 0 && (
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  minHeight: '40px',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                }}
+                onClick={() => onExportMachiningDxf()}
+                title="Descargar archivos DXF para CNC de todas las piezas"
+              >
+                <span>📐 CNC (DXF)</span>
+              </button>
+            )}
             {enablePieceLabels !== false && filteredPieces.length > 0 && (
               <button
                 type="button"
@@ -537,7 +583,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.4rem',
-                  minHeight: '44px',
+                  minHeight: '40px',
                   padding: '0.35rem 0.85rem',
                   fontSize: '0.85rem',
                   fontWeight: 600,

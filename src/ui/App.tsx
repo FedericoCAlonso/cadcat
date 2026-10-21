@@ -26,6 +26,8 @@ export function App(): ReactElement {
   const { themeMode, effectiveTheme, setThemeMode } = useTheme();
   const [machiningPieceId, setMachiningPieceId] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const isDesignTab = vm.activeTab === '3d' || vm.activeTab === 'form';
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -84,108 +86,101 @@ export function App(): ReactElement {
     <div className={`app-wrapper ${isSiteImmersive ? 'app-wrapper--site-immersive' : ''}`}>
       {!isSiteImmersive && (
         <header className="m3-top-app-bar">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img
-              src={logoUrl}
-              alt="CadCat Icon"
-              width="42"
-              height="42"
-              style={{
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-                flexShrink: 0,
-                imageRendering: 'pixelated',
-              }}
-            />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <h1 className="m3-top-app-bar__title">CadCat</h1>
-                <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', fontWeight: 600 }}>
-                  Taller CAD
-                </span>
+          <div className="m3-top-app-bar__inner">
+            <div className="m3-top-app-bar__brand">
+              <img
+                src={logoUrl}
+                alt="CadCat Icon"
+                width="34"
+                height="34"
+                style={{
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+                  flexShrink: 0,
+                  imageRendering: 'pixelated',
+                }}
+              />
+              <div className="m3-top-app-bar__titles">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <h1 className="m3-top-app-bar__title">CadCat</h1>
+                  <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', fontWeight: 600 }}>
+                    Taller CAD
+                  </span>
+                </div>
+                <p className="m3-top-app-bar__subtitle">
+                  <span>Diseño paramétrico y despiece de muebles para taller.</span>
+                  <span className="visually-hidden"> Furniture design progressive web application.</span>
+                </p>
               </div>
-              <p className="m3-top-app-bar__subtitle">
-                <span>Diseño paramétrico y despiece de muebles para taller.</span>
-                <span className="visually-hidden"> Furniture design progressive web application.</span>
-              </p>
+            </div>
+
+            <nav aria-label="Navegación principal" className="m3-tabs">
+              <button
+                type="button"
+                className={`m3-tab-button ${vm.activeTab === '3d' || vm.activeTab === 'form' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('3d')}
+              >
+                <span aria-hidden="true">🧊 </span>
+                <span>Vista 3D</span>
+                <span className="visually-hidden"> 3D Viewport</span>
+              </button>
+              <button
+                type="button"
+                className={`m3-tab-button ${vm.activeTab === 'pieces' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('pieces')}
+              >
+                <span aria-hidden="true">📋 </span>
+                <span>Despiece</span>
+                <span className="visually-hidden"> Piece List</span>
+              </button>
+              <button
+                type="button"
+                className={`m3-tab-button ${vm.activeTab === 'assembly' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('assembly')}
+              >
+                <span aria-hidden="true">📖 </span>
+                <span>Guía de Armado</span>
+                <span className="visually-hidden"> Assembly Guide</span>
+              </button>
+              <button
+                type="button"
+                className={`m3-tab-button ${vm.activeTab === 'countertop' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('countertop')}
+              >
+                <span aria-hidden="true">🪨 </span>
+                <span>Mesada</span>
+                <span className="visually-hidden"> Countertop and Stone Shop Drawing</span>
+              </button>
+              <button
+                type="button"
+                className={`m3-tab-button ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('catalogs')}
+              >
+                <span aria-hidden="true">🗄️ </span>
+                <span>Catálogos</span>
+              </button>
+              <button
+                type="button"
+                className={`m3-tab-button ${vm.activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('settings')}
+              >
+                <span aria-hidden="true">⚙️ </span>
+                <span>Configuración</span>
+              </button>
+            </nav>
+
+            <div className="m3-top-app-bar__actions">
+              <ThemeToggle
+                themeMode={themeMode}
+                effectiveTheme={effectiveTheme}
+                onThemeChange={setThemeMode}
+              />
+              <span className="m3-top-app-bar__version">
+                {`v${APP_VERSION}`}
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
-            <ThemeToggle
-              themeMode={themeMode}
-              effectiveTheme={effectiveTheme}
-              onThemeChange={setThemeMode}
-            />
-            <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-outline)', opacity: 0.9, fontWeight: 600 }}>
-              {`v${APP_VERSION}`}
-            </span>
-          </div>
-        </div>
-
-        <nav aria-label="Navegación principal" className="m3-tabs">
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === '3d' || vm.activeTab === 'form' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('3d')}
-          >
-            <span aria-hidden="true">🧊 </span>
-            <span>Vista 3D</span>
-            <span className="visually-hidden"> 3D Viewport</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'pieces' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('pieces')}
-          >
-            <span aria-hidden="true">📋 </span>
-            <span>Despiece</span>
-            <span className="visually-hidden"> Piece List</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'machining' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('machining')}
-          >
-            <span aria-hidden="true">🛠️ </span>
-            <span>Mecanizado</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'assembly' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('assembly')}
-          >
-            <span aria-hidden="true">📖 </span>
-            <span>Guía de Armado</span>
-            <span className="visually-hidden"> Assembly Guide</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'countertop' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('countertop')}
-          >
-            <span aria-hidden="true">🪨 </span>
-            <span>Mesada</span>
-            <span className="visually-hidden"> Countertop and Stone Shop Drawing</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'catalogs' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('catalogs')}
-          >
-            <span aria-hidden="true">🗄️ </span>
-            <span>Catálogos</span>
-          </button>
-          <button
-            type="button"
-            className={`m3-tab-button ${vm.activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => vm.setActiveTab('settings')}
-          >
-            <span aria-hidden="true">⚙️ </span>
-            <span>Configuración</span>
-          </button>
-        </nav>
-      </header>
+        </header>
       )}
 
       <main className={`m3-container ${isSiteImmersive ? 'm3-container--site-immersive' : ''}`}>
@@ -426,11 +421,24 @@ export function App(): ReactElement {
 
         {!vm.isLoading && (
           <div
-            className="layout-grid layout-grid--two-col"
+            className={`layout-grid ${isDesignTab && !isSidebarCollapsed ? 'layout-grid--two-col' : 'layout-grid--single-col'}`}
             data-mobile-view={vm.activeTab === 'form' ? 'form' : 'workspace'}
           >
-            <aside aria-label="Module Parameters" className="layout-aside">
-              {vm.uiMode === 'site' && vm.isOneHandDevice ? (
+            {isDesignTab && !isSidebarCollapsed && (
+              <aside aria-label="Module Parameters" className="layout-aside">
+                <div className="layout-aside__collapse-bar">
+                  <button
+                    type="button"
+                    className="m3-button m3-button--text"
+                    onClick={() => setIsSidebarCollapsed(true)}
+                    title="Ocultar panel lateral para ampliar la vista 3D"
+                    aria-label="Ocultar panel de parámetros"
+                    style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', minHeight: '30px' }}
+                  >
+                    <span>◀ Ocultar panel</span>
+                  </button>
+                </div>
+                {vm.uiMode === 'site' && vm.isOneHandDevice ? (
                 <ModoObraWizard
                   projectModules={vm.projectModules}
                   activeModuleId={vm.activeModuleId}
@@ -631,9 +639,21 @@ export function App(): ReactElement {
                 onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}
               />
             )}
-          </aside>
+              </aside>
+            )}
 
           <section aria-label="Module Visualization" className="layout-main">
+            {isDesignTab && isSidebarCollapsed && (
+              <button
+                type="button"
+                className="m3-button m3-button--filled layout-expand-sidebar-btn"
+                onClick={() => setIsSidebarCollapsed(false)}
+                title="Mostrar panel de parámetros"
+                aria-label="Mostrar panel de parámetros"
+              >
+                <span>📐 Parámetros</span>
+              </button>
+            )}
             {!isSiteImmersive && (vm.activeTab === '3d' || vm.activeTab === 'form') && (
               <>
                 <Viewport3D
@@ -714,6 +734,8 @@ export function App(): ReactElement {
                   onSetPieceThickness={vm.setPieceThickness}
                   onSetPieceEdgeBands={vm.setPieceEdgeBands}
                   onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                  onExportMachiningPdf={vm.exportMachiningPdf}
+                  onExportMachiningDxf={vm.exportMachiningDxf}
                   enablePieceLabels={vm.projectConfig?.features?.enablePieceLabels ?? true}
                   orderId={vm.projectConfig?.projectId ?? 'ORD-001'}
                   clientName={vm.projectConfig?.clientName ?? 'Cliente Taller'}
@@ -868,7 +890,7 @@ export function App(): ReactElement {
               triggerHaptic('tick');
               setIsMoreSheetOpen((prev) => !prev);
             }}
-            aria-label="Más herramientas y vistas de taller"
+            aria-label="Más herramientas y vistas de taller (Mecanizado, Armado, Mesada)"
             aria-expanded={isMoreSheetOpen}
           >
             <div className="m3-bottom-nav__indicator">

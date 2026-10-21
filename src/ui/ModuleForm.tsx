@@ -343,6 +343,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [showAllRoleMaterials, setShowAllRoleMaterials] = useState(false);
+  const [activeSection, setActiveSection] = useState<'all' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences'>('all');
 
   const hasDoorsOrFronts =
     Boolean(frontsMaterialId) ||
@@ -1169,9 +1170,66 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         />
       </div>
 
+      {/* Selector Rápido de Secciones Temáticas */}
+      <nav
+        aria-label="Secciones del configurador"
+        className="builder-segmented-group"
+        style={{
+          margin: '0.85rem 0',
+          overflowX: 'auto',
+          paddingBottom: '0.25rem',
+        }}
+      >
+        <button
+          type="button"
+          className={`builder-segmented-btn ${activeSection === 'all' ? 'selected' : ''}`}
+          onClick={() => setActiveSection('all')}
+        >
+          <span>👁️ Todo</span>
+        </button>
+        <button
+          type="button"
+          className={`builder-segmented-btn ${activeSection === 'structure' ? 'selected' : ''}`}
+          onClick={() => setActiveSection('structure')}
+        >
+          <span>🏗️ Estructura</span>
+        </button>
+        <button
+          type="button"
+          className={`builder-segmented-btn ${activeSection === 'distribution' ? 'selected' : ''}`}
+          onClick={() => setActiveSection('distribution')}
+        >
+          <span>🔲 Vanos</span>
+        </button>
+        <button
+          type="button"
+          className={`builder-segmented-btn ${activeSection === 'interior' ? 'selected' : ''}`}
+          onClick={() => setActiveSection('interior')}
+        >
+          <span>🚪 Interior</span>
+        </button>
+        <button
+          type="button"
+          className={`builder-segmented-btn ${activeSection === 'materials' ? 'selected' : ''}`}
+          onClick={() => setActiveSection('materials')}
+        >
+          <span>🎨 Materiales</span>
+        </button>
+        {enableInterferencesLab && (
+          <button
+            type="button"
+            className={`builder-segmented-btn ${activeSection === 'interferences' ? 'selected' : ''}`}
+            onClick={() => setActiveSection('interferences')}
+          >
+            <span>📐 Interferencias</span>
+          </button>
+        )}
+      </nav>
+
       {/* =========================================================================
           SECCIÓN 1: Casco y Tapa Superior
           ========================================================================= */}
+      {(activeSection === 'all' || activeSection === 'structure') && (
       <fieldset className="builder-section">
         <legend className="builder-section-title">
           <span>🏗️ Estructura del Casco y Techo</span>
@@ -1511,11 +1569,12 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           )}
         </div>
       </fieldset>
+      )}
 
       {/* =========================================================================
           SECCIÓN INTERMEDIA: Laboratorio de Interferencias Arquitectónicas
           ========================================================================= */}
-      {enableInterferencesLab && (
+      {enableInterferencesLab && (activeSection === 'all' || activeSection === 'interferences') && (
         <fieldset className="builder-section" style={{ border: '1px dashed var(--md-sys-color-outline)' }}>
           <legend className="builder-section-title">
             <span>📐 Laboratorio de Interferencias Arquitectónicas</span>
@@ -1793,6 +1852,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {/* =========================================================================
           SECCIÓN 2: Distribución de Vanos
           ========================================================================= */}
+      {(activeSection === 'all' || activeSection === 'distribution') && (
       <fieldset className="builder-section">
         <legend className="builder-section-title">
           <span>🔲 Distribución de Vanos</span>
@@ -1831,10 +1891,12 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         </div>
       </fieldset>
+      )}
 
       {/* =========================================================================
           SECCIÓN 3: Equipamiento Interior (Cajones, Estantes, Puertas, Tapas)
           ========================================================================= */}
+      {(activeSection === 'all' || activeSection === 'interior') && (
       <fieldset className="builder-section">
         <legend className="builder-section-title">
           <span>🚪 Equipamiento Interior</span>
@@ -2500,10 +2562,12 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </p>
         )}
       </fieldset>
+      )}
 
       {/* =========================================================================
           SECCIÓN 4: Materiales por Rol (Multi-Material)
           ========================================================================= */}
+      {(activeSection === 'all' || activeSection === 'materials') && (
       <fieldset
         className="builder-section"
         style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}
@@ -2656,6 +2720,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
       </fieldset>
+      )}
       </>
     )}
 
