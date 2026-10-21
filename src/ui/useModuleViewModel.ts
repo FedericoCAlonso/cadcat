@@ -21,6 +21,11 @@ import {
   type Project,
   type ProjectModuleItem,
   createDefaultProject,
+  type InterferenceConfig,
+  type ColumnObstacle,
+  type FalseSquare,
+  DEFAULT_COLUMN_OBSTACLE,
+  DEFAULT_FALSE_SQUARE,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -344,6 +349,12 @@ export interface ModuleViewModelState {
   setSinkDrawerAdaptation: (mode: 'false-front' | 'u-shape-drawer' | 'none') => void;
   setCountertopFrontRailOrientation: (orientation: 'vertical' | 'horizontal' | 'suppressed') => void;
   exportMarmoleriaPdfReport: () => void;
+  // Architectural Interferences Lab (Hito 2)
+  interferences: InterferenceConfig;
+  columnObstacle: ColumnObstacle;
+  falseSquare: FalseSquare;
+  setColumnObstacle: (col: ColumnObstacle) => void;
+  setFalseSquare: (fs: FalseSquare) => void;
   // Multi-module project management
   project: Project | null;
   projectModules: ProjectModuleItem[];
@@ -466,6 +477,7 @@ function resolveInactiveModule(
           backingsMaterialId: backingMat?.id ?? activeMat.id,
         },
         edgeBandId: item.selectedEdgeBandId || undefined,
+        interferences: item.interferences,
       };
 
       const built = buildModularModule(modularDef, {
@@ -754,6 +766,15 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [countertopBacksplashHeightMm, setCountertopBacksplashHeightMm] = useState<number>(DEFAULT_COUNTERTOP_CONFIG.backsplashHeightMm);
   const [sinkDrawerAdaptation, setSinkDrawerAdaptation] = useState<'false-front' | 'u-shape-drawer' | 'none'>(DEFAULT_COUNTERTOP_CONFIG.sinkDrawerAdaptation);
   const [countertopFrontRailOrientation, setCountertopFrontRailOrientation] = useState<'vertical' | 'horizontal' | 'suppressed'>(DEFAULT_COUNTERTOP_CONFIG.frontRailOrientation);
+
+  // Architectural Interferences Lab state (Hito 2)
+  const [columnObstacle, setColumnObstacle] = useState<ColumnObstacle>(DEFAULT_COLUMN_OBSTACLE);
+  const [falseSquare, setFalseSquare] = useState<FalseSquare>(DEFAULT_FALSE_SQUARE);
+
+  const interferences = useMemo<InterferenceConfig>(() => ({
+    columnObstacle,
+    falseSquare,
+  }), [columnObstacle, falseSquare]);
 
   // Templates list exposed to UI: single base empty carcass + modular presets + wall shelves + user templates
   const templates = useMemo<TemplateDefinition[]>(() => {
@@ -1414,6 +1435,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
           if (activeMod.bays) setBaysState(activeMod.bays);
           if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
+          if (activeMod.interferences?.columnObstacle) {
+            setColumnObstacle(activeMod.interferences.columnObstacle);
+          }
+          if (activeMod.interferences?.falseSquare) {
+            setFalseSquare(activeMod.interferences.falseSquare);
+          }
         } else {
           const defProj = createDefaultProject({
             id: 'mod-1',
@@ -1943,6 +1970,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             pieceEdgeBandOverrides,
           },
           edgeBandId: selectedEdgeBandId || undefined,
+          interferences,
         };
 
         const backingMat = materials.find((m) => m.id === backingsMaterialId);
@@ -2445,6 +2473,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       pieceEdgeBandOverrides,
       countertopEnabled,
       countertopDefinition,
+      interferences,
     };
   }, [
     activeModuleId,
@@ -2477,6 +2506,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     pieceEdgeBandOverrides,
     countertopEnabled,
     countertopDefinition,
+    interferences,
   ]);
 
   const setActiveModule = useCallback((targetModuleId: string) => {
@@ -2516,6 +2546,16 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (targetModule.pieceMaterialOverrides) setPieceMaterialOverrides(targetModule.pieceMaterialOverrides);
     if (targetModule.pieceThicknessOverrides) setPieceThicknessOverrides(targetModule.pieceThicknessOverrides);
     if (targetModule.pieceEdgeBandOverrides) setPieceEdgeBandOverrides(targetModule.pieceEdgeBandOverrides);
+    if (targetModule.interferences?.columnObstacle) {
+      setColumnObstacle(targetModule.interferences.columnObstacle);
+    } else {
+      setColumnObstacle(DEFAULT_COLUMN_OBSTACLE);
+    }
+    if (targetModule.interferences?.falseSquare) {
+      setFalseSquare(targetModule.interferences.falseSquare);
+    } else {
+      setFalseSquare(DEFAULT_FALSE_SQUARE);
+    }
 
     setActiveModuleId(targetModuleId);
     setStatusMessage(`Cambiado al módulo "${targetModule.name}".`);
@@ -3227,6 +3267,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSinkDrawerAdaptation,
     setCountertopFrontRailOrientation,
     exportMarmoleriaPdfReport,
+    // Architectural Interferences Lab (Hito 2)
+    interferences,
+    columnObstacle,
+    falseSquare,
+    setColumnObstacle,
+    setFalseSquare,
     // Multi-module project management
     project,
     projectModules,

@@ -3,6 +3,7 @@ import {
   type Face,
   type Piece,
   type Point2D,
+  type SecondaryCut,
   validatePiece,
 } from '../model';
 
@@ -24,6 +25,9 @@ export interface CreatePieceInput {
   referenceFace?: 'A' | 'B';
   edgeFaceIds?: string[];
   isAuxiliary?: boolean;
+  rawBoundingBox?: { widthMm: number; heightMm: number };
+  secondaryCuts?: SecondaryCut[];
+  notes?: string[];
 }
 
 /**
@@ -155,6 +159,9 @@ export function createPiece(input: CreatePieceInput): Piece {
     structural: input.structural ?? isDefaultStructuralRole(input.role),
     referenceFace: input.referenceFace ?? 'A',
     isAuxiliary: input.isAuxiliary,
+    rawBoundingBox: input.rawBoundingBox,
+    secondaryCuts: input.secondaryCuts,
+    notes: input.notes,
   };
 
   return validatePiece(piece);

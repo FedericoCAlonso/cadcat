@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react';
-import type { Material, EdgeBand, JointStrategy, Project, ProjectModuleItem } from '../model';
+import type { Material, EdgeBand, JointStrategy, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
 import type {
   TemplateDefinition,
   RoofType,
@@ -143,6 +143,12 @@ export interface ModuleFormProps {
   onIsIslandCabinetChange?: (val: boolean) => void;
   onRearStructuralRailsChange?: (val: RearStructuralRails) => void;
   onRearStructuralRailsWidthChange?: (val: number) => void;
+  // Architectural Interferences Lab (Hito 2)
+  enableInterferencesLab?: boolean;
+  columnObstacle?: ColumnObstacle;
+  falseSquare?: FalseSquare;
+  onColumnObstacleChange?: (col: ColumnObstacle) => void;
+  onFalseSquareChange?: (fs: FalseSquare) => void;
   // Wall Shelves props
   wallShelvesBracketType?: BracketType;
   wallShelvesWallType?: WallType;
@@ -276,6 +282,11 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onIsIslandCabinetChange,
     onRearStructuralRailsChange,
     onRearStructuralRailsWidthChange,
+    enableInterferencesLab = false,
+    columnObstacle,
+    falseSquare,
+    onColumnObstacleChange,
+    onFalseSquareChange,
     wallShelvesBracketType = 'l-bracket',
     wallShelvesWallType = 'solid-brick',
     wallShelvesLoadCategory = 'medium',
@@ -1496,6 +1507,158 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           )}
         </div>
       </fieldset>
+
+      {/* =========================================================================
+          SECCIÓN INTERMEDIA: Laboratorio de Interferencias Arquitectónicas
+          ========================================================================= */}
+      {enableInterferencesLab && (
+        <fieldset className="builder-section" style={{ border: '1px dashed var(--md-sys-color-outline)' }}>
+          <legend className="builder-section-title">
+            <span>📐 Laboratorio de Interferencias Arquitectónicas</span>
+          </legend>
+
+          {/* Columna o Viga en Rincón Trasero */}
+          <div className="builder-subcard" style={{ marginBottom: '1rem', padding: '1rem', borderRadius: '12px', backgroundColor: 'var(--md-sys-color-surface-container-low)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+              <div>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--md-sys-color-on-surface)' }}>🏛️ Columna / Viga en Rincón Trasero</strong>
+                <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                  Ajusta la profundidad del lateral y deduce el destaje en piso, techo y estantes.
+                </span>
+              </div>
+              <label className="m3-switch" style={{ minWidth: '48px', minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={columnObstacle?.enabled ?? false}
+                  onChange={(e) => {
+                    onColumnObstacleChange?.({
+                      enabled: e.target.checked,
+                      corner: columnObstacle?.corner ?? 'back-left',
+                      widthMm: columnObstacle?.widthMm ?? 150,
+                      depthMm: columnObstacle?.depthMm ?? 120,
+                    });
+                  }}
+                  aria-label="Habilitar columna en rincón trasero"
+                />
+                <span className="m3-switch__slider"></span>
+              </label>
+            </div>
+
+            {columnObstacle?.enabled && (
+              <div style={{ marginTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="form-group">
+                  <label>Rincón del obstáculo:</label>
+                  <div className="builder-segmented-group" role="group" aria-label="Rincón de la columna">
+                    <button
+                      type="button"
+                      className={`builder-segmented-btn ${columnObstacle.corner === 'back-left' ? 'selected' : ''}`}
+                      onClick={() => onColumnObstacleChange?.({ ...columnObstacle, corner: 'back-left' })}
+                    >
+                      ⬅️ Trasero Izquierdo
+                    </button>
+                    <button
+                      type="button"
+                      className={`builder-segmented-btn ${columnObstacle.corner === 'back-right' ? 'selected' : ''}`}
+                      onClick={() => onColumnObstacleChange?.({ ...columnObstacle, corner: 'back-right' })}
+                    >
+                      Trasero Derecho ➡️
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                  <div className="form-group">
+                    <label htmlFor="col-width-input">Ancho en X (mm):</label>
+                    <NumericInput
+                      id="col-width-input"
+                      min={50}
+                      max={Math.max(100, width - 100)}
+                      step={10}
+                      value={columnObstacle.widthMm}
+                      unit="mm"
+                      showStepper={true}
+                      onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, widthMm: val })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="col-depth-input">Profundidad en Z (mm):</label>
+                    <NumericInput
+                      id="col-depth-input"
+                      min={30}
+                      max={Math.max(60, depth - 60)}
+                      step={10}
+                      value={columnObstacle.depthMm}
+                      unit="mm"
+                      showStepper={true}
+                      onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, depthMm: val })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pared en Falsa Escuadra */}
+          <div className="builder-subcard" style={{ padding: '1rem', borderRadius: '12px', backgroundColor: 'var(--md-sys-color-surface-container-low)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+              <div>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--md-sys-color-on-surface)' }}>📐 Pared en Falsa Escuadra</strong>
+                <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                  Piso y techo trapezoidales, laterales según profundidad y frente recto coplanar a 90°.
+                </span>
+              </div>
+              <label className="m3-switch" style={{ minWidth: '48px', minHeight: '48px', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={falseSquare?.enabled ?? false}
+                  onChange={(e) => {
+                    onFalseSquareChange?.({
+                      enabled: e.target.checked,
+                      leftDepthMm: falseSquare?.leftDepthMm ?? depth,
+                      rightDepthMm: falseSquare?.rightDepthMm ?? Math.max(100, depth - 40),
+                    });
+                  }}
+                  aria-label="Habilitar pared en falsa escuadra"
+                />
+                <span className="m3-switch__slider"></span>
+              </label>
+            </div>
+
+            {falseSquare?.enabled && (
+              <div style={{ marginTop: '0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                <div className="form-group">
+                  <label htmlFor="fs-left-depth-input">Profundidad Izquierda (mm):</label>
+                  <NumericInput
+                    id="fs-left-depth-input"
+                    min={100}
+                    max={1200}
+                    step={10}
+                    value={falseSquare.leftDepthMm}
+                    unit="mm"
+                    showStepper={true}
+                    onChange={(val) => onFalseSquareChange?.({ ...falseSquare, leftDepthMm: val })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="fs-right-depth-input">Profundidad Derecha (mm):</label>
+                  <NumericInput
+                    id="fs-right-depth-input"
+                    min={100}
+                    max={1200}
+                    step={10}
+                    value={falseSquare.rightDepthMm}
+                    unit="mm"
+                    showStepper={true}
+                    onChange={(val) => onFalseSquareChange?.({ ...falseSquare, rightDepthMm: val })}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </fieldset>
+      )}
 
       {/* =========================================================================
           SECCIÓN 2: Distribución de Vanos

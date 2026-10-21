@@ -74,10 +74,19 @@ export function calculatePieceCutSize(
   const edgeBandMap = createEdgeBandMap(edgeBands);
   const segments = getContourSegments(piece.contour);
 
+  const polyMinX = Math.min(...piece.contour.points.map((p) => p.x));
+  const polyMaxX = Math.max(...piece.contour.points.map((p) => p.x));
+  const polyMinY = Math.min(...piece.contour.points.map((p) => p.y));
+  const polyMaxY = Math.max(...piece.contour.points.map((p) => p.y));
+  const polyWidth = Math.max(1, polyMaxX - polyMinX);
+  const polyHeight = Math.max(1, polyMaxY - polyMinY);
+
   const width = finishedWidth ??
-    ('dimensionsMm' in piece ? piece.dimensionsMm.width : (piece.contour.points[1]?.x ?? 0));
+    (piece.rawBoundingBox?.widthMm ??
+      ('dimensionsMm' in piece ? piece.dimensionsMm.width : polyWidth));
   const height = finishedHeight ??
-    ('dimensionsMm' in piece ? piece.dimensionsMm.height : (piece.contour.points[2]?.y ?? 0));
+    (piece.rawBoundingBox?.heightMm ??
+      ('dimensionsMm' in piece ? piece.dimensionsMm.height : polyHeight));
 
   let leftDeduction = 0;
   let rightDeduction = 0;

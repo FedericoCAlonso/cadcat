@@ -62,6 +62,94 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
       shelfRes.placementNode.relativeOffset.x =
         bay.x + (shelfType === 'adjustable' ? 1 : 0);
 
+      // Adapt shelf geometry for architectural interferences (column obstacle or false square)
+      const column = bay.interferences?.columnObstacle?.enabled ? bay.interferences.columnObstacle : undefined;
+      const falseSquare = bay.interferences?.falseSquare?.enabled ? bay.interferences.falseSquare : undefined;
+
+      if (column) {
+        const bayLeft = bay.x;
+        const bayRight = bay.x + bay.width;
+        const totalW = bay.overallWidth ?? (bayRight + T);
+        const shelfWidth = shelfRes.piece.contour.points[1]?.x ?? bay.width;
+        const shelfDepth = shelfRes.piece.contour.points[2]?.y ?? (bay.depth - setbackMm);
+
+        if (column.corner === 'back-left' && bayLeft < column.widthMm) {
+          const notchWidth = Math.min(shelfWidth - 30, Math.max(10, column.widthMm - bayLeft));
+          const notchDepth = column.depthMm;
+          const innerDepth = Math.max(20, shelfDepth - notchDepth);
+
+          shelfRes.piece.contour = {
+            points: [
+              { x: 0, y: 0 },
+              { x: shelfWidth, y: 0 },
+              { x: shelfWidth, y: shelfDepth },
+              { x: notchWidth, y: shelfDepth },
+              { x: notchWidth, y: innerDepth },
+              { x: 0, y: innerDepth },
+            ],
+          };
+          shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
+          shelfRes.piece.secondaryCuts = [
+            {
+              type: 'notch',
+              corner: 'back-left',
+              widthMm: notchWidth,
+              depthMm: notchDepth,
+              description: `Destaje para columna trasera izquierda: ${notchWidth} x ${notchDepth} mm`,
+            },
+          ];
+        } else if (column.corner === 'back-right' && bayRight > totalW - column.widthMm) {
+          const notchWidth = Math.min(shelfWidth - 30, Math.max(10, bayRight - (totalW - column.widthMm)));
+          const notchDepth = column.depthMm;
+          const innerDepth = Math.max(20, shelfDepth - notchDepth);
+
+          shelfRes.piece.contour = {
+            points: [
+              { x: 0, y: 0 },
+              { x: shelfWidth, y: 0 },
+              { x: shelfWidth, y: innerDepth },
+              { x: shelfWidth - notchWidth, y: innerDepth },
+              { x: shelfWidth - notchWidth, y: shelfDepth },
+              { x: 0, y: shelfDepth },
+            ],
+          };
+          shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
+          shelfRes.piece.secondaryCuts = [
+            {
+              type: 'notch',
+              corner: 'back-right',
+              widthMm: notchWidth,
+              depthMm: notchDepth,
+              description: `Destaje para columna trasera derecha: ${notchWidth} x ${notchDepth} mm`,
+            },
+          ];
+        }
+      } else if (falseSquare) {
+        const totalW = bay.overallWidth ?? (bay.width + 2 * T);
+        const shelfWidth = shelfRes.piece.contour.points[1]?.x ?? bay.width;
+        const leftDepth = falseSquare.leftDepthMm;
+        const rightDepth = falseSquare.rightDepthMm;
+        const shelfDepthLeft = Math.round(leftDepth + (bay.x / totalW) * (rightDepth - leftDepth) - setbackMm);
+        const shelfDepthRight = Math.round(leftDepth + ((bay.x + bay.width) / totalW) * (rightDepth - leftDepth) - setbackMm);
+
+        shelfRes.piece.contour = {
+          points: [
+            { x: 0, y: 0 },
+            { x: shelfWidth, y: 0 },
+            { x: shelfWidth, y: shelfDepthRight },
+            { x: 0, y: shelfDepthLeft },
+          ],
+        };
+        shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: Math.max(shelfDepthLeft, shelfDepthRight) };
+        shelfRes.piece.secondaryCuts = [
+          {
+            type: 'bevel-diagonal',
+            description: `Chaflán trasera falsa escuadra: ${shelfDepthLeft} mm a ${shelfDepthRight} mm`,
+            angleDeg: Math.round(Math.atan2(Math.abs(shelfDepthRight - shelfDepthLeft), shelfWidth) * (180 / Math.PI) * 10) / 10,
+          },
+        ];
+      }
+
       pieces.push(shelfRes.piece);
       placementNodes.push(shelfRes.placementNode);
 

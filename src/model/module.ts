@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { pieceSchema } from './piece';
 import { jointSchema } from './joint';
+import { interferenceConfigSchema } from './interferences';
 
 /**
  * A sub-assembly created from a template.
@@ -36,6 +37,7 @@ export const moduleSchema = z.object({
   joints: z.array(jointSchema),
   subAssemblies: z.array(subAssemblySchema),
   overrides: z.record(z.string(), overrideSchema),
+  interferences: interferenceConfigSchema.optional(),
 });
 export type Module = z.infer<typeof moduleSchema>;
 

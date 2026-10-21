@@ -242,6 +242,9 @@ export function subdivideBay(
         rightPieceId,
         bottomPieceId: parentBay.bottomPieceId,
         topPieceId: parentBay.topPieceId,
+        interferences: parentBay.interferences,
+        overallWidth: parentBay.overallWidth,
+        overallDepth: parentBay.overallDepth,
       });
     } else {
       const bottomPieceId = i === 0 ? parentBay.bottomPieceId : dividerPieces[i - 1]!.id;
@@ -260,6 +263,9 @@ export function subdivideBay(
         rightPieceId: parentBay.rightPieceId,
         bottomPieceId,
         topPieceId,
+        interferences: parentBay.interferences,
+        overallWidth: parentBay.overallWidth,
+        overallDepth: parentBay.overallDepth,
       });
     }
   }

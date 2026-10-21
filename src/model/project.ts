@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { jointStrategySchema } from './projectConfig';
+import { interferenceConfigSchema } from './interferences';
 
 export const projectModuleItemSchema = z.object({
   id: z.string().min(1),
@@ -33,6 +34,7 @@ export const projectModuleItemSchema = z.object({
   pieceEdgeBandOverrides: z.record(z.string(), z.any()).optional(),
   countertopEnabled: z.boolean().optional(),
   countertopDefinition: z.any().optional(),
+  interferences: interferenceConfigSchema.optional(),
 });
 export type ProjectModuleItem = z.infer<typeof projectModuleItemSchema>;
 

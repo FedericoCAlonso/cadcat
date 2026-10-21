@@ -175,6 +175,20 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   <strong>{translatePieceRole(piece.role)}</strong>
                   <br />
                   <code className="piece-tag">{piece.id}</code>
+                  {piece.secondaryCuts && piece.secondaryCuts.length > 0 && (
+                    <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      {piece.secondaryCuts.map((sc, scIdx) => (
+                        <span
+                          key={scIdx}
+                          className="m3-badge m3-badge--warning"
+                          style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
+                          title={sc.description}
+                        >
+                          ✂️ {sc.description}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <span className="m3-badge m3-badge--neutral">
@@ -410,6 +424,31 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   {deflection.hasWarning
                     ? `⚠️ Flecha: ${deflection.calculatedDeflectionMm.toFixed(2)} mm (máx ${deflection.allowableDeflectionMm.toFixed(2)} mm)`
                     : `✓ Flecha: ${deflection.calculatedDeflectionMm.toFixed(2)} mm (ok)`}
+                </div>
+              )}
+
+              {/* Secondary operations (notches, diagonal cuts) */}
+              {piece.secondaryCuts && piece.secondaryCuts.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '0.2rem' }}>
+                  {piece.secondaryCuts.map((sc, scIdx) => (
+                    <div
+                      key={scIdx}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--md-sys-color-warning-container)',
+                        color: 'var(--md-sys-color-on-warning-container)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <span>✂️</span>
+                      <span>{sc.description}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

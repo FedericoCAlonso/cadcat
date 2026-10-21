@@ -1,4 +1,4 @@
-import { type Piece, type Joint } from '../../model';
+import { type Piece, type Joint, type InterferenceConfig } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
@@ -15,6 +15,7 @@ export interface AnchorSolverInput {
   backingThicknessMm?: number;
   edgeBandId?: string;
   idPrefix?: string;
+  interferences?: InterferenceConfig;
 }
 
 export interface AnchorSolverResult {
@@ -27,6 +28,7 @@ export interface AnchorSolverResult {
   rightPieceId: string;
   bottomPieceId: string;
   topPieceId: string;
+  interferences?: InterferenceConfig;
 }
 
 /**
@@ -81,36 +83,165 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
   const rootPieceId = leftPieceId;
   const plinthY = hasPlinth ? plinthHeightMm : 0;
 
+  const column = input.interferences?.columnObstacle?.enabled ? input.interferences.columnObstacle : undefined;
+  const falseSquare = input.interferences?.falseSquare?.enabled ? input.interferences.falseSquare : undefined;
+
+  let leftSideDepth = depth;
+  let rightSideDepth = depth;
+
+  if (falseSquare) {
+    leftSideDepth = falseSquare.leftDepthMm;
+    rightSideDepth = falseSquare.rightDepthMm;
+  } else if (column) {
+    if (column.corner === 'back-left') {
+      leftSideDepth = Math.max(50, depth - column.depthMm);
+    } else if (column.corner === 'back-right') {
+      rightSideDepth = Math.max(50, depth - column.depthMm);
+    }
+  }
+
+  const minCarcassDepth = Math.min(leftSideDepth, rightSideDepth);
+
+  // Helper to build horizontal panel (bottom / roof) contour with obstacles
+  function createHorizontalPanelContour(panelWidth: number) {
+    if (falseSquare) {
+      return {
+        contour: {
+          points: [
+            { x: 0, y: 0 },
+            { x: panelWidth, y: 0 },
+            { x: panelWidth, y: rightSideDepth },
+            { x: 0, y: leftSideDepth },
+          ],
+        },
+        rawBoundingBox: { widthMm: panelWidth, heightMm: Math.max(leftSideDepth, rightSideDepth) },
+        secondaryCuts: [
+          {
+            type: 'bevel-diagonal' as const,
+            description: `Corte en falsa escuadra: chaflán trasero de ${leftSideDepth} mm a ${rightSideDepth} mm`,
+            angleDeg: Math.round(Math.atan2(Math.abs(rightSideDepth - leftSideDepth), panelWidth) * (180 / Math.PI) * 10) / 10,
+          },
+        ],
+      };
+    }
+
+    if (column) {
+      const notchW = Math.min(panelWidth - 40, Math.max(20, column.widthMm - (jointPriority === 'lateral-over-bottom' ? T : 0)));
+      const notchD = column.depthMm;
+      const innerD = Math.max(20, depth - notchD);
+
+      if (column.corner === 'back-left') {
+        return {
+          contour: {
+            points: [
+              { x: 0, y: 0 },
+              { x: panelWidth, y: 0 },
+              { x: panelWidth, y: depth },
+              { x: notchW, y: depth },
+              { x: notchW, y: innerD },
+              { x: 0, y: innerD },
+            ],
+          },
+          rawBoundingBox: { widthMm: panelWidth, heightMm: depth },
+          secondaryCuts: [
+            {
+              type: 'notch' as const,
+              corner: 'back-left' as const,
+              widthMm: notchW,
+              depthMm: notchD,
+              description: `Destaje para columna trasera izquierda: ${notchW} x ${notchD} mm`,
+            },
+          ],
+        };
+      } else {
+        return {
+          contour: {
+            points: [
+              { x: 0, y: 0 },
+              { x: panelWidth, y: 0 },
+              { x: panelWidth, y: innerD },
+              { x: panelWidth - notchW, y: innerD },
+              { x: panelWidth - notchW, y: depth },
+              { x: 0, y: depth },
+            ],
+          },
+          rawBoundingBox: { widthMm: panelWidth, heightMm: depth },
+          secondaryCuts: [
+            {
+              type: 'notch' as const,
+              corner: 'back-right' as const,
+              widthMm: notchW,
+              depthMm: notchD,
+              description: `Destaje para columna trasera derecha: ${notchW} x ${notchD} mm`,
+            },
+          ],
+        };
+      }
+    }
+
+    return {
+      contour: createRectangularContour(panelWidth, depth),
+      rawBoundingBox: undefined,
+      secondaryCuts: undefined,
+    };
+  }
+
   // 1. Carcass Sides and Bottom
   if (jointPriority === 'lateral-over-bottom' || jointPriority === 'miter-45') {
     // Left & Right sides run full height
+    const sideLeftSecondaryCuts = column?.corner === 'back-left'
+      ? [{
+          type: 'notch' as const,
+          corner: 'back-left' as const,
+          widthMm: column.depthMm,
+          depthMm: 0,
+          description: `Lateral acortado por columna: ${leftSideDepth} mm (reducido ${column.depthMm} mm)`,
+        }]
+      : undefined;
+
+    const sideRightSecondaryCuts = column?.corner === 'back-right'
+      ? [{
+          type: 'notch' as const,
+          corner: 'back-right' as const,
+          widthMm: column.depthMm,
+          depthMm: 0,
+          description: `Lateral acortado por columna: ${rightSideDepth} mm (reducido ${column.depthMm} mm)`,
+        }]
+      : undefined;
+
     const sideLeft = createPiece({
       id: leftPieceId,
       role: 'side-left',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(depth, height),
+      contour: createRectangularContour(leftSideDepth, height),
       thicknessMm: T,
       structural: true,
+      secondaryCuts: sideLeftSecondaryCuts,
     });
 
     const sideRight = createPiece({
       id: rightPieceId,
       role: 'side-right',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(depth, height),
+      contour: createRectangularContour(rightSideDepth, height),
       thicknessMm: T,
       structural: true,
+      secondaryCuts: sideRightSecondaryCuts,
     });
 
     // Bottom panel fits between sides
     const bottomWidth = width - 2 * T;
+    const bottomContourRes = createHorizontalPanelContour(bottomWidth);
+
     const bottom = createPiece({
       id: bottomPieceId,
       role: 'bottom',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(bottomWidth, depth),
+      contour: bottomContourRes.contour,
       thicknessMm: T,
       structural: true,
+      rawBoundingBox: bottomContourRes.rawBoundingBox,
+      secondaryCuts: bottomContourRes.secondaryCuts,
     });
 
     if (edgeBandId) {
@@ -152,33 +283,58 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     );
   } else {
     // bottom-over-lateral: Bottom panel runs full width
+    const bottomContourRes = createHorizontalPanelContour(width);
     const bottom = createPiece({
       id: bottomPieceId,
       role: 'bottom',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(width, depth),
+      contour: bottomContourRes.contour,
       thicknessMm: T,
       structural: true,
+      rawBoundingBox: bottomContourRes.rawBoundingBox,
+      secondaryCuts: bottomContourRes.secondaryCuts,
     });
 
     const sideHeight = (roofType === 'solid-panel' ? height - 2 * T : height - T) - plinthY;
+
+    const sideLeftSecondaryCuts = column?.corner === 'back-left'
+      ? [{
+          type: 'notch' as const,
+          corner: 'back-left' as const,
+          widthMm: column.depthMm,
+          depthMm: 0,
+          description: `Lateral acortado por columna: ${leftSideDepth} mm (reducido ${column.depthMm} mm)`,
+        }]
+      : undefined;
+
+    const sideRightSecondaryCuts = column?.corner === 'back-right'
+      ? [{
+          type: 'notch' as const,
+          corner: 'back-right' as const,
+          widthMm: column.depthMm,
+          depthMm: 0,
+          description: `Lateral acortado por columna: ${rightSideDepth} mm (reducido ${column.depthMm} mm)`,
+        }]
+      : undefined;
 
     const sideLeft = createPiece({
       id: leftPieceId,
       role: 'side-left',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(depth, sideHeight),
+      contour: createRectangularContour(leftSideDepth, sideHeight),
       thicknessMm: T,
       structural: true,
+      secondaryCuts: sideLeftSecondaryCuts,
     });
 
     const sideRight = createPiece({
       id: rightPieceId,
       role: 'side-right',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(depth, sideHeight),
+      contour: createRectangularContour(rightSideDepth, sideHeight),
       thicknessMm: T,
       structural: true,
+      secondaryCuts: sideRightSecondaryCuts,
     });
 
     if (edgeBandId) {
@@ -272,13 +428,16 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     const topX = isSolidFullWidth ? 0 : T;
     const topY = isBottomPass ? height - 2 * T : height - T;
 
+    const roofContourRes = createHorizontalPanelContour(topWidth);
     const roof = createPiece({
       id: topPieceId,
       role: 'top',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(topWidth, depth),
+      contour: roofContourRes.contour,
       thicknessMm: T,
       structural: true,
+      rawBoundingBox: roofContourRes.rawBoundingBox,
+      secondaryCuts: roofContourRes.secondaryCuts,
     });
 
     if (edgeBandId) {
@@ -338,11 +497,18 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
       structural: true,
     });
 
+    const notchW = column ? Math.min(interiorWidth - 40, Math.max(20, column.widthMm - T)) : 0;
+    const backRailWidth = column ? Math.max(100, interiorWidth - notchW) : interiorWidth;
+    const backRailX = column && column.corner === 'back-left' ? T + notchW : T;
+    const backRailZ = falseSquare
+      ? (isVertical ? minCarcassDepth - T : minCarcassDepth - railWidthMm)
+      : (isVertical ? depth - T : depth - railWidthMm);
+
     const railBack = createPiece({
       id: railBackId,
       role: isVertical ? 'rail-vertical' : 'rail',
       materialId: carcassMaterialId,
-      contour: createRectangularContour(interiorWidth, railWidthMm),
+      contour: createRectangularContour(backRailWidth, railWidthMm),
       thicknessMm: T,
       structural: true,
     });
@@ -368,9 +534,9 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
       pieceId: railBackId,
       parentPieceId: leftPieceId,
       relativeOffset: {
-        x: T,
+        x: backRailX,
         y: isVertical ? vertRailY : railY,
-        z: isVertical ? depth - T : depth - railWidthMm,
+        z: backRailZ,
       },
     });
 
@@ -749,6 +915,32 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     }
   }
 
+  // 6. Column cover piece (tapa de columna interior)
+  if (column) {
+    const coverId = `${idPrefix}-column-cover`;
+    const notchW = Math.min(interiorWidth - 40, Math.max(20, column.widthMm - T));
+    const coverPiece = createPiece({
+      id: coverId,
+      role: 'column-cover-side',
+      materialId: carcassMaterialId,
+      contour: createRectangularContour(column.depthMm, interiorHeight),
+      thicknessMm: T,
+      structural: false,
+    });
+    pieces.push(coverPiece);
+
+    const coverX = column.corner === 'back-left' ? T + notchW : width - T - notchW;
+    placementNodes.push({
+      pieceId: coverId,
+      parentPieceId: leftPieceId,
+      relativeOffset: {
+        x: coverX,
+        y: interiorY,
+        z: depth - column.depthMm,
+      },
+    });
+  }
+
   return {
     pieces,
     joints,
@@ -759,6 +951,7 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     rightPieceId,
     bottomPieceId,
     topPieceId,
+    interferences: input.interferences,
   };
 }
 

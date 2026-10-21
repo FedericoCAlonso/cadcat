@@ -52,6 +52,8 @@ export {
 export {
   faceSchema,
   type Face,
+  secondaryCutSchema,
+  type SecondaryCut,
   pieceSchema,
   type Piece,
   validateFace,
@@ -212,5 +214,18 @@ export {
   pieceLabelDataSchema,
   type PieceLabelData,
 } from './labels';
+
+export {
+  columnObstacleSchema,
+  type ColumnObstacle,
+  falseSquareSchema,
+  type FalseSquare,
+  interferenceConfigSchema,
+  type InterferenceConfig,
+  DEFAULT_COLUMN_OBSTACLE,
+  DEFAULT_FALSE_SQUARE,
+  DEFAULT_INTERFERENCE_CONFIG,
+} from './interferences';
+
 
 

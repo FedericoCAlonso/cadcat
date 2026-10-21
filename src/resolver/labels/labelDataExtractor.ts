@@ -98,6 +98,13 @@ export function extractPieceLabelData(
       machiningSummary = parts.join(' | ') || `${machining.operations.length} operaciones`;
     }
 
+    const secondaryOperationsSummary: string[] = [];
+    if (piece.secondaryCuts && piece.secondaryCuts.length > 0) {
+      for (const cut of piece.secondaryCuts) {
+        secondaryOperationsSummary.push(cut.description);
+      }
+    }
+
     const roleName = translatePieceRole(piece.role);
     const pieceDisplayName = piece.isAuxiliary
       ? `Calibre Auxiliar (${roleName})`
@@ -121,6 +128,7 @@ export function extractPieceLabelData(
       hasGrain,
       grainDirection: hasGrain ? 'length' : 'none',
       edgeBands,
+      secondaryOperationsSummary: secondaryOperationsSummary.length > 0 ? secondaryOperationsSummary : undefined,
       hasMachining,
       machiningSummary,
       qrData: `cadcat://p/${options.moduleId ?? 'mod'}/${piece.id}`,

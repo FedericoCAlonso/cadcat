@@ -14,7 +14,7 @@ import {
   buildPieceMachining3DGroup,
   type CountertopCalculationResult,
 } from '../resolver';
-import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
+import type { JointKind, JointStrategy, Material, EdgeBand, InterferenceConfig } from '../model';
 import { translatePieceRole } from './localization';
 import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
 
@@ -49,6 +49,8 @@ export interface Viewport3DProps {
   machiningSheets?: PieceMachiningSheet[];
   // Countertop cutouts and visualization (Phase 3 & 4)
   countertopCalculation?: CountertopCalculationResult | null;
+  // Architectural Interferences Lab
+  interferences?: InterferenceConfig;
 }
 
 export function Viewport3D(props: Viewport3DProps): ReactElement {
@@ -79,6 +81,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     onOpenMachiningModal,
     machiningSheets,
     countertopCalculation,
+    interferences,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -415,6 +418,51 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     return geom;
   }
 
+  // Helper: Build extruded geometry for pieces with custom polygon contours (column notches, false square trapezoids)
+  function buildCustomPieceGeometry(
+    item: SpatialPieceBox,
+    matchedPiece?: ResolvedPieceWithCutSize | null,
+  ): THREE.BufferGeometry {
+    if (!matchedPiece || !matchedPiece.contour || matchedPiece.contour.points.length < 3) {
+      return new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
+    }
+
+    const points = matchedPiece.contour.points;
+    const isSpecialContour = points.length > 4 || Boolean(matchedPiece.secondaryCuts && matchedPiece.secondaryCuts.length > 0);
+    if (!isSpecialContour) {
+      return new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
+    }
+
+    const p0 = points[0];
+    if (!p0) {
+      return new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
+    }
+
+    const shape = new THREE.Shape();
+    shape.moveTo(p0.x, p0.y);
+    for (let i = 1; i < points.length; i++) {
+      const pt = points[i];
+      if (pt) {
+        shape.lineTo(pt.x, pt.y);
+      }
+    }
+    shape.closePath();
+
+    const geom = new THREE.ExtrudeGeometry(shape, {
+      depth: matchedPiece.thicknessMm,
+      bevelEnabled: false,
+    });
+
+    // Check if horizontal panel (bottom, shelf, top): rotate around X so local Y maps to 3D Z
+    const isHorizontal = Math.abs(item.sizeMm.y - matchedPiece.thicknessMm) < 0.1;
+    if (isHorizontal) {
+      geom.rotateX(-Math.PI / 2);
+    }
+    geom.center();
+    geom.computeVertexNormals();
+    return geom;
+  }
+
   // Helper: Build stainless steel undermount sink basin underneath cutout opening
   function buildUndermountSinkGroup(
     item: SpatialPieceBox,
@@ -502,9 +550,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
     for (const item of activeBoxes) {
       const isCountertopSlab = item.role === 'countertop';
+      const matchedPiece = pieces.find((p) => p.id === item.pieceId) ?? null;
       const geom = isCountertopSlab
         ? buildCountertopSlabGeometry(item, countertopCalculation)
-        : new THREE.BoxGeometry(item.sizeMm.x, item.sizeMm.y, item.sizeMm.z);
+        : buildCustomPieceGeometry(item, matchedPiece);
 
       const isSelected = item.pieceId === selectedPieceId;
       const pbrStyle = resolvePiecePbrStyle(item.role, item.materialId, isSelected);
@@ -570,7 +619,36 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
       group.add(mesh);
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation]);
+
+    // Architectural Interferences ghost visualization
+    if (interferences?.columnObstacle?.enabled) {
+      const col = interferences.columnObstacle;
+      const colW = col.widthMm;
+      const colD = col.depthMm;
+      const colH = col.heightMm ?? (bounds.size.y + 40);
+
+      const colGeom = new THREE.BoxGeometry(colW, colH, colD);
+      const colMat = new THREE.MeshStandardMaterial({
+        color: 0x64748b, // Slate gray architectural volume
+        roughness: 0.85,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false,
+      });
+      const colMesh = new THREE.Mesh(colGeom, colMat);
+      const colEdges = new THREE.EdgesGeometry(colGeom);
+      const colLineMat = new THREE.LineBasicMaterial({ color: 0x334155, linewidth: 2 });
+      colMesh.add(new THREE.LineSegments(colEdges, colLineMat));
+
+      const colX = col.corner === 'back-left'
+        ? bounds.min.x + colW / 2
+        : bounds.max.x - colW / 2;
+      const colY = bounds.min.y + colH / 2;
+      const colZ = bounds.max.z - colD / 2;
+      colMesh.position.set(colX, colY, colZ);
+      group.add(colMesh);
+    }
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation, interferences, pieces]);
 
   // Camera presets
   const setCameraView = (type: 'iso' | 'front' | 'top' | 'side') => {

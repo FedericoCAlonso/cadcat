@@ -12,6 +12,20 @@ export const faceSchema = z.object({
 export type Face = z.infer<typeof faceSchema>;
 
 /**
+ * Secondary manual or CNC shop operation performed on a raw rectangular cut
+ * (e.g., column notches, false square diagonal bevels, cable pass-throughs).
+ */
+export const secondaryCutSchema = z.object({
+  type: z.enum(['notch', 'bevel-diagonal', 'corner-chamfer', 'custom-polygon']),
+  description: z.string(),
+  corner: z.enum(['back-left', 'back-right', 'front-left', 'front-right']).optional(),
+  widthMm: z.number().optional(),
+  depthMm: z.number().optional(),
+  angleDeg: z.number().optional(),
+});
+export type SecondaryCut = z.infer<typeof secondaryCutSchema>;
+
+/**
  * Panel piece owned by a module.
  */
 export const pieceSchema = z.object({
@@ -24,6 +38,12 @@ export const pieceSchema = z.object({
   structural: z.boolean(),
   referenceFace: z.enum(['A', 'B']),
   isAuxiliary: z.boolean().optional(),
+  rawBoundingBox: z.object({
+    widthMm: z.number().positive(),
+    heightMm: z.number().positive(),
+  }).optional(),
+  secondaryCuts: z.array(secondaryCutSchema).optional(),
+  notes: z.array(z.string()).optional(),
 });
 export type Piece = z.infer<typeof pieceSchema>;
 

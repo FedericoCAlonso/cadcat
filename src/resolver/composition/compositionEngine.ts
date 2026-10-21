@@ -77,6 +77,7 @@ export function buildModularModule(
     backingThicknessMm: carcass.backingThicknessMm ?? 3,
     edgeBandId,
     idPrefix: `${id}-carcass`,
+    interferences: definition.interferences,
   });
 
   const pieces: Piece[] = [...carcassResult.pieces];
@@ -99,6 +100,9 @@ export function buildModularModule(
     rightPieceId: carcassResult.rightPieceId,
     bottomPieceId: carcassResult.bottomPieceId,
     topPieceId: carcassResult.topPieceId,
+    interferences: definition.interferences,
+    overallWidth: carcass.width,
+    overallDepth: carcass.depth,
   };
 
   // 3. Grid Subdivision
@@ -267,6 +271,7 @@ export function buildModularModule(
     joints,
     subAssemblies,
     overrides: {},
+    interferences: definition.interferences,
   };
 
   // 8. Resolve Module Positions and Cut Sizes

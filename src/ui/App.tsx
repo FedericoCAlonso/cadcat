@@ -378,6 +378,7 @@ export function App(): ReactElement {
                 onSetPieceThickness={vm.setPieceThickness}
                 onSetPieceEdgeBands={vm.setPieceEdgeBands}
                 countertopCalculation={vm.countertopCalculation}
+                interferences={vm.interferences}
               />
 
               {/* Botón Flotante Ergonómico (FAB) para volver al editor */}
@@ -620,6 +621,11 @@ export function App(): ReactElement {
                 onWallShelvesShelfCountChange={vm.setWallShelvesShelfCount}
                 onWallShelvesVerticalSpacingMmChange={vm.setWallShelvesVerticalSpacingMm}
                 onWallShelvesBaseElevationYMmChange={vm.setWallShelvesBaseElevationYMm}
+                enableInterferencesLab={vm.projectConfig?.features?.enableInterferencesLab ?? false}
+                columnObstacle={vm.columnObstacle}
+                falseSquare={vm.falseSquare}
+                onColumnObstacleChange={vm.setColumnObstacle}
+                onFalseSquareChange={vm.setFalseSquare}
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
                 onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}
@@ -657,6 +663,7 @@ export function App(): ReactElement {
                   onOpenMachiningModal={(id) => setMachiningPieceId(id)}
                   machiningSheets={vm.machiningSheets}
                   countertopCalculation={vm.countertopCalculation}
+                  interferences={vm.interferences}
                 />
                 <button
                   type="button"
