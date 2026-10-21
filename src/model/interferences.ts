@@ -1,16 +1,24 @@
 import { z } from 'zod';
 
+export type ObstacleType = 'vertical-column' | 'horizontal-beam';
+export type ObstacleReferenceEdge = 'left' | 'right' | 'top' | 'bottom';
+
 /**
- * Architectural pillar/column or vertical obstruction located in a rear corner.
+ * Architectural obstacle or interference (pillar, column, overhead beam, floor step)
+ * positioned with respect to a reference datum edge and offset distance.
  */
 export const columnObstacleSchema = z.object({
   enabled: z.boolean(),
-  corner: z.enum(['back-left', 'back-right']),
-  widthMm: z.number().positive(),
+  corner: z.enum(['back-left', 'back-right']).optional(),
+  type: z.enum(['vertical-column', 'horizontal-beam']).optional(),
+  referenceEdge: z.enum(['left', 'right', 'top', 'bottom']).optional(),
+  distanceFromReferenceMm: z.number().nonnegative().optional(),
+  widthMm: z.number().positive().optional(),
   depthMm: z.number().positive(),
   heightMm: z.number().positive().optional(),
 });
 export type ColumnObstacle = z.infer<typeof columnObstacleSchema>;
+export type ParametricObstacle = ColumnObstacle;
 
 /**
  * False square (pared en falsa escuadra / fuera de plomo).
@@ -36,6 +44,9 @@ export type InterferenceConfig = z.infer<typeof interferenceConfigSchema>;
 export const DEFAULT_COLUMN_OBSTACLE: ColumnObstacle = {
   enabled: false,
   corner: 'back-left',
+  type: 'vertical-column',
+  referenceEdge: 'left',
+  distanceFromReferenceMm: 0,
   widthMm: 150,
   depthMm: 120,
 };

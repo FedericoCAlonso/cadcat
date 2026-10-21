@@ -297,7 +297,7 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
                 }
               }}
             >
-              <option value="groove">{`Fondo de Módulo (Ranurado ${backingThicknessMm <= 3 ? '3mm' : '6mm'})`}</option>
+              <option value="groove">{`Fondo de Módulo (Ranurado ${backingThicknessMm}mm)`}</option>
               <option value="overlay">Fondo Fino Clavado / Atornillado Posterior</option>
               <option value="solid-thick">Fondo Grueso Estructural (18mm con confirmat)</option>
               <option value="island">Mueble tipo Isla (Sin fondo, cantos traseros aplacados)</option>
@@ -305,28 +305,29 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
             </select>
           </div>
 
-          {hasBacking && !isIslandCabinet && backingThicknessMm < 15 && (
+          {hasBacking && !isIslandCabinet && (
             <div style={{ marginTop: '0.25rem' }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-                Espesor de Fondo:
+                Espesor de Fondo y Ranura:
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  className={`m3-btn m3-btn--small ${backingThicknessMm <= 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-                  style={{ flex: 1, minHeight: '36px', fontSize: '0.8rem' }}
-                  onClick={() => onBackingThicknessChange?.(3)}
-                >
-                  3 mm
-                </button>
-                <button
-                  type="button"
-                  className={`m3-btn m3-btn--small ${backingThicknessMm > 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-                  style={{ flex: 1, minHeight: '36px', fontSize: '0.8rem' }}
-                  onClick={() => onBackingThicknessChange?.(6)}
-                >
-                  6 mm
-                </button>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)' }}>
+                  📏 {backingThicknessMm} mm
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                  (según placa seleccionada)
+                </span>
               </div>
             </div>
           )}

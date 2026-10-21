@@ -42,10 +42,10 @@ export function deriveModuleGrooveOperations(
     if (!pieceA || !pieceB) continue;
 
     // Identify which piece is the panel sliding into the groove and which receives the groove
-    const isBackA = pieceA.role === 'back' || pieceA.id.includes('-back');
-    const isBackB = pieceB.role === 'back' || pieceB.id.includes('-back');
-    const isDrawerBottomA = pieceA.role.includes('bottom') && pieceA.id.includes('drawer');
-    const isDrawerBottomB = pieceB.role.includes('bottom') && pieceB.id.includes('drawer');
+    const isBackA = pieceA.role === 'back' || pieceA.role.includes('back') || pieceA.id.endsWith('-back');
+    const isBackB = pieceB.role === 'back' || pieceB.role.includes('back') || pieceB.id.endsWith('-back');
+    const isDrawerBottomA = pieceA.role === 'drawer-bottom' || (pieceA.role.includes('bottom') && (pieceA.role.includes('drawer') || pieceA.id.includes('drawer')));
+    const isDrawerBottomB = pieceB.role === 'drawer-bottom' || (pieceB.role.includes('bottom') && (pieceB.role.includes('drawer') || pieceB.id.includes('drawer')));
 
     const slidingPiece = (isBackA || isDrawerBottomA) ? pieceA : (isBackB || isDrawerBottomB) ? pieceB : null;
     const groovedPiece = slidingPiece === pieceA ? pieceB : slidingPiece === pieceB ? pieceA : null;

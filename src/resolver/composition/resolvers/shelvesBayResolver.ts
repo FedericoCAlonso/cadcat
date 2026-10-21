@@ -68,61 +68,121 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
 
       if (column) {
         const bayLeft = bay.x;
-        const bayRight = bay.x + bay.width;
-        const totalW = bay.overallWidth ?? (bayRight + T);
+        const totalW = bay.overallWidth ?? (bay.x + bay.width + T);
         const shelfWidth = shelfRes.piece.contour.points[1]?.x ?? bay.width;
         const shelfDepth = shelfRes.piece.contour.points[2]?.y ?? (bay.depth - setbackMm);
 
-        if (column.corner === 'back-left' && bayLeft < column.widthMm) {
-          const notchWidth = Math.min(shelfWidth - 30, Math.max(10, column.widthMm - bayLeft));
-          const notchDepth = column.depthMm;
-          const innerDepth = Math.max(20, shelfDepth - notchDepth);
+        const isBeam = column.type === 'horizontal-beam';
+        const obstRefEdge = column.referenceEdge ?? (column.corner === 'back-right' ? 'right' : 'left');
+        const obstDist = column.distanceFromReferenceMm ?? 0;
+        const obstD = column.depthMm;
+        const obstW = column.widthMm ?? (isBeam ? totalW : 150);
 
-          shelfRes.piece.contour = {
-            points: [
-              { x: 0, y: 0 },
-              { x: shelfWidth, y: 0 },
-              { x: shelfWidth, y: shelfDepth },
-              { x: notchWidth, y: shelfDepth },
-              { x: notchWidth, y: innerDepth },
-              { x: 0, y: innerDepth },
-            ],
-          };
-          shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
-          shelfRes.piece.secondaryCuts = [
-            {
-              type: 'notch',
-              corner: 'back-left',
-              widthMm: notchWidth,
-              depthMm: notchDepth,
-              description: `Destaje para columna trasera izquierda: ${notchWidth} x ${notchDepth} mm`,
-            },
-          ];
-        } else if (column.corner === 'back-right' && bayRight > totalW - column.widthMm) {
-          const notchWidth = Math.min(shelfWidth - 30, Math.max(10, bayRight - (totalW - column.widthMm)));
-          const notchDepth = column.depthMm;
-          const innerDepth = Math.max(20, shelfDepth - notchDepth);
+        let obstX0 = 0;
+        let obstX1 = totalW;
+        if (isBeam) {
+          if (column.widthMm && column.widthMm > 0 && column.widthMm < totalW) {
+            obstX0 = obstRefEdge === 'right' ? Math.max(0, totalW - obstDist - column.widthMm) : obstDist;
+            obstX1 = obstRefEdge === 'right' ? Math.max(0, totalW - obstDist) : Math.min(totalW, obstDist + column.widthMm);
+          } else {
+            obstX0 = 0;
+            obstX1 = totalW;
+          }
+        } else {
+          if (obstRefEdge === 'right' || column.corner === 'back-right') {
+            obstX1 = Math.max(0, totalW - obstDist);
+            obstX0 = Math.max(0, totalW - obstDist - obstW);
+          } else {
+            obstX0 = obstDist;
+            obstX1 = Math.min(totalW, obstDist + obstW);
+          }
+        }
 
-          shelfRes.piece.contour = {
-            points: [
-              { x: 0, y: 0 },
-              { x: shelfWidth, y: 0 },
-              { x: shelfWidth, y: innerDepth },
-              { x: shelfWidth - notchWidth, y: innerDepth },
-              { x: shelfWidth - notchWidth, y: shelfDepth },
-              { x: 0, y: shelfDepth },
-            ],
-          };
-          shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
-          shelfRes.piece.secondaryCuts = [
-            {
-              type: 'notch',
-              corner: 'back-right',
-              widthMm: notchWidth,
-              depthMm: notchDepth,
-              description: `Destaje para columna trasera derecha: ${notchWidth} x ${notchDepth} mm`,
-            },
-          ];
+        const x_0 = Math.max(0, obstX0 - bayLeft);
+        const x_1 = Math.min(shelfWidth, obstX1 - bayLeft);
+
+        if (x_1 > x_0) {
+          const innerDepth = Math.max(20, shelfDepth - obstD);
+          const notchW = Math.round(x_1 - x_0);
+
+          if (x_0 <= 0 && x_1 >= shelfWidth) {
+            shelfRes.piece.contour = createRectangularContour(shelfWidth, innerDepth);
+            shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
+            shelfRes.piece.secondaryCuts = [
+              {
+                type: 'notch',
+                description: `Profundidad reducida por interferencia trasera: ${shelfWidth} x ${obstD} mm`,
+                depthMm: obstD,
+              },
+            ];
+          } else if (x_0 <= 0 && x_1 < shelfWidth) {
+            const cutW = Math.round(x_1);
+            shelfRes.piece.contour = {
+              points: [
+                { x: 0, y: 0 },
+                { x: shelfWidth, y: 0 },
+                { x: shelfWidth, y: shelfDepth },
+                { x: cutW, y: shelfDepth },
+                { x: cutW, y: innerDepth },
+                { x: 0, y: innerDepth },
+              ],
+            };
+            shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
+            shelfRes.piece.secondaryCuts = [
+              {
+                type: 'notch',
+                corner: 'back-left',
+                widthMm: cutW,
+                depthMm: obstD,
+                description: `Destaje para columna trasera izquierda: ${cutW} x ${obstD} mm`,
+              },
+            ];
+          } else if (x_0 > 0 && x_1 >= shelfWidth) {
+            const cutW = Math.round(shelfWidth - x_0);
+            shelfRes.piece.contour = {
+              points: [
+                { x: 0, y: 0 },
+                { x: shelfWidth, y: 0 },
+                { x: shelfWidth, y: innerDepth },
+                { x: x_0, y: innerDepth },
+                { x: x_0, y: shelfDepth },
+                { x: 0, y: shelfDepth },
+              ],
+            };
+            shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
+            shelfRes.piece.secondaryCuts = [
+              {
+                type: 'notch',
+                corner: 'back-right',
+                widthMm: cutW,
+                depthMm: obstD,
+                description: `Destaje para columna trasera derecha: ${cutW} x ${obstD} mm`,
+              },
+            ];
+          } else if (x_0 > 0 && x_1 < shelfWidth) {
+            shelfRes.piece.contour = {
+              points: [
+                { x: 0, y: 0 },
+                { x: shelfWidth, y: 0 },
+                { x: shelfWidth, y: shelfDepth },
+                { x: x_1, y: shelfDepth },
+                { x: x_1, y: innerDepth },
+                { x: x_0, y: innerDepth },
+                { x: x_0, y: shelfDepth },
+                { x: 0, y: shelfDepth },
+              ],
+            };
+            shelfRes.piece.rawBoundingBox = { widthMm: shelfWidth, heightMm: shelfDepth };
+            shelfRes.piece.secondaryCuts = [
+              {
+                type: 'notch',
+                corner: 'intermediate-rear',
+                widthMm: notchW,
+                depthMm: obstD,
+                description: `Cajeado interior para columna a ${Math.round(x_0)} mm del lateral: ${notchW} x ${obstD} mm`,
+              },
+            ];
+          }
         }
       } else if (falseSquare) {
         const totalW = bay.overallWidth ?? (bay.width + 2 * T);

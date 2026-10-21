@@ -1304,27 +1304,31 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </select>
         </div>
 
-        {/* Selector de espesor de fondo cuando es fino (3mm o 6mm) */}
-        {hasBacking && !isIslandCabinet && backingThicknessMm < 15 && (
+        {/* Espesor e indicador coherente de fondo según material */}
+        {hasBacking && !isIslandCabinet && (
           <div className="form-group" style={{ marginTop: '-0.25rem' }}>
-            <label style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)' }}>Espesor del fondo posterior:</label>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              <button
-                type="button"
-                className={`m3-btn m3-btn--small ${backingThicknessMm <= 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-                style={{ flex: 1, minHeight: '38px', fontSize: '0.8rem' }}
-                onClick={() => onBackingThicknessChange?.(3)}
-              >
-                3 mm (Estándar)
-              </button>
-              <button
-                type="button"
-                className={`m3-btn m3-btn--small ${backingThicknessMm > 3 ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-                style={{ flex: 1, minHeight: '38px', fontSize: '0.8rem' }}
-                onClick={() => onBackingThicknessChange?.(6)}
-              >
-                6 mm (Reforzado)
-              </button>
+            <label style={{ fontSize: '0.8rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+              Espesor de fondo y ranura de casco:
+            </label>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '4px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                fontSize: '0.85rem',
+              }}
+            >
+              <span style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)' }}>
+                📏 {backingThicknessMm} mm
+              </span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                (determinado por la placa seleccionada en Materiales)
+              </span>
             </div>
           </div>
         )}
@@ -1517,13 +1521,13 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             <span>📐 Laboratorio de Interferencias Arquitectónicas</span>
           </legend>
 
-          {/* Columna o Viga en Rincón Trasero */}
+          {/* Columna, Viga o Escalón Arquitectónico */}
           <div className="builder-subcard" style={{ marginBottom: '1rem', padding: '1rem', borderRadius: '12px', backgroundColor: 'var(--md-sys-color-surface-container-low)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
               <div>
-                <strong style={{ fontSize: '0.92rem', color: 'var(--md-sys-color-on-surface)' }}>🏛️ Columna / Viga en Rincón Trasero</strong>
+                <strong style={{ fontSize: '0.92rem', color: 'var(--md-sys-color-on-surface)' }}>🏛️ Columna / Viga / Obstáculo Arquitectónico</strong>
                 <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-                  Ajusta la profundidad del lateral y deduce el destaje en piso, techo y estantes.
+                  Ajusta la profundidad de laterales y deduce destajes o cajeados en piso, techo y estantes.
                 </span>
               </div>
               <label className="m3-switch" style={{ minWidth: '48px', minHeight: '48px', display: 'flex', alignItems: 'center' }}>
@@ -1533,12 +1537,16 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   onChange={(e) => {
                     onColumnObstacleChange?.({
                       enabled: e.target.checked,
-                      corner: columnObstacle?.corner ?? 'back-left',
+                      type: columnObstacle?.type ?? 'vertical-column',
+                      referenceEdge: columnObstacle?.referenceEdge ?? (columnObstacle?.corner === 'back-right' ? 'right' : 'left'),
+                      distanceFromReferenceMm: columnObstacle?.distanceFromReferenceMm ?? 0,
                       widthMm: columnObstacle?.widthMm ?? 150,
                       depthMm: columnObstacle?.depthMm ?? 120,
+                      heightMm: columnObstacle?.heightMm ?? 150,
+                      corner: columnObstacle?.corner ?? 'back-left',
                     });
                   }}
-                  aria-label="Habilitar columna en rincón trasero"
+                  aria-label="Habilitar obstáculo arquitectónico"
                 />
                 <span className="m3-switch__slider"></span>
               </label>
@@ -1546,55 +1554,177 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
             {columnObstacle?.enabled && (
               <div style={{ marginTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Tipo de Obstáculo: Columna vs Viga/Escalón */}
                 <div className="form-group">
-                  <label>Rincón del obstáculo:</label>
-                  <div className="builder-segmented-group" role="group" aria-label="Rincón de la columna">
+                  <label>Tipo de interferencia:</label>
+                  <div className="builder-segmented-group" role="group" aria-label="Tipo de obstáculo">
                     <button
                       type="button"
-                      className={`builder-segmented-btn ${columnObstacle.corner === 'back-left' ? 'selected' : ''}`}
-                      onClick={() => onColumnObstacleChange?.({ ...columnObstacle, corner: 'back-left' })}
+                      className={`builder-segmented-btn ${columnObstacle.type !== 'horizontal-beam' ? 'selected' : ''}`}
+                      onClick={() => onColumnObstacleChange?.({
+                        ...columnObstacle,
+                        type: 'vertical-column',
+                        referenceEdge: columnObstacle.referenceEdge === 'right' ? 'right' : 'left',
+                      })}
                     >
-                      ⬅️ Trasero Izquierdo
+                      🏛️ Columna Vertical
                     </button>
                     <button
                       type="button"
-                      className={`builder-segmented-btn ${columnObstacle.corner === 'back-right' ? 'selected' : ''}`}
-                      onClick={() => onColumnObstacleChange?.({ ...columnObstacle, corner: 'back-right' })}
+                      className={`builder-segmented-btn ${columnObstacle.type === 'horizontal-beam' ? 'selected' : ''}`}
+                      onClick={() => onColumnObstacleChange?.({
+                        ...columnObstacle,
+                        type: 'horizontal-beam',
+                        referenceEdge: columnObstacle.referenceEdge === 'bottom' ? 'bottom' : 'top',
+                        heightMm: columnObstacle.heightMm ?? 150,
+                      })}
                     >
-                      Trasero Derecho ➡️
+                      🏗️ Viga / Escalón Horizontal
                     </button>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label htmlFor="col-width-input">Ancho en X (mm):</label>
-                    <NumericInput
-                      id="col-width-input"
-                      min={50}
-                      max={Math.max(100, width - 100)}
-                      step={10}
-                      value={columnObstacle.widthMm}
-                      unit="mm"
-                      showStepper={true}
-                      onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, widthMm: val })}
-                    />
-                  </div>
+                {/* Si es Columna Vertical */}
+                {columnObstacle.type !== 'horizontal-beam' ? (
+                  <>
+                    <div className="form-group">
+                      <label>Lateral de referencia:</label>
+                      <div className="builder-segmented-group" role="group" aria-label="Referencia de columna">
+                        <button
+                          type="button"
+                          className={`builder-segmented-btn ${(columnObstacle.referenceEdge ?? 'left') === 'left' ? 'selected' : ''}`}
+                          onClick={() => onColumnObstacleChange?.({ ...columnObstacle, referenceEdge: 'left', corner: 'back-left' })}
+                        >
+                          ⬅️ Lateral Izquierdo
+                        </button>
+                        <button
+                          type="button"
+                          className={`builder-segmented-btn ${(columnObstacle.referenceEdge ?? 'left') === 'right' ? 'selected' : ''}`}
+                          onClick={() => onColumnObstacleChange?.({ ...columnObstacle, referenceEdge: 'right', corner: 'back-right' })}
+                        >
+                          Lateral Derecho ➡️
+                        </button>
+                      </div>
+                    </div>
 
-                  <div className="form-group">
-                    <label htmlFor="col-depth-input">Profundidad en Z (mm):</label>
-                    <NumericInput
-                      id="col-depth-input"
-                      min={30}
-                      max={Math.max(60, depth - 60)}
-                      step={10}
-                      value={columnObstacle.depthMm}
-                      unit="mm"
-                      showStepper={true}
-                      onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, depthMm: val })}
-                    />
-                  </div>
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label htmlFor="col-dist-input">Dist. desde lateral (mm):</label>
+                        <NumericInput
+                          id="col-dist-input"
+                          min={0}
+                          max={Math.max(0, width - (columnObstacle.widthMm ?? 150))}
+                          step={10}
+                          value={columnObstacle.distanceFromReferenceMm ?? 0}
+                          unit="mm"
+                          showStepper={true}
+                          onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, distanceFromReferenceMm: val })}
+                        />
+                        <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                          {(columnObstacle.distanceFromReferenceMm ?? 0) === 0 ? '📍 En el rincón' : '📏 Desfasada del rincón'}
+                        </span>
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="col-width-input">Ancho en X (mm):</label>
+                        <NumericInput
+                          id="col-width-input"
+                          min={50}
+                          max={Math.max(100, width - 60)}
+                          step={10}
+                          value={columnObstacle.widthMm ?? 150}
+                          unit="mm"
+                          showStepper={true}
+                          onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, widthMm: val })}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="col-depth-input">Profundidad en Z (mm):</label>
+                        <NumericInput
+                          id="col-depth-input"
+                          min={30}
+                          max={Math.max(60, depth - 60)}
+                          step={10}
+                          value={columnObstacle.depthMm}
+                          unit="mm"
+                          showStepper={true}
+                          onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, depthMm: val })}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Si es Viga o Escalón Horizontal */
+                  <>
+                    <div className="form-group">
+                      <label>Ubicación de referencia:</label>
+                      <div className="builder-segmented-group" role="group" aria-label="Referencia de viga o escalón">
+                        <button
+                          type="button"
+                          className={`builder-segmented-btn ${(columnObstacle.referenceEdge ?? 'top') === 'top' ? 'selected' : ''}`}
+                          onClick={() => onColumnObstacleChange?.({ ...columnObstacle, referenceEdge: 'top' })}
+                        >
+                          ⬆️ Techo (Viga superior)
+                        </button>
+                        <button
+                          type="button"
+                          className={`builder-segmented-btn ${(columnObstacle.referenceEdge ?? 'top') === 'bottom' ? 'selected' : ''}`}
+                          onClick={() => onColumnObstacleChange?.({ ...columnObstacle, referenceEdge: 'bottom' })}
+                        >
+                          ⬇️ Piso (Escalón de obra)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label htmlFor="beam-dist-input">Distancia a cara (mm):</label>
+                        <NumericInput
+                          id="beam-dist-input"
+                          min={0}
+                          max={Math.max(0, height - (columnObstacle.heightMm ?? 150))}
+                          step={10}
+                          value={columnObstacle.distanceFromReferenceMm ?? 0}
+                          unit="mm"
+                          showStepper={true}
+                          onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, distanceFromReferenceMm: val })}
+                        />
+                        <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                          {(columnObstacle.distanceFromReferenceMm ?? 0) === 0 ? '📍 Apoya en extremo' : '📏 Separada del extremo'}
+                        </span>
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="beam-height-input">Altura en Y (mm):</label>
+                        <NumericInput
+                          id="beam-height-input"
+                          min={50}
+                          max={Math.max(100, height - 100)}
+                          step={10}
+                          value={columnObstacle.heightMm ?? 150}
+                          unit="mm"
+                          showStepper={true}
+                          onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, heightMm: val })}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label htmlFor="beam-depth-input">Profundidad en Z (mm):</label>
+                        <NumericInput
+                          id="beam-depth-input"
+                          min={30}
+                          max={Math.max(60, depth - 60)}
+                          step={10}
+                          value={columnObstacle.depthMm}
+                          unit="mm"
+                          showStepper={true}
+                          onChange={(val) => onColumnObstacleChange?.({ ...columnObstacle, depthMm: val })}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

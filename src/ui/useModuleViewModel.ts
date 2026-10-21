@@ -693,7 +693,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [activeBayIndex, setActiveBayIndex] = useState<number>(0);
   const [frontsMaterialId, setFrontsMaterialId] = useState<string>('');
   const [drawerBoxesMaterialId, setDrawerBoxesMaterialId] = useState<string>('');
-  const [backingsMaterialId, setBackingsMaterialId] = useState<string>(() => {
+  const [backingsMaterialId, setBackingsMaterialIdState] = useState<string>(() => {
     try {
       const seed = getSeedMaterials().materials;
       return seed.find((m) => m.id === 'mat-mdf-raw-3')?.id
@@ -1358,10 +1358,26 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setIsCustomModular(true);
   }, []);
 
+  const setBackingsMaterialId = useCallback((id: string) => {
+    setBackingsMaterialIdState(id);
+    const foundMat = materials.find((m) => m.id === id);
+    if (foundMat && typeof foundMat.thicknessMm === 'number') {
+      setBackingThicknessMmState(foundMat.thicknessMm);
+    }
+    setIsCustomModular(true);
+  }, [materials]);
+
   const setBackingThicknessMm = useCallback((thickness: number) => {
     setBackingThicknessMmState(thickness);
+    const currentMat = materials.find((m) => m.id === backingsMaterialId);
+    if (!currentMat || currentMat.thicknessMm !== thickness) {
+      const matchingMat = materials.find((m) => m.thicknessMm === thickness);
+      if (matchingMat) {
+        setBackingsMaterialIdState(matchingMat.id);
+      }
+    }
     setIsCustomModular(true);
-  }, []);
+  }, [materials, backingsMaterialId]);
 
   const setIsIslandCabinet = useCallback((val: boolean) => {
     setIsIslandCabinetState(val);
@@ -1482,7 +1498,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           ?? loadedMats.find((m) => m.id === 'mat-mdf-white-3')
           ?? loadedMats.find((m) => typeof m.thicknessMm === 'number' && m.thicknessMm <= 6);
         if (defaultBacking) {
-          setBackingsMaterialId((prev) => prev || defaultBacking.id);
+          setBackingsMaterialIdState((prev) => prev || defaultBacking.id);
         }
       } catch (err) {
         if (!isMounted) return;

@@ -6,7 +6,13 @@ describe('Seed Catalogs', () => {
     const catalog = getSeedMaterials();
 
     expect(catalog.schemaVersion).toBe(1);
-    expect(catalog.materials).toHaveLength(5);
+    expect(catalog.materials.length).toBeGreaterThanOrEqual(9);
+
+    // Standard thickness coverage: 3, 5.5, 6, 9, 12, 15, 18, 25, 36 mm
+    const standardThicknesses = [3, 5.5, 6, 9, 12, 15, 18, 25, 36];
+    for (const th of standardThicknesses) {
+      expect(catalog.materials.some((m) => m.thicknessMm === th)).toBe(true);
+    }
 
     const whiteBoard = catalog.materials.find((m) => m.id === 'mat-egger-white-18');
     expect(whiteBoard).toBeDefined();

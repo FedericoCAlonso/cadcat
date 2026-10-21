@@ -18,7 +18,7 @@ export type Face = z.infer<typeof faceSchema>;
 export const secondaryCutSchema = z.object({
   type: z.enum(['notch', 'bevel-diagonal', 'corner-chamfer', 'custom-polygon']),
   description: z.string(),
-  corner: z.enum(['back-left', 'back-right', 'front-left', 'front-right']).optional(),
+  corner: z.enum(['back-left', 'back-right', 'front-left', 'front-right', 'top-rear', 'bottom-rear', 'intermediate-rear']).optional(),
   widthMm: z.number().optional(),
   depthMm: z.number().optional(),
   angleDeg: z.number().optional(),

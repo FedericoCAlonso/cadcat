@@ -10,6 +10,7 @@ import {
   resolveCarcass,
   buildModularModule,
   extractPieceLabelData,
+  deriveModuleGrooveOperations,
   type ModuleMaterialRoles,
 } from '../src/resolver';
 import { ShelvesBayResolver } from '../src/resolver/composition/resolvers/shelvesBayResolver';
@@ -436,6 +437,184 @@ describe('Laboratorio de Interferencias Arquitectónicas (Hito 2)', () => {
       expect(bottomLabel!.secondaryOperationsSummary).toBeDefined();
       expect(bottomLabel!.secondaryOperationsSummary!.length).toBeGreaterThan(0);
       expect(bottomLabel!.secondaryOperationsSummary![0]).toContain('Destaje para columna trasera izquierda');
+    });
+  });
+
+  describe('2.7 Columna Intermedia con Posicionamiento Paramétrico (Cajeado Interior)', () => {
+    it('generates 8-point U-cutout on bottom panel and leaves outer sides nominal when column is offset', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 900,
+          height: 720,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: false,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+        interferences: {
+          columnObstacle: {
+            enabled: true,
+            type: 'vertical-column',
+            referenceEdge: 'left',
+            distanceFromReferenceMm: 200,
+            widthMm: 150,
+            depthMm: 120,
+          },
+        },
+      });
+
+      const sideLeft = res.pieces.find((p) => p.role === 'side-left');
+      const sideRight = res.pieces.find((p) => p.role === 'side-right');
+      const bottom = res.pieces.find((p) => p.role === 'bottom');
+
+      expect(sideLeft).toBeDefined();
+      expect(sideRight).toBeDefined();
+      expect(bottom).toBeDefined();
+
+      // Because column is at X in [200, 350], it does not touch side-left (X <= 18) or side-right (X >= 882)
+      expect(sideLeft!.contour.points[1]!.x).toBe(560);
+      expect(sideRight!.contour.points[1]!.x).toBe(560);
+
+      // Bottom panel has 8 vertices: U-cutout (cajeado interior) on rear edge
+      expect(bottom!.contour.points.length).toBe(8);
+      expect(bottom!.rawBoundingBox).toEqual({ widthMm: 900 - 36, heightMm: 560 });
+      expect(bottom!.secondaryCuts).toBeDefined();
+      expect(bottom!.secondaryCuts![0]?.type).toBe('notch');
+      expect(bottom!.secondaryCuts![0]?.corner).toBe('intermediate-rear');
+      expect(bottom!.secondaryCuts![0]?.widthMm).toBe(150);
+      expect(bottom!.secondaryCuts![0]?.depthMm).toBe(120);
+      expect(bottom!.secondaryCuts![0]?.description).toContain('Cajeado interior para columna');
+    });
+  });
+
+  describe('2.8 Viga Superior Horizontal en Techo (horizontal-beam)', () => {
+    it('creates top-rear notches on side panels and reduces roof depth', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 800,
+          height: 720,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: false,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+        interferences: {
+          columnObstacle: {
+            enabled: true,
+            type: 'horizontal-beam',
+            referenceEdge: 'top',
+            distanceFromReferenceMm: 0,
+            heightMm: 150,
+            depthMm: 120,
+          },
+        },
+      });
+
+      const sideLeft = res.pieces.find((p) => p.role === 'side-left');
+      const sideRight = res.pieces.find((p) => p.role === 'side-right');
+      const roof = res.pieces.find((p) => p.role === 'top');
+
+      expect(sideLeft).toBeDefined();
+      expect(sideRight).toBeDefined();
+      expect(roof).toBeDefined();
+
+      // Sides have 6 vertices with notch at top-rear
+      expect(sideLeft!.contour.points.length).toBe(6);
+      expect(sideLeft!.secondaryCuts).toBeDefined();
+      expect(sideLeft!.secondaryCuts![0]?.corner).toBe('top-rear');
+      expect(sideLeft!.secondaryCuts![0]?.widthMm).toBe(120);
+      expect(sideLeft!.secondaryCuts![0]?.depthMm).toBe(150);
+
+      expect(sideRight!.contour.points.length).toBe(6);
+      expect(sideRight!.secondaryCuts![0]?.corner).toBe('top-rear');
+
+      // Roof panel depth is reduced across the entire rear
+      expect(roof!.contour.points[2]!.y).toBe(560 - 120);
+      expect(roof!.secondaryCuts![0]?.description).toContain('interferencia trasera');
+    });
+  });
+
+  describe('2.9 Escalón Inferior de Obra (Floor Step)', () => {
+    it('creates bottom-rear notches on side panels and reduces bottom panel depth', () => {
+      const res = resolveCarcass({
+        carcass: {
+          width: 800,
+          height: 720,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: false,
+        },
+        carcassMaterialId: materials.carcassMaterialId,
+        carcassThicknessMm: 18,
+        interferences: {
+          columnObstacle: {
+            enabled: true,
+            type: 'horizontal-beam',
+            referenceEdge: 'bottom',
+            distanceFromReferenceMm: 0,
+            heightMm: 100,
+            depthMm: 80,
+          },
+        },
+      });
+
+      const sideLeft = res.pieces.find((p) => p.role === 'side-left');
+      const bottom = res.pieces.find((p) => p.role === 'bottom');
+
+      expect(sideLeft!.contour.points.length).toBe(6);
+      expect(sideLeft!.secondaryCuts![0]?.corner).toBe('bottom-rear');
+      expect(sideLeft!.secondaryCuts![0]?.widthMm).toBe(80);
+      expect(sideLeft!.secondaryCuts![0]?.depthMm).toBe(100);
+
+      // Bottom panel depth is reduced by step depth
+      expect(bottom!.contour.points[2]!.y).toBe(560 - 80);
+    });
+  });
+
+  describe('2.10 Coherencia Estricta de Placas y Ranura de Fondo', () => {
+    it('guarantees that chosen backing material commands backing thickness and groove width', () => {
+      const built6mm = buildModularModule({
+        id: 'mod-backing-6mm',
+        carcass: {
+          width: 800,
+          height: 720,
+          depth: 560,
+          jointPriority: 'lateral-over-bottom',
+          roofType: 'solid-panel',
+          hasBacking: true,
+          backingType: 'groove',
+          backingThicknessMm: 6,
+        },
+        bays: [{ type: 'empty' }],
+        materials: {
+          ...materials,
+          backingsMaterialId: 'mat-mdf-raw-6',
+        },
+      }, {
+        carcassThicknessMm: 18,
+        backingThicknessMm: 6,
+      });
+
+      const backPiece = built6mm.resolvedPieces.find((p) => p.role === 'back');
+      expect(backPiece).toBeDefined();
+      expect(backPiece!.thicknessMm).toBe(6);
+
+      // Verify automatic groove deriver computes 6.5mm groove width (6mm + 0.5mm tolerance)
+      const grooves = deriveModuleGrooveOperations(
+        built6mm.resolvedPieces,
+        built6mm.module.joints,
+        { backingThicknessMm: 6, backingGrooveToleranceMm: 0.5 },
+      );
+      expect(grooves.length).toBeGreaterThan(0);
+      const sideGroove = grooves.find((g) => g.pieceId.includes('side-left'));
+      expect(sideGroove).toBeDefined();
+      expect(sideGroove!.widthMm).toBe(6.5);
+      expect(sideGroove!.description).toContain('6mm');
     });
   });
 });

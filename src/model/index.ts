@@ -218,6 +218,9 @@ export {
 export {
   columnObstacleSchema,
   type ColumnObstacle,
+  type ParametricObstacle,
+  type ObstacleType,
+  type ObstacleReferenceEdge,
   falseSquareSchema,
   type FalseSquare,
   interferenceConfigSchema,

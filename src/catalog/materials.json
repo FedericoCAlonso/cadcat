@@ -81,6 +81,25 @@
     },
     {
       "schemaVersion": 1,
+      "id": "mat-mdf-white-5-5",
+      "name": "Fibrofácil / MDF Fondo Blanco 5.5mm",
+      "thicknessMm": 5.5,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": false,
+      "milling": {
+        "hidden": "no",
+        "visible": "no",
+        "onStructuralPiece": "no"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
       "id": "mat-mdf-raw-6",
       "name": "Fibrofácil / MDF Crudo 6mm",
       "thicknessMm": 6,
@@ -93,6 +112,101 @@
         "hidden": "no",
         "visible": "no",
         "onStructuralPiece": "no"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-mdf-raw-9",
+      "name": "Fibrofácil / MDF Crudo 9mm",
+      "thicknessMm": 9,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": false,
+      "milling": {
+        "hidden": "no",
+        "visible": "no",
+        "onStructuralPiece": "limited"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-mdf-raw-12",
+      "name": "Fibrofácil / MDF Crudo 12mm",
+      "thicknessMm": 12,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": false,
+      "milling": {
+        "hidden": "yes",
+        "visible": "no",
+        "onStructuralPiece": "limited"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-melamine-white-15",
+      "name": "Melamina Blanca Base MDF 15mm",
+      "thicknessMm": 15,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": false,
+      "milling": {
+        "hidden": "yes",
+        "visible": "no",
+        "onStructuralPiece": "yes"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-melamine-oak-25",
+      "name": "Melamina Roble / Tapa de Mesa 25mm",
+      "thicknessMm": 25,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": true,
+      "milling": {
+        "hidden": "yes",
+        "visible": "no",
+        "onStructuralPiece": "yes"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-engrosado-36",
+      "name": "Placa Engrosada / Tamborato Roble 36mm",
+      "thicknessMm": 36,
+      "sheetSizeMm": {
+        "length": 2750,
+        "width": 1830
+      },
+      "hasGrain": true,
+      "milling": {
+        "hidden": "yes",
+        "visible": "no",
+        "onStructuralPiece": "yes"
       },
       "heatResistant": false,
       "elasticModulusMPa": "TO_CONFIRM",

@@ -455,8 +455,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
     // Check if horizontal panel (bottom, shelf, top): rotate around X so local Y maps to 3D Z
     const isHorizontal = Math.abs(item.sizeMm.y - matchedPiece.thicknessMm) < 0.1;
+    const isSide = Math.abs(item.sizeMm.x - matchedPiece.thicknessMm) < 0.1;
     if (isHorizontal) {
       geom.rotateX(-Math.PI / 2);
+    } else if (isSide) {
+      geom.rotateY(Math.PI / 2);
     }
     geom.center();
     geom.computeVertexNormals();
@@ -623,9 +626,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     // Architectural Interferences ghost visualization
     if (interferences?.columnObstacle?.enabled) {
       const col = interferences.columnObstacle;
-      const colW = col.widthMm;
+      const isBeam = col.type === 'horizontal-beam';
+      const dist = col.distanceFromReferenceMm ?? 0;
       const colD = col.depthMm;
-      const colH = col.heightMm ?? (bounds.size.y + 40);
+      const colW = col.widthMm ?? (isBeam ? bounds.size.x : 150);
+      const colH = col.heightMm ?? (isBeam ? 150 : bounds.size.y + 40);
 
       const colGeom = new THREE.BoxGeometry(colW, colH, colD);
       const colMat = new THREE.MeshStandardMaterial({
@@ -640,11 +645,25 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       const colLineMat = new THREE.LineBasicMaterial({ color: 0x334155, linewidth: 2 });
       colMesh.add(new THREE.LineSegments(colEdges, colLineMat));
 
-      const colX = col.corner === 'back-left'
-        ? bounds.min.x + colW / 2
-        : bounds.max.x - colW / 2;
-      const colY = bounds.min.y + colH / 2;
+      let colX = bounds.min.x + colW / 2;
+      let colY = bounds.min.y + colH / 2;
       const colZ = bounds.max.z - colD / 2;
+
+      if (isBeam) {
+        colX = col.widthMm && col.widthMm < bounds.size.x
+          ? (col.referenceEdge === 'right' ? bounds.max.x - dist - colW / 2 : bounds.min.x + dist + colW / 2)
+          : bounds.min.x + bounds.size.x / 2;
+        colY = col.referenceEdge === 'top'
+          ? bounds.max.y - dist - colH / 2
+          : bounds.min.y + dist + colH / 2;
+      } else {
+        const isRight = col.referenceEdge === 'right' || col.corner === 'back-right';
+        colX = isRight
+          ? bounds.max.x - dist - colW / 2
+          : bounds.min.x + dist + colW / 2;
+        colY = bounds.min.y + colH / 2;
+      }
+
       colMesh.position.set(colX, colY, colZ);
       group.add(colMesh);
     }
