@@ -748,6 +748,10 @@ export function App(): ReactElement {
                 <AssemblySheetView
                   assemblySheet={vm.assemblySheet}
                   pieces={vm.resolvedPieces}
+                  spatialBoxes={vm.spatialBoxes}
+                  spatialBounds={vm.spatialBounds}
+                  explodedRatio={vm.explodedRatio}
+                  onExplodedRatioChange={vm.setExplodedRatio}
                   wallShelvingOutput={vm.wallShelvingOutput}
                   wallShelvingDefinition={vm.wallShelvingDefinition}
                   onExportPdf={vm.exportAssemblyPdf}

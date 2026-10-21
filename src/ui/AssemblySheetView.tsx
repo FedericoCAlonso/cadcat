@@ -1,9 +1,11 @@
-import { useState, type ReactElement } from 'react';
+import { useState, useEffect, type ReactElement } from 'react';
 import {
   type AssemblySheet,
   type AssemblyGauge,
   type ResolvedPiece,
   type ResolvedPieceWithCutSize,
+  type SpatialPieceBox,
+  type ModuleSpatialBounds,
   determinePieceSpatialSize,
   exportAssemblyGuidePdf,
   buildWallShelving,
@@ -11,10 +13,15 @@ import {
   type WallShelvingDefinition,
   type WallShelvingOutput,
 } from '../resolver';
+import { Viewport3D } from './Viewport3D';
 
 export interface AssemblySheetViewProps {
   assemblySheet: AssemblySheet | null;
   pieces?: (ResolvedPieceWithCutSize | ResolvedPiece)[];
+  spatialBoxes?: SpatialPieceBox[];
+  spatialBounds?: ModuleSpatialBounds;
+  explodedRatio?: number;
+  onExplodedRatioChange?: (ratio: number) => void;
   wallShelvingOutput?: WallShelvingOutput | null;
   wallShelvingDefinition?: WallShelvingDefinition | null;
   onExportPdf?: () => void;
@@ -38,40 +45,93 @@ type DrawnSpan =
     };
 
 /**
- * Render 2.5D Isometric Exploded Assembly Map with reference balloons (#1, #2...).
+ * Render 2.5D Axonometric Exploded Assembly Map with reference balloons (#1, #2...),
+ * assembly trajectories, step sequence filtering, and multi-angle axonometric projections.
  */
 function renderExplodedSvg(
   sheet: AssemblySheet,
-  pieces?: (ResolvedPieceWithCutSize | ResolvedPiece)[],
-  activePieceId?: string | null,
-  onSelectPiece?: (id: string | null) => void,
+  pieces: (ResolvedPieceWithCutSize | ResolvedPiece)[] | undefined,
+  activePieceId: string | null | undefined,
+  onSelectPiece: ((id: string | null) => void) | undefined,
+  explosionRatio: number,
+  viewAngle: 'iso-right' | 'iso-left' | 'top' | 'front',
+  showTrajectories: boolean,
+  showBalloons: boolean,
+  showEdgeBanding: boolean,
+  activeFilterStep: number | null,
 ): ReactElement {
-  const width = 760;
-  const height = 480;
+  const width = 840;
+  const height = 520;
   const cos30 = 0.866025;
   const sin30 = 0.5;
 
   const pieceList = pieces ?? [];
   const pieceMap = new Map(pieceList.map((p) => [p.id, p]));
 
-  // Project 3D point (X, Y, Z) into 2.5D Isometric screen coords
-  const projectIso = (x: number, y: number, z: number) => ({
-    x: (x - z) * cos30,
-    y: (x + z) * sin30 - y,
-  });
+  const project = (x: number, y: number, z: number) => {
+    switch (viewAngle) {
+      case 'iso-left':
+        return {
+          x: (x + z) * cos30,
+          y: (z - x) * sin30 - y,
+        };
+      case 'top':
+        return {
+          x: x - z * 0.35,
+          y: z * 0.75 - y * 0.25,
+        };
+      case 'front':
+        return {
+          x: x + z * 0.22,
+          y: -y - z * 0.16,
+        };
+      case 'iso-right':
+      default:
+        return {
+          x: (x - z) * cos30,
+          y: (x + z) * sin30 - y,
+        };
+    }
+  };
 
-  // Collect projected vertices for all exploded pieces to calculate scale and bounding box
+  const currentStep =
+    activeFilterStep !== null
+      ? sheet.steps.find((s) => s.stepNumber === activeFilterStep) ?? null
+      : null;
+
+  const isStepPiece = (pieceId: string) => {
+    if (!currentStep) return true;
+    return currentStep.piecesInvolved.includes(pieceId);
+  };
+
+  // Base displacement distance scaled by ratio
+  const baseDist = 170 * explosionRatio;
+  const modH = sheet.moduleDimensionsMm.height || 800;
+
   interface ProjectedPiece {
     item: (typeof sheet.explodedMap)[0];
     vertices: { x: number; y: number }[];
-    centerIso: { x: number; y: number };
+    origSvg: { x: number; y: number };
+    centerSvg: { x: number; y: number };
     depthKey: number;
     spatialSize: { x: number; y: number; z: number };
+    isStepActive: boolean;
   }
 
-  const projectedPieces: ProjectedPiece[] = [];
   let minIsoX = Infinity, maxIsoX = -Infinity;
   let minIsoY = Infinity, maxIsoY = -Infinity;
+
+  interface IntermediatePiece {
+    item: (typeof sheet.explodedMap)[0];
+    origCenterIso: { x: number; y: number };
+    expCenterIso: { x: number; y: number };
+    vertsIso: { x: number; y: number }[];
+    depthKey: number;
+    spatialSize: { x: number; y: number; z: number };
+    isStepActive: boolean;
+  }
+
+  const intermediatePieces: IntermediatePiece[] = [];
 
   for (const expItem of sheet.explodedMap) {
     const origPiece = pieceMap.get(expItem.pieceId);
@@ -80,58 +140,147 @@ function renderExplodedSvg(
       ? determinePieceSpatialSize(origPiece)
       : { x: expItem.dimensionsMm.width, y: expItem.dimensionsMm.height, z: expItem.dimensionsMm.thickness };
 
-    const posX = origPos.x + expItem.displacementOffsetMm.x;
-    const posY = origPos.y + expItem.displacementOffsetMm.y;
-    const posZ = origPos.z + expItem.displacementOffsetMm.z;
+    const r = expItem.role.toLowerCase();
+    let dx = 0, dy = 0, dz = 0;
+
+    if (r.includes('side-left') || (r.includes('side') && r.includes('1') && !r.includes('box'))) {
+      dx = -baseDist * 1.35;
+    } else if (r.includes('side-right') || (r.includes('side') && r.includes('2') && !r.includes('box'))) {
+      dx = baseDist * 1.35;
+    } else if (r.includes('bottom') && !r.includes('box')) {
+      dy = -baseDist * 1.15;
+    } else if (r.includes('top') || r.includes('roof')) {
+      dy = baseDist * 1.15;
+    } else if (r.includes('rail-front')) {
+      dy = baseDist * 0.95;
+      dz = -baseDist * 0.7;
+    } else if (r.includes('rail-back')) {
+      dy = baseDist * 0.95;
+      dz = baseDist * 0.7;
+    } else if (r.includes('rail')) {
+      dy = baseDist * 0.95;
+    } else if (r.includes('back') && !r.includes('box')) {
+      dz = -baseDist * 1.6;
+    } else if (r.includes('door')) {
+      dz = baseDist * 2.1;
+      if (r.includes('left') || r.includes('1')) dx = -baseDist * 0.35;
+      if (r.includes('right') || r.includes('2')) dx = baseDist * 0.35;
+    } else if (r.includes('drawer-front')) {
+      dz = baseDist * 2.3;
+    } else if (r.includes('drawer-box') || r.includes('box-')) {
+      const forwardDist = baseDist * 1.8;
+      dz = forwardDist;
+      if (r.includes('side-left') || r.includes('box-side-l')) dx = -baseDist * 0.45;
+      else if (r.includes('side-right') || r.includes('box-side-r')) dx = baseDist * 0.45;
+      else if (r.includes('bottom') || r.includes('box-bottom')) dy = -baseDist * 0.35;
+      else if (r.includes('back') || r.includes('box-back')) dz = forwardDist - baseDist * 0.45;
+    } else if (r.includes('shelf')) {
+      const isUpper = (origPos.y + spatialSize.y / 2) > modH / 2;
+      dy = (isUpper ? 0.4 : -0.4) * baseDist;
+      dz = baseDist * 0.3;
+    } else if (r.includes('partition')) {
+      dz = baseDist * 0.35;
+    } else if (r.includes('plinth')) {
+      dy = -baseDist * 1.7;
+    } else {
+      const cx = sheet.moduleDimensionsMm.width / 2;
+      const cy = sheet.moduleDimensionsMm.height / 2;
+      const cz = sheet.moduleDimensionsMm.depth / 2;
+      const vx = (origPos.x + spatialSize.x / 2) - cx;
+      const vy = (origPos.y + spatialSize.y / 2) - cy;
+      const vz = (origPos.z + spatialSize.z / 2) - cz;
+      const len = Math.hypot(vx, vy, vz) || 1;
+      dx = (vx / len) * baseDist;
+      dy = (vy / len) * baseDist;
+      dz = (vz / len) * baseDist;
+    }
+
+    const posX = origPos.x + dx;
+    const posY = origPos.y + dy;
+    const posZ = origPos.z + dz;
 
     const sx = Math.max(12, spatialSize.x);
     const sy = Math.max(12, spatialSize.y);
     const sz = Math.max(12, spatialSize.z);
 
-    // 8 vertices in isometric space
-    const v0 = projectIso(posX, posY, posZ);
-    const v1 = projectIso(posX + sx, posY, posZ);
-    const v2 = projectIso(posX + sx, posY + sy, posZ);
-    const v3 = projectIso(posX, posY + sy, posZ);
-    const v4 = projectIso(posX, posY, posZ + sz);
-    const v5 = projectIso(posX + sx, posY, posZ + sz);
-    const v6 = projectIso(posX + sx, posY + sy, posZ + sz);
-    const v7 = projectIso(posX, posY + sy, posZ + sz);
+    const v0 = project(posX, posY, posZ);
+    const v1 = project(posX + sx, posY, posZ);
+    const v2 = project(posX + sx, posY + sy, posZ);
+    const v3 = project(posX, posY + sy, posZ);
+    const v4 = project(posX, posY, posZ + sz);
+    const v5 = project(posX + sx, posY, posZ + sz);
+    const v6 = project(posX + sx, posY + sy, posZ + sz);
+    const v7 = project(posX, posY + sy, posZ + sz);
+    const vertsIso = [v0, v1, v2, v3, v4, v5, v6, v7];
 
-    const verts = [v0, v1, v2, v3, v4, v5, v6, v7];
-    for (const v of verts) {
+    for (const v of vertsIso) {
       minIsoX = Math.min(minIsoX, v.x);
       maxIsoX = Math.max(maxIsoX, v.x);
       minIsoY = Math.min(minIsoY, v.y);
       maxIsoY = Math.max(maxIsoY, v.y);
     }
 
-    const centerIso = projectIso(posX + sx / 2, posY + sy / 2, posZ + sz / 2);
-    // Painter's algorithm depth sorting key
-    const depthKey = (posX + sx / 2) + (posZ + sz / 2) - (posY + sy / 2);
+    const origCenterIso = project(origPos.x + sx / 2, origPos.y + sy / 2, origPos.z + sz / 2);
+    const expCenterIso = project(posX + sx / 2, posY + sy / 2, posZ + sz / 2);
 
-    projectedPieces.push({
+    minIsoX = Math.min(minIsoX, origCenterIso.x);
+    maxIsoX = Math.max(maxIsoX, origCenterIso.x);
+    minIsoY = Math.min(minIsoY, origCenterIso.y);
+    maxIsoY = Math.max(maxIsoY, origCenterIso.y);
+
+    const cX = posX + sx / 2;
+    const cY = posY + sy / 2;
+    const cZ = posZ + sz / 2;
+    let depthKey = 0;
+    switch (viewAngle) {
+      case 'iso-left':
+        depthKey = -cX + cZ - cY;
+        break;
+      case 'top':
+        depthKey = cY;
+        break;
+      case 'front':
+        depthKey = cZ;
+        break;
+      case 'iso-right':
+      default:
+        depthKey = cX + cZ - cY;
+        break;
+    }
+
+    intermediatePieces.push({
       item: expItem,
-      vertices: verts,
-      centerIso,
+      origCenterIso,
+      expCenterIso,
+      vertsIso,
       depthKey,
       spatialSize,
+      isStepActive: isStepPiece(expItem.pieceId),
     });
   }
 
-  // Sort back-to-front
-  projectedPieces.sort((a, b) => a.depthKey - b.depthKey);
+  intermediatePieces.sort((a, b) => a.depthKey - b.depthKey);
 
   const spanX = Math.max(1, maxIsoX - minIsoX);
   const spanY = Math.max(1, maxIsoY - minIsoY);
-  const marginX = 65;
-  const marginY = 55;
+  const marginX = 75;
+  const marginY = 65;
   const drawW = width - 2 * marginX;
   const drawH = height - 2 * marginY;
   const scale = Math.min(drawW / spanX, drawH / spanY);
 
   const toSvgX = (isoX: number) => marginX + (isoX - minIsoX) * scale + (drawW - spanX * scale) / 2;
   const toSvgY = (isoY: number) => marginY + (isoY - minIsoY) * scale + (drawH - spanY * scale) / 2;
+
+  const projectedPieces: ProjectedPiece[] = intermediatePieces.map((p) => ({
+    item: p.item,
+    vertices: p.vertsIso.map((v) => ({ x: toSvgX(v.x), y: toSvgY(v.y) })),
+    origSvg: { x: toSvgX(p.origCenterIso.x), y: toSvgY(p.origCenterIso.y) },
+    centerSvg: { x: toSvgX(p.expCenterIso.x), y: toSvgY(p.expCenterIso.y) },
+    depthKey: p.depthKey,
+    spatialSize: p.spatialSize,
+    isStepActive: p.isStepActive,
+  }));
 
   return (
     <svg
@@ -140,10 +289,11 @@ function renderExplodedSvg(
       style={{
         width: '100%',
         height: 'auto',
-        maxHeight: '480px',
+        maxHeight: '520px',
         background: 'var(--surface, #ffffff)',
         borderRadius: '12px',
         border: '1px solid var(--border, #d9d2c3)',
+        userSelect: 'none',
       }}
       aria-label="Mapa axonométrico de vista explotada con referencias numeradas"
     >
@@ -155,100 +305,160 @@ function renderExplodedSvg(
 
       <rect width={width} height={height} fill="url(#exploded-grid)" />
 
-      {/* Pieces Isometric Projection */}
+      {/* 1. Trajectory Lines Layer (Behind pieces) */}
+      {showTrajectories && explosionRatio > 0.05 && (
+        <g className="assembly-trajectories" opacity={0.85}>
+          {projectedPieces.map((p) => {
+            if (!p.isStepActive) return null;
+            const isSel = activePieceId === p.item.pieceId;
+            const dist = Math.hypot(p.centerSvg.x - p.origSvg.x, p.centerSvg.y - p.origSvg.y);
+            if (dist < 10) return null;
+
+            const trajColor = isSel ? 'var(--primary, #56705f)' : 'var(--accent, #b08a3e)';
+            const trajWidth = isSel ? 2.2 : 1.2;
+
+            return (
+              <g key={`traj-${p.item.pieceId}`}>
+                {/* Docking anchor circle at assembled destination */}
+                <circle
+                  cx={p.origSvg.x}
+                  cy={p.origSvg.y}
+                  r={isSel ? 4 : 2.5}
+                  fill={trajColor}
+                  stroke="var(--surface, #ffffff)"
+                  strokeWidth="1"
+                />
+                {/* Dashed trajectory line connecting assembled to exploded position */}
+                <line
+                  x1={p.origSvg.x}
+                  y1={p.origSvg.y}
+                  x2={p.centerSvg.x}
+                  y2={p.centerSvg.y}
+                  stroke={trajColor}
+                  strokeWidth={trajWidth}
+                  strokeDasharray={isSel ? '5 3' : '3 3'}
+                />
+              </g>
+            );
+          })}
+        </g>
+      )}
+
+      {/* 2. Pieces Layer */}
       {projectedPieces.map((p) => {
         const isSelected = activePieceId === p.item.pieceId;
-        const [, v1, v2, v3, v4, v5, v6, v7] = p.vertices;
+        const [sv0, sv1, sv2, sv3, sv4, sv5, sv6, sv7] = p.vertices;
 
-        const sv1 = { x: toSvgX(v1!.x), y: toSvgY(v1!.y) };
-        const sv2 = { x: toSvgX(v2!.x), y: toSvgY(v2!.y) };
-        const sv3 = { x: toSvgX(v3!.x), y: toSvgY(v3!.y) };
-        const sv4 = { x: toSvgX(v4!.x), y: toSvgY(v4!.y) };
-        const sv5 = { x: toSvgX(v5!.x), y: toSvgY(v5!.y) };
-        const sv6 = { x: toSvgX(v6!.x), y: toSvgY(v6!.y) };
-        const sv7 = { x: toSvgX(v7!.x), y: toSvgY(v7!.y) };
+        const frontPoints = `${sv4!.x},${sv4!.y} ${sv5!.x},${sv5!.y} ${sv6!.x},${sv6!.y} ${sv7!.x},${sv7!.y}`;
+        const topPoints = `${sv7!.x},${sv7!.y} ${sv6!.x},${sv6!.y} ${sv2!.x},${sv2!.y} ${sv3!.x},${sv3!.y}`;
+        const rightPoints = `${sv5!.x},${sv5!.y} ${sv1!.x},${sv1!.y} ${sv2!.x},${sv2!.y} ${sv6!.x},${sv6!.y}`;
+        const leftPoints = `${sv0!.x},${sv0!.y} ${sv4!.x},${sv4!.y} ${sv7!.x},${sv7!.y} ${sv3!.x},${sv3!.y}`;
 
-        // Front Face (Z+): v4, v5, v6, v7
-        const frontPoints = `${sv4.x},${sv4.y} ${sv5.x},${sv5.y} ${sv6.x},${sv6.y} ${sv7.x},${sv7.y}`;
-        // Top Face (Y+): v7, v6, v2, v3
-        const topPoints = `${sv7.x},${sv7.y} ${sv6.x},${sv6.y} ${sv2.x},${sv2.y} ${sv3.x},${sv3.y}`;
-        // Right Face (X+): v5, v1, v2, v6
-        const rightPoints = `${sv5.x},${sv5.y} ${sv1.x},${sv1.y} ${sv2.x},${sv2.y} ${sv6.x},${sv6.y}`;
+        const isGhosted = !p.isStepActive;
 
-        const frontFill = isSelected ? 'var(--primary, #56705f)' : 'var(--surface-2, #ede8dc)';
-        const topFill = isSelected ? 'var(--primary-hover, #465c4e)' : '#f6f3ec';
-        const rightFill = isSelected ? 'var(--primary-hover, #465c4e)' : '#dfd8c8';
-        const strokeColor = isSelected ? 'var(--primary, #56705f)' : 'var(--text-muted, #5c655f)';
+        let frontFill = 'var(--surface-2, #ede8dc)';
+        let topFill = '#faf8f4';
+        let sideFill = '#ded8cb';
+        let strokeColor = 'var(--text-muted, #5c655f)';
+        let strokeWidth = 1.0;
+        let opacity = 0.95;
 
-        // Center of front face for balloon
-        const fcX = (sv4.x + sv6.x) / 2;
-        const fcY = (sv4.y + sv6.y) / 2;
+        if (isSelected) {
+          frontFill = 'var(--primary, #56705f)';
+          topFill = 'var(--primary-hover, #465c4e)';
+          sideFill = '#3b4e42';
+          strokeColor = 'var(--primary, #56705f)';
+          strokeWidth = 2.0;
+        } else if (isGhosted) {
+          frontFill = '#e8e4da';
+          topFill = '#f0ede6';
+          sideFill = '#dfdacd';
+          strokeColor = 'var(--border, #d9d2c3)';
+          strokeWidth = 0.8;
+          opacity = 0.18;
+        }
 
-        // Balloon position offset
-        const isLeftSide = p.item.role.includes('side-left') || p.item.role.includes('1');
-        const bX = isLeftSide ? fcX - 42 : fcX + 42;
-        const bY = fcY - 26;
+        const useLeftFace = viewAngle === 'iso-left';
+
+        // Front face center for balloon placement
+        const fcX = (sv4!.x + sv6!.x) / 2;
+        const fcY = (sv4!.y + sv6!.y) / 2;
+
+        const dx = fcX - width / 2;
+        const dy = fcY - height / 2;
+        const len = Math.hypot(dx, dy) || 1;
+        const bX = Math.max(30, Math.min(width - 30, fcX + (dx / len) * 52));
+        const bY = Math.max(30, Math.min(height - 30, fcY + (dy / len) * 40));
 
         return (
           <g
             key={p.item.pieceId}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', transition: 'opacity 0.2s ease' }}
+            opacity={opacity}
             onClick={() => onSelectPiece && onSelectPiece(isSelected ? null : p.item.pieceId)}
           >
             {/* Top Face */}
-            <polygon points={topPoints} fill={topFill} stroke={strokeColor} strokeWidth="1" />
-            {/* Right Face */}
-            <polygon points={rightPoints} fill={rightFill} stroke={strokeColor} strokeWidth="1" />
+            <polygon points={topPoints} fill={topFill} stroke={strokeColor} strokeWidth={strokeWidth} />
+            {/* Side Face (Left or Right depending on viewing angle) */}
+            {useLeftFace ? (
+              <polygon points={leftPoints} fill={sideFill} stroke={strokeColor} strokeWidth={strokeWidth} />
+            ) : (
+              <polygon points={rightPoints} fill={sideFill} stroke={strokeColor} strokeWidth={strokeWidth} />
+            )}
             {/* Front Face */}
             <polygon
               points={frontPoints}
               fill={frontFill}
               stroke={strokeColor}
-              strokeWidth="1.2"
+              strokeWidth={strokeWidth}
               fillOpacity={p.item.role.includes('back') ? 0.6 : 0.95}
             />
 
             {/* Edge Banding Highlight (Front Edge) in Latón Brass */}
-            <line
-              x1={sv7.x}
-              y1={sv7.y}
-              x2={sv6.x}
-              y2={sv6.y}
-              stroke="var(--accent, #b08a3e)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
+            {showEdgeBanding && !isGhosted && (
+              <line
+                x1={sv7!.x}
+                y1={sv7!.y}
+                x2={sv6!.x}
+                y2={sv6!.y}
+                stroke="var(--accent, #b08a3e)"
+                strokeWidth={isSelected ? '3.5' : '2.5'}
+                strokeLinecap="round"
+              />
+            )}
 
-            {/* Leader line to balloon */}
-            <line
-              x1={fcX}
-              y1={fcY}
-              x2={bX}
-              y2={bY}
-              stroke="var(--accent, #b08a3e)"
-              strokeWidth="1.2"
-              strokeDasharray="2 2"
-            />
-
-            {/* Reference Number Balloon */}
-            <circle
-              cx={bX}
-              cy={bY}
-              r="13"
-              fill={isSelected ? 'var(--primary, #56705f)' : 'var(--surface, #ffffff)'}
-              stroke={isSelected ? 'var(--primary-hover, #465c4e)' : 'var(--border, #d9d2c3)'}
-              strokeWidth={isSelected ? '2' : '1.5'}
-            />
-            <text
-              x={bX}
-              y={bY + 3.8}
-              textAnchor="middle"
-              fontSize="10"
-              fontWeight="bold"
-              fill={isSelected ? '#ffffff' : 'var(--text, #1f2622)'}
-            >
-              #{p.item.referenceNumber}
-            </text>
+            {/* Reference Number Balloon & Leader line */}
+            {showBalloons && !isGhosted && (
+              <g className="exploded-balloon-group">
+                <line
+                  x1={fcX}
+                  y1={fcY}
+                  x2={bX}
+                  y2={bY}
+                  stroke="var(--accent, #b08a3e)"
+                  strokeWidth="1.2"
+                  strokeDasharray="2 2"
+                />
+                <circle
+                  cx={bX}
+                  cy={bY}
+                  r="13"
+                  fill={isSelected ? 'var(--primary, #56705f)' : 'var(--surface, #ffffff)'}
+                  stroke={isSelected ? 'var(--primary-hover, #465c4e)' : 'var(--border, #d9d2c3)'}
+                  strokeWidth={isSelected ? '2.5' : '1.5'}
+                />
+                <text
+                  x={bX}
+                  y={bY + 3.8}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="bold"
+                  fill={isSelected ? '#ffffff' : 'var(--text, #1f2622)'}
+                >
+                  #{p.item.referenceNumber}
+                </text>
+              </g>
+            )}
           </g>
         );
       })}
@@ -778,6 +988,10 @@ function renderAssemblySvg(
 export function AssemblySheetView({
   assemblySheet,
   pieces,
+  spatialBoxes,
+  spatialBounds,
+  explodedRatio,
+  onExplodedRatioChange,
   wallShelvingOutput,
   wallShelvingDefinition,
   onExportPdf,
@@ -788,6 +1002,43 @@ export function AssemblySheetView({
   const [activeTab, setActiveTab] = useState<'all' | 'exploded' | 'panels' | 'gauges' | 'steps'>('all');
   const [selectedPanelIndex, setSelectedPanelIndex] = useState<number>(0);
   const [activeStepNumber, setActiveStepNumber] = useState<number | null>(null);
+
+  // Exploded View Interactive State
+  const [explosionRatio, setExplosionRatio] = useState<number>(explodedRatio ?? 0.65);
+  const [viewAngle, setViewAngle] = useState<'iso-right' | 'iso-left' | 'top' | 'front'>('iso-right');
+  const [showTrajectories, setShowTrajectories] = useState<boolean>(true);
+  const [showBalloons, setShowBalloons] = useState<boolean>(true);
+  const [showEdgeBanding, setShowEdgeBanding] = useState<boolean>(true);
+  const [activeStepFilter, setActiveStepFilter] = useState<number | null>(null);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const [explodedViewMode, setExplodedViewMode] = useState<'2.5d' | '3d'>('2.5d');
+
+  useEffect(() => {
+    if (typeof explodedRatio === 'number') {
+      setExplosionRatio(explodedRatio);
+    }
+  }, [explodedRatio]);
+
+  useEffect(() => {
+    if (!isAnimating) return;
+    let forward = true;
+    const interval = setInterval(() => {
+      setExplosionRatio((prev) => {
+        let next = prev + (forward ? 0.025 : -0.025);
+        if (next >= 1.0) {
+          next = 1.0;
+          forward = false;
+        } else if (next <= 0.05) {
+          next = 0.05;
+          forward = true;
+        }
+        const rounded = Math.round(next * 100) / 100;
+        onExplodedRatioChange?.(rounded);
+        return rounded;
+      });
+    }, 40);
+    return () => clearInterval(interval);
+  }, [isAnimating, onExplodedRatioChange]);
 
   // 1. Reactive Wall Shelving Mode (Zero Hardcoding)
   const isWallShelving = Boolean(
@@ -1073,7 +1324,329 @@ export function AssemblySheetView({
             </span>
           </div>
 
-          {renderExplodedSvg(assemblySheet, pieces, selectedPieceId, onSelectPiece)}
+          {/* Exploded View Interactive Toolbar */}
+          <div className="exploded-viewer-toolbar" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+            {/* Row 1: Mode Switcher (2.5D vs 3D) & Angle Presets & Animation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {spatialBoxes && spatialBounds && (
+                  <div className="m3-segmented-button" role="radiogroup" aria-label="Modo de vista explotada">
+                    <button
+                      type="button"
+                      className={`m3-segmented-button__item ${explodedViewMode === '2.5d' ? 'selected' : ''}`}
+                      onClick={() => setExplodedViewMode('2.5d')}
+                      style={{ minHeight: '34px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                    >
+                      📐 Axonométrica 2.5D
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-segmented-button__item ${explodedViewMode === '3d' ? 'selected' : ''}`}
+                      onClick={() => setExplodedViewMode('3d')}
+                      style={{ minHeight: '34px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                    >
+                      🧊 3D Interactivo
+                    </button>
+                  </div>
+                )}
+
+                {explodedViewMode === '2.5d' && (
+                  <div className="m3-segmented-button" role="radiogroup" aria-label="Ángulo de visualización">
+                    <button
+                      type="button"
+                      className={`m3-segmented-button__item ${viewAngle === 'iso-right' ? 'selected' : ''}`}
+                      onClick={() => setViewAngle('iso-right')}
+                      title="Isométrica Frente-Derecha (30°/30°)"
+                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    >
+                      ↗️ Iso Der.
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-segmented-button__item ${viewAngle === 'iso-left' ? 'selected' : ''}`}
+                      onClick={() => setViewAngle('iso-left')}
+                      title="Isométrica Frente-Izquierda"
+                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    >
+                      ↖️ Iso Izq.
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-segmented-button__item ${viewAngle === 'top' ? 'selected' : ''}`}
+                      onClick={() => setViewAngle('top')}
+                      title="Vista Cenital Superior"
+                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    >
+                      ⬇️ Cenital
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-segmented-button__item ${viewAngle === 'front' ? 'selected' : ''}`}
+                      onClick={() => setViewAngle('front')}
+                      title="Elevación Frontal"
+                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    >
+                      ➡️ Frontal
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Animation Button */}
+              <button
+                type="button"
+                className={`m3-btn m3-btn--small ${isAnimating ? 'm3-btn--filled' : 'm3-btn--tonal'}`}
+                onClick={() => setIsAnimating(!isAnimating)}
+                style={{ minHeight: '34px', padding: '0.25rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                title="Animar o simular el ensamble y despiece continuo del mueble"
+              >
+                <span>{isAnimating ? '⏸ Pausar' : '▶ Animar Ensamble'}</span>
+              </button>
+            </div>
+
+            {/* Row 2: Explosion Slider & Quick Presets & Feature Toggles */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', padding: '6px 12px', backgroundColor: 'var(--surface-2, #ede8dc)', borderRadius: '10px', border: '1px solid var(--border, #d9d2c3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 300px' }}>
+                <label htmlFor="exploded-ratio-slider" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text, #1f2622)', whiteSpace: 'nowrap' }}>
+                  💥 Despiece:
+                </label>
+                <input
+                  id="exploded-ratio-slider"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.02"
+                  value={explosionRatio}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setExplosionRatio(val);
+                    onExplodedRatioChange?.(val);
+                  }}
+                  style={{ flex: 1, accentColor: 'var(--primary, #56705f)', cursor: 'pointer', height: '6px' }}
+                />
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, minWidth: '40px', color: 'var(--primary, #56705f)' }}>
+                  {Math.round(explosionRatio * 100)}%
+                </span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    onClick={() => {
+                      setExplosionRatio(0);
+                      onExplodedRatioChange?.(0);
+                    }}
+                    style={{ minHeight: '28px', padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                  >
+                    0% Armado
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    onClick={() => {
+                      setExplosionRatio(0.5);
+                      onExplodedRatioChange?.(0.5);
+                    }}
+                    style={{ minHeight: '28px', padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                  >
+                    50%
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    onClick={() => {
+                      setExplosionRatio(1.0);
+                      onExplodedRatioChange?.(1.0);
+                    }}
+                    style={{ minHeight: '28px', padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                  >
+                    100% Máx
+                  </button>
+                </div>
+              </div>
+
+              {explodedViewMode === '2.5d' && (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showTrajectories}
+                      onChange={(e) => setShowTrajectories(e.target.checked)}
+                    />
+                    <span>Líneas Guía</span>
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showBalloons}
+                      onChange={(e) => setShowBalloons(e.target.checked)}
+                    />
+                    <span>Globos (#1, #2)</span>
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showEdgeBanding}
+                      onChange={(e) => setShowEdgeBanding(e.target.checked)}
+                    />
+                    <span>Cantos Vistos</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Row 3: Step-by-Step Sequence Filter */}
+            {assemblySheet.steps && assemblySheet.steps.length > 0 && explodedViewMode === '2.5d' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted, #5c655f)', whiteSpace: 'nowrap' }}>
+                  Fase de Montaje:
+                </span>
+                <button
+                  type="button"
+                  className={`m3-chip ${activeStepFilter === null ? 'm3-chip--selected' : ''}`}
+                  onClick={() => setActiveStepFilter(null)}
+                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '28px' }}
+                >
+                  👁️ Todas ({assemblySheet.explodedMap.length} pzas)
+                </button>
+                {assemblySheet.steps.map((st) => (
+                  <button
+                    key={st.stepNumber}
+                    type="button"
+                    className={`m3-chip ${activeStepFilter === st.stepNumber ? 'm3-chip--selected' : ''}`}
+                    onClick={() => setActiveStepFilter(activeStepFilter === st.stepNumber ? null : st.stepNumber)}
+                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '28px', whiteSpace: 'nowrap' }}
+                    title={st.instruction}
+                  >
+                    Paso {st.stepNumber}: {st.title.replace(/^[0-9.]+\s*/, '')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Viewer: 3D Viewport or 2.5D SVG */}
+          {explodedViewMode === '3d' && spatialBoxes && spatialBounds ? (
+            <div
+              style={{
+                width: '100%',
+                height: '480px',
+                position: 'relative',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                border: '1px solid var(--border, #d9d2c3)',
+              }}
+            >
+              <Viewport3D
+                boxes={spatialBoxes}
+                bounds={spatialBounds}
+                pieces={(pieces as ResolvedPieceWithCutSize[]) ?? []}
+                explodedRatio={explosionRatio}
+                onExplodedRatioChange={(val) => {
+                  setExplosionRatio(val);
+                  onExplodedRatioChange?.(val);
+                }}
+                selectedPieceId={selectedPieceId ?? null}
+                onSelectPiece={onSelectPiece ?? (() => {})}
+              />
+            </div>
+          ) : (
+            renderExplodedSvg(
+              assemblySheet,
+              pieces,
+              selectedPieceId,
+              onSelectPiece,
+              explosionRatio,
+              viewAngle,
+              showTrajectories,
+              showBalloons,
+              showEdgeBanding,
+              activeStepFilter,
+            )
+          )}
+
+          {/* Selected Piece Inspection Card */}
+          {selectedPieceId && (() => {
+            const selectedItem = assemblySheet.explodedMap.find((p) => p.pieceId === selectedPieceId);
+            if (!selectedItem) return null;
+            return (
+              <div
+                className="m3-card"
+                style={{
+                  marginTop: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: 'var(--primary-container, #d8e4dc)',
+                  color: 'var(--on-primary-container, #15251c)',
+                  border: '1px solid var(--primary, #56705f)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  boxShadow: 'var(--md-sys-elevation-1)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--primary, #56705f)',
+                      color: 'var(--on-primary, #ffffff)',
+                      fontWeight: 800,
+                      fontSize: '1rem',
+                      flexShrink: 0,
+                    }}
+                  >
+                    #{selectedItem.referenceNumber}
+                  </span>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700 }}>
+                      {selectedItem.name} <span style={{ opacity: 0.8, fontSize: '0.85rem' }}>({selectedItem.pieceId})</span>
+                    </h4>
+                    <div style={{ fontSize: '0.82rem', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <span><strong>Corte:</strong> {selectedItem.dimensionsMm.width} × {selectedItem.dimensionsMm.height} × {selectedItem.dimensionsMm.thickness} mm</span>
+                      <span>•</span>
+                      <span><strong>Cantos:</strong> {selectedItem.bandedEdgesSummary}</span>
+                      <span>•</span>
+                      <span><strong>Pre-armado:</strong> {selectedItem.hardwarePreparedCount > 0 ? `✓ ${selectedItem.hardwarePreparedCount} mecanizados` : 'Ensamble directo'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {assemblySheet.panelDetails.some((p) => p.pieceId === selectedItem.pieceId) && (
+                    <button
+                      type="button"
+                      className="m3-btn m3-btn--small m3-btn--filled"
+                      style={{ fontSize: '0.82rem', minHeight: '36px', padding: '0 12px' }}
+                      onClick={() => {
+                        const idx = assemblySheet.panelDetails.findIndex((p) => p.pieceId === selectedItem.pieceId);
+                        if (idx >= 0) {
+                          setSelectedPanelIndex(idx);
+                          setActiveTab('panels');
+                        }
+                      }}
+                    >
+                      🔍 Ver Plano con Cotas Datum (0,0) ➔
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    style={{ fontSize: '0.82rem', minHeight: '36px', padding: '0 10px' }}
+                    onClick={() => onSelectPiece?.(null)}
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Parts reference summary table */}
           <div style={{ marginTop: '12px', overflowX: 'auto' }}>

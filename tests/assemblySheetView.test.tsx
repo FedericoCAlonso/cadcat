@@ -176,4 +176,40 @@ describe('AssemblySheetView Component', () => {
     // Ensure anchor recommendation is present
     expect(html).toContain(wallOutput.bracketCalculation.recommendedAnchor.brandModel);
   });
+
+  it('renders interactive exploded view toolbar, trajectory lines, and inspection card on piece selection', () => {
+    const sheet: AssemblySheet = generateAssemblySheet({
+      module: {
+        moduleId: 'cab-exploded',
+        pieces: samplePieces,
+        joints: [],
+      },
+    });
+
+    const html = renderToString(
+      <AssemblySheetView
+        assemblySheet={sheet}
+        pieces={samplePieces}
+        selectedPieceId="side-left"
+        onSelectPiece={vi.fn()}
+      />
+    );
+
+    // Exploded View Toolbar controls
+    expect(html).toContain('💥 Despiece:');
+    expect(html).toContain('Animar Ensamble');
+    expect(html).toContain('Iso Der.');
+    expect(html).toContain('Iso Izq.');
+    expect(html).toContain('Cenital');
+    expect(html).toContain('Líneas Guía');
+    expect(html).toContain('Globos (#1, #2)');
+    expect(html).toContain('Cantos Vistos');
+
+    // Trajectory lines SVG group
+    expect(html).toContain('assembly-trajectories');
+
+    // Selected piece inspection card
+    expect(html).toContain('Lateral Izquierdo');
+    expect(html).toContain('Ver Plano con Cotas Datum (0,0)');
+  });
 });
