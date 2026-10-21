@@ -249,213 +249,6 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
           </div>
         </div>
 
-        {/* Workshop Technical Configuration Bar */}
-        <div
-          className="machining-shop-config-bar"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.4rem 0.75rem',
-            backgroundColor: 'var(--md-sys-color-surface-container-high)',
-            borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-            gap: '0.5rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Left: Datum Reference & Rotation */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
-              📍 Origen Datum (0,0):
-            </span>
-            <div className="m3-segmented-button" style={{ height: '30px' }}>
-              <button
-                type="button"
-                className={`m3-chip ${vm.datumCorner === 'bottom-left' ? 'm3-chip--selected' : ''}`}
-                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
-                onClick={() => vm.setDatumCorner('bottom-left')}
-                title="Origen en esquina Inferior Izquierda (estándar)"
-              >
-                ↙️ Inf-Izq
-              </button>
-              <button
-                type="button"
-                className={`m3-chip ${vm.datumCorner === 'top-left' ? 'm3-chip--selected' : ''}`}
-                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
-                onClick={() => vm.setDatumCorner('top-left')}
-                title="Origen en esquina Superior Izquierda"
-              >
-                ↖️ Sup-Izq
-              </button>
-              <button
-                type="button"
-                className={`m3-chip ${vm.datumCorner === 'bottom-right' ? 'm3-chip--selected' : ''}`}
-                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
-                onClick={() => vm.setDatumCorner('bottom-right')}
-                title="Origen en esquina Inferior Derecha"
-              >
-                ↘️ Inf-Der
-              </button>
-              <button
-                type="button"
-                className={`m3-chip ${vm.datumCorner === 'top-right' ? 'm3-chip--selected' : ''}`}
-                style={{ height: '28px', padding: '0 0.45rem', fontSize: '0.72rem' }}
-                onClick={() => vm.setDatumCorner('top-right')}
-                title="Origen en esquina Superior Derecha"
-              >
-                ↗️ Sup-Der
-              </button>
-            </div>
-
-            {/* Rotation */}
-            <button
-              type="button"
-              className="m3-btn m3-btn--small m3-btn--tonal"
-              style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.75rem' }}
-              onClick={vm.handleRotateClockwise}
-              title="Girar la pieza 90 grados para acomodarla como en el banco de trabajo"
-            >
-              🔄 Girar {vm.rotationDeg !== 0 ? `(${vm.rotationDeg}°)` : '90°'}
-            </button>
-          </div>
-
-          {/* Right: Technical Layer Toggles */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {/* Grid Toggle */}
-            <button
-              type="button"
-              className={`m3-chip ${vm.showGrid ? 'm3-chip--selected' : ''}`}
-              style={{ height: '28px', padding: '0 0.5rem', fontSize: '0.72rem' }}
-              onClick={() => vm.setShowGrid(!vm.showGrid)}
-              title="Activar/desactivar cuadrícula de taller en milímetros"
-            >
-              🏁 Red {vm.showGrid ? `(${vm.gridPitch}mm)` : ''}
-            </button>
-            {vm.showGrid && (
-              <select
-                className="m3-select"
-                style={{ height: '28px', padding: '0 0.3rem', fontSize: '0.72rem' }}
-                value={vm.gridPitch}
-                onChange={(e) => vm.setGridPitch(Number(e.target.value) as 32 | 50)}
-              >
-                <option value={32}>Paso 32 mm</option>
-                <option value={50}>Paso 50 mm</option>
-              </select>
-            )}
-
-            {/* Projections Toggle */}
-            <button
-              type="button"
-              className={`m3-chip ${vm.showProjections ? 'm3-chip--selected' : ''}`}
-              style={{ height: '28px', padding: '0 0.5rem', fontSize: '0.72rem' }}
-              onClick={() => vm.setShowProjections(!vm.showProjections)}
-              title="Mostrar u ocultar siluetas fantasma de piezas en contacto"
-            >
-              👻 Huellas Contacto
-            </button>
-
-            {/* Edge banding Toggle */}
-            <button
-              type="button"
-              className={`m3-chip ${vm.showEdgeBanding ? 'm3-chip--selected' : ''}`}
-              style={{ height: '28px', padding: '0 0.5rem', fontSize: '0.72rem' }}
-              onClick={() => vm.setShowEdgeBanding(!vm.showEdgeBanding)}
-              title="Resaltar bordes con tapacantos aplicados"
-            >
-              🏷️ Tapacantos
-            </button>
-
-            {/* Table view toggle */}
-            <button
-              type="button"
-              className={`m3-btn m3-btn--small ${vm.showCoordsTable ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-              style={{ height: '28px', padding: '0 0.6rem', fontSize: '0.75rem', fontWeight: 700 }}
-              onClick={() => vm.setShowCoordsTable(!vm.showCoordsTable)}
-              title="Ver u ocultar tabla de cotas ordenadas para punzonado en banco"
-            >
-              📋 {vm.showCoordsTable ? 'Ocultar Tabla' : 'Tabla de Banco'} ({vm.benchOperationsTable.length})
-            </button>
-          </div>
-        </div>
-
-        {/* One-Click Workshop Presets Bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.3rem 0.75rem',
-            backgroundColor: 'var(--md-sys-color-surface-container-low)',
-            borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-            overflowX: 'auto',
-          }}
-        >
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface-variant)', whiteSpace: 'nowrap' }}>
-            ⚡ Atajos de Banco:
-          </span>
-          <button
-            type="button"
-            className="m3-chip"
-            style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
-            onClick={() => vm.applyCupHingesPreset()}
-            title="Generar 2 perforaciones de bisagra cazoleta Ø35mm a 100mm de extremos y 21.5mm del borde"
-          >
-            🗄️ Bisagras Ø35 mm (Par)
-          </button>
-          <button
-            type="button"
-            className="m3-chip"
-            style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
-            onClick={() => vm.applySystem32ShelfPinsPreset()}
-            title="Generar dos filas de cremallera Sistema 32 mm a 37mm de frente y fondo"
-          >
-            📏 Cremalleras Sist. 32 (Frente + Fondo)
-          </button>
-          <button
-            type="button"
-            className="m3-chip"
-            style={{ height: '28px', padding: '0 0.55rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
-            onClick={() => vm.applyBackingGroovePreset()}
-            title="Generar ranura longitudinal para fondo de 4x8 mm a 15 mm del borde"
-          >
-            ➖ Ranura Fondo (15 mm)
-          </button>
-        </div>
-
-        {/* Mobile View Switcher (Tabs) */}
-        <div className="machining-editor-mobile-tabs" role="tablist" aria-label="Vistas del editor de mecanizados">
-          <div className="m3-segmented-button" style={{ width: '100%' }}>
-            <button
-              type="button"
-              className={`m3-segmented-button__item ${mobileTab === 'canvas' ? 'selected' : ''}`}
-              onClick={() => setMobileTab('canvas')}
-            >
-              📐 Plano 2D
-            </button>
-            <button
-              type="button"
-              className={`m3-segmented-button__item ${mobileTab === 'controls' ? 'selected' : ''}`}
-              onClick={() => setMobileTab('controls')}
-            >
-              ⚙️ Parámetros
-            </button>
-            <button
-              type="button"
-              className={`m3-segmented-button__item ${mobileTab === 'list' ? 'selected' : ''}`}
-              onClick={() => setMobileTab('list')}
-            >
-              📋 Manuales ({vm.pieceCustomOps.length})
-            </button>
-            <button
-              type="button"
-              className={`m3-segmented-button__item ${mobileTab === 'table' ? 'selected' : ''}`}
-              onClick={() => setMobileTab('table')}
-            >
-              📊 Tabla ({vm.benchOperationsTable.length})
-            </button>
-          </div>
-        </div>
-
         {/* Modal Body */}
         <div className="m3-modal-body">
           <div className={`machining-editor-layout mobile-tab--${mobileTab}`}>
@@ -2034,24 +1827,253 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 </svg>
               </div>
 
-              {/* Mobile Quick Action Bar */}
-              <div className="machining-mobile-canvas-actions">
-                <button
-                  type="button"
-                  className="m3-btn m3-btn--primary"
-                  style={{ flex: 1, padding: '0.55rem', fontSize: '0.85rem' }}
-                  onClick={vm.handleAddOperation}
+              {/* Workshop Bottom-Up Controls Dock (Thumb Zone) */}
+              <div
+                className="machining-workshop-bottom-dock"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.45rem',
+                  marginTop: '0.45rem',
+                  width: '100%',
+                }}
+              >
+                {/* 1. One-Click Workshop Presets Bar */}
+                <div
+                  className="machining-shop-presets-bar"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.35rem 0.6rem',
+                    backgroundColor: 'var(--md-sys-color-surface-container-low)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                    overflowX: 'auto',
+                  }}
                 >
-                  ➕ Aplicar {vm.opType === 'drill' ? 'Perforación' : vm.opType === 'groove' ? 'Ranura' : vm.opType === 'rebate' ? 'Rebaje' : vm.opType === 'cutout' ? 'Calado' : 'Tornillos'}
-                </button>
-                <button
-                  type="button"
-                  className="m3-btn m3-btn--tonal"
-                  style={{ padding: '0.55rem 0.85rem', fontSize: '0.85rem' }}
-                  onClick={() => setMobileTab('controls')}
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', whiteSpace: 'nowrap' }}>
+                    ⚡ Atajos de Banco:
+                  </span>
+                  <button
+                    type="button"
+                    className="m3-chip"
+                    style={{ minHeight: '36px', padding: '0 0.6rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
+                    onClick={() => vm.applyCupHingesPreset()}
+                    title="Generar 2 perforaciones de bisagra cazoleta Ø35mm a 100mm de extremos y 21.5mm del borde"
+                  >
+                    🗄️ Bisagras Ø35 mm (Par)
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-chip"
+                    style={{ minHeight: '36px', padding: '0 0.6rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
+                    onClick={() => vm.applySystem32ShelfPinsPreset()}
+                    title="Generar dos filas de cremallera Sistema 32 mm a 37mm de frente y fondo"
+                  >
+                    📏 Cremalleras Sist. 32 (Frente + Fondo)
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-chip"
+                    style={{ minHeight: '36px', padding: '0 0.6rem', fontSize: '0.74rem', whiteSpace: 'nowrap' }}
+                    onClick={() => vm.applyBackingGroovePreset()}
+                    title="Generar ranura longitudinal para fondo de 4x8 mm a 15 mm del borde"
+                  >
+                    ➖ Ranura Fondo (15 mm)
+                  </button>
+                </div>
+
+                {/* 2. Workshop Technical Configuration Bar */}
+                <div
+                  className="machining-shop-config-bar"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.4rem 0.6rem',
+                    backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                    gap: '0.45rem',
+                    flexWrap: 'wrap',
+                  }}
                 >
-                  ⚙️ Parámetros
-                </button>
+                  {/* Left: Datum Reference & Rotation */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                      📍 Datum:
+                    </span>
+                    <div className="m3-segmented-button" style={{ height: '32px' }}>
+                      <button
+                        type="button"
+                        className={`m3-chip ${vm.datumCorner === 'bottom-left' ? 'm3-chip--selected' : ''}`}
+                        style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                        onClick={() => vm.setDatumCorner('bottom-left')}
+                        title="Origen en esquina Inferior Izquierda (estándar)"
+                      >
+                        ↙️ Inf-Izq
+                      </button>
+                      <button
+                        type="button"
+                        className={`m3-chip ${vm.datumCorner === 'top-left' ? 'm3-chip--selected' : ''}`}
+                        style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                        onClick={() => vm.setDatumCorner('top-left')}
+                        title="Origen en esquina Superior Izquierda"
+                      >
+                        ↖️ Sup-Izq
+                      </button>
+                      <button
+                        type="button"
+                        className={`m3-chip ${vm.datumCorner === 'bottom-right' ? 'm3-chip--selected' : ''}`}
+                        style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                        onClick={() => vm.setDatumCorner('bottom-right')}
+                        title="Origen en esquina Inferior Derecha"
+                      >
+                        ↘️ Inf-Der
+                      </button>
+                      <button
+                        type="button"
+                        className={`m3-chip ${vm.datumCorner === 'top-right' ? 'm3-chip--selected' : ''}`}
+                        style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                        onClick={() => vm.setDatumCorner('top-right')}
+                        title="Origen en esquina Superior Derecha"
+                      >
+                        ↗️ Sup-Der
+                      </button>
+                    </div>
+
+                    {/* Rotation */}
+                    <button
+                      type="button"
+                      className="m3-btn m3-btn--small m3-btn--tonal"
+                      style={{ height: '30px', padding: '0 0.55rem', fontSize: '0.75rem' }}
+                      onClick={vm.handleRotateClockwise}
+                      title="Girar la pieza 90 grados para acomodarla como en el banco de trabajo"
+                    >
+                      🔄 Girar {vm.rotationDeg !== 0 ? `(${vm.rotationDeg}°)` : '90°'}
+                    </button>
+                  </div>
+
+                  {/* Right: Technical Layer Toggles */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {/* Grid Toggle */}
+                    <button
+                      type="button"
+                      className={`m3-chip ${vm.showGrid ? 'm3-chip--selected' : ''}`}
+                      style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                      onClick={() => vm.setShowGrid(!vm.showGrid)}
+                      title="Activar/desactivar cuadrícula de taller en milímetros"
+                    >
+                      🏁 Red {vm.showGrid ? `(${vm.gridPitch}mm)` : ''}
+                    </button>
+                    {vm.showGrid && (
+                      <select
+                        className="m3-select"
+                        style={{ height: '30px', padding: '0 0.3rem', fontSize: '0.72rem' }}
+                        value={vm.gridPitch}
+                        onChange={(e) => vm.setGridPitch(Number(e.target.value) as 32 | 50)}
+                      >
+                        <option value={32}>Paso 32 mm</option>
+                        <option value={50}>Paso 50 mm</option>
+                      </select>
+                    )}
+
+                    {/* Projections Toggle */}
+                    <button
+                      type="button"
+                      className={`m3-chip ${vm.showProjections ? 'm3-chip--selected' : ''}`}
+                      style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                      onClick={() => vm.setShowProjections(!vm.showProjections)}
+                      title="Mostrar u ocultar siluetas fantasma de piezas en contacto"
+                    >
+                      👻 Huellas
+                    </button>
+
+                    {/* Edge banding Toggle */}
+                    <button
+                      type="button"
+                      className={`m3-chip ${vm.showEdgeBanding ? 'm3-chip--selected' : ''}`}
+                      style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.72rem' }}
+                      onClick={() => vm.setShowEdgeBanding(!vm.showEdgeBanding)}
+                      title="Resaltar bordes con tapacantos aplicados"
+                    >
+                      🏷️ Cantos
+                    </button>
+
+                    {/* Table view toggle */}
+                    <button
+                      type="button"
+                      className={`m3-btn m3-btn--small ${vm.showCoordsTable ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                      style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.74rem', fontWeight: 700 }}
+                      onClick={() => vm.setShowCoordsTable(!vm.showCoordsTable)}
+                      title="Ver u ocultar tabla de cotas ordenadas para punzonado en banco"
+                    >
+                      📋 {vm.showCoordsTable ? 'Ocultar' : 'Tabla'} ({vm.benchOperationsTable.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Face and Snaps Quick Row */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    padding: '0.2rem 0.2rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Cara:</span>
+                    <button
+                      type="button"
+                      className={`m3-btn m3-btn--small ${vm.faceType === 'face-A' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                      style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => vm.setFaceType('face-A')}
+                    >
+                      Cara A ({getFaceSemanticLabel(piece.role, 'face-A')})
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-btn m3-btn--small ${vm.faceType === 'face-B' ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
+                      style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => vm.setFaceType('face-B')}
+                    >
+                      Cara B ({getFaceSemanticLabel(piece.role, 'face-B')})
+                    </button>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={vm.enableSnaps}
+                      onChange={(e) => vm.setEnableSnaps(e.target.checked)}
+                    />
+                    <span>🧲 Snaps Magnéticos</span>
+                  </label>
+                </div>
+
+                {/* 4. Primary Mobile Action Bar */}
+                <div className="machining-mobile-canvas-actions" style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--primary"
+                    style={{ flex: 1, minHeight: '48px', fontSize: '0.9rem', fontWeight: 700 }}
+                    onClick={vm.handleAddOperation}
+                  >
+                    ➕ Aplicar {vm.opType === 'drill' ? 'Perforación' : vm.opType === 'groove' ? 'Ranura' : vm.opType === 'rebate' ? 'Rebaje' : vm.opType === 'cutout' ? 'Calado' : 'Tornillos'}
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--tonal mobile-only-inline"
+                    style={{ minHeight: '48px', padding: '0 0.9rem', fontSize: '0.85rem' }}
+                    onClick={() => setMobileTab('controls')}
+                  >
+                    ⚙️ Parámetros
+                  </button>
+                </div>
               </div>
 
               <div className="desktop-only-legend" style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -2063,6 +2085,40 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Mobile View Switcher (Bottom Navigation Bar) */}
+        <div className="machining-editor-mobile-tabs" role="tablist" aria-label="Vistas del editor de mecanizados">
+          <div className="m3-segmented-button" style={{ width: '100%' }}>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'canvas' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('canvas')}
+            >
+              📐 Plano 2D
+            </button>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'controls' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('controls')}
+            >
+              ⚙️ Parámetros
+            </button>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'list' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('list')}
+            >
+              📋 Manuales ({vm.pieceCustomOps.length})
+            </button>
+            <button
+              type="button"
+              className={`m3-segmented-button__item ${mobileTab === 'table' ? 'selected' : ''}`}
+              onClick={() => setMobileTab('table')}
+            >
+              📊 Tabla ({vm.benchOperationsTable.length})
+            </button>
           </div>
         </div>
 

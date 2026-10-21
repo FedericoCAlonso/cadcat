@@ -54,6 +54,7 @@ export function MachiningSheetView({
 
   return (
     <section aria-labelledby="machining-heading" className="m3-card machining-sheet-card">
+      {/* 1. Header (Read-Only Title & Subtitle) */}
       <div className="m3-card__header">
         <div>
           <h2 id="machining-heading" className="m3-card__title">
@@ -63,94 +64,9 @@ export function MachiningSheetView({
             Cotas referenciadas a bordes para Cara A y Cara B con indicador de giro de pieza.
           </p>
         </div>
-
-        <div className="machining-actions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="m3-button m3-button--tonal"
-            onClick={() => onExportPdf(activeSheet.pieceId)}
-          >
-            📄 PDF Esta Pieza
-          </button>
-          <button
-            type="button"
-            className="m3-button m3-button--filled"
-            onClick={() => onExportPdf()}
-          >
-            📑 PDF Todas ({sheets.length})
-          </button>
-          {onExportDxf && (
-            <>
-              <button
-                type="button"
-                className="m3-button m3-button--outlined"
-                onClick={() => onExportDxf(activeSheet.pieceId)}
-                title="Exportar archivo AutoCAD DXF R12 para esta pieza"
-                aria-label="Descargar DXF de esta pieza"
-              >
-                📐 DXF Esta Pieza
-              </button>
-              <button
-                type="button"
-                className="m3-button m3-button--outlined"
-                onClick={() => onExportDxf()}
-                title="Exportar archivos AutoCAD DXF R12 para todas las piezas"
-                aria-label="Descargar DXF de todas las piezas"
-              >
-                📐 DXF Todas ({sheets.length})
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
-      {/* Piece Selection: Mobile Dropdown & Desktop Chips */}
-      <div className="machining-piece-selector-mobile" style={{ marginBottom: '0.75rem' }}>
-        <label htmlFor="machining-piece-select" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-          Seleccionar Pieza:
-        </label>
-        <select
-          id="machining-piece-select"
-          className="m3-select"
-          style={{ width: '100%', fontSize: '0.9rem' }}
-          value={activeSheet.pieceId}
-          onChange={(e) => onSelectPiece(e.target.value)}
-        >
-          {sheets.map((sheet) => (
-            <option key={sheet.pieceId} value={sheet.pieceId}>
-              {sheet.pieceId} ({sheet.role}) {sheet.requiresTurn ? '🔄 Giro' : ''}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="machining-chips-row" role="tablist" aria-label="Seleccionar Pieza">
-        {sheets.map((sheet) => {
-          const isSelected = sheet.pieceId === activeSheet.pieceId;
-          return (
-            <button
-              key={sheet.pieceId}
-              type="button"
-              role="tab"
-              aria-selected={isSelected}
-              className={`m3-chip ${isSelected ? 'm3-chip--selected' : ''}`}
-              onClick={() => onSelectPiece(sheet.pieceId)}
-            >
-              <span className="m3-chip__label">{sheet.pieceId}</span>
-              {sheet.requiresTurn && (
-                <span
-                  className="m3-badge m3-badge--warning"
-                  title="Requiere giro de pieza para Cara B"
-                >
-                  🔄 Giro
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active Piece Info Bar */}
+      {/* 2. Active Piece Info Bar (Descriptive Metadata at Top) */}
       <div className="machining-info-bar">
         <div className="info-group">
           <span className="info-label">Pieza:</span>
@@ -185,7 +101,7 @@ export function MachiningSheetView({
         </div>
       </div>
 
-      {/* Turn Warning Banner */}
+      {/* 3. Turn Warning Banner (Informative Alert at Top) */}
       {activeSheet.requiresTurn && (
         <div className="m3-banner m3-banner--warning" role="alert">
           <div className="m3-banner__icon">🔄</div>
@@ -196,28 +112,7 @@ export function MachiningSheetView({
         </div>
       )}
 
-      {/* Face Selector (Segmented Button) */}
-      <div className="machining-face-selector">
-        <div className="m3-segmented-button" role="group" aria-label="Seleccionar Cara">
-          <button
-            type="button"
-            className={`m3-segmented-button__item ${activeFace === 'face-A' ? 'selected' : ''}`}
-            onClick={() => setActiveFace('face-A')}
-          >
-            {`Cara A: ${getFaceSemanticLabel(activeSheet.role, 'face-A')} (${activeSheet.faceAOperations.length} op.)`}
-          </button>
-          <button
-            type="button"
-            className={`m3-segmented-button__item ${activeFace === 'face-B' ? 'selected' : ''}`}
-            onClick={() => setActiveFace('face-B')}
-          >
-            {`Cara B: ${getFaceSemanticLabel(activeSheet.role, 'face-B')} (${activeSheet.faceBOperations.length} op.)`}
-            {activeSheet.requiresTurn && ' ⚠️'}
-          </button>
-        </div>
-      </div>
-
-      {/* Technical SVG Drawing Box with CAD Pan & Zoom */}
+      {/* 4. Technical SVG Drawing Box with CAD Pan & Zoom (Visual Inspection Area) */}
       <div
         className="machining-drawing-container"
         style={{ position: 'relative', overflow: 'hidden' }}
@@ -320,6 +215,160 @@ export function MachiningSheetView({
           <span className="legend-item" style={{ marginLeft: 'auto', fontStyle: 'italic', fontSize: '0.8rem' }}>
             🖱️ Paneo: Arrastrar con mouse | 🔍 Zoom: Rueda o botones
           </span>
+        </div>
+      </div>
+
+      {/* 5. Interactive Workshop Controls Dock (Bottom-Up Thumb Zone) */}
+      <div
+        className="machining-workshop-dock"
+        style={{
+          marginTop: '0.75rem',
+          padding: '0.75rem',
+          backgroundColor: 'var(--md-sys-color-surface-container-low)',
+          borderRadius: '12px',
+          border: '1px solid var(--md-sys-color-outline-variant)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.65rem',
+        }}
+      >
+        {/* A. Piece Selector Strip: Swipeable with thumb right under drawing */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              🪵 Pieza Activa ({sheets.findIndex((s) => s.pieceId === activeSheet.pieceId) + 1}/{sheets.length}):
+            </span>
+            <span style={{ fontSize: '0.74rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+              Toque para cambiar
+            </span>
+          </div>
+
+          {/* Mobile Dropdown Fallback */}
+          <div className="machining-piece-selector-mobile">
+            <label htmlFor="machining-piece-select" className="visually-hidden">
+              Seleccionar Pieza:
+            </label>
+            <select
+              id="machining-piece-select"
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.9rem', minHeight: '48px' }}
+              value={activeSheet.pieceId}
+              onChange={(e) => onSelectPiece(e.target.value)}
+            >
+              {sheets.map((sheet) => (
+                <option key={sheet.pieceId} value={sheet.pieceId}>
+                  {sheet.pieceId} ({sheet.role}) {sheet.requiresTurn ? '🔄 Giro' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Desktop & Tablet Touch Chips Strip */}
+          <div className="machining-chips-row" role="tablist" aria-label="Seleccionar Pieza">
+            {sheets.map((sheet) => {
+              const isSelected = sheet.pieceId === activeSheet.pieceId;
+              return (
+                <button
+                  key={sheet.pieceId}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  className={`m3-chip ${isSelected ? 'm3-chip--selected' : ''}`}
+                  style={{ minHeight: '44px', padding: '0 0.85rem' }}
+                  onClick={() => onSelectPiece(sheet.pieceId)}
+                >
+                  <span className="m3-chip__label">{sheet.pieceId}</span>
+                  {sheet.requiresTurn && (
+                    <span
+                      className="m3-badge m3-badge--warning"
+                      title="Requiere giro de pieza para Cara B"
+                    >
+                      🔄 Giro
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* B. Face Selector & Export Actions Bar at Thumb Height */}
+        <div
+          className="machining-dock-bottom-row"
+          style={{
+            display: 'flex',
+            gap: '0.6rem',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+          }}
+        >
+          {/* Face Selector (Segmented Button) */}
+          <div className="machining-face-selector" style={{ margin: 0, flex: '1 1 260px' }}>
+            <div className="m3-segmented-button" role="group" aria-label="Seleccionar Cara" style={{ width: '100%' }}>
+              <button
+                type="button"
+                className={`m3-segmented-button__item ${activeFace === 'face-A' ? 'selected' : ''}`}
+                style={{ minHeight: '48px', fontWeight: 600 }}
+                onClick={() => setActiveFace('face-A')}
+              >
+                {`Cara A: ${getFaceSemanticLabel(activeSheet.role, 'face-A')} (${activeSheet.faceAOperations.length} op.)`}
+              </button>
+              <button
+                type="button"
+                className={`m3-segmented-button__item ${activeFace === 'face-B' ? 'selected' : ''}`}
+                style={{ minHeight: '48px', fontWeight: 600 }}
+                onClick={() => setActiveFace('face-B')}
+              >
+                {`Cara B: ${getFaceSemanticLabel(activeSheet.role, 'face-B')} (${activeSheet.faceBOperations.length} op.)`}
+                {activeSheet.requiresTurn && ' ⚠️'}
+              </button>
+            </div>
+          </div>
+
+          {/* Export Actions Buttons */}
+          <div className="machining-actions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', flexShrink: 0 }}>
+            <button
+              type="button"
+              className="m3-button m3-button--tonal"
+              style={{ minHeight: '48px' }}
+              onClick={() => onExportPdf(activeSheet.pieceId)}
+            >
+              📄 PDF Esta Pieza
+            </button>
+            <button
+              type="button"
+              className="m3-button m3-button--filled"
+              style={{ minHeight: '48px' }}
+              onClick={() => onExportPdf()}
+            >
+              📑 PDF Todas ({sheets.length})
+            </button>
+            {onExportDxf && (
+              <>
+                <button
+                  type="button"
+                  className="m3-button m3-button--outlined"
+                  style={{ minHeight: '48px' }}
+                  onClick={() => onExportDxf(activeSheet.pieceId)}
+                  title="Exportar archivo AutoCAD DXF R12 para esta pieza"
+                  aria-label="Descargar DXF de esta pieza"
+                >
+                  📐 DXF Esta Pieza
+                </button>
+                <button
+                  type="button"
+                  className="m3-button m3-button--outlined"
+                  style={{ minHeight: '48px' }}
+                  onClick={() => onExportDxf()}
+                  title="Exportar archivos AutoCAD DXF R12 para todas las piezas"
+                  aria-label="Descargar DXF de todas las piezas"
+                >
+                  📐 DXF Todas ({sheets.length})
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
