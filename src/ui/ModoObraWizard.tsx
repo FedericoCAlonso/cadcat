@@ -10,10 +10,11 @@ import { WorkshopContextDiagram } from './WorkshopContextDiagram';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { type ProjectModuleItem } from '../model/project';
 import { type Material } from '../model/material';
-import { type RoofType, type BackingType, type BayContent } from '../resolver';
+import { type RoofType, type BackingType, type BayContent, type BayBoundingBox } from '../resolver';
+import { BayDistributionModal } from './BayDistributionModal';
 
 export type ObraGridType = '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
-export type ObraBayContentType = 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure';
+export type ObraBayContentType = 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided';
 
 export interface ModoObraWizardProps {
   // Project & Module management
@@ -56,12 +57,14 @@ export interface ModoObraWizardProps {
   // Bays / Grid
   gridType?: ObraGridType;
   bays?: BayContent[];
+  bayBoxes?: BayBoundingBox[];
   activeBayIndex?: number;
   onGridTypeChange?: (grid: ObraGridType) => void;
   onActiveBayIndexChange?: (idx: number) => void;
 
   // Bay content actions
   onBayContentTypeChange?: (bayIdx: number, type: ObraBayContentType) => void;
+  onBayContentChange?: (bayIdx: number, content: BayContent) => void;
   onAddShelf?: (bayIdx: number) => void;
   onRemoveShelf?: (bayIdx: number, shelfIdx?: number) => void;
   onShelfTypeChange?: (bayIdx: number, type: 'fixed' | 'adjustable') => void;
@@ -146,10 +149,12 @@ export function ModoObraWizard({
   onBackingTypeChange,
   gridType = '1-bay',
   bays = [],
+  bayBoxes = [],
   activeBayIndex = 0,
   onGridTypeChange,
   onActiveBayIndexChange,
   onBayContentTypeChange,
+  onBayContentChange,
   onAddShelf,
   onRemoveShelf,
   onShelfTypeChange,
@@ -175,6 +180,11 @@ export function ModoObraWizard({
 }: ModoObraWizardProps): ReactElement {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [dimensionField, setDimensionField] = useState<DimensionSubField>('width');
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState<boolean>(false);
+
+  const activeBayBox = bayBoxes[activeBayIndex];
+  const activeBayWidth = activeBayBox?.width ?? Math.max(100, Math.round(width - 2 * thickness));
+  const activeBayHeight = activeBayBox?.height ?? Math.max(100, Math.round(height - 2 * thickness - (hasPlinth ? plinthHeightMm : 0)));
 
   const activeStep = OBRA_STEPS[currentStepIndex] ?? OBRA_STEPS[0]!;
 
@@ -1451,13 +1461,14 @@ export function ModoObraWizard({
               </div>
             )}
 
-            {/* Equipment Types (Estantes, Cajonera, Puertas, Vano Libre) */}
+            {/* Equipment Types (Estantes, Cajonera, Puertas, Vano Libre, Edición Especial) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem', width: '100%' }}>
               {[
-                { type: 'shelves' as const, label: '📚 Estantes' },
-                { type: 'drawer-stack' as const, label: '🗄️ Cajonera' },
-                { type: 'doors' as const, label: '🚪 Puerta(s)' },
-                { type: 'empty' as const, label: '⬜ Vano Libre' },
+                { type: 'shelves' as const, label: '📚 Estantes', fullWidth: false },
+                { type: 'drawer-stack' as const, label: '🗄️ Cajonera', fullWidth: false },
+                { type: 'doors' as const, label: '🚪 Puerta(s)', fullWidth: false },
+                { type: 'empty' as const, label: '⬜ Vano Libre', fullWidth: false },
+                { type: 'subdivided' as const, label: '🍱 Edición Especial (Matriz)', fullWidth: true },
               ].map((eq) => {
                 const isSelected = currentBay?.type === eq.type;
                 return (
@@ -1466,10 +1477,15 @@ export function ModoObraWizard({
                     type="button"
                     onClick={() => {
                       triggerHaptic('major');
-                      onBayContentTypeChange?.(activeBayIndex, eq.type);
+                      if (eq.type === 'subdivided') {
+                        setIsDistributionModalOpen(true);
+                      } else {
+                        onBayContentTypeChange?.(activeBayIndex, eq.type);
+                      }
                     }}
                     style={{
                       minHeight: '44px',
+                      gridColumn: eq.fullWidth ? 'span 2' : 'span 1',
                       borderRadius: '12px',
                       border: isSelected
                         ? '2px solid var(--md-sys-color-primary)'
@@ -1492,6 +1508,53 @@ export function ModoObraWizard({
             </div>
 
             {/* Sub-controls based on equipment type */}
+            {currentBay?.type === 'subdivided' && (
+              <div
+                style={{
+                  padding: '0.65rem 0.75rem',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--md-sys-color-primary-container)',
+                  border: '1.5px solid var(--md-sys-color-primary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '1.15rem' }}>🍱</span>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-primary-container)' }}>
+                    Distribución Especial de Celdas Activa
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--md-sys-color-on-primary-container)', opacity: 0.9 }}>
+                  Vano con matriz estilo Word (divisiones mixtas en mm/% y cajones de 6mm).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('major');
+                    setIsDistributionModalOpen(true);
+                  }}
+                  className="m3-button m3-button--filled"
+                  style={{
+                    width: '100%',
+                    minHeight: '44px',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    fontSize: '0.86rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <span>✏️</span>
+                  <span>Modificar Celdas y Divisiones</span>
+                </button>
+              </div>
+            )}
             {currentBay?.type === 'shelves' && (
               <div
                 style={{
@@ -2079,6 +2142,21 @@ export function ModoObraWizard({
           Siguiente ▶
         </button>
       </footer>
+
+      {/* Modal de Distribución Interior Compleja (Matriz estilo Word) en Modo Obra */}
+      <BayDistributionModal
+        isOpen={isDistributionModalOpen}
+        onClose={() => setIsDistributionModalOpen(false)}
+        onApply={(updatedContent) => {
+          onBayContentChange?.(activeBayIndex, updatedContent);
+          setIsDistributionModalOpen(false);
+        }}
+        bayIndex={activeBayIndex}
+        bayWidth={activeBayWidth}
+        bayHeight={activeBayHeight}
+        bayDepth={depth}
+        initialContent={currentBay ?? { type: 'empty' }}
+      />
     </section>
   );
 }

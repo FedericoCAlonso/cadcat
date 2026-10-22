@@ -55,6 +55,19 @@ export function BayDistributionModal({
   const [matrixThickness, setMatrixThickness] = useState(18);
   const [matrixContinuity, setMatrixContinuity] = useState<'horizontal-continuous' | 'vertical-continuous'>('horizontal-continuous');
 
+  // Reactive mobile detection
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 640;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Sync draft when modal opens or initial content changes
   useEffect(() => {
     if (isOpen) {
@@ -249,10 +262,10 @@ export function BayDistributionModal({
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.65)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isMobile ? 'stretch' : 'center',
         justifyContent: 'center',
         zIndex: 1200,
-        padding: '1rem',
+        padding: isMobile ? '0' : '1rem',
         backdropFilter: 'blur(3px)',
       }}
     >
@@ -260,37 +273,44 @@ export function BayDistributionModal({
         className="m3-card"
         style={{
           width: '100%',
-          maxWidth: '960px',
-          maxHeight: '94vh',
+          maxWidth: isMobile ? '100vw' : '960px',
+          maxHeight: isMobile ? '100dvh' : '94vh',
+          height: isMobile ? '100dvh' : 'auto',
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: 'var(--md-sys-color-surface)',
           color: 'var(--md-sys-color-on-surface)',
-          borderRadius: 'var(--md-sys-shape-corner-lg)',
+          borderRadius: isMobile ? '0' : 'var(--md-sys-shape-corner-lg)',
           boxShadow: 'var(--md-sys-elevation-3)',
           overflow: 'hidden',
-          border: '1px solid var(--md-sys-color-outline-variant)',
+          border: isMobile ? 'none' : '1px solid var(--md-sys-color-outline-variant)',
         }}
       >
         {/* Header */}
         <div
           style={{
-            padding: '1rem 1.25rem',
+            padding: isMobile ? '0.65rem 0.85rem' : '1rem 1.25rem',
             borderBottom: '1px solid var(--md-sys-color-outline-variant)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '1rem',
+            gap: '0.5rem',
           }}
         >
           <div>
             <h2
               id="bay-dist-title"
-              style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, color: 'var(--md-sys-color-primary)' }}
+              style={{
+                margin: 0,
+                fontSize: isMobile ? '1rem' : '1.2rem',
+                fontWeight: 600,
+                color: 'var(--md-sys-color-primary)',
+                lineHeight: 1.25,
+              }}
             >
-              📐 Distribución Interior — Matriz de Celdas (Vano {bayIndex + 1})
+              📐 Distribución Interior (Vano {bayIndex + 1})
             </h2>
-            <span style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+            <span style={{ fontSize: isMobile ? '0.75rem' : '0.85rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
               Luz interior: {bayWidth} mm (ancho) × {bayHeight} mm (alto)
             </span>
           </div>
@@ -446,10 +466,10 @@ export function BayDistributionModal({
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '1.25rem',
+            padding: isMobile ? '0.65rem' : '1.25rem',
             display: 'grid',
-            gridTemplateColumns: 'minmax(320px, 1.25fr) minmax(300px, 1fr)',
-            gap: '1.25rem',
+            gridTemplateColumns: isMobile ? '1fr' : 'minmax(320px, 1.25fr) minmax(300px, 1fr)',
+            gap: isMobile ? '0.75rem' : '1.25rem',
           }}
         >
           {/* Left: 2D Interactive Blueprint Canvas */}
@@ -460,7 +480,7 @@ export function BayDistributionModal({
               gap: '0.75rem',
               backgroundColor: 'var(--md-sys-color-surface-container-low)',
               borderRadius: 'var(--md-sys-shape-corner-md)',
-              padding: '1rem',
+              padding: isMobile ? '0.65rem' : '1rem',
               border: '1px solid var(--md-sys-color-outline-variant)',
             }}
           >
@@ -477,7 +497,8 @@ export function BayDistributionModal({
             <div
               style={{
                 flex: 1,
-                minHeight: '280px',
+                minHeight: isMobile ? '200px' : '280px',
+                maxHeight: isMobile ? '250px' : 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1365,7 +1386,7 @@ export function BayDistributionModal({
         {/* Footer */}
         <div
           style={{
-            padding: '1rem 1.25rem',
+            padding: isMobile ? '0.65rem 0.85rem max(0.65rem, env(safe-area-inset-bottom, 0.65rem))' : '1rem 1.25rem',
             borderTop: '1px solid var(--md-sys-color-outline-variant)',
             display: 'flex',
             alignItems: 'center',
@@ -1379,12 +1400,13 @@ export function BayDistributionModal({
             className="m3-btn-outlined"
             onClick={onClose}
             style={{
+              minHeight: '44px',
               padding: '0.6rem 1.25rem',
               borderRadius: 'var(--md-sys-shape-corner-full)',
               border: '1px solid var(--md-sys-color-outline)',
               backgroundColor: 'transparent',
               color: 'var(--md-sys-color-primary)',
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -1398,16 +1420,21 @@ export function BayDistributionModal({
               onClose();
             }}
             style={{
+              minHeight: '44px',
               padding: '0.6rem 1.5rem',
               borderRadius: 'var(--md-sys-shape-corner-full)',
               border: 'none',
               backgroundColor: 'var(--md-sys-color-primary)',
               color: 'var(--md-sys-color-on-primary)',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
             }}
           >
-            💾 Aplicar al Vano
+            <span>💾</span>
+            <span>Aplicar al Vano</span>
           </button>
         </div>
       </div>

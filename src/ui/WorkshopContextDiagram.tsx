@@ -65,9 +65,9 @@ export function WorkshopContextDiagram({
       style={{
         width: '100%',
         maxWidth: '460px',
-        height: '180px',
-        minHeight: '160px',
-        maxHeight: '220px',
+        height: '135px',
+        minHeight: '120px',
+        maxHeight: '150px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -76,10 +76,10 @@ export function WorkshopContextDiagram({
         border: '1px solid var(--md-sys-color-outline-variant, #e0e3e7)',
         boxShadow: '0 4px 14px rgba(0,0,0,0.05)',
         boxSizing: 'border-box',
-        padding: '6px 8px',
+        padding: '4px 6px',
         overflow: 'hidden',
         position: 'relative',
-        margin: '0 auto 0.4rem',
+        margin: '0 auto 0.25rem',
         flexShrink: 0,
       }}
     >
@@ -510,6 +510,15 @@ export function WorkshopContextDiagram({
                         <line x1={bayX + 8} y1="16" x2={bayX + bayW - 8} y2="118" stroke="var(--md-sys-color-outline-variant)" strokeWidth="1.2" strokeDasharray="3 3" />
                         <circle cx={bayX + bayW - 14} cy="66" r="3" fill="var(--md-sys-color-primary)" />
                         <text x={bayX + bayW / 2} y="62" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--md-sys-color-primary)">PUERTA</text>
+                      </>
+                    )}
+
+                    {bayType === 'subdivided' && (
+                      <>
+                        <rect x={bayX + 6} y="15" width={(bayW - 14) / 2} height="48" rx="2" fill="var(--md-sys-color-primary-container)" stroke="var(--md-sys-color-primary)" strokeWidth="1.2" />
+                        <rect x={bayX + 6 + (bayW - 14) / 2 + 2} y="15" width={(bayW - 14) / 2} height="48" rx="2" fill="var(--md-sys-color-surface-container-high)" stroke="var(--md-sys-color-primary)" strokeWidth="1.2" />
+                        <rect x={bayX + 6} y="67" width={bayW - 12} height="52" rx="2" fill="var(--md-sys-color-surface-container)" stroke="var(--md-sys-color-primary)" strokeWidth="1.2" />
+                        <text x={bayX + bayW / 2} y="98" textAnchor="middle" fontSize="8" fontWeight="bold" fill="var(--md-sys-color-primary)">🍱 MATRIZ</text>
                       </>
                     )}
 

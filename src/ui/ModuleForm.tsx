@@ -537,7 +537,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const isMobileDevice = isMobileProp ?? detectedMobile;
 
   const [userSelectedSection, setUserSelectedSection] = useState<FormSection | null>(null);
-  const activeSection: FormSection = userSelectedSection ?? (isMobileDevice ? 'dimensions' : 'all');
+  const activeSection: FormSection = userSelectedSection ?? 'all';
 
   const handleSelectSection = (section: FormSection) => {
     setUserSelectedSection(section);
@@ -545,10 +545,12 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
   const sectionsList: Array<{ id: FormSection; label: string; icon: string }> = isWallShelves
     ? [
+        { id: 'all', label: 'Todo', icon: '👁️' },
         { id: 'dimensions', label: 'Medidas y Ménsulas', icon: '📏' },
         { id: 'materials', label: 'Materiales', icon: '🎨' },
       ]
     : [
+        { id: 'all', label: 'Todo', icon: '👁️' },
         { id: 'dimensions', label: 'Medidas', icon: '📏' },
         { id: 'structure', label: 'Estructura', icon: '🏗️' },
         { id: 'distribution', label: 'Vanos', icon: '🔲' },
@@ -625,7 +627,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
 
           <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            {isMobileDevice && onSwitchToSiteMode && (
+            {onSwitchToSiteMode && (
               <button
                 type="button"
                 onClick={onSwitchToSiteMode}
@@ -646,6 +648,27 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 <span>Modo Taller</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setIsDistributionModalOpen(true)}
+              className={`m3-button ${activeBay.type === 'subdivided' ? 'm3-button--filled' : 'm3-button--tonal'}`}
+              style={{
+                minHeight: '40px',
+                padding: '0 0.75rem',
+                fontSize: '0.78rem',
+                borderRadius: '20px',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+              title="Abrir editor de distribución especial (matriz de celdas estilo Word)"
+              aria-label="Abrir distribución especial"
+            >
+              <span>🍱</span>
+              <span>Especial</span>
+            </button>
 
             {onView3dClick && (
               <button
@@ -703,20 +726,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               <span>{`${sec.icon} ${sec.label}`}</span>
             </button>
           ))}
-          <button
-            type="button"
-            className={`builder-segmented-btn ${activeSection === 'all' ? 'selected' : ''}`}
-            onClick={() => handleSelectSection('all')}
-            style={{
-              minHeight: '44px',
-              padding: '0 0.75rem',
-              flexShrink: 0,
-              fontSize: '0.82rem',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span>👁️ Todo</span>
-          </button>
         </nav>
       </div>
 
@@ -982,30 +991,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
               </p>
             </div>
-            {onSwitchToSiteMode && (
-              <button
-                type="button"
-                onClick={onSwitchToSiteMode}
-                className="m3-button m3-button--tonal"
-                aria-label="Cambiar a Modo Obra (control gestual)"
-                title="Cambiar al modo táctil con gestos para celular"
-                style={{
-                  minHeight: '48px',
-                  borderRadius: '24px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  backgroundColor: 'var(--md-sys-color-primary-container)',
-                  color: 'var(--md-sys-color-on-primary-container)',
-                  border: '1px solid var(--md-sys-color-primary)',
-                }}
-              >
-                <span>🏗️</span>
-                <span>Modo Obra (Táctil)</span>
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -2501,6 +2486,45 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         </div>
 
+        {/* Acceso Directo y Destacado a Edición Especial de Vanos (Matriz / Celdas Libres) */}
+        <div style={{ marginTop: '0.65rem', marginBottom: '0.5rem' }}>
+          <button
+            type="button"
+            className={`builder-segmented-btn ${activeBay.type === 'subdivided' ? 'selected' : ''}`}
+            onClick={() => setIsDistributionModalOpen(true)}
+            style={{
+              width: '100%',
+              minHeight: '48px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1rem',
+              fontWeight: 700,
+              fontSize: '0.88rem',
+              border: activeBay.type === 'subdivided'
+                ? '2px solid var(--md-sys-color-primary)'
+                : '1.5px dashed var(--md-sys-color-primary)',
+              backgroundColor: activeBay.type === 'subdivided'
+                ? 'var(--md-sys-color-primary-container)'
+                : 'var(--md-sys-color-surface-container-high)',
+              color: activeBay.type === 'subdivided'
+                ? 'var(--md-sys-color-on-primary-container)'
+                : 'var(--md-sys-color-primary)',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+            }}
+          >
+            <span style={{ fontSize: '1.15rem' }}>🍱</span>
+            <span>
+              {activeBay.type === 'subdivided'
+                ? 'Editar Distribución Especial (Matriz de Celdas estilo Word)...'
+                : 'Edición Especial: Matriz de Celdas estilo Word (Divisiones Libres)...'}
+            </span>
+          </button>
+        </div>
+
         {gridType && gridType !== '1-bay' && (
           <div
             className="form-group"
@@ -3748,6 +3772,30 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             gap: '0.75rem',
           }}
         >
+          {/* Volver a Vista Continua Completa */}
+          <button
+            type="button"
+            className="m3-button m3-button--tonal"
+            style={{
+              minHeight: '42px',
+              width: '100%',
+              fontSize: '0.84rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+              borderRadius: '12px',
+            }}
+            onClick={() => {
+              handleSelectSection('all');
+              safeScrollToTop();
+            }}
+          >
+            <span>👁️</span>
+            <span>Ver Todo el Formulario Continuo</span>
+          </button>
+
           {/* Fila 1: Paso Anterior / Paso Siguiente */}
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {prevStep ? (

@@ -84,7 +84,7 @@ describe('ModuleForm Component', () => {
       />,
     );
 
-    expect(html).toContain('Modo Obra (Táctil)');
+    expect(html).toContain('Modo Taller');
   });
 
   it('renders interactive builder controls for roof, vanos, drawers, and shelves', () => {

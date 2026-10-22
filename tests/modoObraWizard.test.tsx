@@ -399,6 +399,22 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     });
     expect(handleAddShelf).toHaveBeenCalledWith(0);
 
+    // Verify Edición Especial option is available in Step 6
+    expect(container.textContent).toContain('🍱 Edición Especial');
+
+    // Click on Edición Especial button to open BayDistributionModal
+    const specialBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Edición Especial'),
+    );
+    expect(specialBtn).toBeDefined();
+    act(() => {
+      specialBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Verify BayDistributionModal opened
+    expect(container.textContent).toContain('Distribución Interior');
+    expect(container.textContent).toContain('Plano del Vano');
+
     act(() => {
       rootInstance.unmount();
     });

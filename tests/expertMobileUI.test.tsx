@@ -63,7 +63,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     expect(html).toContain('👁️ Todo');
   });
 
-  it('starts in "Medidas" section on mobile, showing dimensions and next step to Estructura', () => {
+  it('starts with all sections accessible and continuous on mobile ("Todo" mode), without blocking the user', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -82,27 +82,31 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       );
     });
 
-    // In 'dimensions' section: Width/Height/Depth are present
+    // Width/Height/Depth are present
     const widthInput = container.querySelector('#input-width');
     expect(widthInput).not.toBeNull();
 
-    // Estructura fieldset should NOT be rendered when activeSection is 'dimensions'
+    // Estructura fieldset should be immediately accessible (not locked behind wizards)
     const legendEstructura = Array.from(container.querySelectorAll('legend')).find((l) =>
       l.textContent?.includes('Estructura del Casco'),
     );
-    expect(legendEstructura).toBeUndefined();
+    expect(legendEstructura).toBeDefined();
 
-    // Verify Mobile Step Navigation Footer has "Estructura ▶"
-    const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Estructura ▶'),
-    );
-    expect(nextBtn).toBeDefined();
+    // Special cell matrix button is accessible in sticky header
+    const specialHeaderBtn = container.querySelector('button[aria-label="Abrir distribución especial"]');
+    expect(specialHeaderBtn).not.toBeNull();
 
-    // Verify quick Save and 3D buttons exist in step footer
-    const saveBtn = Array.from(container.querySelectorAll('.expert-mobile-section-footer button')).find((b) =>
-      b.textContent?.includes('Guardar'),
+    // Special cell matrix button is accessible in Vanos section
+    const specialVanosBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Edición Especial: Matriz'),
     );
-    expect(saveBtn).toBeDefined();
+    expect(specialVanosBtn).toBeDefined();
+
+    // "Todo" tab is selected first
+    const todoTab = Array.from(container.querySelectorAll('.expert-sticky-header button')).find((b) =>
+      b.textContent?.includes('Todo'),
+    );
+    expect(todoTab?.classList.contains('selected')).toBe(true);
 
     act(() => {
       root.unmount();
@@ -110,7 +114,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     container.remove();
   });
 
-  it('navigates seamlessly between sections using step buttons on mobile', () => {
+  it('navigates seamlessly between sections using step buttons when a specific section is filtered on mobile', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -128,6 +132,22 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
         />,
       );
     });
+
+    // Select "Medidas" tab explicitly to filter
+    const medidasTab = Array.from(container.querySelectorAll('.expert-sticky-header button')).find((b) =>
+      b.textContent?.includes('Medidas'),
+    ) as HTMLButtonElement | undefined;
+    expect(medidasTab).toBeDefined();
+
+    act(() => {
+      medidasTab?.click();
+    });
+
+    // When filtered to Medidas, Estructura is hidden
+    const legendEstructuraFiltered = Array.from(container.querySelectorAll('legend')).find((l) =>
+      l.textContent?.includes('Estructura del Casco'),
+    );
+    expect(legendEstructuraFiltered).toBeUndefined();
 
     // Step 1: Click "Estructura ▶"
     const nextToEstructura = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -159,6 +179,23 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       b.textContent?.includes('Vanos ▶'),
     );
     expect(nextToVanos).toBeDefined();
+
+    // Button to unfilter and return to continuous view is present
+    const unfilterBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Ver Todo el Formulario Continuo'),
+    ) as HTMLButtonElement | undefined;
+    expect(unfilterBtn).toBeDefined();
+
+    act(() => {
+      unfilterBtn?.click();
+    });
+
+    // Now all sections are visible again
+    expect(container.querySelector('#input-width')).not.toBeNull();
+    const legendEstructuraRestored = Array.from(container.querySelectorAll('legend')).find((l) =>
+      l.textContent?.includes('Estructura del Casco'),
+    );
+    expect(legendEstructuraRestored).toBeDefined();
 
     act(() => {
       root.unmount();

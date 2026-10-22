@@ -429,10 +429,12 @@ export function App(): ReactElement {
                   onBackingTypeChange={vm.setBackingType}
                   gridType={vm.gridType}
                   bays={vm.bays}
+                  bayBoxes={vm.bayBoxes}
                   activeBayIndex={vm.activeBayIndex}
                   onGridTypeChange={vm.setGridType}
                   onActiveBayIndexChange={vm.setActiveBayIndex}
                   onBayContentTypeChange={vm.setBayContentType}
+                  onBayContentChange={vm.setBayContent}
                   onAddShelf={vm.addShelf}
                   onRemoveShelf={vm.removeShelf}
                   onShelfTypeChange={vm.setShelfType}
