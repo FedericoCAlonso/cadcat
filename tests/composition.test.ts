@@ -241,9 +241,21 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
       expect(shelves.length).toBe(2);
       expect(braces.length).toBe(2);
 
+      // Verify brace has full width equal to bay width (no floating gaps)
+      expect(braces[0]!.contour.points[1]!.x).toBe(testBay.width);
+      expect(braces[0]!.contour.points[2]!.y).toBe(60);
+
       // Shelf pins joints
       const pinJoints = result.joints.filter((j) => j.kind === 'shelf-pin');
       expect(pinJoints.length).toBe(4); // 2 shelves * 2 sides
+
+      // Structural confirmat joints to left and right carcass sides
+      const braceLateralJoints = result.joints.filter(
+        (j) =>
+          j.b.pieceId.includes('brace') &&
+          (j.a.pieceId === 'carcass-side-l' || j.a.pieceId === 'carcass-side-r'),
+      );
+      expect(braceLateralJoints.length).toBe(4); // 2 braces * 2 sides
     });
 
     it('resolves drawer-stack with multi-material boxes and inset transoms', () => {

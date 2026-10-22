@@ -64,10 +64,10 @@ export function determinePieceSpatialSize(piece: Piece): Position3D {
     return { x: w, y: t, z: h };
   }
 
-  // Horizontal panels in XZ plane (bottom, shelf, top, tray-bottom)
+  // Horizontal panels in XZ plane (bottom, shelf, top, tray-bottom) - excluding vertical shelf-brace
   if (
+    (role.includes('shelf') && role !== 'shelf-brace') ||
     role.includes('bottom') ||
-    role.includes('shelf') ||
     role.includes('top') ||
     role === 'tray-bottom'
   ) {

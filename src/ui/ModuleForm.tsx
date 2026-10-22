@@ -2967,7 +2967,12 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 <button
                   type="button"
                   className={`builder-segmented-btn ${activeBay.shelfType === 'adjustable' ? 'selected' : ''}`}
-                  onClick={() => onShelfTypeChange?.(currentActiveIndex, 'adjustable')}
+                  onClick={() => {
+                    onShelfTypeChange?.(currentActiveIndex, 'adjustable');
+                    if (activeBay.hasAntiSagBrace) {
+                      onShelfAntiSagChange?.(currentActiveIndex, false);
+                    }
+                  }}
                 >
                   Regulables (Pitagones 5mm)
                 </button>
@@ -2982,14 +2987,20 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
 
             <div className="form-group">
-              <label>Refuerzo antialabeo:</label>
+              <label>Refuerzo antialabeo (Faja frontal en L):</label>
               <div className="builder-segmented-group">
                 <button
                   type="button"
                   className={`builder-segmented-btn ${activeBay.hasAntiSagBrace ? 'selected' : ''}`}
-                  onClick={() => onShelfAntiSagChange?.(currentActiveIndex, true)}
+                  onClick={() => {
+                    onShelfAntiSagChange?.(currentActiveIndex, true);
+                    if (activeBay.shelfType !== 'fixed') {
+                      onShelfTypeChange?.(currentActiveIndex, 'fixed');
+                    }
+                  }}
+                  title="Faja estructural frontal de canto (60mm) anclada a los laterales y bajo el estante fijo"
                 >
-                  Con faja de refuerzo
+                  Con faja de refuerzo (Fijo)
                 </button>
                 <button
                   type="button"
@@ -2999,6 +3010,11 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   Sin refuerzo
                 </button>
               </div>
+              {activeBay.hasAntiSagBrace && (
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                  💡 Faja frontal en L de lateral a lateral, atornillada a costados y bajo el estante fijo.
+                </p>
+              )}
             </div>
 
             {/* Puertas frontales para el vano de estantes */}

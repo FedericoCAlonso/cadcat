@@ -268,10 +268,11 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
         }),
       );
 
-      if (hasAntiSagBrace && bay.width > 500) {
+      if (hasAntiSagBrace && bay.width >= 400) {
         const braceId = `${shelfId}-brace`;
-        const braceWidth = Math.max(100, bay.width - 40);
+        const braceWidth = bay.width;
         const braceHeight = 60;
+        const braceZ = effectiveSetback + 15;
 
         const bracePiece = createPiece({
           id: braceId,
@@ -279,25 +280,54 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
           materialId: materials.carcassMaterialId,
           contour: createRectangularContour(braceWidth, braceHeight),
           thicknessMm: T,
-          structural: false,
+          structural: true,
         });
+
+        if (edgeBandId) {
+          const bottomEdge = bracePiece.faces.find((f) => f.id === 'bottom-edge');
+          if (bottomEdge) {
+            bottomEdge.edgeBandId = edgeBandId;
+          }
+        }
+
         pieces.push(bracePiece);
 
         placementNodes.push({
           pieceId: braceId,
           parentPieceId: rootPieceId,
           relativeOffset: {
-            x: bay.x + 20,
+            x: bay.x,
             y: shelfElevationY - braceHeight,
-            z: Math.round(bay.depth / 2),
+            z: braceZ,
           },
         });
 
+        // 1. Structural joint with shelf bottom face
         joints.push(
           createJoint({
             a: { pieceId: shelfId, faceId: 'bottom-face' },
             b: { pieceId: braceId, faceId: 'top-edge' },
             kind: 'confirmat',
+          }),
+        );
+
+        // 2. Structural joint anchoring to left lateral
+        joints.push(
+          createJoint({
+            a: { pieceId: bay.leftPieceId, faceId: 'right-face' },
+            b: { pieceId: braceId, faceId: 'left-edge' },
+            kind: 'confirmat',
+            offsetMm: shelfElevationY - Math.round(braceHeight / 2),
+          }),
+        );
+
+        // 3. Structural joint anchoring to right lateral
+        joints.push(
+          createJoint({
+            a: { pieceId: bay.rightPieceId, faceId: 'left-face' },
+            b: { pieceId: braceId, faceId: 'right-edge' },
+            kind: 'confirmat',
+            offsetMm: shelfElevationY - Math.round(braceHeight / 2),
           }),
         );
       }

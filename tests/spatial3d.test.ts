@@ -5,6 +5,8 @@ import {
   resolveModuleSpatialBoxes,
   calculateExplodedBoxes,
   determinePieceSpatialSize,
+  createPiece,
+  createRectangularContour,
 } from '../src/resolver';
 import type { Material, EdgeBand } from '../src/model';
 
@@ -52,6 +54,20 @@ describe('3D Spatial Resolver (spatial3d)', () => {
     expect(backSize.x).toBe(600 - 36);
     expect(backSize.y).toBe(800 - 18);
     expect(backSize.z).toBe(18);
+
+    // Shelf brace standing vertically in XY plane
+    const mockBrace = createPiece({
+      id: 'shelf-1-brace',
+      role: 'shelf-brace',
+      materialId: 'mat-test-18',
+      thicknessMm: 18,
+      contour: createRectangularContour(564, 60),
+      structural: true,
+    });
+    const braceSize = determinePieceSpatialSize(mockBrace);
+    expect(braceSize.x).toBe(564); // width along X
+    expect(braceSize.y).toBe(60);  // height along Y (vertical stiffener beam)
+    expect(braceSize.z).toBe(18);  // thickness along Z
   });
 
   it('resolves bounding box and centers for base cabinet', () => {
