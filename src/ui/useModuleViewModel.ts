@@ -206,7 +206,13 @@ export interface ModuleViewModelState {
   setGridType: (gridType: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal') => void;
   setBayTracks: (tracks: TrackSize[]) => void;
   setActiveBayIndex: (idx: number) => void;
-  setBayContentType: (bayIndex: number, type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure') => void;
+  setBayContentType: (bayIndex: number, type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided') => void;
+  setSubdividedAxis: (bayIndex: number, axis: 'horizontal' | 'vertical') => void;
+  setSubdividedTracks: (bayIndex: number, tracks: TrackSize[]) => void;
+  setSubdividedThickness: (bayIndex: number, thicknessMm: number) => void;
+  setSubdividedJointType: (bayIndex: number, jointType: 'dado-groove' | 'confirmat') => void;
+  setSubdividedMaterialId: (bayIndex: number, materialId: string) => void;
+  setSubdividedCellContent: (bayIndex: number, cellIndex: number, content: BayContent) => void;
   addShelf: (bayIndex: number) => void;
   removeShelf: (bayIndex: number) => void;
   setShelfType: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
@@ -1011,7 +1017,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   }, []);
 
   const setBayContentType = useCallback(
-    (bayIndex: number, type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure') => {
+    (bayIndex: number, type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided') => {
       setIsCustomModular(true);
       setBaysState((prev) => {
         const next = [...prev];
@@ -1043,12 +1049,121 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             hingeType: 'aventos',
             openingDirection: 'vertical-lift',
           };
+        } else if (type === 'subdivided') {
+          next[bayIndex] = {
+            type: 'subdivided',
+            axis: 'horizontal',
+            tracks: [
+              { type: 'fractional', valueFr: 1 },
+              { type: 'fractional', valueFr: 1 },
+            ],
+            dividerThicknessMm: 6,
+            dividerMaterialId: 'mat-plywood-guatambu-6',
+            jointType: 'dado-groove',
+            bays: [
+              { type: 'empty' },
+              { type: 'empty' },
+            ],
+          };
         }
         return next;
       });
     },
     [],
   );
+
+  const setSubdividedAxis = useCallback((bayIndex: number, axis: 'horizontal' | 'vertical') => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'subdivided') {
+        next[bayIndex] = { ...current, axis };
+      }
+      return next;
+    });
+  }, []);
+
+  const setSubdividedTracks = useCallback((bayIndex: number, tracks: TrackSize[]) => {
+    if (!tracks || tracks.length === 0) return;
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'subdivided') {
+        const nextBays = [...current.bays];
+        while (nextBays.length < tracks.length) {
+          nextBays.push({ type: 'empty' });
+        }
+        next[bayIndex] = {
+          ...current,
+          tracks,
+          bays: nextBays.slice(0, tracks.length),
+        };
+      }
+      return next;
+    });
+  }, []);
+
+  const setSubdividedThickness = useCallback((bayIndex: number, dividerThicknessMm: number) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'subdivided') {
+        const isThin = dividerThicknessMm <= 9;
+        const jointType = isThin ? 'dado-groove' : 'confirmat';
+        const dividerMaterialId = isThin
+          ? (dividerThicknessMm <= 6 ? 'mat-plywood-guatambu-6' : 'mat-plywood-guatambu-9')
+          : undefined;
+        next[bayIndex] = {
+          ...current,
+          dividerThicknessMm,
+          jointType,
+          dividerMaterialId: dividerMaterialId ?? current.dividerMaterialId,
+        };
+      }
+      return next;
+    });
+  }, []);
+
+  const setSubdividedJointType = useCallback((bayIndex: number, jointType: 'dado-groove' | 'confirmat') => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'subdivided') {
+        next[bayIndex] = { ...current, jointType };
+      }
+      return next;
+    });
+  }, []);
+
+  const setSubdividedMaterialId = useCallback((bayIndex: number, dividerMaterialId: string) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'subdivided') {
+        next[bayIndex] = { ...current, dividerMaterialId };
+      }
+      return next;
+    });
+  }, []);
+
+  const setSubdividedCellContent = useCallback((bayIndex: number, cellIndex: number, cellContent: BayContent) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type === 'subdivided') {
+        const updatedCells = [...current.bays];
+        updatedCells[cellIndex] = cellContent;
+        next[bayIndex] = { ...current, bays: updatedCells };
+      }
+      return next;
+    });
+  }, []);
 
   const addShelf = useCallback((bayIndex: number) => {
     setIsCustomModular(true);
@@ -3302,6 +3417,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     bayBoxes,
     setActiveBayIndex,
     setBayContentType,
+    setSubdividedAxis,
+    setSubdividedTracks,
+    setSubdividedThickness,
+    setSubdividedJointType,
+    setSubdividedMaterialId,
+    setSubdividedCellContent,
     addShelf,
     removeShelf,
     setShelfType,

@@ -1,4 +1,4 @@
-import { type Piece, type Joint } from '../../model';
+import { type Piece, type Joint, type JointKind } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
@@ -96,6 +96,12 @@ export function resolveTracks(
   return { tracks: resolvedTracks, dividers };
 }
 
+export interface SubdivideBayOptions {
+  jointKind?: JointKind;
+  dividerSetbackMm?: number;
+  structural?: boolean;
+}
+
 export interface SubdivideBayResult {
   bayBoxes: BayBoundingBox[];
   dividerPieces: Piece[];
@@ -113,9 +119,13 @@ export function subdivideBay(
   dividerThicknessMm: number,
   edgeBandId?: string,
   idPrefix = 'div',
+  options?: SubdivideBayOptions,
 ): SubdivideBayResult {
   const isHorizontal = grid.axis === 'horizontal';
   const availableSpace = isHorizontal ? parentBay.width : parentBay.height;
+  const jointKind = options?.jointKind ?? 'confirmat';
+  const setbackMm = Math.max(0, options?.dividerSetbackMm ?? 0);
+  const isStructural = options?.structural ?? true;
 
   const resolved = resolveTracks(availableSpace, grid.tracks, dividerThicknessMm);
 
@@ -135,9 +145,9 @@ export function subdivideBay(
         id: dividerId,
         role: 'partition',
         materialId: dividerMaterialId,
-        contour: createRectangularContour(parentBay.depth, parentBay.height),
+        contour: createRectangularContour(Math.max(10, parentBay.depth - setbackMm), parentBay.height),
         thicknessMm: dividerThicknessMm,
-        structural: true,
+        structural: isStructural,
       });
 
       if (edgeBandId) {
@@ -154,7 +164,7 @@ export function subdivideBay(
         relativeOffset: {
           x: parentBay.x + divider.offsetMm,
           y: parentBay.y,
-          z: parentBay.z,
+          z: parentBay.z + setbackMm,
         },
       });
 
@@ -163,7 +173,8 @@ export function subdivideBay(
         createJoint({
           a: { pieceId: parentBay.bottomPieceId, faceId: 'top' },
           b: { pieceId: dividerId, faceId: 'bottom-edge' },
-          kind: 'confirmat',
+          kind: jointKind,
+          offsetMm: divider.offsetMm,
         }),
       );
 
@@ -173,7 +184,8 @@ export function subdivideBay(
           createJoint({
             a: { pieceId: parentBay.topPieceId, faceId: 'bottom' },
             b: { pieceId: dividerId, faceId: 'top-edge' },
-            kind: 'confirmat',
+            kind: jointKind,
+            offsetMm: divider.offsetMm,
           }),
         );
       }
@@ -183,9 +195,9 @@ export function subdivideBay(
         id: dividerId,
         role: 'shelf',
         materialId: dividerMaterialId,
-        contour: createRectangularContour(parentBay.width, parentBay.depth),
+        contour: createRectangularContour(parentBay.width, Math.max(10, parentBay.depth - setbackMm)),
         thicknessMm: dividerThicknessMm,
-        structural: true,
+        structural: isStructural,
       });
 
       if (edgeBandId) {
@@ -201,7 +213,7 @@ export function subdivideBay(
         relativeOffset: {
           x: parentBay.x,
           y: parentBay.y + divider.offsetMm,
-          z: parentBay.z,
+          z: parentBay.z + setbackMm,
         },
       });
 
@@ -210,12 +222,14 @@ export function subdivideBay(
         createJoint({
           a: { pieceId: parentBay.leftPieceId, faceId: 'inner' },
           b: { pieceId: dividerId, faceId: 'left-edge' },
-          kind: 'confirmat',
+          kind: jointKind,
+          offsetMm: divider.offsetMm,
         }),
         createJoint({
           a: { pieceId: parentBay.rightPieceId, faceId: 'inner' },
           b: { pieceId: dividerId, faceId: 'right-edge' },
-          kind: 'confirmat',
+          kind: jointKind,
+          offsetMm: divider.offsetMm,
         }),
       );
     }

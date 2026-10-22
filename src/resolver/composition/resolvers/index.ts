@@ -5,6 +5,7 @@ export { DrawerStackBayResolver } from './drawerStackBayResolver';
 export { DoorsBayResolver } from './doorsBayResolver';
 export { PullOutTrayBayResolver } from './pullOutTrayBayResolver';
 export { BiFoldClosureBayResolver } from './biFoldClosureBayResolver';
+export { SubdividedBayResolver } from './subdividedBayResolver';
 export {
   BayContentRegistry,
   defaultBayContentRegistry,

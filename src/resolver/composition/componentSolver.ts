@@ -44,5 +44,6 @@ export function resolveBayContent(
     content,
     materials,
     options,
+    registry,
   });
 }

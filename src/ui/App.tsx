@@ -559,6 +559,12 @@ export function App(): ReactElement {
                 onBayTracksChange={vm.setBayTracks}
                 onActiveBayIndexChange={vm.setActiveBayIndex}
                 onBayContentTypeChange={vm.setBayContentType}
+                onSubdividedAxisChange={vm.setSubdividedAxis}
+                onSubdividedTracksChange={vm.setSubdividedTracks}
+                onSubdividedThicknessChange={vm.setSubdividedThickness}
+                onSubdividedJointTypeChange={vm.setSubdividedJointType}
+                onSubdividedMaterialChange={vm.setSubdividedMaterialId}
+                onSubdividedCellContentChange={vm.setSubdividedCellContent}
                 onAddShelf={vm.addShelf}
                 onRemoveShelf={vm.removeShelf}
                 onShelfTypeChange={vm.setShelfType}

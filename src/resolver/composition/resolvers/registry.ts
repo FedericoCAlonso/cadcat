@@ -8,6 +8,7 @@ import { DrawerStackBayResolver } from './drawerStackBayResolver';
 import { DoorsBayResolver } from './doorsBayResolver';
 import { PullOutTrayBayResolver } from './pullOutTrayBayResolver';
 import { BiFoldClosureBayResolver } from './biFoldClosureBayResolver';
+import { SubdividedBayResolver } from './subdividedBayResolver';
 
 export class BayContentRegistry implements IBayContentRegistry {
   private resolvers: Map<string, IBayContentResolver> = new Map();
@@ -35,6 +36,7 @@ export class BayContentRegistry implements IBayContentRegistry {
     this.register(new DoorsBayResolver());
     this.register(new PullOutTrayBayResolver());
     this.register(new BiFoldClosureBayResolver());
+    this.register(new SubdividedBayResolver());
   }
 }
 

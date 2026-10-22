@@ -4,7 +4,7 @@ import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
 import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
 
-export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
+export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller' | 'wood-runner';
 export type DrawerFrontMount = 'applied' | 'inset';
 export type DrawerType = 'standard' | 'simple-interior';
 export type DrawerBottomMount = 'grooved' | 'bottom-screwed' | 'flush-thick';
@@ -14,6 +14,7 @@ export const DRAWER_SLIDE_CLEARANCES_MM: Record<DrawerSlideType, number> = {
   undermount: defaultProjectConfigJson.hardware.slideClearanceUndermountMm ?? 10.0,
   'metal-box': defaultProjectConfigJson.hardware.slideClearanceMetalBoxMm ?? 31.0,
   roller: defaultProjectConfigJson.hardware.slideClearanceRollerMm ?? 25.0,
+  'wood-runner': 4.0,
 };
 
 export interface DrawerConfig {
@@ -117,7 +118,8 @@ export function buildDrawerSubAssembly(
   const slideClearance = customSlideClearanceMm ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? 25.4;
   const innerWidth = openingWidthMm;
   const drawerBoxWidth = Math.round(innerWidth - slideClearance);
-  const boxDepth = config.boxDepthMm ?? Math.max(300, depthMm - 50);
+  const defaultBoxDepth = depthMm <= 350 ? Math.max(50, depthMm - 20) : Math.max(300, depthMm - 50);
+  const boxDepth = config.boxDepthMm ?? defaultBoxDepth;
 
   const subPieceIds: string[] = [];
   const pieces: Piece[] = [];

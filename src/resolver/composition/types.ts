@@ -86,7 +86,7 @@ export interface BayBoundingBox {
   overallDepth?: number;
 }
 
-export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller';
+export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'roller' | 'wood-runner';
 export type DrawerFrontMount = 'applied' | 'inset';
 export type DrawerType = 'standard' | 'simple-interior';
 export type DrawerBottomMount = 'grooved' | 'bottom-screwed' | 'flush-thick';
@@ -153,7 +153,20 @@ export type BayContent =
       interiorShelvesCount?: number;
       shelfType?: 'adjustable' | 'fixed';
       shelvesSetbackMm?: number;
+    }
+  | {
+      type: 'subdivided';
+      axis: 'horizontal' | 'vertical'; // 'horizontal' divides X (vertical partitions), 'vertical' divides Y (shelves)
+      tracks: TrackSize[];
+      bays: BayContent[];
+      dividerThicknessMm?: number;
+      dividerMaterialId?: string;
+      jointType?: 'dado-groove' | 'confirmat';
+      dividerSetbackMm?: number;
+      dividerDadoDepthMm?: number;
     };
+
+export type SubdividedJointType = 'dado-groove' | 'confirmat';
 
 export type BayContentEmpty = Extract<BayContent, { type: 'empty' }>;
 export type BayContentShelves = Extract<BayContent, { type: 'shelves' }>;
@@ -161,6 +174,7 @@ export type BayContentDrawerStack = Extract<BayContent, { type: 'drawer-stack' }
 export type BayContentPullOutTray = Extract<BayContent, { type: 'pull-out-tray' }>;
 export type BayContentDoors = Extract<BayContent, { type: 'doors' }>;
 export type BayContentBiFoldClosure = Extract<BayContent, { type: 'bi-fold-closure' }>;
+export type BayContentSubdivided = Extract<BayContent, { type: 'subdivided' }>;
 
 export interface PieceEdgeBandOverride {
   top?: boolean;

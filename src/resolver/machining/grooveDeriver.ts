@@ -46,10 +46,18 @@ export function deriveModuleGrooveOperations(
     const isBackB = pieceB.role === 'back' || pieceB.role.includes('back') || pieceB.id.endsWith('-back');
     const isDrawerBottomA = pieceA.role === 'drawer-bottom' || (pieceA.role.includes('bottom') && (pieceA.role.includes('drawer') || pieceA.id.includes('drawer')));
     const isDrawerBottomB = pieceB.role === 'drawer-bottom' || (pieceB.role.includes('bottom') && (pieceB.role.includes('drawer') || pieceB.id.includes('drawer')));
+    const isThinDividerA = (pieceA.role === 'partition' || pieceA.role === 'shelf') && pieceA.thicknessMm <= 9;
+    const isThinDividerB = (pieceB.role === 'partition' || pieceB.role === 'shelf') && pieceB.thicknessMm <= 9;
 
-    const slidingPiece = (isBackA || isDrawerBottomA) ? pieceA : (isBackB || isDrawerBottomB) ? pieceB : null;
+    const slidingPiece = (isBackA || isDrawerBottomA || isThinDividerA)
+      ? pieceA
+      : (isBackB || isDrawerBottomB || isThinDividerB)
+      ? pieceB
+      : null;
     const groovedPiece = slidingPiece === pieceA ? pieceB : slidingPiece === pieceB ? pieceA : null;
     if (!groovedPiece || !slidingPiece) continue;
+
+    const isThinDivider = slidingPiece === pieceA ? isThinDividerA : isThinDividerB;
 
     const r = groovedPiece.role.toLowerCase();
     const id = groovedPiece.id.toLowerCase();
@@ -65,7 +73,14 @@ export function deriveModuleGrooveOperations(
     let depthMm = backingGrooveDepthMm;
     let faceType: 'face-A' | 'face-B' = 'face-A';
 
-    if (r.includes('side-left') || r.includes('side-right') || r === 'side') {
+    if (isThinDivider) {
+      // Dado groove for thin partitions / shelves
+      axis = 'y';
+      faceType = 'face-A';
+      offsetMm = joint.offsetMm ?? 0;
+      widthMm = slidingPiece.thicknessMm + backingGrooveToleranceMm;
+      depthMm = 4;
+    } else if (r.includes('side-left') || r.includes('side-right') || r === 'side') {
       // Carcase side: vertical groove along Y axis
       axis = 'y';
       faceType = 'face-A'; // Inner face
@@ -130,7 +145,9 @@ export function deriveModuleGrooveOperations(
       offsetMm: Math.max(0, Math.round(offsetMm * 10) / 10),
       widthMm: Math.round(widthMm * 10) / 10,
       depthMm: Math.round(depthMm * 10) / 10,
-      description: `Ranura para fondo ${backingThicknessMm}mm`,
+      description: isThinDivider
+        ? `Ranura de encastre para tabique ${slidingPiece.thicknessMm}mm`
+        : `Ranura para fondo ${backingThicknessMm}mm`,
     });
   }
 

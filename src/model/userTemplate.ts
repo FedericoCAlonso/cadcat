@@ -15,60 +15,128 @@ export const trackSizeSchema = z.union([
   }),
 ]);
 
-export const bayContentSchema = z.union([
-  z.object({
-    type: z.literal('empty'),
-  }),
-  z.object({
-    type: z.literal('shelves'),
-    count: z.number().int().nonnegative(),
-    shelfType: z.enum(['adjustable', 'fixed']),
-    setbackMm: z.number().optional(),
-    hasAntiSagBrace: z.boolean().optional(),
-  }),
-  z.object({
-    type: z.literal('drawer-stack'),
-    drawerTracks: z.array(trackSizeSchema),
-    frontMount: z.enum(['applied', 'inset']),
-    hasTransomDividers: z.boolean().optional(),
-    slideType: z.enum(['telescopic', 'undermount', 'metal-box', 'roller']),
-    gapMm: z.number().optional(),
-    boxHeightRatio: z.number().optional(),
-  }),
-  z.object({
-    type: z.literal('pull-out-tray'),
-    lipHeightMm: z.number().optional(),
-    slideType: z.enum(['telescopic', 'undermount']),
-    clearanceDeductionMm: z.number().optional(),
-    elevationYMm: z.number().optional(),
-  }),
-  z.object({
-    type: z.literal('doors'),
-    count: z.union([z.literal(1), z.literal(2)]),
-    hingeSide: z.enum(['left', 'right']).optional(),
-    mountType: z.enum([
-      'full-overlay',
-      'half-overlay',
-      'inset',
-      'overlay',
-      'codo-0',
-      'codo-9',
-      'codo-18',
-    ]),
-    interiorShelvesCount: z.number().int().nonnegative().optional(),
-    shelfType: z.enum(['adjustable', 'fixed']).optional(),
-    shelvesSetbackMm: z.number().optional(),
-  }),
-  z.object({
-    type: z.literal('bi-fold-closure'),
-    leafTracks: z.array(trackSizeSchema).optional(),
-    hingeType: z.enum(['bifold-center', 'piano', 'aventos']),
-    openingDirection: z.enum(['vertical-lift', 'horizontal-book']),
-    interiorShelvesCount: z.number().int().nonnegative().optional(),
-    shelfType: z.enum(['adjustable', 'fixed']).optional(),
-    shelvesSetbackMm: z.number().optional(),
-  }),
-]);
+export type BayContentSchemaType =
+  | { type: 'empty' }
+  | {
+      type: 'shelves';
+      count: number;
+      shelfType: 'adjustable' | 'fixed';
+      setbackMm?: number;
+      hasAntiSagBrace?: boolean;
+    }
+  | {
+      type: 'drawer-stack';
+      drawerTracks: Array<{ type: 'fixed'; valueMm: number } | { type: 'fractional'; valueFr: number }>;
+      frontMount: 'applied' | 'inset';
+      hasTransomDividers?: boolean;
+      slideType: 'telescopic' | 'undermount' | 'metal-box' | 'roller' | 'wood-runner';
+      gapMm?: number;
+      boxHeightRatio?: number;
+    }
+  | {
+      type: 'pull-out-tray';
+      lipHeightMm?: number;
+      slideType: 'telescopic' | 'undermount';
+      clearanceDeductionMm?: number;
+      elevationYMm?: number;
+    }
+  | {
+      type: 'doors';
+      count: 1 | 2;
+      hingeSide?: 'left' | 'right';
+      mountType: 'full-overlay' | 'half-overlay' | 'inset' | 'overlay' | 'codo-0' | 'codo-9' | 'codo-18';
+      interiorShelvesCount?: number;
+      shelfType?: 'adjustable' | 'fixed';
+      shelvesSetbackMm?: number;
+    }
+  | {
+      type: 'bi-fold-closure';
+      leafTracks?: Array<{ type: 'fixed'; valueMm: number } | { type: 'fractional'; valueFr: number }>;
+      hingeType: 'bifold-center' | 'piano' | 'aventos';
+      openingDirection: 'vertical-lift' | 'horizontal-book';
+      interiorShelvesCount?: number;
+      shelfType?: 'adjustable' | 'fixed';
+      shelvesSetbackMm?: number;
+    }
+  | {
+      type: 'subdivided';
+      axis: 'horizontal' | 'vertical';
+      tracks: Array<{ type: 'fixed'; valueMm: number } | { type: 'fractional'; valueFr: number }>;
+      bays: BayContentSchemaType[];
+      dividerThicknessMm?: number;
+      dividerMaterialId?: string;
+      jointType?: 'dado-groove' | 'confirmat';
+      dividerSetbackMm?: number;
+      dividerDadoDepthMm?: number;
+    };
+
+export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
+  z.union([
+    z.object({
+      type: z.literal('empty'),
+    }),
+    z.object({
+      type: z.literal('shelves'),
+      count: z.number().int().nonnegative(),
+      shelfType: z.enum(['adjustable', 'fixed']),
+      setbackMm: z.number().optional(),
+      hasAntiSagBrace: z.boolean().optional(),
+    }),
+    z.object({
+      type: z.literal('drawer-stack'),
+      drawerTracks: z.array(trackSizeSchema),
+      frontMount: z.enum(['applied', 'inset']),
+      hasTransomDividers: z.boolean().optional(),
+      slideType: z.enum(['telescopic', 'undermount', 'metal-box', 'roller', 'wood-runner']),
+      gapMm: z.number().optional(),
+      boxHeightRatio: z.number().optional(),
+    }),
+    z.object({
+      type: z.literal('pull-out-tray'),
+      lipHeightMm: z.number().optional(),
+      slideType: z.enum(['telescopic', 'undermount']),
+      clearanceDeductionMm: z.number().optional(),
+      elevationYMm: z.number().optional(),
+    }),
+    z.object({
+      type: z.literal('doors'),
+      count: z.union([z.literal(1), z.literal(2)]),
+      hingeSide: z.enum(['left', 'right']).optional(),
+      mountType: z.enum([
+        'full-overlay',
+        'half-overlay',
+        'inset',
+        'overlay',
+        'codo-0',
+        'codo-9',
+        'codo-18',
+      ]),
+      interiorShelvesCount: z.number().int().nonnegative().optional(),
+      shelfType: z.enum(['adjustable', 'fixed']).optional(),
+      shelvesSetbackMm: z.number().optional(),
+    }),
+    z.object({
+      type: z.literal('bi-fold-closure'),
+      leafTracks: z.array(trackSizeSchema).optional(),
+      hingeType: z.enum(['bifold-center', 'piano', 'aventos']),
+      openingDirection: z.enum(['vertical-lift', 'horizontal-book']),
+      interiorShelvesCount: z.number().int().nonnegative().optional(),
+      shelfType: z.enum(['adjustable', 'fixed']).optional(),
+      shelvesSetbackMm: z.number().optional(),
+    }),
+    z.object({
+      type: z.literal('subdivided'),
+      axis: z.enum(['horizontal', 'vertical']),
+      tracks: z.array(trackSizeSchema),
+      bays: z.array(bayContentSchema),
+      dividerThicknessMm: z.number().optional(),
+      dividerMaterialId: z.string().optional(),
+      jointType: z.enum(['dado-groove', 'confirmat']).optional(),
+      dividerSetbackMm: z.number().optional(),
+      dividerDadoDepthMm: z.number().optional(),
+    }),
+  ]),
+);
 
 export const userTemplateSchema = z.object({
   id: z.string().min(1),

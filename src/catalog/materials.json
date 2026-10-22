@@ -211,6 +211,46 @@
       "heatResistant": false,
       "elasticModulusMPa": "TO_CONFIRM",
       "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-plywood-guatambu-6",
+      "name": "Multilaminado Guatambú / Abedul 6mm",
+      "thicknessMm": 6,
+      "sheetSizeMm": {
+        "length": 2500,
+        "width": 1600
+      },
+      "hasGrain": true,
+      "milling": {
+        "hidden": "yes",
+        "visible": "yes",
+        "onStructuralPiece": "limited",
+        "maxDepthMm": "TO_CONFIRM"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mat-plywood-guatambu-9",
+      "name": "Multilaminado Guatambú / Abedul 9mm",
+      "thicknessMm": 9,
+      "sheetSizeMm": {
+        "length": 2500,
+        "width": 1600
+      },
+      "hasGrain": true,
+      "milling": {
+        "hidden": "yes",
+        "visible": "yes",
+        "onStructuralPiece": "limited",
+        "maxDepthMm": "TO_CONFIRM"
+      },
+      "heatResistant": false,
+      "elasticModulusMPa": "TO_CONFIRM",
+      "pricePerSheet": "TO_CONFIRM"
     }
   ]
 }

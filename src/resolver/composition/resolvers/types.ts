@@ -33,6 +33,7 @@ export interface BayResolutionContext<T extends BayContent = BayContent> {
   content: T;
   materials: ModuleMaterialRoles;
   options: ComponentSolverOptions;
+  registry?: IBayContentRegistry;
 }
 
 /**
