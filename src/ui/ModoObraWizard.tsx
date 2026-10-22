@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { type HandMode, triggerHaptic } from '../resolver/thumbArc';
 import { ThumbArcInput } from './ThumbArcInput';
+import { WorkshopContextDiagram } from './WorkshopContextDiagram';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { type ProjectModuleItem } from '../model/project';
 import { type Material } from '../model/material';
@@ -630,72 +631,15 @@ export function ModoObraWizard({
 
         {/* STEP 1: MÓDULO Y TIPO (PLANTILLA) */}
         {activeStep.id === 'module-type' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto' }}>
-            {/* Tarjeta Informativa M3: Ingeniería Automática de Taller (Descriptive at Top) */}
-            <div
-              style={{
-                padding: '0.65rem 0.8rem',
-                borderRadius: '14px',
-                backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                border: '1px solid var(--md-sys-color-primary)',
-                borderLeft: '4px solid var(--md-sys-color-primary)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.35rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <span style={{ fontSize: '1.05rem' }}>📐</span>
-                <strong style={{ fontSize: '0.84rem', color: 'var(--md-sys-color-primary)' }}>
-                  Ingeniería Automática de Taller
-                </strong>
-              </div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.76rem',
-                  lineHeight: '1.35',
-                  color: 'var(--md-sys-color-on-surface-variant)',
-                }}
-              >
-                En Modo Taller relevás volumen, distribución y placas de forma ágil. Las holguras (2.5 mm perimetral),
-                descuentos de correderas (26 mm) y ranuras de fondo se calculan automáticamente con las configuraciones por defecto del taller.
-              </p>
-              <div
-                style={{
-                  fontSize: '0.73rem',
-                  color: 'var(--md-sys-color-on-surface)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  backgroundColor: 'var(--md-sys-color-surface-container)',
-                  padding: '0.3rem 0.5rem',
-                  borderRadius: '8px',
-                }}
-              >
-                <span>⚙️</span>
-                <span>
-                  Las holguras milimétricas y herrajes avanzados se configuran sí o sí en <strong>Modo Experto</strong>.
-                </span>
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '0.55rem 0.75rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                fontSize: '0.76rem',
-                color: 'var(--md-sys-color-on-surface-variant)',
-              }}
-            >
-              💡 <strong>Tip de Obra:</strong> Al elegir la plantilla base, el mueble se preconfigura con
-              las proporciones y holguras estándar de taller. Podés ajustar las medidas exactas en el siguiente paso.
-            </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+            {/* Context Technical Schematic Diagram */}
+            <WorkshopContextDiagram
+              step="module-type"
+              selectedTemplateId={selectedTemplateId}
+            />
 
             {/* Template Selection Grid (Directly at bottom in the Thumb Zone!) */}
-            <div style={{ marginTop: '0.2rem' }}>
+            <div style={{ marginTop: '0.1rem' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.35rem' }}>
                 Seleccionar Plantilla:
               </span>
@@ -772,10 +716,21 @@ export function ModoObraWizard({
               justifyContent: 'space-between',
               flex: 1,
               minHeight: 0,
-              gap: '0.45rem',
-              padding: '0.2rem 0',
+              gap: '0.35rem',
+              padding: '0.1rem 0',
             }}
           >
+            {/* Top: Context Technical Schematic Diagram with interactive Cotas */}
+            <WorkshopContextDiagram
+              step="dimensions"
+              width={width}
+              height={height}
+              depth={depth}
+              thickness={thickness}
+              activeDimension={dimensionField}
+              onSelectDimension={setDimensionField}
+            />
+
             {/* Contextual Carpentry Dimension Header */}
             <div
               style={{
@@ -785,7 +740,7 @@ export function ModoObraWizard({
                 textAlign: 'center',
                 width: '100%',
                 maxWidth: '460px',
-                padding: '0.4rem 0.6rem',
+                padding: '0.35rem 0.6rem',
                 borderRadius: '12px',
                 backgroundColor: 'var(--md-sys-color-surface-container)',
                 border: '1px solid var(--md-sys-color-outline-variant)',
@@ -1035,20 +990,14 @@ export function ModoObraWizard({
 
         {/* STEP 3: BASE / ESTRUCTURA DE PISO */}
         {activeStep.id === 'base-support' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
-            {/* Informative advice at the top */}
-            <div
-              style={{
-                padding: '0.55rem 0.75rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                fontSize: '0.76rem',
-                color: 'var(--md-sys-color-on-surface-variant)',
-              }}
-            >
-              💡 <strong>Estructura de Base:</strong> Define el apoyo inferior del módulo, el despeje de humedad respecto al piso y el método de nivelación en obra.
-            </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+            {/* Context Technical Schematic Diagram */}
+            <WorkshopContextDiagram
+              step="base-support"
+              hasPlinth={hasPlinth}
+              hasWallHangingRail={hasWallHangingRail}
+              selectedTemplateId={selectedTemplateId}
+            />
 
             {/* Base Option Buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
@@ -1177,34 +1126,13 @@ export function ModoObraWizard({
 
         {/* STEP 4: TECHO / AMARRES SUPERIORES (Incluye alacena sin tapa hasta el techo) */}
         {activeStep.id === 'roof-structure' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
-            {/* Informative advice at the top */}
-            <div
-              style={{
-                padding: '0.55rem 0.75rem',
-                borderRadius: '12px',
-                backgroundColor: roofType === 'none'
-                  ? 'var(--md-sys-color-tertiary-container, #e8def8)'
-                  : 'var(--md-sys-color-surface-container)',
-                color: roofType === 'none'
-                  ? 'var(--md-sys-color-on-tertiary-container, #1d192b)'
-                  : 'var(--md-sys-color-on-surface-variant)',
-                fontSize: '0.76rem',
-                lineHeight: 1.35,
-              }}
-            >
-              {roofType === 'none' ? (
-                <>
-                  ✨ <strong>Excelente elección:</strong> En cocinas modernas que llegan al techo se elimina
-                  el tablero de tapa para evitar el hueco juntamugre inaccesible. El fondo ranurado de 3 mm se desliza
-                  limpiamente desde arriba durante el armado.
-                </>
-              ) : (
-                <>
-                  💡 <strong>Amarre Superior:</strong> Los muebles bajo mesada utilizan fajas de 80 mm para fijación de mesada de granito/cuarzo, mientras que las alacenas usan tapa ciega o van abiertas al cielo raso.
-                </>
-              )}
-            </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+            {/* Context Technical Schematic Diagram */}
+            <WorkshopContextDiagram
+              step="roof-structure"
+              roofType={roofType}
+              selectedTemplateId={selectedTemplateId}
+            />
 
             {/* Option Buttons in Thumb Zone */}
             {[
@@ -1289,22 +1217,13 @@ export function ModoObraWizard({
 
         {/* STEP 5: FONDO TRASERO */}
         {activeStep.id === 'backing' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: 'auto' }}>
-            {/* Informative advice at the top */}
-            <div
-              style={{
-                padding: '0.55rem 0.75rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                fontSize: '0.76rem',
-                color: 'var(--md-sys-color-on-surface-variant)',
-                lineHeight: 1.35,
-              }}
-            >
-              💡 <strong>Rigidez y Escuadra:</strong> El fondo ranurado de 3 mm embutido a 10 mm del borde posterior
-              asegura la perpendicularidad exacta de la caja sin necesidad de diagonales auxiliares en el armado.
-            </div>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+            {/* Context Technical Schematic Diagram */}
+            <WorkshopContextDiagram
+              step="backing"
+              hasBacking={hasBacking}
+              backingType={backingType}
+            />
 
             {/* Backing Option Buttons in Thumb Zone */}
             {[
@@ -1399,23 +1318,14 @@ export function ModoObraWizard({
         {/* STEP 6: DISTRIBUCIÓN Y EQUIPAMIENTO DE VANOS */}
         {activeStep.id === 'bays-equipment' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
-            {/* Informative advice at the top */}
-            <div
-              style={{
-                padding: '0.45rem 0.65rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                fontSize: '0.74rem',
-                color: 'var(--md-sys-color-on-surface-variant)',
-              }}
-            >
-              {width < 800 ? (
-                <>ℹ️ 3 vanos requiere un ancho mínimo de 800 mm. Definí columnas y equipamiento en un solo paso.</>
-              ) : (
-                <>💡 <strong>Distribución y Equipamiento:</strong> Elegí la cantidad de columnas y equipá cada vano con estantes, cajonera o puertas.</>
-              )}
-            </div>
+            {/* Context Technical Schematic Diagram */}
+            <WorkshopContextDiagram
+              step="bays-equipment"
+              width={width}
+              gridType={gridType}
+              bays={bays}
+              activeBayIndex={activeBayIndex}
+            />
 
             {/* Bay count selection buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', width: '100%' }}>
@@ -1885,7 +1795,13 @@ export function ModoObraWizard({
 
         {/* STEP 7: MATERIAL / TABLERO DE MELAMINA */}
         {activeStep.id === 'material' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+            {/* Context Technical Schematic Diagram */}
+            <WorkshopContextDiagram
+              step="material"
+              materialRole={activeMaterialRole}
+            />
+
             {/* 1. Banner descriptivo del rol activo + Botón de Sincronización con el Casco (at Top) */}
             <div
               style={{

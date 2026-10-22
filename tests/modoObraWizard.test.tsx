@@ -282,7 +282,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(html).toContain('Siguiente ▶');
   });
 
-  it('renders automatic workshop engineering notice in Step 1 explaining default tolerances and expert mode', () => {
+  it('renders context technical schematic diagram in Step 1 without cluttered text boxes', () => {
     const html = renderToString(
       <ModoObraWizard
         width={800}
@@ -299,10 +299,14 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       />,
     );
 
-    expect(html).toContain('Ingeniería Automática de Taller');
-    expect(html).toContain('2.5 mm perimetral');
-    expect(html).toContain('Modo Experto');
-    expect(html).toContain('configuraciones por defecto');
+    // Context schematic diagram is rendered
+    expect(html).toContain('Esquema técnico de contexto: module-type');
+    expect(html).toContain('BAJO MESADA BASE');
+    expect(html).toContain('MESADA 600 mm');
+
+    // Cluttered text boxes were removed per workshop UX requirements
+    expect(html).not.toContain('Ingeniería Automática de Taller');
+    expect(html).not.toContain('Tip de Obra');
   });
 
   it('configures bay distribution and interior equipment in unified Step 6 (Vanos y Equipamiento)', () => {
