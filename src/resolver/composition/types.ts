@@ -116,7 +116,7 @@ export type BayContent =
   | {
       type: 'drawer-stack';
       drawerTracks: TrackSize[];
-      frontMount: DrawerFrontMount;
+      frontMount?: DrawerFrontMount;
       hasTransomDividers?: boolean;
       slideType: DrawerSlideType;
       gapMm?: number;
@@ -161,7 +161,7 @@ export type BayContent =
       bays: BayContent[];
       dividerThicknessMm?: number;
       dividerMaterialId?: string;
-      jointType?: 'dado-groove' | 'confirmat';
+      jointType?: 'dado-groove' | 'confirmat' | 'minifix';
       dividerSetbackMm?: number;
       dividerDadoDepthMm?: number;
     };

@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeLeafCells,
+  computeTreeGeometry,
   getCellAtPath,
   updateCellAtPath,
+  updateDividerAtPath,
+  distributeTracksEvenlyAtPath,
   splitCellAtPath,
+  createMatrixGrid,
   removeSplitAtPath,
 } from '../src/resolver/composition/bayCellTree';
 import { type BayContent } from '../src/resolver/composition/types';
@@ -144,5 +148,63 @@ describe('bayCellTree - Word table style interactive cell operations', () => {
 
     tree = removeSplitAtPath(tree, [0]);
     expect(tree.type).toBe('empty');
+  });
+
+  it('creates an aligned 2x3 matrix grid and computes cells and clickable divider edges', () => {
+    // 2 rows x 3 columns
+    const grid = createMatrixGrid(2, 3, 'horizontal-continuous', 18);
+    expect(grid.type).toBe('subdivided');
+
+    const { cells, dividers } = computeTreeGeometry(grid, 900, 600, 18);
+
+    // 2 rows x 3 columns = 6 cells
+    expect(cells.length).toBe(6);
+
+    // Dividers: 1 horizontal shelf dividing rows + 2 vertical dividers per row (total 5 dividers)
+    expect(dividers.length).toBe(5);
+
+    // Horizontal shelf divider across the width
+    const horizDivider = dividers.find((d) => d.axis === 'vertical');
+    expect(horizDivider).toBeDefined();
+    expect(horizDivider!.width).toBe(900);
+    expect(horizDivider!.height).toBe(18);
+
+    // Vertical partition dividers
+    const vertDividers = dividers.filter((d) => d.axis === 'horizontal');
+    expect(vertDividers.length).toBe(4);
+    for (const vd of vertDividers) {
+      expect(vd.thicknessMm).toBe(18);
+    }
+  });
+
+  it('updates divider properties (thickness, jointType) immutably', () => {
+    const grid = createMatrixGrid(1, 2, 'horizontal-continuous', 18);
+    const updated = updateDividerAtPath(grid, [], {
+      dividerThicknessMm: 6,
+      jointType: 'dado-groove',
+    });
+
+    const { dividers } = computeTreeGeometry(updated, 600, 400);
+    expect(dividers.length).toBe(1);
+    expect(dividers[0]!.thicknessMm).toBe(6);
+    expect(dividers[0]!.jointType).toBe('dado-groove');
+  });
+
+  it('distributes tracks evenly across a subdivision', () => {
+    // Start with uneven tracks: 100mm fixed + 1fr
+    let tree: BayContent = splitCellAtPath(
+      { type: 'empty' },
+      [],
+      'vertical',
+      [{ type: 'fixed', valueMm: 100 }, { type: 'fractional', valueFr: 1 }],
+      18,
+    );
+
+    tree = distributeTracksEvenlyAtPath(tree, []);
+    const sub = tree as any;
+    expect(sub.tracks).toEqual([
+      { type: 'fractional', valueFr: 1 },
+      { type: 'fractional', valueFr: 1 },
+    ]);
   });
 });

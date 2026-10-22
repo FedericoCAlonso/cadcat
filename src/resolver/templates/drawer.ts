@@ -84,13 +84,13 @@ export function buildDrawerSubAssembly(
     boxMaterialId,
     boxThicknessMm,
     slideType,
-    frontMount = 'applied',
+    frontMount,
     customSlideClearanceMm,
     edgeBandId,
     gapMm = 2.0,
     boxFrontOffsetMm = 0,
     boxBottomClearanceMm = 15,
-    drawerType = 'standard',
+    drawerType,
     bottomMount = 'bottom-screwed',
     topPullGapMm = 0,
     boxSideHeightOffsetMm = 0,
@@ -102,6 +102,9 @@ export function buildDrawerSubAssembly(
     grooveOffsetMm = 10,
     grooveDepthMm = 7,
   } = config;
+
+  const actualFrontMount = frontMount ?? (slideType === 'wood-runner' ? 'inset' : 'applied');
+  const actualDrawerType = drawerType ?? (slideType === 'wood-runner' ? 'simple-interior' : 'standard');
 
   const actualFrontMaterialId = frontMaterialId ?? materialId;
   const actualBoxMaterialId = boxMaterialId ?? materialId;
@@ -126,8 +129,8 @@ export function buildDrawerSubAssembly(
   const placementNodes: PlacementNode[] = [];
   const joints: Joint[] = [];
 
-  const isSimpleInterior = drawerType === 'simple-interior';
-  const isInset = isSimpleInterior || frontMount === 'inset';
+  const isSimpleInterior = actualDrawerType === 'simple-interior';
+  const isInset = isSimpleInterior || actualFrontMount === 'inset';
 
   // Effective box side & back height (can be lower than front)
   const effectiveBoxSideHeight = Math.max(

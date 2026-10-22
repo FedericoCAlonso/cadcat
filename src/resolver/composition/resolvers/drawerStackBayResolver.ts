@@ -35,7 +35,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       hasTransomDividers = false,
       slideType,
       gapMm = 2.0,
-      drawerType = 'standard',
+      drawerType,
       bottomMount = 'bottom-screwed',
       topPullGapMm = 0,
       boxSideHeightOffsetMm = 0,
@@ -45,7 +45,10 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       return { pieces, joints, placementNodes, subAssemblies };
     }
 
-    const useTransoms = hasTransomDividers && frontMount === 'inset';
+    const effectiveFrontMount = frontMount ?? (slideType === 'wood-runner' ? 'inset' : 'applied');
+    const effectiveDrawerType = drawerType ?? (slideType === 'wood-runner' ? 'simple-interior' : 'standard');
+
+    const useTransoms = hasTransomDividers && effectiveFrontMount === 'inset';
     const resolved = resolveTracks(
       bay.height,
       drawerTracks,
@@ -125,10 +128,10 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
           bottomScrewedDeductionDepthMm: content.bottomScrewedDeductionDepthMm ?? options.drawerBottomScrewedDeductionDepthMm,
           slideType,
           customSlideClearanceMm: content.slideClearanceMm,
-          frontMount,
+          frontMount: effectiveFrontMount,
           edgeBandId,
           gapMm,
-          drawerType,
+          drawerType: effectiveDrawerType,
           bottomMount,
           topPullGapMm,
           boxSideHeightOffsetMm,

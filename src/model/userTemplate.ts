@@ -27,7 +27,7 @@ export type BayContentSchemaType =
   | {
       type: 'drawer-stack';
       drawerTracks: Array<{ type: 'fixed'; valueMm: number } | { type: 'fractional'; valueFr: number }>;
-      frontMount: 'applied' | 'inset';
+      frontMount?: 'applied' | 'inset';
       hasTransomDividers?: boolean;
       slideType: 'telescopic' | 'undermount' | 'metal-box' | 'roller' | 'wood-runner';
       gapMm?: number;
@@ -65,7 +65,7 @@ export type BayContentSchemaType =
       bays: BayContentSchemaType[];
       dividerThicknessMm?: number;
       dividerMaterialId?: string;
-      jointType?: 'dado-groove' | 'confirmat';
+      jointType?: 'dado-groove' | 'confirmat' | 'minifix';
       dividerSetbackMm?: number;
       dividerDadoDepthMm?: number;
     };
@@ -85,7 +85,7 @@ export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
     z.object({
       type: z.literal('drawer-stack'),
       drawerTracks: z.array(trackSizeSchema),
-      frontMount: z.enum(['applied', 'inset']),
+      frontMount: z.enum(['applied', 'inset']).optional(),
       hasTransomDividers: z.boolean().optional(),
       slideType: z.enum(['telescopic', 'undermount', 'metal-box', 'roller', 'wood-runner']),
       gapMm: z.number().optional(),
@@ -131,7 +131,7 @@ export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
       bays: z.array(bayContentSchema),
       dividerThicknessMm: z.number().optional(),
       dividerMaterialId: z.string().optional(),
-      jointType: z.enum(['dado-groove', 'confirmat']).optional(),
+      jointType: z.enum(['dado-groove', 'confirmat', 'minifix']).optional(),
       dividerSetbackMm: z.number().optional(),
       dividerDadoDepthMm: z.number().optional(),
     }),

@@ -15,17 +15,37 @@ export interface CellBox {
   isLeaf: boolean;
 }
 
+export interface DividerEdgeBox {
+  id: string;
+  path: number[]; // Path to the subdivided node that owns this divider
+  dividerIndex: number;
+  axis: 'horizontal' | 'vertical'; // 'horizontal' divides X (vertical partition), 'vertical' divides Y (horizontal shelf)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  thicknessMm: number;
+  jointType?: 'confirmat' | 'minifix' | 'dado-groove';
+  materialId?: string;
+}
+
+export interface TreeGeometryResult {
+  cells: CellBox[];
+  dividers: DividerEdgeBox[];
+}
+
 /**
- * Computes all leaf cells and their geometric bounding boxes (x, y, w, h in mm)
+ * Computes all leaf cells and internal divider edges (aristas) with their exact 2D coordinates (x, y, w, h in mm)
  * within an available bay cavity using recursive grid resolution.
  */
-export function computeLeafCells(
+export function computeTreeGeometry(
   content: BayContent,
   availableWidth: number,
   availableHeight: number,
   defaultDividerT = 18,
-): CellBox[] {
-  const result: CellBox[] = [];
+): TreeGeometryResult {
+  const cells: CellBox[] = [];
+  const dividers: DividerEdgeBox[] = [];
 
   function traverse(
     curr: BayContent,
@@ -36,7 +56,7 @@ export function computeLeafCells(
     path: number[],
   ) {
     if (curr.type !== 'subdivided' || !curr.tracks || curr.tracks.length === 0) {
-      result.push({
+      cells.push({
         path,
         x: Math.round(x),
         y: Math.round(y),
@@ -55,6 +75,45 @@ export function computeLeafCells(
 
     const resolved = resolveTracks(availableSpace, sub.tracks, dividerT);
 
+    // Compute divider edge geometry
+    for (let d = 0; d < resolved.dividers.length; d++) {
+      const div = resolved.dividers[d]!;
+      const edgeId = `edge-${path.join('-') || 'root'}-${d}`;
+
+      if (isHorizontal) {
+        // Vertical partition dividing X
+        dividers.push({
+          id: edgeId,
+          path,
+          dividerIndex: d,
+          axis: 'horizontal',
+          x: Math.round(x + div.offsetMm),
+          y: Math.round(y),
+          width: Math.round(div.thicknessMm),
+          height: Math.round(h),
+          thicknessMm: div.thicknessMm,
+          jointType: sub.jointType,
+          materialId: sub.dividerMaterialId,
+        });
+      } else {
+        // Horizontal shelf dividing Y
+        dividers.push({
+          id: edgeId,
+          path,
+          dividerIndex: d,
+          axis: 'vertical',
+          x: Math.round(x),
+          y: Math.round(y + div.offsetMm),
+          width: Math.round(w),
+          height: Math.round(div.thicknessMm),
+          thicknessMm: div.thicknessMm,
+          jointType: sub.jointType,
+          materialId: sub.dividerMaterialId,
+        });
+      }
+    }
+
+    // Traverse child tracks
     for (let i = 0; i < resolved.tracks.length; i++) {
       const track = resolved.tracks[i]!;
       const childContent = sub.bays[i] ?? { type: 'empty' };
@@ -69,9 +128,6 @@ export function computeLeafCells(
         traverse(childContent, childX, childY, childW, childH, childPath);
       } else {
         // Horizontal shelves dividing Y
-        // Track offset is from top or bottom. We render top-to-bottom for 2D UI:
-        // Top row is track resolved from top if desired, or index 0 is bottom.
-        // In UI canvas, y increases downward.
         const childX = x;
         const childY = y + track.offsetMm;
         const childW = w;
@@ -82,7 +138,20 @@ export function computeLeafCells(
   }
 
   traverse(content, 0, 0, availableWidth, availableHeight, []);
-  return result;
+  return { cells, dividers };
+}
+
+/**
+ * Computes all leaf cells and their geometric bounding boxes (x, y, w, h in mm)
+ * within an available bay cavity using recursive grid resolution.
+ */
+export function computeLeafCells(
+  content: BayContent,
+  availableWidth: number,
+  availableHeight: number,
+  defaultDividerT = 18,
+): CellBox[] {
+  return computeTreeGeometry(content, availableWidth, availableHeight, defaultDividerT).cells;
 }
 
 /**
@@ -131,6 +200,58 @@ export function updateCellAtPath(
 }
 
 /**
+ * Immutably updates the properties of an arista (divider) at a specific subdivision path.
+ */
+export function updateDividerAtPath(
+  root: BayContent,
+  path: number[],
+  updates: {
+    dividerThicknessMm?: number;
+    jointType?: 'confirmat' | 'minifix' | 'dado-groove';
+    dividerMaterialId?: string;
+  },
+): BayContent {
+  const current = getCellAtPath(root, path);
+  if (!current || current.type !== 'subdivided') return root;
+
+  const sub = current as BayContentSubdivided;
+  const newThickness = updates.dividerThicknessMm ?? sub.dividerThicknessMm ?? 18;
+  const newJoint = updates.jointType ?? sub.jointType ?? (newThickness <= 9 ? 'dado-groove' : 'confirmat');
+
+  let defaultMat = sub.dividerMaterialId;
+  if (newThickness <= 6) defaultMat = 'mat-plywood-guatambu-6';
+  else if (newThickness <= 9) defaultMat = 'mat-plywood-guatambu-9';
+
+  const updated: BayContentSubdivided = {
+    ...sub,
+    dividerThicknessMm: newThickness,
+    jointType: newJoint,
+    dividerMaterialId: updates.dividerMaterialId ?? defaultMat,
+  };
+
+  return updateCellAtPath(root, path, updated);
+}
+
+/**
+ * Distributes tracks in a subdivision evenly (Word table "Distribuir filas/columnas uniformemente").
+ */
+export function distributeTracksEvenlyAtPath(root: BayContent, path: number[]): BayContent {
+  const current = getCellAtPath(root, path);
+  if (!current || current.type !== 'subdivided') return root;
+
+  const sub = current as BayContentSubdivided;
+  const balancedTracks: TrackSize[] = sub.tracks.map(() => ({
+    type: 'fractional',
+    valueFr: 1,
+  }));
+
+  return updateCellAtPath(root, path, {
+    ...sub,
+    tracks: balancedTracks,
+  });
+}
+
+/**
  * Splits a cell at a specific path into rows or columns (Word-table style split).
  */
 export function splitCellAtPath(
@@ -160,6 +281,132 @@ export function splitCellAtPath(
   };
 
   return updateCellAtPath(root, path, newSubdivided);
+}
+
+/**
+ * Creates an aligned N rows x M columns matrix grid (Word-style initial table creation).
+ */
+export function createMatrixGrid(
+  rows: number,
+  cols: number,
+  continuity: 'horizontal-continuous' | 'vertical-continuous' = 'horizontal-continuous',
+  dividerThicknessMm = 18,
+  jointType?: 'confirmat' | 'dado-groove',
+): BayContent {
+  const safeRows = Math.max(1, Math.min(12, Math.round(rows)));
+  const safeCols = Math.max(1, Math.min(12, Math.round(cols)));
+
+  if (safeRows === 1 && safeCols === 1) {
+    return { type: 'empty' };
+  }
+
+  const effectiveJoint = jointType ?? (dividerThicknessMm <= 9 ? 'dado-groove' : 'confirmat');
+  let dividerMaterialId: string | undefined = undefined;
+  if (dividerThicknessMm <= 6) dividerMaterialId = 'mat-plywood-guatambu-6';
+  else if (dividerThicknessMm <= 9) dividerMaterialId = 'mat-plywood-guatambu-9';
+
+  if (safeRows === 1) {
+    // Single row with M columns
+    const tracks: TrackSize[] = Array.from({ length: safeCols }, () => ({
+      type: 'fractional',
+      valueFr: 1,
+    }));
+    return {
+      type: 'subdivided',
+      axis: 'horizontal',
+      tracks,
+      bays: tracks.map(() => ({ type: 'empty' })),
+      dividerThicknessMm,
+      dividerMaterialId,
+      jointType: effectiveJoint,
+    };
+  }
+
+  if (safeCols === 1) {
+    // Single column with N rows
+    const tracks: TrackSize[] = Array.from({ length: safeRows }, () => ({
+      type: 'fractional',
+      valueFr: 1,
+    }));
+    return {
+      type: 'subdivided',
+      axis: 'vertical',
+      tracks,
+      bays: tracks.map(() => ({ type: 'empty' })),
+      dividerThicknessMm,
+      dividerMaterialId,
+      jointType: effectiveJoint,
+    };
+  }
+
+  // Multi-row and multi-column grid
+  if (continuity === 'horizontal-continuous') {
+    // Shelves run full width continuously; each row has columns
+    const rowTracks: TrackSize[] = Array.from({ length: safeRows }, () => ({
+      type: 'fractional',
+      valueFr: 1,
+    }));
+
+    const colTracks: TrackSize[] = Array.from({ length: safeCols }, () => ({
+      type: 'fractional',
+      valueFr: 1,
+    }));
+
+    const rowBays: BayContent[] = rowTracks.map(
+      (): BayContentSubdivided => ({
+        type: 'subdivided',
+        axis: 'horizontal',
+        tracks: colTracks,
+        bays: colTracks.map(() => ({ type: 'empty' })),
+        dividerThicknessMm,
+        dividerMaterialId,
+        jointType: effectiveJoint,
+      }),
+    );
+
+    return {
+      type: 'subdivided',
+      axis: 'vertical',
+      tracks: rowTracks,
+      bays: rowBays,
+      dividerThicknessMm,
+      dividerMaterialId,
+      jointType: effectiveJoint,
+    };
+  }
+
+  // Vertical partitions run floor-to-roof continuously; each column has rows
+  const colTracks: TrackSize[] = Array.from({ length: safeCols }, () => ({
+    type: 'fractional',
+    valueFr: 1,
+  }));
+
+  const rowTracks: TrackSize[] = Array.from({ length: safeRows }, () => ({
+    type: 'fractional',
+    valueFr: 1,
+  }));
+
+  const colBays: BayContent[] = colTracks.map(
+    (): BayContentSubdivided => ({
+      type: 'subdivided',
+      axis: 'vertical',
+      tracks: rowTracks,
+      bays: rowTracks.map(() => ({ type: 'empty' })),
+      dividerThicknessMm,
+      dividerMaterialId,
+      jointType: effectiveJoint,
+    }),
+  );
+
+  return {
+    type: 'subdivided',
+    axis: 'horizontal',
+    tracks: colTracks,
+    bays: colBays,
+    dividerThicknessMm,
+    dividerMaterialId,
+    jointType: effectiveJoint,
+  };
 }
 
 /**
