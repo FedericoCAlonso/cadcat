@@ -47,14 +47,22 @@ Para verificar de inmediato que los tipos compilen, los tests pasen, el build se
 
 ### 4. Google Material Design 3 (M3) & Accesibilidad
 - [ ] **Touch Targets Móviles:** Objetivos táctiles mínimos de **48x48 px** en vistas móviles.
+- [ ] **Ergonomía Thumb Zone:** Controles frecuentes de cambio de cota y pasos anclados en la mitad inferior de pantalla táctil.
+- [ ] **Esquemas Contextuales:** Diagramas CAD contextuales visibles y adaptados en pantalla sin bloquear interacción.
+- [ ] **Cero Controles Duplicados:** Un solo acceso visible por acción/modo.
+- [ ] **Sin Entrada de Texto Intrusiva en Móvil:** Preferencia de chips y steppers sobre campos de texto libre que desplieguen teclados innecesarios.
 - [ ] **Tokens de Diseño M3:** Uso consistente de tokens (`surface`, `primary`, `secondary`, `tonal`, `outline`, `error`).
 - [ ] **Formularios contextuales:** Secciones y controles irrelevantes se ocultan según la plantilla elegida.
 - [ ] **Accesibilidad:** Marcado semántico (`<section>`, `<fieldset>`, `<legend>`), atributos `aria-label`, contraste WCAG 2.1 AA.
 
-### 5. Versionado Continuo Pre-Producción (SemVer 0.y.z)
+### 5. Estricta Política Anti-Regresión y Manejo de Contradicciones
+- [ ] **Preservación de Implementaciones Previas:** Funcionalidades solicitadas previamente (ej. botón *Edición Especial*, esquemas técnicos) no deben ser eliminadas en auditorías ni refactors.
+- [ ] **Consulta Previa ante Contradicciones:** Si una nueva solicitud parece contradecir una implementación anterior, dialogar y consultar antes de realizar cambios destructivos.
+
+### 6. Versionado Continuo Pre-Producción (SemVer 0.y.z)
 - [ ] Mantener versión mayor en `0` (`0.y.z`).
 - [ ] Incrementar `y` ante nuevas características/módulos; incrementar `z` ante bugfixes/refactors.
-- [ ] **Sincronización exacta:** `package.json` y `src/version.ts` deben tener el mismo valor.
+- [ ] **Cero Hardcoding:** `src/version.ts` resuelve dinámicamente `version` desde `package.json` sin strings literales.
 
 ---
 
@@ -65,10 +73,11 @@ Al completar una revisión con esta skill, presentar el resultado en una tabla e
 ```markdown
 | Dimensión | Estado (✅ / ⚠️ / ❌) | Hallazgos / Observaciones |
 | :--- | :--- | :--- |
-| Cero Hardcoding | ✅ | Todas las holguras provienen de ProjectConfig |
+| Cero Hardcoding | ✅ | Todas las holguras provienen de ProjectConfig y versión dinámica |
 | Principios SOLID | ✅ | Resolutores puros y desacoplados |
 | Arquitectura MVVM | ✅ | Hooks con dependencias completas |
-| Google M3 & A11y | ✅ | Touch targets $\ge 48$px y contraste adecuado |
-| Sincronización SemVer | ✅ | v0.11.0 sincronizado |
+| Google M3 & Ergonomía | ✅ | Thumb zone respetada, touch targets $\ge 48$px y contraste adecuado |
+| Anti-Regresión | ✅ | Accesos a Edición Especial y esquemas CAD preservados |
+| Sincronización SemVer | ✅ | Versión dinámica sincronizada con package.json |
 | Tests & Build | ✅ | 100% pruebas en verde, build exitoso |
 ```

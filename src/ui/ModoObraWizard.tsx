@@ -496,8 +496,37 @@ export function ModoObraWizard({
             )}
           </div>
 
-          {/* Right Controls: Hand Mode Toggle & Expert Mode Switch */}
+          {/* Right Controls: Edición Especial, Hand Mode Toggle & Expert Mode Switch */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('major');
+                setIsDistributionModalOpen(true);
+              }}
+              aria-label="Edición especial de vanos (matriz de celdas)"
+              title="Abrir editor de distribución compleja y matriz de celdas estilo Word"
+              className="m3-button m3-button--tonal"
+              style={{
+                height: '34px',
+                padding: '0 0.55rem',
+                borderRadius: '10px',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.2rem',
+                backgroundColor: currentBay?.type === 'subdivided' ? 'var(--md-sys-color-primary-container)' : 'var(--md-sys-color-surface-container-high)',
+                border: currentBay?.type === 'subdivided' ? '1.5px solid var(--md-sys-color-primary)' : '1px solid var(--md-sys-color-outline-variant)',
+                color: currentBay?.type === 'subdivided' ? 'var(--md-sys-color-on-primary-container)' : 'var(--md-sys-color-on-surface)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>🍱</span>
+              <span>Especial</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -616,7 +645,7 @@ export function ModoObraWizard({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-start',
+          justifyContent: 'flex-end',
           padding: '0.35rem 0.6rem',
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -641,7 +670,7 @@ export function ModoObraWizard({
 
         {/* STEP 1: MÓDULO Y TIPO (PLANTILLA) */}
         {activeStep.id === 'module-type' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="module-type"

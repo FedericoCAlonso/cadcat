@@ -36,6 +36,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(html).toContain('Bajo Mesada Estándar');
     expect(html).toContain('Alacena Colgante');
     expect(html).toContain('👁️ Ver Modelo 3D');
+    expect(html).toContain('Especial');
   });
 
   it('navigates through steps using Siguiente and Anterior buttons interactively', () => {
