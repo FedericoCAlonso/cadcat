@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactElement } from 'react';
+import { useState, useMemo, useEffect, type ReactElement } from 'react';
 import type { Material, EdgeBand, JointStrategy, JointKind, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
 import type {
   TemplateDefinition,
@@ -32,6 +32,41 @@ import { BayDistributionModal } from './BayDistributionModal';
 import { DrawerTracksInput } from './DrawerTracksInput';
 import { BayTracksInput } from './BayTracksInput';
 import { DEFAULT_UI_CONFIG } from '../config';
+import { useOneHandDevice, ONE_HAND_MOBILE_MAX_WIDTH_PX } from './useOneHandDevice';
+
+export type FormSection = 'dimensions' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences' | 'all';
+
+function useIsMobileDevice(maxWidth = ONE_HAND_MOBILE_MAX_WIDTH_PX): boolean {
+  const isOneHand = useOneHandDevice();
+  const [isNarrow, setIsNarrow] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= maxWidth;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsNarrow(window.innerWidth <= maxWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [maxWidth]);
+
+  return isOneHand || isNarrow;
+}
+
+function safeScrollToTop(): void {
+  if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+    if (typeof window.navigator !== 'undefined' && window.navigator.userAgent?.includes('jsdom')) {
+      return;
+    }
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // JSDOM or environments without full scrollTo support
+    }
+  }
+}
 
 export interface ModuleFormProps {
   // Multi-Module Project Management
@@ -207,6 +242,7 @@ export interface ModuleFormProps {
   kinematicsState?: Record<string, number>;
   onMechanismOpenRatioChange?: (mechanismId: string, ratio: number) => void;
   shelfDeflections?: Map<string, ShelfDeflectionResult>;
+  isMobile?: boolean;
 }
 
 /**
@@ -375,6 +411,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     kinematicsState,
     onMechanismOpenRatioChange,
     shelfDeflections,
+    isMobile: isMobileProp,
   } = props;
 
   const isWallShelves = selectedTemplateId === 'wall-shelves';
@@ -496,7 +533,37 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [showAllRoleMaterials, setShowAllRoleMaterials] = useState(false);
-  const [activeSection, setActiveSection] = useState<'all' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences'>('all');
+  const detectedMobile = useIsMobileDevice();
+  const isMobileDevice = isMobileProp ?? detectedMobile;
+
+  const [userSelectedSection, setUserSelectedSection] = useState<FormSection | null>(null);
+  const activeSection: FormSection = userSelectedSection ?? (isMobileDevice ? 'dimensions' : 'all');
+
+  const handleSelectSection = (section: FormSection) => {
+    setUserSelectedSection(section);
+  };
+
+  const sectionsList: Array<{ id: FormSection; label: string; icon: string }> = isWallShelves
+    ? [
+        { id: 'dimensions', label: 'Medidas y Ménsulas', icon: '📏' },
+        { id: 'materials', label: 'Materiales', icon: '🎨' },
+      ]
+    : [
+        { id: 'dimensions', label: 'Medidas', icon: '📏' },
+        { id: 'structure', label: 'Estructura', icon: '🏗️' },
+        { id: 'distribution', label: 'Vanos', icon: '🔲' },
+        { id: 'interior', label: 'Interior', icon: '🚪' },
+        { id: 'materials', label: 'Materiales', icon: '🎨' },
+        ...(enableInterferencesLab ? [{ id: 'interferences' as const, label: 'Interferencias', icon: '📐' }] : []),
+      ];
+
+  const currentStepIndex = sectionsList.findIndex((s) => s.id === activeSection);
+  const prevStep = currentStepIndex > 0 ? sectionsList[currentStepIndex - 1] : null;
+  const nextStep =
+    currentStepIndex >= 0 && currentStepIndex < sectionsList.length - 1
+      ? sectionsList[currentStepIndex + 1]
+      : null;
+
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
 
   const hasDoorsOrFronts =
@@ -520,8 +587,141 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
+      {/* Barra de Navegación Rápida y Control Móvil */}
+      <div
+        className="expert-sticky-header"
+        style={{
+          position: isMobileDevice ? 'sticky' : 'relative',
+          top: 0,
+          zIndex: 25,
+          backgroundColor: 'var(--md-sys-color-surface)',
+          borderBottom: '1px solid var(--md-sys-color-outline-variant)',
+          margin: '-1.5rem -1.5rem 1rem -1.5rem',
+          padding: '0.75rem 1rem 0.5rem 1rem',
+          borderRadius: 'var(--md-sys-shape-corner-lg) var(--md-sys-shape-corner-lg) 0 0',
+          boxShadow: isMobileDevice ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.5rem',
+            marginBottom: '0.5rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ fontSize: '1.15rem' }}>⚙️</span>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--md-sys-color-primary)', display: 'block', lineHeight: 1.2 }}>
+                Modo Experto
+              </span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                {activeModuleItem ? `${activeModuleItem.name} (${width}×${height}×${depth} mm)` : 'Parámetros CAD'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            {onSwitchToSiteMode && (
+              <button
+                type="button"
+                onClick={onSwitchToSiteMode}
+                className="m3-button m3-button--tonal"
+                style={{
+                  minHeight: '40px',
+                  padding: '0 0.75rem',
+                  fontSize: '0.78rem',
+                  borderRadius: '20px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                }}
+                title="Cambiar a Modo Taller / Obra (gestual para celular)"
+                aria-label="Cambiar a Modo Taller"
+              >
+                <span>🏗️</span>
+                <span>Modo Taller</span>
+              </button>
+            )}
+
+            {onView3dClick && (
+              <button
+                type="button"
+                onClick={onView3dClick}
+                className="m3-button m3-button--filled"
+                style={{
+                  minHeight: '40px',
+                  padding: '0 0.85rem',
+                  fontSize: '0.8rem',
+                  borderRadius: '20px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                }}
+                title="Ver renderizado y cotas en 3D"
+                aria-label="Ver resultado en 3D"
+              >
+                <span>🧊</span>
+                <span>Ver 3D</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Segmented Section Tabs */}
+        <nav
+          aria-label="Secciones del configurador experto"
+          className="builder-segmented-group"
+          style={{
+            margin: 0,
+            overflowX: 'auto',
+            display: 'flex',
+            flexWrap: 'nowrap',
+            gap: '0.35rem',
+            paddingBottom: '0.25rem',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {sectionsList.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={`builder-segmented-btn ${activeSection === sec.id ? 'selected' : ''}`}
+              onClick={() => handleSelectSection(sec.id)}
+              style={{
+                minHeight: '44px',
+                padding: '0 0.75rem',
+                flexShrink: 0,
+                fontSize: '0.82rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>{`${sec.icon} ${sec.label}`}</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className={`builder-segmented-btn ${activeSection === 'all' ? 'selected' : ''}`}
+            onClick={() => handleSelectSection('all')}
+            style={{
+              minHeight: '44px',
+              padding: '0 0.75rem',
+              flexShrink: 0,
+              fontSize: '0.82rem',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>👁️ Todo</span>
+          </button>
+        </nav>
+      </div>
+
       {/* Project & Multi-Module Manager */}
-      {projectModules && projectModules.length > 0 && onSetActiveModule && (
+      {(activeSection === 'all' || activeSection === 'dimensions') && projectModules && projectModules.length > 0 && onSetActiveModule && (
         <section
           aria-labelledby="project-modules-heading"
           className="m3-card"
@@ -770,43 +970,45 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </section>
       )}
 
-      <div className="m3-card__header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div>
-            <h2 id="form-heading" className="m3-card__title">
-              📐 Medidas y Armado del Módulo
-              <span className="visually-hidden">Module Parameters and Builder</span>
-            </h2>
-            <p className="m3-card__subtitle">
-              Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
-            </p>
+      {!isMobileDevice && (
+        <div className="m3-card__header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div>
+              <h2 id="form-heading" className="m3-card__title">
+                📐 Medidas y Armado del Módulo
+                <span className="visually-hidden">Module Parameters and Builder</span>
+              </h2>
+              <p className="m3-card__subtitle">
+                Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
+              </p>
+            </div>
+            {onSwitchToSiteMode && (
+              <button
+                type="button"
+                onClick={onSwitchToSiteMode}
+                className="m3-button m3-button--tonal"
+                aria-label="Cambiar a Modo Obra (control gestual)"
+                title="Cambiar al modo táctil con gestos para celular"
+                style={{
+                  minHeight: '48px',
+                  borderRadius: '24px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  backgroundColor: 'var(--md-sys-color-primary-container)',
+                  color: 'var(--md-sys-color-on-primary-container)',
+                  border: '1px solid var(--md-sys-color-primary)',
+                }}
+              >
+                <span>🏗️</span>
+                <span>Modo Obra (Táctil)</span>
+              </button>
+            )}
           </div>
-          {onSwitchToSiteMode && (
-            <button
-              type="button"
-              onClick={onSwitchToSiteMode}
-              className="m3-button m3-button--tonal"
-              aria-label="Cambiar a Modo Obra (control gestual)"
-              title="Cambiar al modo táctil con gestos para celular"
-              style={{
-                minHeight: '48px',
-                borderRadius: '24px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                backgroundColor: 'var(--md-sys-color-primary-container)',
-                color: 'var(--md-sys-color-on-primary-container)',
-                border: '1px solid var(--md-sys-color-primary)',
-              }}
-            >
-              <span>🏗️</span>
-              <span>Modo Obra (Táctil)</span>
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Selected Piece Inspector in Sidebar (Unobstructed 3D CAD experience) */}
       {selectedPiece && (
@@ -1108,7 +1310,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </aside>
       )}
 
-      {templates && templates.length > 0 && onTemplateChange && (
+      {(activeSection === 'all' || activeSection === 'dimensions') && templates && templates.length > 0 && onTemplateChange && (
         <div className="form-group template-selection-group">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <label htmlFor="select-template">
@@ -1218,8 +1420,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
       {isWallShelves ? (
         <>
-          {/* Dimensiones y Cantidad de Estantes */}
-          <fieldset className="builder-section">
+          {(activeSection === 'all' || activeSection === 'dimensions') && (
+            <>
+              {/* Dimensiones y Cantidad de Estantes */}
+              <fieldset className="builder-section">
             <legend className="builder-section-title">
               <span>📏 Dimensiones y Niveles</span>
             </legend>
@@ -1462,8 +1666,11 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </small>
             </div>
           </fieldset>
+          </>
+          )}
 
           {/* Material y Tapacantos */}
+          {(activeSection === 'all' || activeSection === 'materials') && (
           <fieldset
             className="builder-section"
             style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}
@@ -1510,9 +1717,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </select>
             </div>
           </fieldset>
+          )}
 
           {/* Tarjeta de Diagnóstico Estructural en Tiempo Real */}
-          {wallShelvingOutput && (
+          {(activeSection === 'all' || activeSection === 'dimensions' || activeSection === 'materials') && wallShelvingOutput && (
             <div
               className="m3-card"
               style={{
@@ -1570,117 +1778,63 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </>
       ) : (
         <>
-          <div className="dimension-row-grid">
-            {/* Ancho */}
-            <div className="form-group dimension-cell">
-              <label htmlFor="input-width">
-                {t('form.dimensions.width')}
-                <span className="visually-hidden">Width (mm):</span>
-              </label>
-              <NumericInput
-                id="input-width"
-                min={DEFAULT_UI_CONFIG.dimensions.width.min}
-                max={DEFAULT_UI_CONFIG.dimensions.width.max}
-                step={DEFAULT_UI_CONFIG.dimensions.width.step}
-                value={width}
-                showStepper={true}
-                unit="mm"
-                onChange={onWidthChange}
-              />
-            </div>
+          {(activeSection === 'all' || activeSection === 'dimensions') && (
+            <div className="dimension-row-grid">
+              {/* Ancho */}
+              <div className="form-group dimension-cell">
+                <label htmlFor="input-width">
+                  {t('form.dimensions.width')}
+                  <span className="visually-hidden">Width (mm):</span>
+                </label>
+                <NumericInput
+                  id="input-width"
+                  min={DEFAULT_UI_CONFIG.dimensions.width.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.width.max}
+                  step={DEFAULT_UI_CONFIG.dimensions.width.step}
+                  value={width}
+                  showStepper={true}
+                  unit="mm"
+                  onChange={onWidthChange}
+                />
+              </div>
 
-            {/* Alto */}
-            <div className="form-group dimension-cell">
-              <label htmlFor="input-height">
-                {t('form.dimensions.height')}
-                <span className="visually-hidden">Height (mm):</span>
-              </label>
-              <NumericInput
-                id="input-height"
-                min={DEFAULT_UI_CONFIG.dimensions.height.min}
-                max={DEFAULT_UI_CONFIG.dimensions.height.max}
-                step={DEFAULT_UI_CONFIG.dimensions.height.step}
-                value={height}
-                showStepper={true}
-                unit="mm"
-                onChange={onHeightChange}
-              />
-            </div>
+              {/* Alto */}
+              <div className="form-group dimension-cell">
+                <label htmlFor="input-height">
+                  {t('form.dimensions.height')}
+                  <span className="visually-hidden">Height (mm):</span>
+                </label>
+                <NumericInput
+                  id="input-height"
+                  min={DEFAULT_UI_CONFIG.dimensions.height.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.height.max}
+                  step={DEFAULT_UI_CONFIG.dimensions.height.step}
+                  value={height}
+                  showStepper={true}
+                  unit="mm"
+                  onChange={onHeightChange}
+                />
+              </div>
 
-            {/* Profundidad */}
-            <div className="form-group dimension-cell">
-              <label htmlFor="input-depth">
-                {t('form.dimensions.depth')}
-                <span className="visually-hidden">Depth (mm):</span>
-              </label>
-              <NumericInput
-                id="input-depth"
-                min={DEFAULT_UI_CONFIG.dimensions.depth.min}
-                max={DEFAULT_UI_CONFIG.dimensions.depth.max}
-                step={DEFAULT_UI_CONFIG.dimensions.depth.step}
-                value={depth}
-                showStepper={true}
-                unit="mm"
-                onChange={onDepthChange}
-              />
+              {/* Profundidad */}
+              <div className="form-group dimension-cell">
+                <label htmlFor="input-depth">
+                  {t('form.dimensions.depth')}
+                  <span className="visually-hidden">Depth (mm):</span>
+                </label>
+                <NumericInput
+                  id="input-depth"
+                  min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+                  step={DEFAULT_UI_CONFIG.dimensions.depth.step}
+                  value={depth}
+                  showStepper={true}
+                  unit="mm"
+                  onChange={onDepthChange}
+                />
+              </div>
             </div>
-          </div>
-
-      {/* Selector Rápido de Secciones Temáticas */}
-      <nav
-        aria-label="Secciones del configurador"
-        className="builder-segmented-group"
-        style={{
-          margin: '0.85rem 0',
-          overflowX: 'auto',
-          paddingBottom: '0.25rem',
-        }}
-      >
-        <button
-          type="button"
-          className={`builder-segmented-btn ${activeSection === 'all' ? 'selected' : ''}`}
-          onClick={() => setActiveSection('all')}
-        >
-          <span>👁️ Todo</span>
-        </button>
-        <button
-          type="button"
-          className={`builder-segmented-btn ${activeSection === 'structure' ? 'selected' : ''}`}
-          onClick={() => setActiveSection('structure')}
-        >
-          <span>🏗️ Estructura</span>
-        </button>
-        <button
-          type="button"
-          className={`builder-segmented-btn ${activeSection === 'distribution' ? 'selected' : ''}`}
-          onClick={() => setActiveSection('distribution')}
-        >
-          <span>🔲 Vanos</span>
-        </button>
-        <button
-          type="button"
-          className={`builder-segmented-btn ${activeSection === 'interior' ? 'selected' : ''}`}
-          onClick={() => setActiveSection('interior')}
-        >
-          <span>🚪 Interior</span>
-        </button>
-        <button
-          type="button"
-          className={`builder-segmented-btn ${activeSection === 'materials' ? 'selected' : ''}`}
-          onClick={() => setActiveSection('materials')}
-        >
-          <span>🎨 Materiales</span>
-        </button>
-        {enableInterferencesLab && (
-          <button
-            type="button"
-            className={`builder-segmented-btn ${activeSection === 'interferences' ? 'selected' : ''}`}
-            onClick={() => setActiveSection('interferences')}
-          >
-            <span>📐 Interferencias</span>
-          </button>
-        )}
-      </nav>
+          )}
 
       {/* =========================================================================
           SECCIÓN 1: Casco y Tapa Superior
@@ -3551,7 +3705,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     )}
 
       {/* Alcance de Exportación si hay múltiples módulos */}
-      {projectModules && projectModules.length > 1 && onProjectScopeChange && (
+      {projectModules && projectModules.length > 1 && onProjectScopeChange && (!isMobileDevice || activeSection === 'all' || activeSection === 'materials' || activeSection === 'interferences') && (
         <div style={{ marginTop: '1rem', marginBottom: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container)', borderRadius: '8px' }}>
           <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--md-sys-color-on-surface)', marginBottom: '0.4rem' }}>
             Alcance para descargas (CSV / PDF):
@@ -3581,46 +3735,198 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </div>
       )}
 
-      {/* Botones de acción */}
-      <div className="form-actions m3-button-row">
-        {onView3dClick && (
-          <button
-            type="button"
-            onClick={onView3dClick}
-            className="m3-btn m3-btn--filled"
-            style={{ width: '100%', marginBottom: '0.5rem' }}
-          >
-            🧊 Ver Resultado en 3D
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving}
-          className="m3-btn m3-btn--filled"
+      {/* Navegación por Pasos y Acciones Rápidas en Móvil */}
+      {isMobileDevice && activeSection !== 'all' && (
+        <div
+          className="expert-mobile-section-footer"
+          style={{
+            marginTop: '1.25rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--md-sys-color-outline-variant)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+          }}
         >
-          {isSaving ? 'Guardando...' : '💾 Guardar Módulo'}
-          <span className="visually-hidden">Save Module to Database</span>
-        </button>
-        {onExportCsv && (
+          {/* Fila 1: Paso Anterior / Paso Siguiente */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {prevStep ? (
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                style={{
+                  minHeight: '48px',
+                  flex: 1,
+                  fontSize: '0.82rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.3rem',
+                }}
+                onClick={() => {
+                  handleSelectSection(prevStep.id);
+                  safeScrollToTop();
+                }}
+              >
+                <span>{`◀ ${prevStep.icon} ${prevStep.label}`}</span>
+              </button>
+            ) : (
+              <div style={{ flex: 1 }} />
+            )}
+
+            {nextStep ? (
+              <button
+                type="button"
+                className="m3-button m3-button--filled"
+                style={{
+                  minHeight: '48px',
+                  flex: 1,
+                  fontSize: '0.82rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.3rem',
+                }}
+                onClick={() => {
+                  handleSelectSection(nextStep.id);
+                  safeScrollToTop();
+                }}
+              >
+                <span>{`${nextStep.icon} ${nextStep.label} ▶`}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="m3-button m3-button--filled"
+                style={{
+                  minHeight: '48px',
+                  flex: 1,
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.3rem',
+                }}
+                onClick={onSave}
+                disabled={isSaving}
+              >
+                <span>{isSaving ? 'Guardando...' : '💾 Guardar Módulo'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Fila 2: Acciones rápidas (Ver 3D + Guardar) disponibles en cualquier sección */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {onView3dClick && (
+              <button
+                type="button"
+                className="m3-button m3-button--tonal"
+                style={{
+                  minHeight: '48px',
+                  flex: 1,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.3rem',
+                }}
+                onClick={onView3dClick}
+              >
+                <span>🧊 Ver 3D</span>
+              </button>
+            )}
+            {nextStep && onSave && (
+              <button
+                type="button"
+                className="m3-button m3-button--filled"
+                style={{
+                  minHeight: '48px',
+                  flex: 1,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.3rem',
+                }}
+                onClick={onSave}
+                disabled={isSaving}
+              >
+                <span>{isSaving ? 'Guardando...' : '💾 Guardar'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Fila 3: Botones de Exportación si está en paso final */}
+          {(activeSection === 'materials' || activeSection === 'interferences') && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+              {onExportCsv && (
+                <button
+                  type="button"
+                  onClick={onExportCsv}
+                  className="m3-button m3-button--tonal"
+                  style={{ minHeight: '48px', flex: 1, fontSize: '0.82rem', justifyContent: 'center' }}
+                >
+                  📄 Lista de Corte (CSV)
+                </button>
+              )}
+              {onExportPdf && (
+                <button
+                  type="button"
+                  onClick={onExportPdf}
+                  className="m3-button m3-button--outlined"
+                  style={{ minHeight: '48px', flex: 1, fontSize: '0.82rem', justifyContent: 'center' }}
+                >
+                  📑 Diagrama (PDF)
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Botones de acción estándar (Escritorio o cuando activeSection === 'all') */}
+      {(!isMobileDevice || activeSection === 'all') && (
+        <div className="form-actions m3-button-row">
+          {onView3dClick && (
+            <button
+              type="button"
+              onClick={onView3dClick}
+              className="m3-btn m3-btn--filled"
+              style={{ width: '100%', marginBottom: '0.5rem' }}
+            >
+              🧊 Ver Resultado en 3D
+            </button>
+          )}
           <button
             type="button"
-            onClick={onExportCsv}
-            className="m3-btn m3-btn--tonal export-btn"
+            onClick={onSave}
+            disabled={isSaving}
+            className="m3-btn m3-btn--filled"
           >
-            📄 Lista de Corte (CSV)
+            {isSaving ? 'Guardando...' : '💾 Guardar Módulo'}
+            <span className="visually-hidden">Save Module to Database</span>
           </button>
-        )}
-        {onExportPdf && (
-          <button
-            type="button"
-            onClick={onExportPdf}
-            className="m3-btn m3-btn--outlined export-btn"
-          >
-            📑 Diagrama de Corte (PDF)
-          </button>
-        )}
-      </div>
+          {onExportCsv && (
+            <button
+              type="button"
+              onClick={onExportCsv}
+              className="m3-btn m3-btn--tonal export-btn"
+            >
+              📄 Lista de Corte (CSV)
+            </button>
+          )}
+          {onExportPdf && (
+            <button
+              type="button"
+              onClick={onExportPdf}
+              className="m3-btn m3-btn--outlined export-btn"
+            >
+              📑 Diagrama de Corte (PDF)
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Modal de Distribución Interior Compleja (Matriz estilo Word) */}
       <BayDistributionModal

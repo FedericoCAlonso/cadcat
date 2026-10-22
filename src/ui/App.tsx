@@ -668,6 +668,7 @@ export function App(): ReactElement {
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
                 onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}
+                isMobile={vm.isOneHandDevice}
               />
             )}
               </aside>

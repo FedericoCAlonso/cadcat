@@ -606,7 +606,7 @@ export function ModoObraWizard({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'flex-start',
           padding: '0.35rem 0.6rem',
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -631,7 +631,7 @@ export function ModoObraWizard({
 
         {/* STEP 1: MÓDULO Y TIPO (PLANTILLA) */}
         {activeStep.id === 'module-type' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="module-type"
@@ -990,7 +990,7 @@ export function ModoObraWizard({
 
         {/* STEP 3: BASE / ESTRUCTURA DE PISO */}
         {activeStep.id === 'base-support' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="base-support"
@@ -1126,7 +1126,7 @@ export function ModoObraWizard({
 
         {/* STEP 4: TECHO / AMARRES SUPERIORES (Incluye alacena sin tapa hasta el techo) */}
         {activeStep.id === 'roof-structure' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="roof-structure"
@@ -1217,7 +1217,7 @@ export function ModoObraWizard({
 
         {/* STEP 5: FONDO TRASERO */}
         {activeStep.id === 'backing' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="backing"
@@ -1317,7 +1317,7 @@ export function ModoObraWizard({
 
         {/* STEP 6: DISTRIBUCIÓN Y EQUIPAMIENTO DE VANOS */}
         {activeStep.id === 'bays-equipment' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="bays-equipment"
@@ -1795,7 +1795,7 @@ export function ModoObraWizard({
 
         {/* STEP 7: MATERIAL / TABLERO DE MELAMINA */}
         {activeStep.id === 'material' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
             {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="material"
