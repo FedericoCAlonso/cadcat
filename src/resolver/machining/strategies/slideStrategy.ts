@@ -2,6 +2,7 @@ import { type DrillOperation } from '../../../model/operation';
 import { type IJointMachiningStrategy, type JointMachiningContext } from '../types';
 import { deriveFaceType } from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
+import { type Position3D } from '../../tree';
 
 export class SlideJointStrategy implements IJointMachiningStrategy {
   public readonly kind = 'slide' as const;
@@ -14,8 +15,10 @@ export class SlideJointStrategy implements IJointMachiningStrategy {
     const { pieceB, joint, config, generateOpId } = context;
     const operations: DrillOperation[] = [];
 
-    // Piece A is Drawer Box Side, Piece B is Carcase Side
-    const slideY = joint.offsetMm ?? 60;
+    // Piece A is Drawer Box Side, Piece B is Carcase Side / Partition
+    const rawSlideY = joint.offsetMm ?? 60;
+    const posB = 'positionMm' in pieceB && pieceB.positionMm ? (pieceB.positionMm as Position3D) : undefined;
+    const slideY = posB && typeof posB.y === 'number' && posB.y > 0 ? rawSlideY - posB.y : rawSlideY;
     const diameter = config.slideHoleDiameterMm ?? 5.0;
     const depth = config.slideHoleDepthMm ?? 12.0;
     const pitch = config.slideHolePitchMm ?? 192.0;

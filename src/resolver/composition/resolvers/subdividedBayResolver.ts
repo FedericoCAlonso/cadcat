@@ -72,6 +72,7 @@ export class SubdividedBayResolver implements IBayContentResolver<BayContentSubd
         jointKind: effectiveJointKind,
         dividerSetbackMm,
         structural: isStructural,
+        rootPieceId: options.rootPieceId,
       },
     );
 

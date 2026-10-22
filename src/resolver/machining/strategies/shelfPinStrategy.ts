@@ -2,6 +2,7 @@ import { type DrillOperation } from '../../../model/operation';
 import { type IJointMachiningStrategy, type JointMachiningContext } from '../types';
 import { deriveFaceType } from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
+import { type Position3D } from '../../tree';
 
 export class ShelfPinJointStrategy implements IJointMachiningStrategy {
   public readonly kind = 'shelf-pin' as const;
@@ -14,8 +15,10 @@ export class ShelfPinJointStrategy implements IJointMachiningStrategy {
     const { pieceA, joint, config, generateOpId } = context;
     const operations: DrillOperation[] = [];
 
-    // Piece A is Side, Piece B is Shelf
-    const shelfY = joint.offsetMm ?? 400;
+    // Piece A is Side/Partition, Piece B is Shelf
+    const rawShelfY = joint.offsetMm ?? 400;
+    const posA = 'positionMm' in pieceA && pieceA.positionMm ? (pieceA.positionMm as Position3D) : undefined;
+    const shelfY = posA && typeof posA.y === 'number' && posA.y > 0 ? rawShelfY - posA.y : rawShelfY;
     const aPoints = pieceA.contour.points;
     const depthMm = Math.abs(aPoints[1]?.x ?? 560);
 

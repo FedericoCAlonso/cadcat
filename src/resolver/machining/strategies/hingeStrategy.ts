@@ -221,9 +221,11 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
       description: `Concealed hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (${isRightDoor ? 'right' : 'left'})`,
     });
 
-    // 2. On Carcase Side: 2 mounting plate holes in System 32 line
+    // 2. On Carcase Side / Partition: 2 mounting plate holes in System 32 line
     // Codo 0 & Codo 9: 37mm setback. Codo 18 (Inset): 37mm + door thickness.
-    const carcaseHingeY = joint.offsetMm ?? doorHingeY;
+    const rawCarcaseHingeY = joint.offsetMm ?? doorHingeY;
+    const carcasePos = 'positionMm' in carcasePiece && carcasePiece.positionMm ? (carcasePiece.positionMm as Record<string, number>) : undefined;
+    const carcaseHingeY = carcasePos && typeof carcasePos.y === 'number' && carcasePos.y > 0 ? rawCarcaseHingeY - carcasePos.y : rawCarcaseHingeY;
     const spacing = config.hingePlateHoleSpacingMm ?? 32.0;
     const halfSpacing = spacing / 2;
 

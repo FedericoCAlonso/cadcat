@@ -108,18 +108,12 @@ describe('SubdividedBayResolver & Thin Partitions (v0.19.0)', () => {
           type: 'subdivided',
           axis: 'vertical', // horizontal shelf dividing Y
           tracks: [
-            { type: 'fractional', valueFr: 1 }, // bottom zone (higher)
             { type: 'fixed', valueMm: 150 },    // top zone (150mm drawer zone)
+            { type: 'fractional', valueFr: 1 }, // bottom zone (remaining height)
           ],
           dividerThicknessMm: 18,
           jointType: 'confirmat',
           bays: [
-            // Bottom cell: 2 adjustable shelves
-            {
-              type: 'shelves',
-              count: 2,
-              shelfType: 'adjustable',
-            },
             // Top cell: 1 compact drawer with wood runners
             {
               type: 'drawer-stack',
@@ -127,6 +121,12 @@ describe('SubdividedBayResolver & Thin Partitions (v0.19.0)', () => {
               frontMount: 'applied',
               slideType: 'wood-runner',
               drawerType: 'standard',
+            },
+            // Bottom cell: 2 adjustable shelves
+            {
+              type: 'shelves',
+              count: 2,
+              shelfType: 'adjustable',
             },
           ],
         },

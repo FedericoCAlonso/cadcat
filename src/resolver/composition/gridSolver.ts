@@ -100,6 +100,7 @@ export interface SubdivideBayOptions {
   jointKind?: JointKind;
   dividerSetbackMm?: number;
   structural?: boolean;
+  rootPieceId?: string;
 }
 
 export interface SubdivideBayResult {
@@ -126,6 +127,7 @@ export function subdivideBay(
   const jointKind = options?.jointKind ?? 'confirmat';
   const setbackMm = Math.max(0, options?.dividerSetbackMm ?? 0);
   const isStructural = options?.structural ?? true;
+  const effectiveRootPieceId = options?.rootPieceId ?? parentBay.leftPieceId;
 
   const resolved = resolveTracks(availableSpace, grid.tracks, dividerThicknessMm);
 
@@ -134,13 +136,15 @@ export function subdivideBay(
   const dividerPlacements: PlacementNode[] = [];
   const bayBoxes: BayBoundingBox[] = [];
 
+  const bayTopY = parentBay.y + parentBay.height;
+
   // Generate divider pieces and joints
   for (let i = 0; i < resolved.dividers.length; i++) {
     const divider = resolved.dividers[i]!;
     const dividerId = `${idPrefix}-${grid.axis}-${i + 1}`;
 
     if (isHorizontal) {
-      // Vertical partition dividing in X
+      // Vertical partition dividing in X (columns from left to right)
       const piece = createPiece({
         id: dividerId,
         role: 'partition',
@@ -157,24 +161,26 @@ export function subdivideBay(
 
       dividerPieces.push(piece);
 
-      // Placement: relative to Left piece (or root)
+      const dividerAbsX = parentBay.x + divider.offsetMm;
+
+      // Placement: relative to root piece (avoids compounding when nested)
       dividerPlacements.push({
         pieceId: dividerId,
-        parentPieceId: parentBay.leftPieceId,
+        parentPieceId: effectiveRootPieceId,
         relativeOffset: {
-          x: parentBay.x + divider.offsetMm,
+          x: dividerAbsX,
           y: parentBay.y,
           z: parentBay.z + setbackMm,
         },
       });
 
-      // Joint with bottom panel
+      // Joint with bottom panel (measured at absolute X on bottom panel)
       dividerJoints.push(
         createJoint({
           a: { pieceId: parentBay.bottomPieceId, faceId: 'top' },
           b: { pieceId: dividerId, faceId: 'bottom-edge' },
           kind: jointKind,
-          offsetMm: divider.offsetMm,
+          offsetMm: dividerAbsX,
         }),
       );
 
@@ -185,12 +191,16 @@ export function subdivideBay(
             a: { pieceId: parentBay.topPieceId, faceId: 'bottom' },
             b: { pieceId: dividerId, faceId: 'top-edge' },
             kind: jointKind,
-            offsetMm: divider.offsetMm,
+            offsetMm: dividerAbsX,
           }),
         );
       }
     } else {
-      // Horizontal structural shelf dividing in Y
+      // Horizontal shelf dividing in Y (rows from top to bottom)
+      // divider.offsetMm is measured from top of parent bay
+      const dividerTopY = bayTopY - divider.offsetMm;
+      const dividerBottomY = dividerTopY - dividerThicknessMm;
+
       const piece = createPiece({
         id: dividerId,
         role: 'shelf',
@@ -207,12 +217,13 @@ export function subdivideBay(
 
       dividerPieces.push(piece);
 
+      // Placement: relative to root piece (avoids compounding when nested)
       dividerPlacements.push({
         pieceId: dividerId,
-        parentPieceId: parentBay.leftPieceId,
+        parentPieceId: effectiveRootPieceId,
         relativeOffset: {
           x: parentBay.x,
-          y: parentBay.y + divider.offsetMm,
+          y: dividerBottomY,
           z: parentBay.z + setbackMm,
         },
       });
@@ -223,13 +234,13 @@ export function subdivideBay(
           a: { pieceId: parentBay.leftPieceId, faceId: 'inner' },
           b: { pieceId: dividerId, faceId: 'left-edge' },
           kind: jointKind,
-          offsetMm: divider.offsetMm,
+          offsetMm: dividerBottomY,
         }),
         createJoint({
           a: { pieceId: parentBay.rightPieceId, faceId: 'inner' },
           b: { pieceId: dividerId, faceId: 'right-edge' },
           kind: jointKind,
-          offsetMm: divider.offsetMm,
+          offsetMm: dividerBottomY,
         }),
       );
     }
@@ -240,6 +251,7 @@ export function subdivideBay(
     const track = resolved.tracks[i]!;
 
     if (isHorizontal) {
+      // Horizontal axis: columns ordered Left to Right (Track 0 is Left)
       const leftPieceId = i === 0 ? parentBay.leftPieceId : dividerPieces[i - 1]!.id;
       const rightPieceId =
         i === resolved.tracks.length - 1 ? parentBay.rightPieceId : dividerPieces[i]!.id;
@@ -261,14 +273,18 @@ export function subdivideBay(
         overallDepth: parentBay.overallDepth,
       });
     } else {
-      const bottomPieceId = i === 0 ? parentBay.bottomPieceId : dividerPieces[i - 1]!.id;
-      const topPieceId =
-        i === resolved.tracks.length - 1 ? parentBay.topPieceId : dividerPieces[i]!.id;
+      // Vertical axis: rows ordered Top to Bottom (Track 0 is Top row)
+      const trackTopY = bayTopY - track.offsetMm;
+      const trackBottomY = trackTopY - track.sizeMm;
+
+      const topPieceId = i === 0 ? parentBay.topPieceId : dividerPieces[i - 1]!.id;
+      const bottomPieceId =
+        i === resolved.tracks.length - 1 ? parentBay.bottomPieceId : dividerPieces[i]!.id;
 
       bayBoxes.push({
         bayIndex: i,
         x: parentBay.x,
-        y: parentBay.y + track.offsetMm,
+        y: trackBottomY,
         z: parentBay.z,
         width: parentBay.width,
         height: track.sizeMm,

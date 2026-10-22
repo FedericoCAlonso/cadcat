@@ -77,7 +77,17 @@ export function deriveModuleGrooveOperations(
       // Dado groove for thin partitions / shelves
       axis = 'y';
       faceType = 'face-A';
-      offsetMm = joint.offsetMm ?? 0;
+      const posGrooved = ('positionMm' in groovedPiece && typeof groovedPiece.positionMm === 'object' && groovedPiece.positionMm !== null && 'x' in groovedPiece.positionMm)
+        ? ((groovedPiece.positionMm as Record<string, number>).x ?? 0)
+        : undefined;
+      const posSliding = ('positionMm' in slidingPiece && typeof slidingPiece.positionMm === 'object' && slidingPiece.positionMm !== null && 'x' in slidingPiece.positionMm)
+        ? ((slidingPiece.positionMm as Record<string, number>).x ?? 0)
+        : undefined;
+      if (posGrooved !== undefined && posSliding !== undefined) {
+        offsetMm = Math.round(posSliding - posGrooved);
+      } else {
+        offsetMm = joint.offsetMm ?? 0;
+      }
       widthMm = slidingPiece.thicknessMm + backingGrooveToleranceMm;
       depthMm = 4;
     } else if (r.includes('side-left') || r.includes('side-right') || r === 'side') {

@@ -117,6 +117,7 @@ export function buildModularModule(
       dividerT,
       edgeBandId,
       `${id}-div`,
+      { rootPieceId },
     );
 
     pieces.push(...subResult.dividerPieces);
