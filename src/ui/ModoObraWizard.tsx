@@ -1,8 +1,6 @@
 import {
   type ReactElement,
-  type TouchEvent,
   useState,
-  useRef,
   useCallback,
   useMemo,
 } from 'react';
@@ -177,9 +175,6 @@ export function ModoObraWizard({
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [dimensionField, setDimensionField] = useState<DimensionSubField>('width');
 
-  const dimTouchStartXRef = useRef<number>(0);
-  const dimTouchStartYRef = useRef<number>(0);
-
   const activeStep = OBRA_STEPS[currentStepIndex] ?? OBRA_STEPS[0]!;
 
   const goToNextStep = useCallback(() => {
@@ -218,30 +213,6 @@ export function ModoObraWizard({
     setDimensionField(dimensionFieldsList[prevIdx]!.id);
     triggerHaptic('tick');
   }, [activeDimIndex, dimensionFieldsList]);
-
-  // Horizontal swipe gestures exclusively on Step 2 (Medidas)
-  const handleDimTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
-    const touch = e.touches[0];
-    if (touch) {
-      dimTouchStartXRef.current = touch.clientX;
-      dimTouchStartYRef.current = touch.clientY;
-    }
-  }, []);
-
-  const handleDimTouchEnd = useCallback((e: TouchEvent<HTMLDivElement>) => {
-    const touch = e.changedTouches[0];
-    if (!touch) return;
-    const dx = touch.clientX - dimTouchStartXRef.current;
-    const dy = touch.clientY - dimTouchStartYRef.current;
-    // Lateral swipe threshold: min 40px and dominant horizontal angle
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      if (dx < 0) {
-        goToNextDimension(); // Swipe left -> Next dimension
-      } else {
-        goToPrevDimension(); // Swipe right -> Previous dimension
-      }
-    }
-  }, [goToNextDimension, goToPrevDimension]);
 
   // Active bay reference
   const currentBay: BayContent | undefined = bays[activeBayIndex];
@@ -793,26 +764,25 @@ export function ModoObraWizard({
         {/* STEP 2: MEDIDAS PRINCIPALES */}
         {activeStep.id === 'dimensions' && (
           <div
-            onTouchStart={handleDimTouchStart}
-            onTouchEnd={handleDimTouchEnd}
             style={{
               width: '100%',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
               flex: 1,
               minHeight: 0,
-              marginTop: 'auto',
-              gap: '0.4rem',
+              gap: '0.45rem',
+              padding: '0.2rem 0',
             }}
           >
             {/* Contextual Carpentry Dimension Header */}
             <div
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                textAlign: 'center',
                 width: '100%',
                 maxWidth: '460px',
                 padding: '0.4rem 0.6rem',
@@ -822,17 +792,145 @@ export function ModoObraWizard({
                 boxSizing: 'border-box',
               }}
             >
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                  {currentDimConfig.label}:
+                </span>
+                <span style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
+                  {`${currentDimConfig.value} mm`}
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
+                  {`(${activeDimIndex + 1}/4)`}
+                </span>
+              </div>
+              <span style={{ fontSize: '0.7rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '1px' }}>
+                {dimensionField === 'width' && 'Costado exterior a costado exterior'}
+                {dimensionField === 'height' && 'Altura exterior de piso/zócalo a tapa'}
+                {dimensionField === 'depth' && 'Profundidad de casco exterior'}
+                {dimensionField === 'thickness' && 'Espesor nominal del tablero melamínico'}
+              </span>
+            </div>
+
+            {/* Middle: Active Dimension Tactile Controls (Keypad / Presets / Steppers) */}
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '460px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1,
+                minHeight: 0,
+              }}
+            >
+              {dimensionField === 'width' && (
+                <ThumbArcInput
+                  id="obra-dim-width"
+                  label="Ancho Total del Mueble"
+                  value={width}
+                  onChange={onWidthChange}
+                  min={DEFAULT_UI_CONFIG.dimensions.width.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.width.max}
+                  step={1}
+                  coarseStep={10}
+                  extraCoarseStep={50}
+                  unit="mm"
+                  helpText="Ancho exterior de costado a costado."
+                  handMode={handMode}
+                  onHandModeChange={onHandModeChange}
+                  quickPresets={[400, 500, 600, 800, 900, 1000, 1200]}
+                  compact={true}
+                  showArc={false}
+                />
+              )}
+
+              {dimensionField === 'height' && (
+                <ThumbArcInput
+                  id="obra-dim-height"
+                  label="Alto Total del Mueble"
+                  value={height}
+                  onChange={onHeightChange}
+                  min={DEFAULT_UI_CONFIG.dimensions.height.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.height.max}
+                  step={1}
+                  coarseStep={10}
+                  extraCoarseStep={50}
+                  unit="mm"
+                  helpText="Altura exterior desde el piso/zócalo hasta la tapa superior."
+                  handMode={handMode}
+                  onHandModeChange={onHandModeChange}
+                  quickPresets={[700, 750, 800, 850, 900, 1800, 2100]}
+                  compact={true}
+                  showArc={false}
+                />
+              )}
+
+              {dimensionField === 'depth' && (
+                <ThumbArcInput
+                  id="obra-dim-depth"
+                  label="Profundidad Total"
+                  value={depth}
+                  onChange={onDepthChange}
+                  min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+                  step={1}
+                  coarseStep={10}
+                  extraCoarseStep={50}
+                  unit="mm"
+                  helpText="Profundidad exterior (bajo mesada: 580mm, alacena: 320-350mm)."
+                  handMode={handMode}
+                  onHandModeChange={onHandModeChange}
+                  quickPresets={[300, 320, 350, 450, 500, 550, 580, 600]}
+                  compact={true}
+                  showArc={false}
+                />
+              )}
+
+              {dimensionField === 'thickness' && (
+                <ThumbArcInput
+                  id="obra-dim-thickness"
+                  label="Espesor de Placa"
+                  value={thickness}
+                  onChange={(val) => onThicknessChange?.(val)}
+                  min={12}
+                  max={30}
+                  step={1}
+                  coarseStep={3}
+                  unit="mm"
+                  helpText="Espesor nominal del tablero melamínico (18 mm estándar)."
+                  handMode={handMode}
+                  onHandModeChange={onHandModeChange}
+                  quickPresets={[15, 18, 25]}
+                  compact={true}
+                  showArc={false}
+                />
+              )}
+            </div>
+
+            {/* Bottom (Thumb Reach Zone): 4-Dimension Segmented Overview Bar + Nav Buttons */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                width: '100%',
+                maxWidth: '460px',
+                boxSizing: 'border-box',
+                marginTop: 'auto',
+              }}
+            >
               <button
                 type="button"
                 onClick={goToPrevDimension}
-                aria-label="Medida anterior (o deslizar con el pulgar hacia la derecha)"
+                aria-label="Medida anterior"
                 title="Medida anterior"
                 className="m3-button m3-button--tonal"
                 style={{
-                  minWidth: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  fontSize: '0.9rem',
+                  minWidth: '42px',
+                  height: '52px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -845,45 +943,82 @@ export function ModoObraWizard({
               </button>
 
               <div
+                role="tablist"
+                aria-label="Selector de medidas principales"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '0.3rem',
                   flex: 1,
-                  padding: '0 0.35rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                  <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
-                    {currentDimConfig.label}:
-                  </span>
-                  <span style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
-                    {`${currentDimConfig.value} mm`}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
-                    {`(${activeDimIndex + 1}/4)`}
-                  </span>
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '1px' }}>
-                  {dimensionField === 'width' && 'Costado exterior a costado exterior'}
-                  {dimensionField === 'height' && 'Altura exterior de piso/zócalo a tapa'}
-                  {dimensionField === 'depth' && 'Profundidad de casco exterior'}
-                  {dimensionField === 'thickness' && 'Espesor nominal del tablero melamínico'}
-                </span>
+                {dimensionFieldsList.map((f) => {
+                  const isSelected = f.id === dimensionField;
+                  return (
+                    <button
+                      key={f.id}
+                      role="tab"
+                      aria-selected={isSelected}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        setDimensionField(f.id);
+                      }}
+                      aria-label={`Seleccionar medida: ${f.label}`}
+                      title={`${f.label} (${f.value} mm)`}
+                      style={{
+                        minHeight: '52px',
+                        padding: '0.2rem 0.15rem',
+                        borderRadius: '12px',
+                        border: isSelected
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: isSelected
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface-container-high)',
+                        color: isSelected
+                          ? 'var(--md-sys-color-on-primary-container)'
+                          : 'var(--md-sys-color-on-surface)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.12)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          opacity: isSelected ? 1 : 0.8,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {f.shortLabel}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', marginTop: '1px' }}>
+                        <span style={{ fontSize: '0.94rem', fontWeight: 800 }}>{f.value}</span>
+                        <span style={{ fontSize: '0.6rem', opacity: 0.7 }}>mm</span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
               <button
                 type="button"
                 onClick={goToNextDimension}
-                aria-label="Medida siguiente (o deslizar con el pulgar hacia la izquierda)"
+                aria-label="Medida siguiente"
                 title="Medida siguiente"
                 className="m3-button m3-button--tonal"
                 style={{
-                  minWidth: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  fontSize: '0.9rem',
+                  minWidth: '42px',
+                  height: '52px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -895,152 +1030,6 @@ export function ModoObraWizard({
                 ▶
               </button>
             </div>
-
-            {/* 4-Dimension Segmented Overview Bar (Direct Tapping into Any Measure) */}
-            <div
-              role="tablist"
-              aria-label="Selector de medidas principales"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '0.35rem',
-                width: '100%',
-                maxWidth: '460px',
-                boxSizing: 'border-box',
-              }}
-            >
-              {dimensionFieldsList.map((f) => {
-                const isSelected = f.id === dimensionField;
-                return (
-                  <button
-                    key={f.id}
-                    role="tab"
-                    aria-selected={isSelected}
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('tick');
-                      setDimensionField(f.id);
-                    }}
-                    aria-label={`Seleccionar medida: ${f.label}`}
-                    title={`${f.label} (${f.value} mm)`}
-                    style={{
-                      minHeight: '50px',
-                      padding: '0.25rem 0.2rem',
-                      borderRadius: '12px',
-                      border: isSelected
-                        ? '2px solid var(--md-sys-color-primary)'
-                        : '1px solid var(--md-sys-color-outline-variant)',
-                      backgroundColor: isSelected
-                        ? 'var(--md-sys-color-primary-container)'
-                        : 'var(--md-sys-color-surface-container-high)',
-                      color: isSelected
-                        ? 'var(--md-sys-color-on-primary-container)'
-                        : 'var(--md-sys-color-on-surface)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.1)' : 'none',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 600,
-                        opacity: isSelected ? 1 : 0.75,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                      }}
-                    >
-                      {f.shortLabel}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginTop: '1px' }}>
-                      <span style={{ fontSize: '0.98rem', fontWeight: 800 }}>{f.value}</span>
-                      <span style={{ fontSize: '0.62rem', opacity: 0.7 }}>mm</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Radial Dial for Selected Dimension */}
-            {dimensionField === 'width' && (
-              <ThumbArcInput
-                id="obra-dim-width"
-                label="Ancho Total del Mueble"
-                value={width}
-                onChange={onWidthChange}
-                min={DEFAULT_UI_CONFIG.dimensions.width.min}
-                max={DEFAULT_UI_CONFIG.dimensions.width.max}
-                step={1}
-                coarseStep={10}
-                unit="mm"
-                helpText="Ancho exterior de costado a costado."
-                handMode={handMode}
-                onHandModeChange={onHandModeChange}
-                quickPresets={[400, 500, 600, 800, 900, 1000, 1200]}
-                compact={true}
-              />
-            )}
-
-            {dimensionField === 'height' && (
-              <ThumbArcInput
-                id="obra-dim-height"
-                label="Alto Total del Mueble"
-                value={height}
-                onChange={onHeightChange}
-                min={DEFAULT_UI_CONFIG.dimensions.height.min}
-                max={DEFAULT_UI_CONFIG.dimensions.height.max}
-                step={1}
-                coarseStep={10}
-                unit="mm"
-                helpText="Altura exterior desde el piso/zócalo hasta la tapa superior."
-                handMode={handMode}
-                onHandModeChange={onHandModeChange}
-                quickPresets={[700, 750, 800, 850, 900, 1800, 2100]}
-                compact={true}
-              />
-            )}
-
-            {dimensionField === 'depth' && (
-              <ThumbArcInput
-                id="obra-dim-depth"
-                label="Profundidad Total"
-                value={depth}
-                onChange={onDepthChange}
-                min={DEFAULT_UI_CONFIG.dimensions.depth.min}
-                max={DEFAULT_UI_CONFIG.dimensions.depth.max}
-                step={1}
-                coarseStep={10}
-                unit="mm"
-                helpText="Profundidad exterior (bajo mesada: 580mm, alacena: 320-350mm)."
-                handMode={handMode}
-                onHandModeChange={onHandModeChange}
-                quickPresets={[300, 320, 350, 450, 500, 550, 580, 600]}
-                compact={true}
-              />
-            )}
-
-            {dimensionField === 'thickness' && (
-              <ThumbArcInput
-                id="obra-dim-thickness"
-                label="Espesor de Placa"
-                value={thickness}
-                onChange={(val) => onThicknessChange?.(val)}
-                min={12}
-                max={30}
-                step={1}
-                coarseStep={3}
-                unit="mm"
-                helpText="Espesor nominal del tablero melamínico (18 mm estándar)."
-                handMode={handMode}
-                onHandModeChange={onHandModeChange}
-                quickPresets={[15, 18, 25]}
-                compact={true}
-              />
-            )}
           </div>
         )}
 

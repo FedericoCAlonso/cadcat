@@ -39,6 +39,8 @@ export interface ThumbArcInputProps {
   quickPresets?: number[];
   ariaLabel?: string;
   compact?: boolean;
+  extraCoarseStep?: number;
+  showArc?: boolean;
 }
 
 /**
@@ -61,6 +63,8 @@ export function ThumbArcInput({
   quickPresets,
   ariaLabel,
   compact = false,
+  extraCoarseStep,
+  showArc = true,
 }: ThumbArcInputProps): ReactElement {
   // Hand mode state (controlled or local fallback)
   const [internalHandMode, setInternalHandMode] = useState<HandMode>('right');
@@ -504,12 +508,34 @@ export function ThumbArcInput({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: coarseStep === step ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-              gap: '0.4rem',
+              gridTemplateColumns:
+                extraCoarseStep && extraCoarseStep !== coarseStep && extraCoarseStep !== step
+                  ? 'repeat(6, 1fr)'
+                  : coarseStep === step
+                    ? 'repeat(2, 1fr)'
+                    : 'repeat(4, 1fr)',
+              gap: '0.35rem',
               width: '100%',
               marginBottom: '0.45rem',
             }}
           >
+            {extraCoarseStep && extraCoarseStep !== coarseStep && extraCoarseStep !== step && (
+              <button
+                type="button"
+                onClick={() => applyDelta(-extraCoarseStep)}
+                className="m3-button m3-button--tonal"
+                aria-label={`Restar ${extraCoarseStep} ${unit}`}
+                style={{
+                  minHeight: '48px',
+                  fontSize: '0.86rem',
+                  fontWeight: 700,
+                  borderRadius: '12px',
+                  padding: 0,
+                }}
+              >
+                {`-${extraCoarseStep}`}
+              </button>
+            )}
             {coarseStep !== step && (
               <button
                 type="button"
@@ -521,6 +547,7 @@ export function ThumbArcInput({
                   fontSize: '0.92rem',
                   fontWeight: 700,
                   borderRadius: '14px',
+                  padding: 0,
                 }}
               >
                 {`-${coarseStep}`}
@@ -536,6 +563,7 @@ export function ThumbArcInput({
                 fontSize: '0.92rem',
                 fontWeight: 700,
                 borderRadius: '14px',
+                padding: 0,
               }}
             >
               {`-${step}`}
@@ -550,6 +578,7 @@ export function ThumbArcInput({
                 fontSize: '0.92rem',
                 fontWeight: 700,
                 borderRadius: '14px',
+                padding: 0,
               }}
             >
               {`+${step}`}
@@ -565,9 +594,27 @@ export function ThumbArcInput({
                   fontSize: '0.92rem',
                   fontWeight: 700,
                   borderRadius: '14px',
+                  padding: 0,
                 }}
               >
                 {`+${coarseStep}`}
+              </button>
+            )}
+            {extraCoarseStep && extraCoarseStep !== coarseStep && extraCoarseStep !== step && (
+              <button
+                type="button"
+                onClick={() => applyDelta(extraCoarseStep)}
+                className="m3-button m3-button--tonal"
+                aria-label={`Sumar ${extraCoarseStep} ${unit}`}
+                style={{
+                  minHeight: '48px',
+                  fontSize: '0.86rem',
+                  fontWeight: 700,
+                  borderRadius: '12px',
+                  padding: 0,
+                }}
+              >
+                {`+${extraCoarseStep}`}
               </button>
             )}
           </div>
@@ -575,96 +622,98 @@ export function ThumbArcInput({
       )}
 
       {/* Thumb Radial Sweep Arc Area (Anchored at the bottom for natural thumb sweep) */}
-      <div
-        ref={arcContainerRef}
-        className="thumb-arc-track"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          height: `${baseHeight}px`,
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: compact ? '16px' : '24px',
-          backgroundColor: 'var(--md-sys-color-surface)',
-          border: '1px solid var(--md-sys-color-outline-variant)',
-          cursor: 'default',
-          touchAction: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.03)',
-        }}
-      >
-        <svg
-          viewBox={`0 0 ${baseWidth} ${baseSvgHeight}`}
+      {showArc && (
+        <div
+          ref={arcContainerRef}
+          className="thumb-arc-track"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
           style={{
             width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-          }}
-        >
-          {/* Base Arc Track */}
-          <path
-            d={svgTrack.pathD}
-            fill="none"
-            stroke="var(--md-sys-color-surface-container-highest)"
-            strokeWidth={compact ? '30' : '36'}
-            strokeLinecap="round"
-          />
-
-          {/* Active Highlight Arc */}
-          <path
-            d={svgTrack.pathD}
-            fill="none"
-            stroke="var(--md-sys-color-primary-container)"
-            strokeWidth={compact ? '18' : '22'}
-            strokeLinecap="round"
-          />
-
-          {/* Knob handle along the natural thumb zone */}
-          <circle
-            cx={knobX.toFixed(1)}
-            cy={knobY.toFixed(1)}
-            r={compact ? '18' : '22'}
-            fill="var(--md-sys-color-primary)"
-            stroke="var(--md-sys-color-surface)"
-            strokeWidth="3.5"
-            filter="drop-shadow(0px 3px 6px rgba(0,0,0,0.28))"
-          />
-          <circle
-            cx={knobX.toFixed(1)}
-            cy={knobY.toFixed(1)}
-            r={compact ? '7' : '8'}
-            fill="var(--md-sys-color-on-primary)"
-          />
-        </svg>
-
-        {/* Floating guidance overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: compact ? '6px' : '10px',
-            [activeHandMode === 'right' ? 'right' : 'left']: compact ? '10px' : '14px',
-            fontSize: compact ? '0.72rem' : '0.78rem',
-            fontWeight: 600,
-            color: 'var(--md-sys-color-outline)',
-            pointerEvents: 'none',
+            height: `${baseHeight}px`,
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: compact ? '16px' : '24px',
+            backgroundColor: 'var(--md-sys-color-surface)',
+            border: '1px solid var(--md-sys-color-outline-variant)',
+            cursor: 'default',
+            touchAction: 'none',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.35rem',
-            backgroundColor: 'rgba(255,255,255,0.7)',
-            padding: '0.15rem 0.45rem',
-            borderRadius: '10px',
+            justifyContent: 'center',
+            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.03)',
           }}
         >
-          <span>⤴️ Deslizar pulgar (+)</span>
+          <svg
+            viewBox={`0 0 ${baseWidth} ${baseSvgHeight}`}
+            style={{
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+            }}
+          >
+            {/* Base Arc Track */}
+            <path
+              d={svgTrack.pathD}
+              fill="none"
+              stroke="var(--md-sys-color-surface-container-highest)"
+              strokeWidth={compact ? '30' : '36'}
+              strokeLinecap="round"
+            />
+
+            {/* Active Highlight Arc */}
+            <path
+              d={svgTrack.pathD}
+              fill="none"
+              stroke="var(--md-sys-color-primary-container)"
+              strokeWidth={compact ? '18' : '22'}
+              strokeLinecap="round"
+            />
+
+            {/* Knob handle along the natural thumb zone */}
+            <circle
+              cx={knobX.toFixed(1)}
+              cy={knobY.toFixed(1)}
+              r={compact ? '18' : '22'}
+              fill="var(--md-sys-color-primary)"
+              stroke="var(--md-sys-color-surface)"
+              strokeWidth="3.5"
+              filter="drop-shadow(0px 3px 6px rgba(0,0,0,0.28))"
+            />
+            <circle
+              cx={knobX.toFixed(1)}
+              cy={knobY.toFixed(1)}
+              r={compact ? '7' : '8'}
+              fill="var(--md-sys-color-on-primary)"
+            />
+          </svg>
+
+          {/* Floating guidance overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: compact ? '6px' : '10px',
+              [activeHandMode === 'right' ? 'right' : 'left']: compact ? '10px' : '14px',
+              fontSize: compact ? '0.72rem' : '0.78rem',
+              fontWeight: 600,
+              color: 'var(--md-sys-color-outline)',
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              backgroundColor: 'rgba(255,255,255,0.7)',
+              padding: '0.15rem 0.45rem',
+              borderRadius: '10px',
+            }}
+          >
+            <span>⤴️ Deslizar pulgar (+)</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Stepper Buttons & Presets for non-compact mode */}
       {!compact && (

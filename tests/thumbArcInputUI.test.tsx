@@ -252,4 +252,68 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     container.remove();
   });
+
+  it('omits the SVG radial arc track when showArc is false and renders tactile steppers with extraCoarseStep', () => {
+    const handleChange = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Ancho Taller"
+          value={800}
+          compact={true}
+          showArc={false}
+          step={1}
+          coarseStep={10}
+          extraCoarseStep={50}
+          quickPresets={[400, 600, 800, 1000]}
+          onChange={handleChange}
+        />,
+      );
+    });
+
+    // Arc track must NOT exist in DOM
+    const arcDiv = container.querySelector('.thumb-arc-track');
+    expect(arcDiv).toBeNull();
+
+    // Value display and presets must exist
+    expect(container.textContent).toContain('800');
+    expect(container.textContent).toContain('600 mm');
+
+    // Steppers must contain 6 discrete buttons: -50, -10, -1, +1, +10, +50
+    expect(container.textContent).toContain('-50');
+    expect(container.textContent).toContain('-10');
+    expect(container.textContent).toContain('-1');
+    expect(container.textContent).toContain('+1');
+    expect(container.textContent).toContain('+10');
+    expect(container.textContent).toContain('+50');
+
+    // Click +50 button
+    const plus50Btn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === '+50',
+    );
+    expect(plus50Btn).toBeDefined();
+    act(() => {
+      plus50Btn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleChange).toHaveBeenCalledWith(850);
+
+    // Click -50 button
+    const minus50Btn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === '-50',
+    );
+    expect(minus50Btn).toBeDefined();
+    act(() => {
+      minus50Btn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleChange).toHaveBeenCalledWith(750);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });
