@@ -211,6 +211,7 @@ export interface ModuleViewModelState {
   removeShelf: (bayIndex: number) => void;
   setShelfType: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
   setShelfAntiSag: (bayIndex: number, hasAntiSag: boolean) => void;
+  setShelfTracks: (bayIndex: number, tracks: TrackSize[]) => void;
   addDrawer: (bayIndex: number) => void;
   removeDrawer: (bayIndex: number) => void;
   setDrawerFrontMount: (bayIndex: number, mount: DrawerFrontMount) => void;
@@ -1051,9 +1052,23 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       const next = [...prev];
       const current = next[bayIndex];
       if (current?.type === 'shelves') {
-        next[bayIndex] = { ...current, count: Math.min(8, current.count + 1) };
+        const newCount = Math.min(8, current.count + 1);
+        const existingTracks =
+          current.shelfTracks && current.shelfTracks.length === current.count + 1
+            ? [...current.shelfTracks, { type: 'fractional', valueFr: 1 } as TrackSize]
+            : Array.from({ length: newCount + 1 }, () => ({ type: 'fractional' as const, valueFr: 1 }));
+        next[bayIndex] = { ...current, count: newCount, shelfTracks: existingTracks };
       } else {
-        next[bayIndex] = { type: 'shelves', count: 1, shelfType: 'adjustable', setbackMm: 20 };
+        next[bayIndex] = {
+          type: 'shelves',
+          count: 1,
+          shelfType: 'adjustable',
+          setbackMm: 20,
+          shelfTracks: [
+            { type: 'fractional', valueFr: 1 },
+            { type: 'fractional', valueFr: 1 },
+          ],
+        };
       }
       return next;
     });
@@ -1066,7 +1081,15 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       const current = next[bayIndex];
       if (current?.type === 'shelves') {
         const newCount = Math.max(0, current.count - 1);
-        next[bayIndex] = newCount === 0 ? { type: 'empty' } : { ...current, count: newCount };
+        if (newCount === 0) {
+          next[bayIndex] = { type: 'empty' };
+        } else {
+          const nextTracks =
+            current.shelfTracks && current.shelfTracks.length > 2
+              ? current.shelfTracks.slice(0, newCount + 1)
+              : Array.from({ length: newCount + 1 }, () => ({ type: 'fractional' as const, valueFr: 1 }));
+          next[bayIndex] = { ...current, count: newCount, shelfTracks: nextTracks };
+        }
       }
       return next;
     });
@@ -1092,6 +1115,20 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       if (current?.type === 'shelves') {
         next[bayIndex] = { ...current, hasAntiSagBrace };
       }
+      return next;
+    });
+  }, []);
+
+  const setShelfTracks = useCallback((bayIndex: number, tracks: TrackSize[]) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'shelves') return prev;
+      if (tracks.length < 2) return prev;
+
+      const shelfCount = Math.max(1, tracks.length - 1);
+      next[bayIndex] = { ...current, count: shelfCount, shelfTracks: tracks };
       return next;
     });
   }, []);
@@ -3216,6 +3253,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     removeShelf,
     setShelfType,
     setShelfAntiSag,
+    setShelfTracks,
     addDrawer,
     removeDrawer,
     setDrawerFrontMount,

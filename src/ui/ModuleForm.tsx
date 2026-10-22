@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useState, useMemo, type ReactElement } from 'react';
 import type { Material, EdgeBand, JointStrategy, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
 import type {
   TemplateDefinition,
@@ -90,6 +90,7 @@ export interface ModuleFormProps {
   onRemoveShelf?: (bayIndex: number) => void;
   onShelfTypeChange?: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
   onShelfAntiSagChange?: (bayIndex: number, hasAntiSag: boolean) => void;
+  onShelfTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onAddDrawer?: (bayIndex: number) => void;
   onRemoveDrawer?: (bayIndex: number) => void;
   onDrawerFrontMountChange?: (bayIndex: number, mount: DrawerFrontMount) => void;
@@ -237,6 +238,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onRemoveShelf,
     onShelfTypeChange,
     onShelfAntiSagChange,
+    onShelfTracksChange,
     onAddDrawer,
     onRemoveDrawer,
     onDrawerFrontMountChange,
@@ -355,6 +357,65 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     );
     return res.tracks.map((t) => t.sizeMm);
   })();
+
+  const resolvedShelfHeights = (() => {
+    if (activeBay.type !== 'shelves') {
+      return [];
+    }
+    const count = activeBay.count ?? 1;
+    const tracks =
+      activeBay.shelfTracks && activeBay.shelfTracks.length > 1
+        ? activeBay.shelfTracks
+        : Array.from({ length: Math.max(1, count) + 1 }, () => ({ type: 'fractional' as const, valueFr: 1 }));
+    const res = resolveTracks(estimatedBayCavityHeight, tracks, matThickness);
+    return res.tracks.map((t) => t.sizeMm);
+  })();
+
+  const shelfQuickRecipes = useMemo(
+    () => [
+      {
+        label: '1 estante (Iguales)',
+        tracks: [
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+        ] as TrackSize[],
+      },
+      {
+        label: '2 estantes (Iguales)',
+        tracks: [
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+        ] as TrackSize[],
+      },
+      {
+        label: '3 estantes (Iguales)',
+        tracks: [
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+        ] as TrackSize[],
+      },
+      {
+        label: 'Abajo grande (350mm)',
+        tracks: [
+          { type: 'fixed', valueMm: 350 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+        ] as TrackSize[],
+      },
+      {
+        label: 'Arriba grande (350mm)',
+        tracks: [
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fixed', valueMm: 350 },
+        ] as TrackSize[],
+      },
+    ],
+    [],
+  );
 
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -1133,59 +1194,61 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </>
       ) : (
         <>
-          {/* Ancho */}
-          <div className="form-group">
-        <label htmlFor="input-width">
-          {t('form.dimensions.width')}
-          <span className="visually-hidden">Width (mm):</span>
-        </label>
-        <NumericInput
-          id="input-width"
-          min={DEFAULT_UI_CONFIG.dimensions.width.min}
-          max={DEFAULT_UI_CONFIG.dimensions.width.max}
-          step={DEFAULT_UI_CONFIG.dimensions.width.step}
-          value={width}
-          showStepper={true}
-          unit="mm"
-          onChange={onWidthChange}
-        />
-      </div>
+          <div className="dimension-row-grid">
+            {/* Ancho */}
+            <div className="form-group dimension-cell">
+              <label htmlFor="input-width">
+                {t('form.dimensions.width')}
+                <span className="visually-hidden">Width (mm):</span>
+              </label>
+              <NumericInput
+                id="input-width"
+                min={DEFAULT_UI_CONFIG.dimensions.width.min}
+                max={DEFAULT_UI_CONFIG.dimensions.width.max}
+                step={DEFAULT_UI_CONFIG.dimensions.width.step}
+                value={width}
+                showStepper={true}
+                unit="mm"
+                onChange={onWidthChange}
+              />
+            </div>
 
-      {/* Alto */}
-      <div className="form-group">
-        <label htmlFor="input-height">
-          {t('form.dimensions.height')}
-          <span className="visually-hidden">Height (mm):</span>
-        </label>
-        <NumericInput
-          id="input-height"
-          min={DEFAULT_UI_CONFIG.dimensions.height.min}
-          max={DEFAULT_UI_CONFIG.dimensions.height.max}
-          step={DEFAULT_UI_CONFIG.dimensions.height.step}
-          value={height}
-          showStepper={true}
-          unit="mm"
-          onChange={onHeightChange}
-        />
-      </div>
+            {/* Alto */}
+            <div className="form-group dimension-cell">
+              <label htmlFor="input-height">
+                {t('form.dimensions.height')}
+                <span className="visually-hidden">Height (mm):</span>
+              </label>
+              <NumericInput
+                id="input-height"
+                min={DEFAULT_UI_CONFIG.dimensions.height.min}
+                max={DEFAULT_UI_CONFIG.dimensions.height.max}
+                step={DEFAULT_UI_CONFIG.dimensions.height.step}
+                value={height}
+                showStepper={true}
+                unit="mm"
+                onChange={onHeightChange}
+              />
+            </div>
 
-      {/* Profundidad */}
-      <div className="form-group">
-        <label htmlFor="input-depth">
-          {t('form.dimensions.depth')}
-          <span className="visually-hidden">Depth (mm):</span>
-        </label>
-        <NumericInput
-          id="input-depth"
-          min={DEFAULT_UI_CONFIG.dimensions.depth.min}
-          max={DEFAULT_UI_CONFIG.dimensions.depth.max}
-          step={DEFAULT_UI_CONFIG.dimensions.depth.step}
-          value={depth}
-          showStepper={true}
-          unit="mm"
-          onChange={onDepthChange}
-        />
-      </div>
+            {/* Profundidad */}
+            <div className="form-group dimension-cell">
+              <label htmlFor="input-depth">
+                {t('form.dimensions.depth')}
+                <span className="visually-hidden">Depth (mm):</span>
+              </label>
+              <NumericInput
+                id="input-depth"
+                min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+                max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+                step={DEFAULT_UI_CONFIG.dimensions.depth.step}
+                value={depth}
+                showStepper={true}
+                unit="mm"
+                onChange={onDepthChange}
+              />
+            </div>
+          </div>
 
       {/* Selector Rápido de Secciones Temáticas */}
       <nav
@@ -2467,6 +2530,81 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 </button>
               </div>
             </div>
+
+            {/* Definición de pistas estilo CSS Grid (Proporciones y Medidas) */}
+            <div className="form-group" style={{ padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+              <label htmlFor="input-shelf-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+                📐 Medidas de vanos/espacios (mm, fr o mixto):
+              </label>
+              <DrawerTracksInput
+                tracks={
+                  activeBay.shelfTracks && activeBay.shelfTracks.length > 1
+                    ? activeBay.shelfTracks
+                    : Array.from({ length: Math.max(1, activeBay.count) + 1 }, () => ({ type: 'fractional' as const, valueFr: 1 }))
+                }
+                onChange={(parsed) => onShelfTracksChange?.(currentActiveIndex, parsed)}
+              />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+                <span style={{ font: 'var(--md-sys-typescale-label-small)', color: 'var(--md-sys-color-on-surface-variant)', marginRight: '0.25rem' }}>
+                  Atajos rápidos:
+                </span>
+                {shelfQuickRecipes.map((recipe, rIdx) => (
+                  <button
+                    key={rIdx}
+                    type="button"
+                    className="m3-chip"
+                    style={{ height: '30px', padding: '0 0.65rem', fontSize: '0.78rem' }}
+                    onClick={() =>
+                      onShelfTracksChange?.(currentActiveIndex, recipe.tracks)
+                    }
+                  >
+                    {recipe.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Visualizador de proporción y alturas calculadas */}
+            {resolvedShelfHeights.length > 0 && (
+              <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.4rem' }}>
+                  📊 Luz libre calculada por vano ({estimatedBayCavityHeight} mm interior):
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', borderRadius: '4px', overflow: 'hidden' }}>
+                  {resolvedShelfHeights.map((h, i) => {
+                    const currentTracks =
+                      activeBay.shelfTracks && activeBay.shelfTracks.length > 1
+                        ? activeBay.shelfTracks
+                        : Array.from({ length: Math.max(1, activeBay.count) + 1 }, () => ({ type: 'fractional' as const, valueFr: 1 }));
+                    const track = currentTracks[i];
+                    const isFixed = track?.type === 'fixed';
+                    const trackLabel = isFixed ? `${track.valueMm}mm fijo` : `${track?.valueFr ?? 1}fr prop.`;
+                    const pct = Math.max(14, Math.round((h / Math.max(1, estimatedBayCavityHeight)) * 100));
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          minHeight: `${Math.max(28, Math.round(pct * 0.75))}px`,
+                          backgroundColor: isFixed ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-primary-container)',
+                          color: isFixed ? 'var(--md-sys-color-on-tertiary-container)' : 'var(--md-sys-color-on-primary-container)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>{`Vano ${i + 1}${i === 0 ? ' (Inferior)' : i === resolvedShelfHeights.length - 1 ? ' (Superior)' : ''}: (${trackLabel})`}</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{`${h} mm`}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label>Tipo de fijación:</label>

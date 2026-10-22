@@ -107,6 +107,7 @@ export type BayContent =
       shelfType: 'adjustable' | 'fixed';
       setbackMm?: number;
       hasAntiSagBrace?: boolean;
+      shelfTracks?: TrackSize[];
     }
   | {
       type: 'drawer-stack';

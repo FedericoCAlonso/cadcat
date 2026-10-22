@@ -906,15 +906,27 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       </p>
 
       {selectedPiece && selectedBox && (
-        <aside aria-label="Selected Piece Inspector" className="viewport-3d-inspector">
-          <div className="inspector-header">
-            <h4>
-              Pieza seleccionada: <strong>{selectedPiece.id}</strong>
-              <span className="visually-hidden">{`Selected Piece: ${selectedPiece.id}`}</span>
-            </h4>
-            <span className="m3-badge m3-badge--neutral">
-              {translatePieceRole(selectedPiece.role)}
-            </span>
+        <aside aria-label="Selected Piece Inspector" className="viewport-3d-inspector viewport-3d-inspector--floating">
+          <div className="inspector-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <h4>
+                Pieza seleccionada: <strong>{selectedPiece.id}</strong>
+                <span className="visually-hidden">{`Selected Piece: ${selectedPiece.id}`}</span>
+              </h4>
+              <span className="m3-badge m3-badge--neutral">
+                {translatePieceRole(selectedPiece.role)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="m3-btn m3-btn--small m3-btn--tonal"
+              style={{ minWidth: '32px', minHeight: '32px', padding: '0.2rem 0.5rem', borderRadius: '50%', fontWeight: 700 }}
+              onClick={() => onSelectPiece(null)}
+              title="Cerrar inspector y deseleccionar"
+              aria-label="Cerrar inspector y deseleccionar"
+            >
+              ✕
+            </button>
           </div>
 
           <div className="inspector-grid">

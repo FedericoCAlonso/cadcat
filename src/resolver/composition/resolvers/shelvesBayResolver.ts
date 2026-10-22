@@ -3,6 +3,7 @@ import { createPiece, createRectangularContour } from '../../piece';
 import { createJoint } from '../../joint';
 import { type PlacementNode } from '../../tree';
 import { buildShelf } from '../../templates/shelf';
+import { resolveTracks } from '../gridSolver';
 import {
   type IBayContentResolver,
   type BayResolutionContext,
@@ -31,16 +32,29 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
       shelfType,
       setbackMm = 20,
       hasAntiSagBrace = false,
+      shelfTracks,
     } = content;
 
-    if (count <= 0) {
+    if (count <= 0 && (!shelfTracks || shelfTracks.length < 2)) {
       return { pieces, joints, placementNodes, subAssemblies: [] };
     }
 
-    const stepY = bay.height / (count + 1);
+    const effectiveTracks =
+      shelfTracks && shelfTracks.length > 1
+        ? shelfTracks
+        : Array.from({ length: Math.max(1, count) + 1 }, () => ({ type: 'fractional' as const, valueFr: 1 }));
 
-    for (let i = 0; i < count; i++) {
-      const shelfElevationY = bay.y + Math.round((i + 1) * stepY - T / 2);
+    const resolved = resolveTracks(bay.height, effectiveTracks, T);
+    const effectiveCount = resolved.dividers.length;
+
+    if (effectiveCount <= 0) {
+      return { pieces, joints, placementNodes, subAssemblies: [] };
+    }
+
+    for (let i = 0; i < effectiveCount; i++) {
+      const divider = resolved.dividers[i];
+      if (!divider) continue;
+      const shelfElevationY = bay.y + divider.offsetMm;
       const shelfId = `${idPrefix}-shelf-${i + 1}`;
 
       const shelfRes = buildShelf(

@@ -563,6 +563,7 @@ export function App(): ReactElement {
                 onRemoveShelf={vm.removeShelf}
                 onShelfTypeChange={vm.setShelfType}
                 onShelfAntiSagChange={vm.setShelfAntiSag}
+                onShelfTracksChange={vm.setShelfTracks}
                 onAddDrawer={vm.addDrawer}
                 onRemoveDrawer={vm.removeDrawer}
                 onDrawerFrontMountChange={vm.setDrawerFrontMount}
