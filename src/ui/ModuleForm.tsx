@@ -28,6 +28,7 @@ import type {
 import { resolveTracks } from '../resolver';
 import { translateTemplateName, translateEdgeBandKind, translatePieceRole, t } from './localization';
 import { NumericInput } from './NumericInput';
+import { BayDistributionModal } from './BayDistributionModal';
 import { DrawerTracksInput } from './DrawerTracksInput';
 import { BayTracksInput } from './BayTracksInput';
 import { DEFAULT_UI_CONFIG } from '../config';
@@ -90,6 +91,7 @@ export interface ModuleFormProps {
     bayIndex: number,
     type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided',
   ) => void;
+  onBayContentChange?: (bayIndex: number, content: BayContent) => void;
   onSubdividedAxisChange?: (bayIndex: number, axis: 'horizontal' | 'vertical') => void;
   onSubdividedTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onSubdividedThicknessChange?: (bayIndex: number, thicknessMm: number) => void;
@@ -265,12 +267,13 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onBayTracksChange,
     onActiveBayIndexChange,
     onBayContentTypeChange,
-    onSubdividedAxisChange,
-    onSubdividedTracksChange,
-    onSubdividedThicknessChange,
-    onSubdividedJointTypeChange,
+    onBayContentChange,
+    onSubdividedAxisChange: _onSubdividedAxisChange,
+    onSubdividedTracksChange: _onSubdividedTracksChange,
+    onSubdividedThicknessChange: _onSubdividedThicknessChange,
+    onSubdividedJointTypeChange: _onSubdividedJointTypeChange,
     onSubdividedMaterialChange: _onSubdividedMaterialChange,
-    onSubdividedCellContentChange,
+    onSubdividedCellContentChange: _onSubdividedCellContentChange,
     onAddShelf,
     onRemoveShelf,
     onShelfTypeChange,
@@ -402,6 +405,11 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     ),
   );
 
+  const activeBayBox = bayBoxes[currentActiveIndex];
+  const activeBayWidth = activeBayBox?.width ?? Math.max(100, Math.round(width - 2 * matThickness));
+  const activeBayHeight = activeBayBox?.height ?? estimatedBayCavityHeight;
+  const activeBayDepth = activeBayBox?.depth ?? Math.max(100, Math.round(depth - 20));
+
   const resolvedDrawerHeights = (() => {
     if (activeBay.type !== 'drawer-stack' || !activeBay.drawerTracks || activeBay.drawerTracks.length === 0) {
       return [];
@@ -489,7 +497,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [showAllRoleMaterials, setShowAllRoleMaterials] = useState(false);
   const [activeSection, setActiveSection] = useState<'all' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences'>('all');
-  const [activeCellIndex, setActiveCellIndex] = useState<number>(0);
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
 
   const hasDoorsOrFronts =
     Boolean(frontsMaterialId) ||
@@ -2525,17 +2533,44 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </button>
             <button
               type="button"
-              className={`builder-segmented-btn ${activeBay.type === 'subdivided' ? 'selected' : ''}`}
-              onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'subdivided')}
-            >
-              🍱 Subdivisión
-            </button>
-            <button
-              type="button"
               className={`builder-segmented-btn ${activeBay.type === 'empty' ? 'selected' : ''}`}
               onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'empty')}
             >
               ⬜ Libre
+            </button>
+          </div>
+
+          {/* Botón para abrir el Modal de Distribución Compleja (Matriz estilo Word) */}
+          <div style={{ marginTop: '0.75rem' }}>
+            <button
+              type="button"
+              className={`builder-segmented-btn ${activeBay.type === 'subdivided' ? 'selected' : ''}`}
+              onClick={() => setIsDistributionModalOpen(true)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1rem',
+                fontWeight: 600,
+                border: activeBay.type === 'subdivided'
+                  ? '2px solid var(--md-sys-color-primary)'
+                  : '1px dashed var(--md-sys-color-primary)',
+                backgroundColor: activeBay.type === 'subdivided'
+                  ? 'var(--md-sys-color-primary-container)'
+                  : 'var(--md-sys-color-surface-container-low)',
+                color: 'var(--md-sys-color-primary)',
+                borderRadius: 'var(--md-sys-shape-corner-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              <span>📐</span>
+              <span>
+                {activeBay.type === 'subdivided'
+                  ? 'Editar Distribución Compleja (Matriz)...'
+                  : 'Diseñar Distribución Compleja (Matriz / Mixto)...'}
+              </span>
             </button>
           </div>
         </div>
@@ -3306,267 +3341,42 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
         )}
 
-        {/* Controles para Vano Subdividido (Casilleros / Zonas / Gavetas) */}
+        {/* Controles para Vano con Distribución Compleja */}
         {activeBay.type === 'subdivided' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Orientación / Eje */}
-            <div className="form-group">
-              <label>Orientación de las divisiones:</label>
-              <div className="builder-segmented-btn-group" role="group" aria-label="Orientación de subdivisión">
-                <button
-                  type="button"
-                  className={`builder-segmented-btn ${activeBay.axis === 'horizontal' ? 'selected' : ''}`}
-                  onClick={() => onSubdividedAxisChange?.(currentActiveIndex, 'horizontal')}
-                >
-                  ⏸️ Vertical (Tabiques continuos)
-                </button>
-                <button
-                  type="button"
-                  className={`builder-segmented-btn ${activeBay.axis === 'vertical' ? 'selected' : ''}`}
-                  onClick={() => onSubdividedAxisChange?.(currentActiveIndex, 'vertical')}
-                >
-                  ⏹️ Horizontal (Estantes de zona)
-                </button>
-              </div>
+          <div
+            style={{
+              padding: '1rem',
+              backgroundColor: 'var(--md-sys-color-surface-container-low)',
+              borderRadius: 'var(--md-sys-shape-corner-md)',
+              border: '1px solid var(--md-sys-color-outline-variant)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--md-sys-color-primary)', fontWeight: 600 }}>
+              <span>🍱</span>
+              <span>Distribución Compleja Activa</span>
             </div>
-
-            {/* Espesor de placa divisoria y Material */}
-            <div className="form-group">
-              <label>Espesor de placa divisoria:</label>
-              <div className="builder-chip-selector" role="group" aria-label="Espesor divisorias">
-                <button
-                  type="button"
-                  className={`builder-segmented-btn ${(activeBay.dividerThicknessMm ?? 6) === 6 ? 'selected' : ''}`}
-                  onClick={() => onSubdividedThicknessChange?.(currentActiveIndex, 6)}
-                >
-                  🌲 6 mm (Guatambú / Ranura ciega)
-                </button>
-                <button
-                  type="button"
-                  className={`builder-segmented-btn ${activeBay.dividerThicknessMm === 9 ? 'selected' : ''}`}
-                  onClick={() => onSubdividedThicknessChange?.(currentActiveIndex, 9)}
-                >
-                  🪵 9 mm (Multilaminado)
-                </button>
-                <button
-                  type="button"
-                  className={`builder-segmented-btn ${activeBay.dividerThicknessMm === 18 ? 'selected' : ''}`}
-                  onClick={() => onSubdividedThicknessChange?.(currentActiveIndex, 18)}
-                >
-                  🧱 18 mm (Estructural)
-                </button>
-              </div>
-            </div>
-
-            {/* Selector de Ensamble si es 18mm */}
-            {activeBay.dividerThicknessMm === 18 && (
-              <div className="form-group">
-                <label>Tipo de fijación:</label>
-                <div className="builder-segmented-btn-group">
-                  <button
-                    type="button"
-                    className={`builder-segmented-btn ${activeBay.jointType === 'confirmat' ? 'selected' : ''}`}
-                    onClick={() => onSubdividedJointTypeChange?.(currentActiveIndex, 'confirmat')}
-                  >
-                    🔩 Tornillos Confirmat
-                  </button>
-                  <button
-                    type="button"
-                    className={`builder-segmented-btn ${activeBay.jointType === 'dado-groove' ? 'selected' : ''}`}
-                    onClick={() => onSubdividedJointTypeChange?.(currentActiveIndex, 'dado-groove')}
-                  >
-                    🪚 Ranura de encastre (Dado)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Pistas / Distribución de casilleros */}
-            <div className="form-group" style={{ padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-              <label htmlFor="input-subdivided-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
-                📐 Distribución de casilleros / zonas:
-              </label>
-              <DrawerTracksInput
-                tracks={activeBay.tracks}
-                onChange={(parsed) => onSubdividedTracksChange?.(currentActiveIndex, parsed)}
-              />
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', alignSelf: 'center' }}>Atajos:</span>
-                <button
-                  type="button"
-                  className="builder-chip-sm"
-                  onClick={() => onSubdividedTracksChange?.(currentActiveIndex, [{ type: 'fractional', valueFr: 1 }, { type: 'fractional', valueFr: 1 }])}
-                >
-                  Mitad y Mitad (1fr 1fr)
-                </button>
-                <button
-                  type="button"
-                  className="builder-chip-sm"
-                  onClick={() => onSubdividedTracksChange?.(currentActiveIndex, [{ type: 'fractional', valueFr: 1 }, { type: 'fractional', valueFr: 1 }, { type: 'fractional', valueFr: 1 }])}
-                >
-                  3 partes iguales (1fr 1fr 1fr)
-                </button>
-                {activeBay.axis === 'vertical' ? (
-                  <button
-                    type="button"
-                    className="builder-chip-sm"
-                    onClick={() => onSubdividedTracksChange?.(currentActiveIndex, [{ type: 'fractional', valueFr: 1 }, { type: 'fixed', valueMm: 150 }])}
-                  >
-                    Abajo libre + Arriba 15cm (1fr 150mm)
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="builder-chip-sm"
-                    onClick={() => onSubdividedTracksChange?.(currentActiveIndex, [{ type: 'fractional', valueFr: 2 }, { type: 'fractional', valueFr: 1 }])}
-                  >
-                    2/3 y 1/3 (2fr 1fr)
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Configuración de las celdas resultantes */}
-            <div className="form-group" style={{ marginTop: '0.5rem' }}>
-              <label>Equipamiento por celda:</label>
-              <div className="builder-bay-tab-row" role="tablist" aria-label="Seleccionar celda para equipar">
-                {activeBay.tracks.map((_, cellIdx) => (
-                  <button
-                    key={`cell-${cellIdx}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeCellIndex === cellIdx}
-                    className={`builder-bay-tab ${activeCellIndex === cellIdx ? 'active' : ''}`}
-                    onClick={() => setActiveCellIndex(cellIdx)}
-                  >
-                    {activeBay.axis === 'horizontal' ? `Casillero ${cellIdx + 1}` : `Zona ${cellIdx + 1}`}
-                  </button>
-                ))}
-              </div>
-
-              {/* Selector de contenido para la celda activa */}
-              {(() => {
-                const safeCellIdx = Math.min(activeCellIndex, activeBay.tracks.length - 1);
-                const cellContent = activeBay.bays[safeCellIdx] ?? { type: 'empty' };
-                return (
-                  <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container)', borderRadius: 'var(--md-sys-shape-corner-sm)' }}>
-                    <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600, fontSize: '0.875rem' }}>
-                      {activeBay.axis === 'horizontal' ? `Contenido de Casillero ${safeCellIdx + 1}:` : `Contenido de Zona ${safeCellIdx + 1}:`}
-                    </p>
-                    <div className="builder-chip-selector">
-                      <button
-                        type="button"
-                        className={`builder-segmented-btn ${cellContent.type === 'empty' ? 'selected' : ''}`}
-                        onClick={() => onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { type: 'empty' })}
-                      >
-                        ⬜ Libre
-                      </button>
-                      <button
-                        type="button"
-                        className={`builder-segmented-btn ${cellContent.type === 'shelves' ? 'selected' : ''}`}
-                        onClick={() => onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { type: 'shelves', count: 1, shelfType: 'fixed', setbackMm: 10 })}
-                      >
-                        📚 Estante
-                      </button>
-                      <button
-                        type="button"
-                        className={`builder-segmented-btn ${cellContent.type === 'drawer-stack' ? 'selected' : ''}`}
-                        onClick={() => onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, {
-                          type: 'drawer-stack',
-                          drawerTracks: [{ type: 'fractional', valueFr: 1 }],
-                          frontMount: 'applied',
-                          slideType: 'wood-runner',
-                          drawerType: 'standard',
-                        })}
-                      >
-                        🗄️ Gaveta / Cajón
-                      </button>
-                    </div>
-
-                    {cellContent.type === 'shelves' && (
-                      <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <label style={{ fontSize: '0.8rem' }}>Estantes:</label>
-                        <div className="m3-stepper-field" style={{ maxWidth: '120px' }}>
-                          <button
-                            type="button"
-                            className="m3-stepper-btn"
-                            onClick={() => {
-                              const newCount = Math.max(1, cellContent.count - 1);
-                              onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { ...cellContent, count: newCount });
-                            }}
-                          >
-                            −
-                          </button>
-                          <div className="builder-stepper-display">{cellContent.count}</div>
-                          <button
-                            type="button"
-                            className="m3-stepper-btn"
-                            onClick={() => {
-                              const newCount = Math.min(6, cellContent.count + 1);
-                              onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { ...cellContent, count: newCount });
-                            }}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {cellContent.type === 'drawer-stack' && (
-                      <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <label style={{ fontSize: '0.8rem' }}>Cajones:</label>
-                          <div className="m3-stepper-field" style={{ maxWidth: '120px' }}>
-                            <button
-                              type="button"
-                              className="m3-stepper-btn"
-                              onClick={() => {
-                                const newTracks = cellContent.drawerTracks.length > 1
-                                  ? cellContent.drawerTracks.slice(0, -1)
-                                  : cellContent.drawerTracks;
-                                onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { ...cellContent, drawerTracks: newTracks });
-                              }}
-                            >
-                              −
-                            </button>
-                            <div className="builder-stepper-display">{cellContent.drawerTracks.length}</div>
-                            <button
-                              type="button"
-                              className="m3-stepper-btn"
-                              onClick={() => {
-                                const newTracks = [...cellContent.drawerTracks, { type: 'fractional' as const, valueFr: 1 }];
-                                onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { ...cellContent, drawerTracks: newTracks });
-                              }}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <label style={{ fontSize: '0.8rem' }}>Deslizamiento:</label>
-                          <div className="builder-segmented-btn-group">
-                            <button
-                              type="button"
-                              className={`builder-segmented-btn ${cellContent.slideType === 'wood-runner' ? 'selected' : ''}`}
-                              onClick={() => onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { ...cellContent, slideType: 'wood-runner' })}
-                            >
-                              🪵 Madera / Fricción (4mm)
-                            </button>
-                            <button
-                              type="button"
-                              className={`builder-segmented-btn ${cellContent.slideType === 'telescopic' ? 'selected' : ''}`}
-                              onClick={() => onSubdividedCellContentChange?.(currentActiveIndex, safeCellIdx, { ...cellContent, slideType: 'telescopic' })}
-                            >
-                              ⚙️ Telescópica (25.4mm)
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+              Este vano tiene una matriz de zonas y celdas independientes (estantes, cajones, casilleros).
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="builder-segmented-btn selected"
+                onClick={() => setIsDistributionModalOpen(true)}
+                style={{ flex: 1 }}
+              >
+                ✏️ Abrir Matriz de Edición
+              </button>
+              <button
+                type="button"
+                className="builder-segmented-btn"
+                onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'empty')}
+              >
+                ↺ Reestablecer a simple
+              </button>
             </div>
           </div>
         )}
@@ -3811,6 +3621,24 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </button>
         )}
       </div>
+
+      {/* Modal de Distribución Interior Compleja (Matriz estilo Word) */}
+      <BayDistributionModal
+        isOpen={isDistributionModalOpen}
+        onClose={() => setIsDistributionModalOpen(false)}
+        onApply={(updatedContent) => {
+          if (onBayContentChange) {
+            onBayContentChange(currentActiveIndex, updatedContent);
+          } else {
+            onBayContentTypeChange?.(currentActiveIndex, updatedContent as any);
+          }
+        }}
+        bayIndex={currentActiveIndex}
+        bayWidth={activeBayWidth}
+        bayHeight={activeBayHeight}
+        bayDepth={activeBayDepth}
+        initialContent={activeBay}
+      />
     </section>
   );
 }

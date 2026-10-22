@@ -207,6 +207,7 @@ export interface ModuleViewModelState {
   setBayTracks: (tracks: TrackSize[]) => void;
   setActiveBayIndex: (idx: number) => void;
   setBayContentType: (bayIndex: number, type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided') => void;
+  setBayContent: (bayIndex: number, content: BayContent) => void;
   setSubdividedAxis: (bayIndex: number, axis: 'horizontal' | 'vertical') => void;
   setSubdividedTracks: (bayIndex: number, tracks: TrackSize[]) => void;
   setSubdividedThickness: (bayIndex: number, thicknessMm: number) => void;
@@ -1071,6 +1072,15 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     },
     [],
   );
+
+  const setBayContent = useCallback((bayIndex: number, content: BayContent) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      next[bayIndex] = content;
+      return next;
+    });
+  }, []);
 
   const setSubdividedAxis = useCallback((bayIndex: number, axis: 'horizontal' | 'vertical') => {
     setIsCustomModular(true);
@@ -3423,6 +3433,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSubdividedJointType,
     setSubdividedMaterialId,
     setSubdividedCellContent,
+    setBayContent,
     addShelf,
     removeShelf,
     setShelfType,

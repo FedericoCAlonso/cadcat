@@ -559,6 +559,7 @@ export function App(): ReactElement {
                 onBayTracksChange={vm.setBayTracks}
                 onActiveBayIndexChange={vm.setActiveBayIndex}
                 onBayContentTypeChange={vm.setBayContentType}
+                onBayContentChange={vm.setBayContent}
                 onSubdividedAxisChange={vm.setSubdividedAxis}
                 onSubdividedTracksChange={vm.setSubdividedTracks}
                 onSubdividedThicknessChange={vm.setSubdividedThickness}
