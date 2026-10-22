@@ -170,6 +170,28 @@ export function App(): ReactElement {
             </nav>
 
             <div className="m3-top-app-bar__actions">
+              {vm.isOneHandDevice && (
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  onClick={vm.toggleUiMode}
+                  style={{
+                    padding: '0.2rem 0.6rem',
+                    minHeight: '36px',
+                    fontSize: '0.78rem',
+                    borderRadius: '18px',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                  }}
+                  aria-label={vm.uiMode === 'site' ? 'Cambiar a Modo Experto' : 'Cambiar a Modo Taller'}
+                  title={vm.uiMode === 'site' ? 'Cambiar a Modo Experto' : 'Cambiar a Modo Taller'}
+                >
+                  <span>{vm.uiMode === 'site' ? '⚙️' : '🏗️'}</span>
+                  <span>{vm.uiMode === 'site' ? 'Experto' : 'Taller'}</span>
+                </button>
+              )}
               <ThemeToggle
                 themeMode={themeMode}
                 effectiveTheme={effectiveTheme}
@@ -206,55 +228,6 @@ export function App(): ReactElement {
           </div>
         )}
 
-        {/* Prominent View Mode Switcher for Handheld Mobile Phones (One-Hand Obra vs Expert) */}
-        {vm.isOneHandDevice && vm.uiMode === 'expert' && (
-          <div
-            className="m3-banner"
-            role="region"
-            aria-label="Selector de Modo de Trabajo"
-            style={{
-              margin: '0 0 1rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-              padding: '0.75rem 1rem',
-              borderRadius: '16px',
-              backgroundColor: 'var(--md-sys-color-primary-container)',
-              color: 'var(--md-sys-color-on-primary-container)',
-              border: '1px solid var(--md-sys-color-primary)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>📱</span>
-              <div>
-                <strong style={{ fontSize: '0.92rem', display: 'block' }}>Modo Taller / Obra Disponible</strong>
-                <span style={{ fontSize: '0.78rem', opacity: 0.9 }}>
-                  Diseñá con una sola mano mediante gestos ergonómicos y dial radial.
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="m3-button m3-button--filled"
-              style={{
-                minHeight: '44px',
-                borderRadius: '22px',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-              onClick={() => vm.setUiMode('site')}
-            >
-              <span>🏗️</span>
-              <span>Cambiar a Modo Obra</span>
-            </button>
-          </div>
-        )}
 
         {/* Full-screen 3D Viewport in Modo Obra */}
         {isSiteImmersive && vm.activeTab === '3d' && (

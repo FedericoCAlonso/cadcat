@@ -1844,6 +1844,40 @@ body {
     min-height: 36px;
     font-size: 0.9rem;
   }
+
+  /* Mobile Optimization for Expert Form & Cabinet Builder:
+     Eliminate nested card borders ("sobreenmarcado") and horizontal blowout on mobile */
+  .module-form {
+    padding: 0.75rem 0.6rem !important;
+  }
+
+  .module-form .expert-sticky-header {
+    margin: -0.75rem -0.6rem 0.75rem -0.6rem !important;
+    padding: 0.5rem 0.65rem 0.45rem 0.65rem !important;
+    border-radius: 0 !important;
+  }
+
+  .module-form .builder-section,
+  .module-form fieldset.builder-section {
+    border: none !important;
+    background: transparent !important;
+    padding: 0.25rem 0 !important;
+    margin-top: 0.5rem !important;
+    box-shadow: none !important;
+  }
+
+  .module-form .builder-section-title,
+  .module-form legend.builder-section-title {
+    padding: 0 0.2rem !important;
+    margin-bottom: 0.4rem !important;
+    font-size: 0.95rem !important;
+  }
+
+  .module-form .m3-structure-card {
+    padding: 0.65rem 0.6rem !important;
+    margin-top: 0.4rem !important;
+    border-radius: var(--md-sys-shape-corner-md) !important;
+  }
 }
 
 /* ==========================================================================

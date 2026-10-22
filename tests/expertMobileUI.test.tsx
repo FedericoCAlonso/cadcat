@@ -291,4 +291,73 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     // Mobile-specific step footer should not be rendered
     expect(html).not.toContain('expert-mobile-section-footer');
   });
+
+  it('applies calibrated margins to expert-sticky-header on mobile to prevent horizontal overflow', () => {
+    const htmlMobile = renderToString(
+      <ModuleForm
+        isMobile={true}
+        width={600}
+        height={720}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+      />,
+    );
+
+    // Mobile sticky header must use calibrated card margin (-0.75rem -0.6rem 0.75rem -0.6rem)
+    expect(htmlMobile).toContain('-0.75rem -0.6rem 0.75rem -0.6rem');
+    expect(htmlMobile).toContain('border-radius:0');
+
+    const htmlDesktop = renderToString(
+      <ModuleForm
+        isMobile={false}
+        width={600}
+        height={720}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+      />,
+    );
+
+    // Desktop uses original desktop margin
+    expect(htmlDesktop).toContain('-1.5rem -1.5rem 1rem -1.5rem');
+  });
+
+  it('renders piece inspector and plinth grids with auto-fit minmax layout to avoid narrow text squishing', () => {
+    const html = renderToString(
+      <ModuleForm
+        isMobile={false}
+        width={600}
+        height={720}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        hasPlinth={true}
+        plinthHeightMm={100}
+        plinthSetbackMm={50}
+        activePieceId="p-1"
+        pieces={[
+          {
+            id: 'p-1',
+            role: 'left',
+            materialId: 'mat-1',
+            thicknessMm: 18,
+            contour: { points: [{ x: 0, y: 0 }, { x: 560, y: 0 }, { x: 560, y: 720 }, { x: 0, y: 720 }] },
+            faces: [],
+            structural: true,
+            referenceFace: 'A',
+            positionMm: { x: 0, y: 0, z: 0 },
+            dimensionsMm: { width: 560, height: 720 },
+            cutDimensionsMm: { width: 559, height: 719 },
+            cutContour: { points: [{ x: 0, y: 0 }, { x: 559, y: 0 }, { x: 559, y: 719 }, { x: 0, y: 719 }] },
+            bandedEdges: [],
+          },
+        ]}
+      />,
+    );
+
+    // Grid layout uses at least 140-160px minmax to prevent numeric and label squishing
+    expect(html).toContain('repeat(auto-fit, minmax(160px, 1fr))');
+    expect(html).toContain('repeat(auto-fit, minmax(140px, 1fr))');
+  });
 });

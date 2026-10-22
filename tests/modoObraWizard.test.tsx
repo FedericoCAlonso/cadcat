@@ -524,4 +524,81 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     });
     container.remove();
   });
+
+  it('ensures mutually exclusive active states in Step 3 (Base / Apoyo)', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const rootInstance = createRoot(container);
+
+    const handleHasPlinthChange = vi.fn();
+    const handleHasWallHangingRailChange = vi.fn();
+
+    act(() => {
+      rootInstance.render(
+        <ModoObraWizard
+          width={800}
+          height={750}
+          depth={580}
+          thickness={18}
+          onWidthChange={vi.fn()}
+          onHeightChange={vi.fn()}
+          onDepthChange={vi.fn()}
+          handMode="right"
+          onHandModeChange={vi.fn()}
+          onSwitchToExpertMode={vi.fn()}
+          hasPlinth={true}
+          hasWallHangingRail={false}
+          onHasPlinthChange={handleHasPlinthChange}
+          onHasWallHangingRailChange={handleHasWallHangingRailChange}
+        />,
+      );
+    });
+
+    // Advance to Step 3: Step 1 -> Step 2 -> Step 3
+    const nextBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Siguiente ▶'),
+    );
+
+    act(() => {
+      nextBtn?.click();
+    });
+    act(() => {
+      nextBtn?.click();
+    });
+
+    expect(container.textContent).toContain('Paso 3 de 7:');
+    expect(container.textContent).toContain('Base / Apoyo');
+
+    // Only ONE option should have primary border/styling, not two simultaneously
+    const plinthOption = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Con Zócalo / Plinto'),
+    );
+    const floorOption = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Apoyo Directo al Piso'),
+    );
+    const wallOption = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Suspendido / Flotante'),
+    );
+
+    expect(plinthOption).toBeDefined();
+    expect(floorOption).toBeDefined();
+    expect(wallOption).toBeDefined();
+
+    // Verify plinth option has primary active border
+    expect(plinthOption?.style.border).toContain('var(--md-sys-color-primary)');
+    // Floor option should NOT have primary active border
+    expect(floorOption?.style.border).not.toContain('var(--md-sys-color-primary)');
+
+    // Clicking floor option triggers callbacks
+    act(() => {
+      floorOption?.click();
+    });
+    expect(handleHasPlinthChange).toHaveBeenCalledWith(false);
+    expect(handleHasWallHangingRailChange).toHaveBeenCalledWith(false);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });

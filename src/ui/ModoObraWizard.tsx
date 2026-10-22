@@ -731,39 +731,100 @@ export function ModoObraWizard({
               onSelectDimension={setDimensionField}
             />
 
-            {/* Contextual Carpentry Dimension Header */}
+            {/* Contextual Carpentry Dimension Header with Prev/Next Controls */}
             <div
               style={{
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
-                textAlign: 'center',
+                justifyContent: 'space-between',
                 width: '100%',
                 maxWidth: '460px',
-                padding: '0.35rem 0.6rem',
+                padding: '0.35rem 0.5rem',
                 borderRadius: '12px',
                 backgroundColor: 'var(--md-sys-color-surface-container)',
                 border: '1px solid var(--md-sys-color-outline-variant)',
                 boxSizing: 'border-box',
+                gap: '0.4rem',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
-                  {currentDimConfig.label}:
-                </span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
-                  {`${currentDimConfig.value} mm`}
-                </span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
-                  {`(${activeDimIndex + 1}/4)`}
+              <button
+                type="button"
+                onClick={goToPrevDimension}
+                aria-label="Medida anterior"
+                title="Medida anterior"
+                className="m3-button m3-button--tonal"
+                style={{
+                  minWidth: '40px',
+                  width: '40px',
+                  height: '40px',
+                  minHeight: '40px',
+                  borderRadius: '10px',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                  flexShrink: 0,
+                }}
+              >
+                ◀
+              </button>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                    {currentDimConfig.label}:
+                  </span>
+                  <span style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
+                    {`${currentDimConfig.value} mm`}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
+                    {`(${activeDimIndex + 1}/4)`}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '1px' }}>
+                  {dimensionField === 'width' && 'Costado exterior a costado exterior'}
+                  {dimensionField === 'height' && 'Altura exterior de piso/zócalo a tapa'}
+                  {dimensionField === 'depth' && 'Profundidad de casco exterior'}
+                  {dimensionField === 'thickness' && 'Espesor nominal del tablero melamínico'}
                 </span>
               </div>
-              <span style={{ fontSize: '0.7rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '1px' }}>
-                {dimensionField === 'width' && 'Costado exterior a costado exterior'}
-                {dimensionField === 'height' && 'Altura exterior de piso/zócalo a tapa'}
-                {dimensionField === 'depth' && 'Profundidad de casco exterior'}
-                {dimensionField === 'thickness' && 'Espesor nominal del tablero melamínico'}
-              </span>
+
+              <button
+                type="button"
+                onClick={goToNextDimension}
+                aria-label="Medida siguiente"
+                title="Medida siguiente"
+                className="m3-button m3-button--tonal"
+                style={{
+                  minWidth: '40px',
+                  width: '40px',
+                  height: '40px',
+                  minHeight: '40px',
+                  borderRadius: '10px',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                  flexShrink: 0,
+                }}
+              >
+                ▶
+              </button>
             </div>
 
             {/* Middle: Active Dimension Tactile Controls (Keypad / Presets / Steppers) */}
@@ -863,11 +924,13 @@ export function ModoObraWizard({
               )}
             </div>
 
-            {/* Bottom (Thumb Reach Zone): 4-Dimension Segmented Overview Bar + Nav Buttons */}
+            {/* Bottom (Thumb Reach Zone): Full-width 4-Dimension Segmented Overview Bar */}
             <div
+              role="tablist"
+              aria-label="Selector de medidas principales"
               style={{
-                display: 'flex',
-                alignItems: 'center',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: '0.35rem',
                 width: '100%',
                 maxWidth: '460px',
@@ -875,115 +938,60 @@ export function ModoObraWizard({
                 marginTop: 'auto',
               }}
             >
-              <button
-                type="button"
-                onClick={goToPrevDimension}
-                aria-label="Medida anterior"
-                title="Medida anterior"
-                className="m3-button m3-button--tonal"
-                style={{
-                  minWidth: '42px',
-                  height: '52px',
-                  borderRadius: '12px',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0,
-                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                }}
-              >
-                ◀
-              </button>
-
-              <div
-                role="tablist"
-                aria-label="Selector de medidas principales"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '0.3rem',
-                  flex: 1,
-                }}
-              >
-                {dimensionFieldsList.map((f) => {
-                  const isSelected = f.id === dimensionField;
-                  return (
-                    <button
-                      key={f.id}
-                      role="tab"
-                      aria-selected={isSelected}
-                      type="button"
-                      onClick={() => {
-                        triggerHaptic('tick');
-                        setDimensionField(f.id);
-                      }}
-                      aria-label={`Seleccionar medida: ${f.label}`}
-                      title={`${f.label} (${f.value} mm)`}
+              {dimensionFieldsList.map((f) => {
+                const isSelected = f.id === dimensionField;
+                return (
+                  <button
+                    key={f.id}
+                    role="tab"
+                    aria-selected={isSelected}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('tick');
+                      setDimensionField(f.id);
+                    }}
+                    aria-label={`Seleccionar medida: ${f.label}`}
+                    title={`${f.label} (${f.value} mm)`}
+                    style={{
+                      minHeight: '48px',
+                      padding: '0.3rem 0.2rem',
+                      borderRadius: '12px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.12)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span
                       style={{
-                        minHeight: '52px',
-                        padding: '0.2rem 0.15rem',
-                        borderRadius: '12px',
-                        border: isSelected
-                          ? '2px solid var(--md-sys-color-primary)'
-                          : '1px solid var(--md-sys-color-outline-variant)',
-                        backgroundColor: isSelected
-                          ? 'var(--md-sys-color-primary-container)'
-                          : 'var(--md-sys-color-surface-container-high)',
-                        color: isSelected
-                          ? 'var(--md-sys-color-on-primary-container)'
-                          : 'var(--md-sys-color-on-surface)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.12)' : 'none',
-                        transition: 'all 0.15s ease',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        opacity: isSelected ? 1 : 0.8,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.03em',
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: '0.66rem',
-                          fontWeight: 700,
-                          opacity: isSelected ? 1 : 0.8,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                        }}
-                      >
-                        {f.shortLabel}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', marginTop: '1px' }}>
-                        <span style={{ fontSize: '0.94rem', fontWeight: 800 }}>{f.value}</span>
-                        <span style={{ fontSize: '0.6rem', opacity: 0.7 }}>mm</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={goToNextDimension}
-                aria-label="Medida siguiente"
-                title="Medida siguiente"
-                className="m3-button m3-button--tonal"
-                style={{
-                  minWidth: '42px',
-                  height: '52px',
-                  borderRadius: '12px',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0,
-                  backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                }}
-              >
-                ▶
-              </button>
+                      {f.shortLabel}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '1px', marginTop: '1px' }}>
+                      <span style={{ fontSize: '0.96rem', fontWeight: 800 }}>{f.value}</span>
+                      <span style={{ fontSize: '0.62rem', opacity: 0.7 }}>mm</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1003,19 +1011,9 @@ export function ModoObraWizard({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
               {[
                 {
-                  id: 'plinth-wood',
-                  label: '🪚 Zócalo de Madera',
-                  desc: 'Frente y laterales de melamina con retroceso de 50mm.',
-                  active: hasPlinth && !hasWallHangingRail,
-                  onSelect: () => {
-                    onHasPlinthChange?.(true);
-                    onHasWallHangingRailChange?.(false);
-                  },
-                },
-                {
-                  id: 'legs-plastic',
-                  label: '🦵 Patas Regulables de Plástico',
-                  desc: 'Patas plásticas de 100/150 mm con clips de zócalo desmontable.',
+                  id: 'plinth-integrated',
+                  label: '🪚 Con Zócalo / Plinto (100 mm)',
+                  desc: 'Frente y laterales con retroceso para elevar el módulo del piso.',
                   active: hasPlinth && !hasWallHangingRail,
                   onSelect: () => {
                     onHasPlinthChange?.(true);
@@ -1025,7 +1023,7 @@ export function ModoObraWizard({
                 {
                   id: 'floor-direct',
                   label: '🪵 Apoyo Directo al Piso',
-                  desc: 'Costados apoyan directo con regatones plásticos.',
+                  desc: 'Costados apoyan directo con regatones plásticos sanitarios.',
                   active: !hasPlinth && !hasWallHangingRail,
                   onSelect: () => {
                     onHasPlinthChange?.(false);
@@ -1035,7 +1033,7 @@ export function ModoObraWizard({
                 {
                   id: 'wall-hanging',
                   label: '🧗 Suspendido / Flotante (Alacena)',
-                  desc: 'Sin base inferior. Incluye faja trasera de colgado a pared.',
+                  desc: 'Sin base inferior. Incluye faja trasera de fijación a pared.',
                   active: hasWallHangingRail || (!hasPlinth && selectedTemplateId.includes('wall')),
                   onSelect: () => {
                     onHasPlinthChange?.(false);

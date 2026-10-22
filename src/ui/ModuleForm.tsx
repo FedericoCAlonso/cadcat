@@ -596,9 +596,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           zIndex: 25,
           backgroundColor: 'var(--md-sys-color-surface)',
           borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-          margin: '-1.5rem -1.5rem 1rem -1.5rem',
-          padding: '0.75rem 1rem 0.5rem 1rem',
-          borderRadius: 'var(--md-sys-shape-corner-lg) var(--md-sys-shape-corner-lg) 0 0',
+          margin: isMobileDevice ? '-0.75rem -0.6rem 0.75rem -0.6rem' : '-1.5rem -1.5rem 1rem -1.5rem',
+          padding: isMobileDevice ? '0.5rem 0.65rem 0.45rem 0.65rem' : '0.75rem 1rem 0.5rem 1rem',
+          borderRadius: isMobileDevice ? '0' : 'var(--md-sys-shape-corner-lg) var(--md-sys-shape-corner-lg) 0 0',
           boxShadow: isMobileDevice ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
         }}
       >
@@ -1045,7 +1045,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.4rem', fontSize: '0.82rem', marginBottom: '0.75rem', padding: '0.5rem', backgroundColor: 'var(--md-sys-color-surface)', borderRadius: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.4rem', fontSize: '0.82rem', marginBottom: '0.75rem', padding: '0.5rem', backgroundColor: 'var(--md-sys-color-surface)', borderRadius: '6px' }}>
             <div><strong>Espesor:</strong> {`${selectedPiece.thicknessMm} mm`}</div>
             <div><strong>Terminada:</strong> {`${selectedPiece.dimensionsMm.width} × ${selectedPiece.dimensionsMm.height} mm`}</div>
             <div><strong>Corte sierra:</strong> {`${selectedPiece.cutDimensionsMm.width} × ${selectedPiece.cutDimensionsMm.height} mm`}</div>
@@ -2129,7 +2129,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               Zócalo / Plinto estructural integrado
             </label>
             {hasPlinth && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.35rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.35rem' }}>
                 <div>
                   <label htmlFor="input-plinth-height" style={{ fontSize: '0.75rem', display: 'block' }}>
                     Alto zócalo (mm):
@@ -2276,7 +2276,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
                       <div className="form-group">
                         <label htmlFor="col-dist-input">Dist. desde lateral (mm):</label>
                         <NumericInput
@@ -2346,7 +2346,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
                       <div className="form-group">
                         <label htmlFor="beam-dist-input">Distancia a cara (mm):</label>
                         <NumericInput
@@ -2425,7 +2425,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
 
             {falseSquare?.enabled && (
-              <div style={{ marginTop: '0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ marginTop: '0.85rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
                 <div className="form-group">
                   <label htmlFor="fs-left-depth-input">Profundidad Izquierda (mm):</label>
                   <NumericInput
@@ -2847,7 +2847,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
             {/* Opciones para cajón simple interior de placard */}
             {activeBay.drawerType === 'simple-interior' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
                 <div>
                   <label htmlFor="drawer-top-pull" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
                     Ranura superior para tirar:
