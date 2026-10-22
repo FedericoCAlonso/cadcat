@@ -807,36 +807,7 @@ export function ModoObraWizard({
               gap: '0.4rem',
             }}
           >
-            {/* Informative Readout Card at the Top */}
-            <div
-              style={{
-                padding: '0.45rem 0.75rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                width: '100%',
-                maxWidth: '460px',
-                textAlign: 'center',
-                boxSizing: 'border-box',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
-                  {currentDimConfig.label}:
-                </span>
-                <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
-                  {`${currentDimConfig.value} mm`}
-                </span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
-                  {`(${activeDimIndex + 1}/4)`}
-                </span>
-              </div>
-              <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', display: 'block', marginTop: '2px' }}>
-                👈 Deslizá la pantalla o usá los botones para cambiar de cota 👉
-              </span>
-            </div>
-
-            {/* Carousel Stepper Header for Dimension Field (Directly above the Dial in Thumb Zone) */}
+            {/* Contextual Carpentry Dimension Header */}
             <div
               style={{
                 display: 'flex',
@@ -844,7 +815,10 @@ export function ModoObraWizard({
                 justifyContent: 'space-between',
                 width: '100%',
                 maxWidth: '460px',
-                padding: '0.15rem 0.2rem',
+                padding: '0.4rem 0.6rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
                 boxSizing: 'border-box',
               }}
             >
@@ -855,10 +829,10 @@ export function ModoObraWizard({
                 title="Medida anterior"
                 className="m3-button m3-button--tonal"
                 style={{
-                  minWidth: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  fontSize: '1rem',
+                  minWidth: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  fontSize: '0.9rem',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -875,42 +849,27 @@ export function ModoObraWizard({
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
+                  textAlign: 'center',
                   flex: 1,
-                  padding: '0 0.4rem',
+                  padding: '0 0.35rem',
                 }}
               >
-                {/* Micro-dot navigation pills (clickable) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {dimensionFieldsList.map((f) => {
-                    const isSelected = f.id === dimensionField;
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => {
-                          triggerHaptic('tick');
-                          setDimensionField(f.id);
-                        }}
-                        aria-label={`Seleccionar medida: ${f.label}`}
-                        title={`${f.label} (${f.value} mm)`}
-                        style={{
-                          width: isSelected ? '26px' : '9px',
-                          height: '9px',
-                          borderRadius: '4px',
-                          backgroundColor: isSelected
-                            ? 'var(--md-sys-color-primary)'
-                            : 'var(--md-sys-color-outline-variant)',
-                          border: 'none',
-                          padding: 0,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s cubic-bezier(0.2, 0, 0, 1)',
-                        }}
-                      />
-                    );
-                  })}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                    {currentDimConfig.label}:
+                  </span>
+                  <span style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--md-sys-color-primary)' }}>
+                    {`${currentDimConfig.value} mm`}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-outline)', fontWeight: 600 }}>
+                    {`(${activeDimIndex + 1}/4)`}
+                  </span>
                 </div>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', marginTop: '3px' }}>
-                  {currentDimConfig.label}
+                <span style={{ fontSize: '0.7rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '1px' }}>
+                  {dimensionField === 'width' && 'Costado exterior a costado exterior'}
+                  {dimensionField === 'height' && 'Altura exterior de piso/zócalo a tapa'}
+                  {dimensionField === 'depth' && 'Profundidad de casco exterior'}
+                  {dimensionField === 'thickness' && 'Espesor nominal del tablero melamínico'}
                 </span>
               </div>
 
@@ -921,10 +880,10 @@ export function ModoObraWizard({
                 title="Medida siguiente"
                 className="m3-button m3-button--tonal"
                 style={{
-                  minWidth: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  fontSize: '1rem',
+                  minWidth: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  fontSize: '0.9rem',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -935,6 +894,75 @@ export function ModoObraWizard({
               >
                 ▶
               </button>
+            </div>
+
+            {/* 4-Dimension Segmented Overview Bar (Direct Tapping into Any Measure) */}
+            <div
+              role="tablist"
+              aria-label="Selector de medidas principales"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '0.35rem',
+                width: '100%',
+                maxWidth: '460px',
+                boxSizing: 'border-box',
+              }}
+            >
+              {dimensionFieldsList.map((f) => {
+                const isSelected = f.id === dimensionField;
+                return (
+                  <button
+                    key={f.id}
+                    role="tab"
+                    aria-selected={isSelected}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('tick');
+                      setDimensionField(f.id);
+                    }}
+                    aria-label={`Seleccionar medida: ${f.label}`}
+                    title={`${f.label} (${f.value} mm)`}
+                    style={{
+                      minHeight: '50px',
+                      padding: '0.25rem 0.2rem',
+                      borderRadius: '12px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        opacity: isSelected ? 1 : 0.75,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {f.shortLabel}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginTop: '1px' }}>
+                      <span style={{ fontSize: '0.98rem', fontWeight: 800 }}>{f.value}</span>
+                      <span style={{ fontSize: '0.62rem', opacity: 0.7 }}>mm</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Radial Dial for Selected Dimension */}
@@ -1004,7 +1032,7 @@ export function ModoObraWizard({
                 min={12}
                 max={30}
                 step={1}
-                coarseStep={1}
+                coarseStep={3}
                 unit="mm"
                 helpText="Espesor nominal del tablero melamínico (18 mm estándar)."
                 handMode={handMode}

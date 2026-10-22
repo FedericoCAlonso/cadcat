@@ -461,11 +461,15 @@ export function ThumbArcInput({
             <div
               style={{
                 display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: '0.3rem',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                WebkitOverflowScrolling: 'touch',
+                gap: '0.35rem',
                 width: '100%',
-                marginBottom: '0.3rem',
+                marginBottom: '0.35rem',
+                padding: '0.1rem 0.2rem',
+                justifyContent: quickPresets.length <= 4 ? 'center' : 'flex-start',
+                boxSizing: 'border-box',
               }}
             >
               {quickPresets.map((preset) => {
@@ -485,6 +489,8 @@ export function ThumbArcInput({
                       fontSize: '0.86rem',
                       fontWeight: isSelected ? 700 : 600,
                       borderRadius: '24px',
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {`${preset} ${unit}`}
@@ -498,26 +504,28 @@ export function ThumbArcInput({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateColumns: coarseStep === step ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
               gap: '0.4rem',
               width: '100%',
               marginBottom: '0.45rem',
             }}
           >
-            <button
-              type="button"
-              onClick={() => applyDelta(-coarseStep)}
-              className="m3-button m3-button--tonal"
-              aria-label={`Restar ${coarseStep} ${unit}`}
-              style={{
-                minHeight: '48px',
-                fontSize: '0.92rem',
-                fontWeight: 700,
-                borderRadius: '14px',
-              }}
-            >
-              {`-${coarseStep}`}
-            </button>
+            {coarseStep !== step && (
+              <button
+                type="button"
+                onClick={() => applyDelta(-coarseStep)}
+                className="m3-button m3-button--tonal"
+                aria-label={`Restar ${coarseStep} ${unit}`}
+                style={{
+                  minHeight: '48px',
+                  fontSize: '0.92rem',
+                  fontWeight: 700,
+                  borderRadius: '14px',
+                }}
+              >
+                {`-${coarseStep}`}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => applyDelta(-step)}
@@ -546,20 +554,22 @@ export function ThumbArcInput({
             >
               {`+${step}`}
             </button>
-            <button
-              type="button"
-              onClick={() => applyDelta(coarseStep)}
-              className="m3-button m3-button--tonal"
-              aria-label={`Sumar ${coarseStep} ${unit}`}
-              style={{
-                minHeight: '48px',
-                fontSize: '0.92rem',
-                fontWeight: 700,
-                borderRadius: '14px',
-              }}
-            >
-              {`+${coarseStep}`}
-            </button>
+            {coarseStep !== step && (
+              <button
+                type="button"
+                onClick={() => applyDelta(coarseStep)}
+                className="m3-button m3-button--tonal"
+                aria-label={`Sumar ${coarseStep} ${unit}`}
+                style={{
+                  minHeight: '48px',
+                  fontSize: '0.92rem',
+                  fontWeight: 700,
+                  borderRadius: '14px',
+                }}
+              >
+                {`+${coarseStep}`}
+              </button>
+            )}
           </div>
         </>
       )}
