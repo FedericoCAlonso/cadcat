@@ -471,7 +471,21 @@ body {
   }
 }
 
+@media (min-width: 768px) and (max-width: 1023px) {
+  .m3-container {
+    max-width: 100%;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
 @media (min-width: 1024px) {
+  .m3-container {
+    max-width: 100%;
+    width: 100%;
+    padding: 0.5rem 1rem;
+  }
+
   .m3-top-app-bar {
     padding: 0 1.25rem;
     height: 3.5rem;
@@ -1030,31 +1044,22 @@ body {
     display: none;
   }
 
-  /* Floating Inspector Drawer */
-  .layout-main .viewport-3d-inspector--floating {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.75rem;
-    width: clamp(300px, 28vw, 380px);
-    max-height: calc(100% - 1.5rem);
-    background: color-mix(in srgb, var(--md-sys-color-surface-container) 94%, transparent);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-md);
-    box-shadow: var(--md-sys-elevation-3);
-    z-index: 30;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 1rem;
-    margin-top: 0;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    scrollbar-width: thin;
-    scrollbar-color: var(--md-sys-color-outline-variant) transparent;
+  /* Piece Inspector Card in Sidebar */
+  .piece-inspector-card {
+    position: relative;
+    transition: all 0.2s ease-in-out;
+    animation: m3-fade-slide-in 0.25s cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+@keyframes m3-fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

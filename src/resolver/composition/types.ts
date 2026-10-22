@@ -108,6 +108,10 @@ export type BayContent =
       setbackMm?: number;
       hasAntiSagBrace?: boolean;
       shelfTracks?: TrackSize[];
+      hasDoors?: boolean;
+      doorCount?: 1 | 2;
+      doorMountType?: DoorMountType;
+      doorHingeSide?: 'left' | 'right';
     }
   | {
       type: 'drawer-stack';

@@ -130,4 +130,61 @@ describe('ShelvesBayResolver with Parametric Tracks (Point 2)', () => {
     expect(result.joints).toHaveLength(0);
     expect(result.placementNodes).toHaveLength(0);
   });
+
+  it('generates both shelves and double hinged doors when hasDoors is true (Decoupled Shelves & Doors)', () => {
+    const result = resolver.resolve({
+      bay: mockBay,
+      content: {
+        type: 'shelves',
+        count: 2,
+        shelfType: 'fixed',
+        hasDoors: true,
+        doorCount: 2,
+        doorMountType: 'codo-0',
+      },
+      materials: mockMaterials,
+      options: mockOptions,
+    });
+
+    // 2 shelves + 2 doors = 4 pieces
+    expect(result.pieces).toHaveLength(4);
+    const shelfPieces = result.pieces.filter((p) => p.role === 'shelf');
+    const doorPieces = result.pieces.filter((p) => p.role.startsWith('door'));
+    expect(shelfPieces).toHaveLength(2);
+    expect(doorPieces).toHaveLength(2);
+
+    // Shelf joints (fixed) + Door hinge joints
+    const hingeJoints = result.joints.filter((j) => j.kind === 'hinge');
+    expect(hingeJoints.length).toBeGreaterThanOrEqual(4); // 2 hinges per door leaf
+  });
+
+  it('adjusts shelf setback when inset doors (codo-18) are enabled so shelves do not hit the door front', () => {
+    const result = resolver.resolve({
+      bay: mockBay,
+      content: {
+        type: 'shelves',
+        count: 1,
+        shelfType: 'adjustable',
+        hasDoors: true,
+        doorCount: 1,
+        doorMountType: 'codo-18',
+        doorHingeSide: 'left',
+        setbackMm: 20,
+      },
+      materials: mockMaterials,
+      options: {
+        ...mockOptions,
+        frontThicknessMm: 18,
+      },
+    });
+
+    const shelf = result.pieces.find((p) => p.role === 'shelf');
+    expect(shelf).toBeDefined();
+    // Bay depth = 500. Total setback = frontThicknessMm (18) + setbackMm (20) = 38mm.
+    // Shelf depth in rectangular contour (points[2].y) should be 500 - 38 = 462mm.
+    expect(shelf!.contour.points[2]!.y).toBe(500 - 38);
+
+    const door = result.pieces.find((p) => p.role.startsWith('door'));
+    expect(door).toBeDefined();
+  });
 });

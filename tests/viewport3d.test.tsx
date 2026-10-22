@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { Viewport3D } from '../src/ui/Viewport3D';
+import { ModuleForm } from '../src/ui/ModuleForm';
 import { App } from '../src/ui/App';
 import type { SpatialPieceBox, ModuleSpatialBounds, ResolvedPieceWithCutSize } from '../src/resolver';
 
@@ -91,7 +92,7 @@ describe('Viewport3D Component', () => {
     expect(html).toContain('Side');
   });
 
-  it('renders selected piece inspector when a piece is selected', () => {
+  it('indicates selected piece status in viewport touch hint without obscuring 3D canvas', () => {
     const html = renderToString(
       <Viewport3D
         boxes={mockBoxes}
@@ -104,11 +105,11 @@ describe('Viewport3D Component', () => {
       />,
     );
 
-    expect(html).toContain('Selected Piece: base-side-left');
-    expect(html).toContain('side-left');
-    expect(html).toContain('560 × 800 mm');
-    expect(html).toContain('558 × 800 mm');
-    expect(html).toContain('Clear Selection');
+    expect(html).toContain('Pieza seleccionada:');
+    expect(html).toContain('base-side-left');
+    expect(html).toContain('Lateral izquierdo');
+    // Canvas remains clean without floating inspector obstructing the 3D model
+    expect(html).not.toContain('viewport-3d-inspector--floating');
   });
 
   it('renders shelf deflection details in inspector when a shelf piece is selected', () => {
@@ -118,16 +119,6 @@ describe('Viewport3D Component', () => {
       role: 'shelf',
       dimensionsMm: { width: 564, height: 540 },
       cutDimensionsMm: { width: 564, height: 540 },
-    };
-
-    const shelfBox: SpatialPieceBox = {
-      pieceId: 'base-shelf-1',
-      role: 'shelf',
-      materialId: 'mat-1',
-      thicknessMm: 18,
-      positionMm: { x: 18, y: 400, z: 0 },
-      sizeMm: { x: 564, y: 18, z: 540 },
-      centerMm: { x: 300, y: 409, z: 270 },
     };
 
     const deflMap = new Map();
@@ -149,19 +140,14 @@ describe('Viewport3D Component', () => {
     });
 
     const html = renderToString(
-      <Viewport3D
-        boxes={[...mockBoxes, shelfBox]}
-        bounds={mockBounds}
+      <ModuleForm
+        activePieceId="base-shelf-1"
         pieces={[shelfPiece]}
-        explodedRatio={0}
-        onExplodedRatioChange={vi.fn()}
-        selectedPieceId="base-shelf-1"
-        onSelectPiece={vi.fn()}
         shelfDeflections={deflMap}
       />,
     );
 
-    expect(html).toContain('Selected Piece: base-shelf-1');
+    expect(html).toContain('base-shelf-1');
     expect(html).toContain('Deflexión en Estante');
     expect(html).toContain('0.20 mm');
     expect(html).toContain('2.82 mm');

@@ -212,6 +212,10 @@ export interface ModuleViewModelState {
   setShelfType: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
   setShelfAntiSag: (bayIndex: number, hasAntiSag: boolean) => void;
   setShelfTracks: (bayIndex: number, tracks: TrackSize[]) => void;
+  setShelfHasDoors: (bayIndex: number, hasDoors: boolean) => void;
+  setShelfDoorCount: (bayIndex: number, count: 1 | 2) => void;
+  setShelfDoorMountType: (bayIndex: number, mount: DoorMountType) => void;
+  setShelfDoorHingeSide: (bayIndex: number, hingeSide: 'left' | 'right') => void;
   addDrawer: (bayIndex: number) => void;
   removeDrawer: (bayIndex: number) => void;
   setDrawerFrontMount: (bayIndex: number, mount: DrawerFrontMount) => void;
@@ -1129,6 +1133,55 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
       const shelfCount = Math.max(1, tracks.length - 1);
       next[bayIndex] = { ...current, count: shelfCount, shelfTracks: tracks };
+      return next;
+    });
+  }, []);
+
+  const setShelfHasDoors = useCallback((bayIndex: number, hasDoors: boolean) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'shelves') return prev;
+      next[bayIndex] = {
+        ...current,
+        hasDoors,
+        doorCount: current.doorCount ?? 2,
+        doorMountType: current.doorMountType ?? 'full-overlay',
+      };
+      return next;
+    });
+  }, []);
+
+  const setShelfDoorCount = useCallback((bayIndex: number, count: 1 | 2) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'shelves') return prev;
+      next[bayIndex] = { ...current, doorCount: count, hasDoors: true };
+      return next;
+    });
+  }, []);
+
+  const setShelfDoorMountType = useCallback((bayIndex: number, mountType: DoorMountType) => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'shelves') return prev;
+      next[bayIndex] = { ...current, doorMountType: mountType };
+      return next;
+    });
+  }, []);
+
+  const setShelfDoorHingeSide = useCallback((bayIndex: number, hingeSide: 'left' | 'right') => {
+    setIsCustomModular(true);
+    setBaysState((prev) => {
+      const next = [...prev];
+      const current = next[bayIndex];
+      if (current?.type !== 'shelves') return prev;
+      next[bayIndex] = { ...current, doorHingeSide: hingeSide };
       return next;
     });
   }, []);
@@ -3254,6 +3307,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setShelfType,
     setShelfAntiSag,
     setShelfTracks,
+    setShelfHasDoors,
+    setShelfDoorCount,
+    setShelfDoorMountType,
+    setShelfDoorHingeSide,
     addDrawer,
     removeDrawer,
     setDrawerFrontMount,

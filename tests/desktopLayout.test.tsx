@@ -3,10 +3,9 @@ import React, { act, useEffect } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { ModuleForm } from '../src/ui/ModuleForm';
-import { Viewport3D } from '../src/ui/Viewport3D';
 import { useModuleViewModel } from '../src/ui/useModuleViewModel';
 import type { Material, EdgeBand } from '../src/model';
-import type { BayContent, SpatialPieceBox, ModuleSpatialBounds, ResolvedPieceWithCutSize } from '../src/resolver';
+import type { BayContent, ResolvedPieceWithCutSize } from '../src/resolver';
 
 // @ts-expect-error React act testing flag
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -64,25 +63,6 @@ const mockEdgeBands: EdgeBand[] = [
     pricePerMeter: 10,
   },
 ];
-
-const mockBoxes: SpatialPieceBox[] = [
-  {
-    pieceId: 'lateral-izq',
-    role: 'lateral-izq',
-    materialId: 'mat-1',
-    thicknessMm: 18,
-    positionMm: { x: 0, y: 0, z: 0 },
-    sizeMm: { x: 18, y: 720, z: 580 },
-    centerMm: { x: 9, y: 360, z: 290 },
-  },
-];
-
-const mockBounds: ModuleSpatialBounds = {
-  min: { x: 0, y: 0, z: 0 },
-  max: { x: 600, y: 720, z: 580 },
-  center: { x: 300, y: 360, z: 290 },
-  size: { x: 600, y: 720, z: 580 },
-};
 
 const mockPieces: ResolvedPieceWithCutSize[] = [
   {
@@ -232,7 +212,7 @@ describe('Desktop and Tablet Layout Enhancements', () => {
     container.remove();
   });
 
-  it('renders floating inspector header with close button ✕ in Viewport3D when piece is selected', () => {
+  it('renders piece inspector card with close button ✕ in ModuleForm when piece is selected', () => {
     const onSelectPiece = vi.fn();
 
     const container = document.createElement('div');
@@ -241,19 +221,16 @@ describe('Desktop and Tablet Layout Enhancements', () => {
 
     act(() => {
       root.render(
-        <Viewport3D
-          boxes={mockBoxes}
-          bounds={mockBounds}
-          pieces={mockPieces}
-          explodedRatio={0}
-          onExplodedRatioChange={vi.fn()}
-          selectedPieceId="lateral-izq"
+        <ModuleForm
+          activePieceId="lateral-izq"
           onSelectPiece={onSelectPiece}
+          pieces={mockPieces}
+          materials={mockMaterials}
         />,
       );
     });
 
-    const inspector = container.querySelector('.viewport-3d-inspector--floating');
+    const inspector = container.querySelector('.piece-inspector-card');
     expect(inspector).not.toBeNull();
 
     const closeBtn = inspector?.querySelector('button[aria-label="Cerrar inspector y deseleccionar"]') as HTMLButtonElement;

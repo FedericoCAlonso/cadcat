@@ -4,6 +4,7 @@ import { createJoint } from '../../joint';
 import { type PlacementNode } from '../../tree';
 import { buildShelf } from '../../templates/shelf';
 import { resolveTracks } from '../gridSolver';
+import { buildDoorsForBay } from './doorsHelper';
 import {
   type IBayContentResolver,
   type BayResolutionContext,
@@ -33,9 +34,32 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
       setbackMm = 20,
       hasAntiSagBrace = false,
       shelfTracks,
+      hasDoors = false,
+      doorCount = 2,
+      doorMountType = 'full-overlay',
+      doorHingeSide = 'left',
     } = content;
 
+    const isInsetDoor = hasDoors && (doorMountType === 'codo-18' || doorMountType === 'inset');
+    const effectiveSetback = (isInsetDoor ? (options.frontThicknessMm ?? T) : 0) + setbackMm;
+
     if (count <= 0 && (!shelfTracks || shelfTracks.length < 2)) {
+      if (hasDoors) {
+        const doorsOnly = buildDoorsForBay({
+          bay,
+          materials,
+          options,
+          count: doorCount,
+          hingeSide: doorHingeSide,
+          mountType: doorMountType,
+        });
+        return {
+          pieces: doorsOnly.pieces,
+          joints: doorsOnly.joints,
+          placementNodes: doorsOnly.placementNodes,
+          subAssemblies: [],
+        };
+      }
       return { pieces, joints, placementNodes, subAssemblies: [] };
     }
 
@@ -47,7 +71,7 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
     const resolved = resolveTracks(bay.height, effectiveTracks, T);
     const effectiveCount = resolved.dividers.length;
 
-    if (effectiveCount <= 0) {
+    if (effectiveCount <= 0 && !hasDoors) {
       return { pieces, joints, placementNodes, subAssemblies: [] };
     }
 
@@ -68,7 +92,8 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
           thicknessMm: T,
           mountType: shelfType,
           edgeBandId,
-          setbackMm,
+          setbackMm: effectiveSetback,
+          frontOffsetMm: effectiveSetback,
         },
         rootPieceId,
       );
@@ -276,6 +301,20 @@ export class ShelvesBayResolver implements IBayContentResolver<BayContentShelves
           }),
         );
       }
+    }
+
+    if (hasDoors) {
+      const doorsResult = buildDoorsForBay({
+        bay,
+        materials,
+        options,
+        count: doorCount,
+        hingeSide: doorHingeSide,
+        mountType: doorMountType,
+      });
+      pieces.push(...doorsResult.pieces);
+      joints.push(...doorsResult.joints);
+      placementNodes.push(...doorsResult.placementNodes);
     }
 
     return {

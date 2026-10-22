@@ -1,5 +1,5 @@
 import { useState, useMemo, type ReactElement } from 'react';
-import type { Material, EdgeBand, JointStrategy, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
+import type { Material, EdgeBand, JointStrategy, JointKind, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
 import type {
   TemplateDefinition,
   RoofType,
@@ -20,9 +20,13 @@ import type {
   BoundaryCondition,
   OverhangMode,
   WallShelvingOutput,
+  PieceEdgeBandOverride,
+  ResolvedPieceWithCutSize,
+  KinematicMechanism,
+  ShelfDeflectionResult,
 } from '../resolver';
 import { resolveTracks } from '../resolver';
-import { translateTemplateName, translateEdgeBandKind, t } from './localization';
+import { translateTemplateName, translateEdgeBandKind, translatePieceRole, t } from './localization';
 import { NumericInput } from './NumericInput';
 import { DrawerTracksInput } from './DrawerTracksInput';
 import { BayTracksInput } from './BayTracksInput';
@@ -43,24 +47,24 @@ export interface ModuleFormProps {
   projectScope?: 'current-module' | 'all-modules';
   onProjectScopeChange?: (scope: 'current-module' | 'all-modules') => void;
 
-  width: number;
-  height: number;
-  depth: number;
+  width?: number;
+  height?: number;
+  depth?: number;
   templates?: TemplateDefinition[];
   selectedTemplateId?: string;
-  materials: Material[];
-  edgeBands: EdgeBand[];
-  selectedMaterialId: string;
-  selectedEdgeBandId: string;
+  materials?: Material[];
+  edgeBands?: EdgeBand[];
+  selectedMaterialId?: string;
+  selectedEdgeBandId?: string;
   jointStrategy?: JointStrategy;
-  isSaving: boolean;
-  onWidthChange: (val: number) => void;
-  onHeightChange: (val: number) => void;
-  onDepthChange: (val: number) => void;
+  isSaving?: boolean;
+  onWidthChange?: (val: number) => void;
+  onHeightChange?: (val: number) => void;
+  onDepthChange?: (val: number) => void;
   onTemplateChange?: (id: string) => void;
-  onMaterialChange: (id: string) => void;
-  onEdgeBandChange: (id: string) => void;
-  onSave: () => void;
+  onMaterialChange?: (id: string) => void;
+  onEdgeBandChange?: (id: string) => void;
+  onSave?: () => void;
   onExportCsv?: () => void;
   onExportPdf?: () => void;
   // Modular builder state & actions
@@ -91,6 +95,10 @@ export interface ModuleFormProps {
   onShelfTypeChange?: (bayIndex: number, type: 'adjustable' | 'fixed') => void;
   onShelfAntiSagChange?: (bayIndex: number, hasAntiSag: boolean) => void;
   onShelfTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
+  onShelfHasDoorsChange?: (bayIndex: number, hasDoors: boolean) => void;
+  onShelfDoorCountChange?: (bayIndex: number, count: 1 | 2) => void;
+  onShelfDoorMountTypeChange?: (bayIndex: number, mount: DoorMountType) => void;
+  onShelfDoorHingeSideChange?: (bayIndex: number, hingeSide: 'left' | 'right') => void;
   onAddDrawer?: (bayIndex: number) => void;
   onRemoveDrawer?: (bayIndex: number) => void;
   onDrawerFrontMountChange?: (bayIndex: number, mount: DrawerFrontMount) => void;
@@ -174,6 +182,23 @@ export interface ModuleFormProps {
   onWallShelvesVerticalSpacingMmChange?: (spacing: number) => void;
   onWallShelvesBaseElevationYMmChange?: (elev: number) => void;
   onViewAssemblyClick?: () => void;
+  // Piece Inspector
+  activePieceId?: string | null;
+  onSelectPiece?: (pieceId: string | null) => void;
+  pieces?: ResolvedPieceWithCutSize[];
+  pieceMaterialOverrides?: Record<string, string>;
+  pieceThicknessOverrides?: Record<string, number>;
+  pieceEdgeBandOverrides?: Record<string, PieceEdgeBandOverride>;
+  pieceJointOverrides?: Record<string, JointKind>;
+  onSetPieceMaterial?: (pieceId: string, materialId: string | null) => void;
+  onSetPieceThickness?: (pieceId: string, thicknessMm: number | null) => void;
+  onSetPieceEdgeBands?: (pieceId: string, overrides: PieceEdgeBandOverride | null) => void;
+  onSetPieceJointOverride?: (pieceId: string, jointKind: JointKind | null) => void;
+  onOpenMachiningModal?: (pieceId: string) => void;
+  kinematicMechanisms?: KinematicMechanism[];
+  kinematicsState?: Record<string, number>;
+  onMechanismOpenRatioChange?: (mechanismId: string, ratio: number) => void;
+  shelfDeflections?: Map<string, ShelfDeflectionResult>;
 }
 
 /**
@@ -194,24 +219,24 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onSaveProject,
     projectScope = 'current-module',
     onProjectScopeChange,
-    width,
-    height,
-    depth,
+    width = 600,
+    height = 720,
+    depth = 560,
     templates,
     selectedTemplateId,
-    materials,
-    edgeBands,
-    selectedMaterialId,
-    selectedEdgeBandId,
+    materials = [],
+    edgeBands = [],
+    selectedMaterialId = '',
+    selectedEdgeBandId = '',
     jointStrategy = 'confirmat',
-    isSaving,
-    onWidthChange,
-    onHeightChange,
-    onDepthChange,
+    isSaving = false,
+    onWidthChange = () => {},
+    onHeightChange = () => {},
+    onDepthChange = () => {},
     onTemplateChange,
-    onMaterialChange,
-    onEdgeBandChange,
-    onSave,
+    onMaterialChange = () => {},
+    onEdgeBandChange = () => {},
+    onSave = () => {},
     onExportCsv,
     onExportPdf,
     onSaveUserTemplate,
@@ -239,6 +264,10 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onShelfTypeChange,
     onShelfAntiSagChange,
     onShelfTracksChange,
+    onShelfHasDoorsChange,
+    onShelfDoorCountChange,
+    onShelfDoorMountTypeChange,
+    onShelfDoorHingeSideChange,
     onAddDrawer,
     onRemoveDrawer,
     onDrawerFrontMountChange,
@@ -315,6 +344,22 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onWallShelvesVerticalSpacingMmChange,
     onWallShelvesBaseElevationYMmChange,
     onViewAssemblyClick,
+    activePieceId,
+    onSelectPiece,
+    pieces = [],
+    pieceMaterialOverrides,
+    pieceThicknessOverrides,
+    pieceEdgeBandOverrides,
+    pieceJointOverrides,
+    onSetPieceMaterial,
+    onSetPieceThickness,
+    onSetPieceEdgeBands,
+    onSetPieceJointOverride,
+    onOpenMachiningModal,
+    kinematicMechanisms,
+    kinematicsState,
+    onMechanismOpenRatioChange,
+    shelfDeflections,
   } = props;
 
   const isWallShelves = selectedTemplateId === 'wall-shelves';
@@ -332,7 +377,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const currentActiveIndex = Math.min(activeBayIndex, currentBayCount - 1);
   const activeBay = bays[currentActiveIndex] ?? { type: 'empty' };
 
-  const rawThickness = materials.find((m) => m.id === selectedMaterialId)?.thicknessMm;
+  const rawThickness = materials?.find((m) => m.id === selectedMaterialId)?.thicknessMm;
   const matThickness = typeof rawThickness === 'number' ? rawThickness : 18;
   const estimatedBayCavityHeight = Math.max(
     100,
@@ -416,6 +461,16 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     ],
     [],
   );
+
+  const selectedPiece = useMemo(() => {
+    if (!activePieceId || !pieces) return null;
+    return pieces.find((p) => p.id === activePieceId) ?? null;
+  }, [activePieceId, pieces]);
+
+  const pieceMech = useMemo(() => {
+    if (!selectedPiece || !kinematicMechanisms) return null;
+    return kinematicMechanisms.find((m) => m.pieceIds.includes(selectedPiece.id)) ?? null;
+  }, [selectedPiece, kinematicMechanisms]);
 
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -731,6 +786,306 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           )}
         </div>
       </div>
+
+      {/* Selected Piece Inspector in Sidebar (Unobstructed 3D CAD experience) */}
+      {selectedPiece && (
+        <aside
+          aria-label="Inspector de Pieza Seleccionada"
+          className="piece-inspector-card m3-card"
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            backgroundColor: 'var(--md-sys-color-surface-container-high)',
+            borderRadius: 'var(--md-sys-shape-corner-md)',
+            border: '2px solid var(--md-sys-color-primary)',
+            boxShadow: 'var(--md-sys-elevation-2)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)' }}>
+                🔍 Pieza: <strong>{selectedPiece.id}</strong>
+              </h3>
+              <span className="m3-badge m3-badge--neutral">
+                {translatePieceRole(selectedPiece.role)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="m3-button m3-button--tonal"
+              style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem', borderRadius: '18px' }}
+              onClick={() => onSelectPiece?.(null)}
+              title="Cerrar inspector y deseleccionar pieza"
+              aria-label="Cerrar inspector y deseleccionar"
+            >
+              ✕ Cerrar
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.4rem', fontSize: '0.82rem', marginBottom: '0.75rem', padding: '0.5rem', backgroundColor: 'var(--md-sys-color-surface)', borderRadius: '6px' }}>
+            <div><strong>Espesor:</strong> {`${selectedPiece.thicknessMm} mm`}</div>
+            <div><strong>Terminada:</strong> {`${selectedPiece.dimensionsMm.width} × ${selectedPiece.dimensionsMm.height} mm`}</div>
+            <div><strong>Corte sierra:</strong> {`${selectedPiece.cutDimensionsMm.width} × ${selectedPiece.cutDimensionsMm.height} mm`}</div>
+          </div>
+
+          {/* Kinematic mechanism action for selected piece */}
+          {pieceMech && (
+            <div className="m3-structure-card" style={{ marginBottom: '0.75rem', padding: '0.6rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--md-sys-color-primary)' }}>
+                  🚪 Mecanismo: {pieceMech.name}
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
+                  {Math.round((kinematicsState?.[pieceMech.id] ?? 0) * 100)}%
+                </span>
+              </div>
+              <input
+                aria-label={`Apertura de ${pieceMech.name}`}
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={kinematicsState?.[pieceMech.id] ?? 0}
+                onChange={(e) => onMechanismOpenRatioChange?.(pieceMech.id, parseFloat(e.target.value))}
+                className="viewport-3d-slider"
+                style={{ width: '100%' }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
+                <button
+                  type="button"
+                  className="m3-button m3-button--tonal"
+                  style={{ flex: 1, minHeight: '36px', fontSize: '0.8rem', justifyContent: 'center' }}
+                  onClick={() => onMechanismOpenRatioChange?.(pieceMech.id, 0)}
+                >
+                  Cerrar
+                </button>
+                <button
+                  type="button"
+                  className="m3-button m3-button--primary"
+                  style={{ flex: 1, minHeight: '36px', fontSize: '0.8rem', justifyContent: 'center' }}
+                  onClick={() => onMechanismOpenRatioChange?.(pieceMech.id, 1)}
+                >
+                  Abrir
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Piece-level Material Override */}
+          {materials && materials.length > 0 && (
+            <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
+              <label
+                htmlFor={`piece-material-override-${selectedPiece.id}`}
+                style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.25rem' }}
+              >
+                🪵 Material de la Placa:
+              </label>
+              <select
+                id={`piece-material-override-${selectedPiece.id}`}
+                className="m3-select"
+                style={{ width: '100%', fontSize: '0.85rem' }}
+                value={pieceMaterialOverrides?.[selectedPiece.id] ?? selectedPiece.materialId}
+                onChange={(e) => onSetPieceMaterial?.(selectedPiece.id, e.target.value || null)}
+              >
+                {materials.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name ?? m.id} ({m.thicknessMm} mm)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Piece-level Thickness Override */}
+          <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
+            <label
+              htmlFor={`piece-thickness-override-${selectedPiece.id}`}
+              style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.25rem' }}
+            >
+              📏 Espesor de Placa (mm):
+            </label>
+            <input
+              id={`piece-thickness-override-${selectedPiece.id}`}
+              type="number"
+              className="m3-input"
+              style={{ width: '100%', fontSize: '0.85rem', padding: '0.35rem 0.5rem' }}
+              min={3}
+              max={50}
+              value={pieceThicknessOverrides?.[selectedPiece.id] ?? selectedPiece.thicknessMm}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && val > 0) {
+                  onSetPieceThickness?.(selectedPiece.id, val);
+                }
+              }}
+            />
+          </div>
+
+          {/* Piece-level EdgeBand Overrides */}
+          <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
+            <span style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+              🏷️ Tapacantos en Bordes:
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem', fontSize: '0.82rem' }}>
+              {(['top', 'bottom', 'left', 'right'] as const).map((edgeKey) => {
+                const label =
+                  edgeKey === 'top'
+                    ? 'Superior'
+                    : edgeKey === 'bottom'
+                    ? 'Inferior'
+                    : edgeKey === 'left'
+                    ? 'Izquierdo'
+                    : 'Derecho';
+                const isBanded =
+                  pieceEdgeBandOverrides?.[selectedPiece.id]?.[edgeKey] ??
+                  selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes(edgeKey));
+
+                return (
+                  <label key={edgeKey} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(isBanded)}
+                      onChange={(e) => {
+                        const current = pieceEdgeBandOverrides?.[selectedPiece.id] ?? {
+                          top: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('top')),
+                          bottom: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('bottom')),
+                          left: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('left')),
+                          right: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('right')),
+                        };
+                        onSetPieceEdgeBands?.(selectedPiece.id, {
+                          ...current,
+                          [edgeKey]: e.target.checked,
+                        });
+                      }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+            {edgeBands && edgeBands.length > 0 && (
+              <div style={{ marginTop: '0.45rem' }}>
+                <label
+                  htmlFor={`piece-edgeband-override-${selectedPiece.id}`}
+                  style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.2rem', color: 'var(--md-sys-color-on-surface-variant)' }}
+                >
+                  Tipo / Espesor de Tapacanto:
+                </label>
+                <select
+                  id={`piece-edgeband-override-${selectedPiece.id}`}
+                  className="m3-select"
+                  style={{ width: '100%', fontSize: '0.8rem' }}
+                  value={pieceEdgeBandOverrides?.[selectedPiece.id]?.edgeBandId ?? ''}
+                  onChange={(e) => {
+                    const current = pieceEdgeBandOverrides?.[selectedPiece.id] ?? {
+                      top: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('top')),
+                      bottom: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('bottom')),
+                      left: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('left')),
+                      right: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('right')),
+                    };
+                    onSetPieceEdgeBands?.(selectedPiece.id, {
+                      ...current,
+                      edgeBandId: e.target.value || undefined,
+                    });
+                  }}
+                >
+                  <option value="">Por defecto del módulo</option>
+                  {edgeBands.map((eb) => (
+                    <option key={eb.id} value={eb.id}>
+                      {eb.id} ({eb.thicknessMm} mm - {eb.kind})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Piece-level Joint Override */}
+          <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
+            <label
+              htmlFor={`piece-joint-override-${selectedPiece.id}`}
+              style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.25rem' }}
+            >
+              🔩 Fijación / Unión para esta placa:
+            </label>
+            <select
+              id={`piece-joint-override-${selectedPiece.id}`}
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+              value={pieceJointOverrides?.[selectedPiece.id] ?? ''}
+              onChange={(e) => {
+                const val = e.target.value as JointKind | '';
+                onSetPieceJointOverride?.(selectedPiece.id, val ? val : null);
+              }}
+            >
+              <option value="">Por defecto del proyecto ({jointStrategy})</option>
+              <option value="cam-dowel">Minifix / Rastex (Oculto sin tornillos pasantes)</option>
+              <option value="dowel">Tarugos de madera (Oculto)</option>
+              <option value="confirmat">Tornillo pasante (Confirmat)</option>
+              <option value="dowel-and-confirmat">Tarugos + Confirmat</option>
+              <option value="screw">Tornillo común (Spax)</option>
+            </select>
+            {pieceJointOverrides?.[selectedPiece.id] && (
+              <span className="m3-badge m3-badge--success" style={{ marginTop: '0.35rem', display: 'inline-block' }}>
+                ✓ Fijación personalizada: {pieceJointOverrides[selectedPiece.id]}
+              </span>
+            )}
+          </div>
+
+          {/* Custom Machinings Button */}
+          {onOpenMachiningModal && (
+            <div style={{ marginTop: '0.6rem' }}>
+              <button
+                type="button"
+                className="m3-button m3-button--tonal"
+                style={{ width: '100%', minHeight: '44px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                onClick={() => onOpenMachiningModal(selectedPiece.id)}
+              >
+                🛠️ Mecanizar Placa (Ranuras / Fresados / Agujeros)
+              </button>
+            </div>
+          )}
+
+          {/* Deflection if shelf */}
+          {shelfDeflections?.get(selectedPiece.id) && (() => {
+            const defl = shelfDeflections.get(selectedPiece.id)!;
+            return (
+              <div
+                className={`inspector-deflection-card ${defl.hasWarning ? 'warning' : 'ok'}`}
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  backgroundColor: defl.hasWarning ? 'var(--md-sys-color-error-container)' : 'var(--md-sys-color-success-container)',
+                  border: `1px solid ${defl.hasWarning ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-success-border)'}`,
+                  color: defl.hasWarning ? 'var(--md-sys-color-on-error-container)' : 'var(--md-sys-color-on-success-container)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <span>{defl.hasWarning ? '⚠️ Deflexión en Estante' : '✓ Deflexión en Estante'}</span>
+                </div>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.82rem' }}>
+                  <strong>Flecha estimada: </strong>
+                  {`${defl.calculatedDeflectionMm.toFixed(2)} mm | `}
+                  <strong>Máx admisible: </strong>
+                  {`${defl.allowableDeflectionMm.toFixed(2)} mm`}
+                </p>
+                <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', opacity: 0.9 }}>
+                  <strong>Carga: </strong>
+                  {`${defl.totalLoadKg.toFixed(1)} kg (${defl.totalLoadN.toFixed(0)} N) | `}
+                  <strong>Módulo E: </strong>
+                  {`${defl.elasticModulusMPa} MPa ${defl.isElasticModulusConfirmed ? '' : '(TO_CONFIRM)'}`}
+                </p>
+                {defl.hasWarning && (
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', fontWeight: 600 }}>
+                    {defl.warningMessage}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </aside>
+      )}
 
       {templates && templates.length > 0 && onTemplateChange && (
         <div className="form-group template-selection-group">
@@ -2644,6 +2999,95 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   Sin refuerzo
                 </button>
               </div>
+            </div>
+
+            {/* Puertas frontales para el vano de estantes */}
+            <div className="form-group" style={{ padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+              <label style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+                🚪 Puertas frontales en este vano:
+              </label>
+              <div className="builder-segmented-group" style={{ marginBottom: '0.5rem' }}>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${!activeBay.hasDoors ? 'selected' : ''}`}
+                  onClick={() => onShelfHasDoorsChange?.(currentActiveIndex, false)}
+                >
+                  Abierto (Sin puertas)
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.hasDoors && (activeBay.doorCount ?? 1) === 1 ? 'selected' : ''}`}
+                  onClick={() => {
+                    onShelfHasDoorsChange?.(currentActiveIndex, true);
+                    onShelfDoorCountChange?.(currentActiveIndex, 1);
+                  }}
+                >
+                  1 Puerta batiente
+                </button>
+                <button
+                  type="button"
+                  className={`builder-segmented-btn ${activeBay.hasDoors && activeBay.doorCount === 2 ? 'selected' : ''}`}
+                  onClick={() => {
+                    onShelfHasDoorsChange?.(currentActiveIndex, true);
+                    onShelfDoorCountChange?.(currentActiveIndex, 2);
+                  }}
+                >
+                  2 Puertas batientes
+                </button>
+              </div>
+
+              {activeBay.hasDoors && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {(activeBay.doorCount ?? 1) === 1 && (
+                    <div>
+                      <label style={{ fontSize: '0.82rem', marginBottom: '0.25rem', display: 'block' }}>Lado de apertura / bisagras:</label>
+                      <div className="builder-segmented-group">
+                        <button
+                          type="button"
+                          className={`builder-segmented-btn ${(activeBay.doorHingeSide ?? 'left') === 'left' ? 'selected' : ''}`}
+                          onClick={() => onShelfDoorHingeSideChange?.(currentActiveIndex, 'left')}
+                        >
+                          Apertura hacia Izquierda (Bisagras Izq)
+                        </button>
+                        <button
+                          type="button"
+                          className={`builder-segmented-btn ${activeBay.doorHingeSide === 'right' ? 'selected' : ''}`}
+                          onClick={() => onShelfDoorHingeSideChange?.(currentActiveIndex, 'right')}
+                        >
+                          Apertura hacia Derecha (Bisagras Der)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ fontSize: '0.82rem', marginBottom: '0.25rem', display: 'block' }}>Montaje de bisagras:</label>
+                    <div className="builder-segmented-group">
+                      <button
+                        type="button"
+                        className={`builder-segmented-btn ${(activeBay.doorMountType ?? 'codo-0') === 'codo-0' ? 'selected' : ''}`}
+                        onClick={() => onShelfDoorMountTypeChange?.(currentActiveIndex, 'codo-0')}
+                      >
+                        Aplicada / Parche (Codo 0)
+                      </button>
+                      <button
+                        type="button"
+                        className={`builder-segmented-btn ${activeBay.doorMountType === 'codo-9' ? 'selected' : ''}`}
+                        onClick={() => onShelfDoorMountTypeChange?.(currentActiveIndex, 'codo-9')}
+                      >
+                        Semi-aplicada (Codo 9)
+                      </button>
+                      <button
+                        type="button"
+                        className={`builder-segmented-btn ${activeBay.doorMountType === 'codo-18' ? 'selected' : ''}`}
+                        onClick={() => onShelfDoorMountTypeChange?.(currentActiveIndex, 'codo-18')}
+                      >
+                        Embutida / Interior (Codo 18)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

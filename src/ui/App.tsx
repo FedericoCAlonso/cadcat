@@ -564,6 +564,10 @@ export function App(): ReactElement {
                 onShelfTypeChange={vm.setShelfType}
                 onShelfAntiSagChange={vm.setShelfAntiSag}
                 onShelfTracksChange={vm.setShelfTracks}
+                onShelfHasDoorsChange={vm.setShelfHasDoors}
+                onShelfDoorCountChange={vm.setShelfDoorCount}
+                onShelfDoorMountTypeChange={vm.setShelfDoorMountType}
+                onShelfDoorHingeSideChange={vm.setShelfDoorHingeSide}
                 onAddDrawer={vm.addDrawer}
                 onRemoveDrawer={vm.removeDrawer}
                 onDrawerFrontMountChange={vm.setDrawerFrontMount}
@@ -638,6 +642,22 @@ export function App(): ReactElement {
                 falseSquare={vm.falseSquare}
                 onColumnObstacleChange={vm.setColumnObstacle}
                 onFalseSquareChange={vm.setFalseSquare}
+                activePieceId={vm.selectedPieceId}
+                onSelectPiece={vm.setSelectedPieceId}
+                pieces={vm.resolvedPieces}
+                pieceMaterialOverrides={vm.pieceMaterialOverrides}
+                pieceThicknessOverrides={vm.pieceThicknessOverrides}
+                pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
+                pieceJointOverrides={vm.pieceJointOverrides}
+                onSetPieceMaterial={vm.setPieceMaterial}
+                onSetPieceThickness={vm.setPieceThickness}
+                onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                onSetPieceJointOverride={vm.setPieceJointOverride}
+                onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                kinematicMechanisms={vm.kinematicMechanisms}
+                kinematicsState={vm.kinematicsState}
+                onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
+                shelfDeflections={vm.shelfDeflections}
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
                 onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}

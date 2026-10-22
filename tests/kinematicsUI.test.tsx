@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { Viewport3D } from '../src/ui/Viewport3D';
+import { ModuleForm } from '../src/ui/ModuleForm';
 import type {
   SpatialPieceBox,
   ModuleSpatialBounds,
@@ -144,20 +145,14 @@ describe('Viewport3D Kinematics and Piece Inspector (Points 10 & 11)', () => {
 
   it('renders piece inspector with material, thickness, edgeband and machining controls when selected', () => {
     const html = renderToString(
-      <Viewport3D
-        boxes={mockBoxes}
-        bounds={mockBounds}
+      <ModuleForm
+        activePieceId="drawer-stack-1-drawer-1-front"
         pieces={mockPieces}
-        explodedRatio={0}
-        onExplodedRatioChange={vi.fn()}
-        selectedPieceId="drawer-stack-1-drawer-1-front"
-        onSelectPiece={vi.fn()}
-        kinematicBoxes={mockKinematicBoxes}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
         kinematicMechanisms={mockMechanisms}
         kinematicsState={{ 'drawer-stack-1-drawer-1': 0.5 }}
         onMechanismOpenRatioChange={vi.fn()}
-        materials={mockMaterials}
-        edgeBands={mockEdgeBands}
         onSetPieceMaterial={vi.fn()}
         onSetPieceThickness={vi.fn()}
         onSetPieceEdgeBands={vi.fn()}
@@ -165,7 +160,6 @@ describe('Viewport3D Kinematics and Piece Inspector (Points 10 & 11)', () => {
       />,
     );
 
-    expect(html).toContain('Pieza seleccionada:');
     expect(html).toContain('drawer-stack-1-drawer-1-front');
     // Mechanism action in inspector (Point 11)
     expect(html).toContain('Mecanismo:');
