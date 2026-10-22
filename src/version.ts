@@ -1,7 +1,12 @@
+import packageJson from '../package.json';
+
 /**
- * Single source of truth for the CadCat application version.
- * Updated across development iterations (pre-production semantic versioning 0.y.z).
+ * Application version dynamically resolved from package.json (Zero-Hardcoding policy).
+ * Automatically updates whenever the project version is updated, eliminating hardcoded version strings.
  */
-export const APP_VERSION = '0.19.8';
-export const APP_AUTHOR = 'Federico C. Alonso';
-export const APP_COPYRIGHT = '© 2026 Federico C. Alonso. Todos los derechos reservados.';
+export const APP_VERSION: string = packageJson.version;
+export const APP_AUTHOR: string = typeof packageJson.author === 'string'
+  ? packageJson.author.replace(/<.*>/, '').trim()
+  : 'Federico C. Alonso';
+export const APP_COPYRIGHT: string = `© ${new Date().getFullYear()} ${APP_AUTHOR}. Todos los derechos reservados.`;
+

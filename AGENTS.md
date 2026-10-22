@@ -55,11 +55,11 @@ Este documento establece las directivas de calidad, diseño y arquitectura **est
 ### 5. Versionado Continuo Pre-Producción (Semantic Versioning 0.y.z)
 - **Incremento obligatorio de versión:** En cada ciclo de cambios o nuevas funcionalidades, es mandatorio actualizar los números de versión:
   - Mantener la versión mayor en `0` (ej: `0.y.z`), dado que el producto está en fase de desarrollo activo pre-producción.
-  - Incrementar el índice menor `y` (`0.y.0`) ante nuevas características, resolutores o módulos funcionales.
-  - Incrementar el índice de parche `z` (`0.y.z`) ante correcciones puntuales de errores, ajustes de tolerancias o refactorizaciones.
-- **Sincronización estricta:**
-  - `src/version.ts`: Fuente única de verdad exportada (`APP_VERSION`).
-  - `package.json`: Campo `"version"`.
+  - Incrementar el índice menor `y` (`0.y.0`) ante nuevas características, resolutores o módulos funcionales (`npm run version:minor`).
+  - Incrementar el índice de parche `z` (`0.y.z`) ante correcciones puntuales de errores, ajustes de tolerancias o refactorizaciones (`npm run version:patch`).
+- **Cero Hardcoding de Versión:**
+  - `package.json`: Única fuente de verdad canónica para el campo `"version"`.
+  - `src/version.ts`: Importa dinámicamente `version` de `package.json`, prohibiendo terminantemente cadenas literales hardcodeadas.
   - La interfaz de usuario (`App.tsx`) consume directamente `APP_VERSION`, sin cadenas cableadas.
 
 ---

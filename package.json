@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
     "deploy": "bash scripts/deploy-gh-pages.sh"
   },
   "dependencies": {

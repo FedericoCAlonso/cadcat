@@ -19,4 +19,12 @@ describe('Application Version Management', () => {
     expect(html).toContain(`v${APP_VERSION}`);
     expect(html).toContain('alt="CadCat Icon"');
   });
+
+  it('does not hardcode any version literal string in src/version.ts and imports dynamically from package.json', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const versionSource = fs.readFileSync(path.resolve(__dirname, '../src/version.ts'), 'utf-8');
+    expect(versionSource).not.toMatch(/APP_VERSION\s*=\s*['"`]\d+\.\d+\.\d+['"`]/);
+    expect(versionSource).toContain('packageJson.version');
+  });
 });

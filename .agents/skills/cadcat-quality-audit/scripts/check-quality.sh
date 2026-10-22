@@ -5,16 +5,16 @@ echo "============================================="
 echo "🔍 CadCat Quality & Build Verification"
 echo "============================================="
 
-# 1. Version Synchronization Check
-echo "📌 [1/4] Verificando sincronización de versiones..."
+# 1. Version Synchronization & Zero-Hardcoding Check
+echo "📌 [1/4] Verificando versionado dinámico (Cero Hardcoding)..."
 PKG_VER=$(node -p "require('./package.json').version")
-SRC_VER=$(grep "export const APP_VERSION" src/version.ts | sed -E "s/.*'([^']+)'.*/\1/")
 
-if [ "$PKG_VER" != "$SRC_VER" ]; then
-  echo "❌ Error de versión: package.json ($PKG_VER) no coincide con src/version.ts ($SRC_VER)"
+if grep -qE "APP_VERSION\s*=\s*['\"][0-9]+" src/version.ts; then
+  echo "❌ Error de versionado: src/version.ts contiene una versión hardcodeada. Debe resolverse dinámicamente desde package.json."
   exit 1
 fi
-echo "✅ Versión sincronizada: v$PKG_VER"
+
+echo "✅ Versión canónica: v$PKG_VER (resuelta dinámicamente sin hardcoding)."
 
 # 2. TypeScript Static Typecheck
 echo "📌 [2/4] Verificando tipos TypeScript (tsc --noEmit)..."

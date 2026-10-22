@@ -194,7 +194,7 @@ export function App(): ReactElement {
         {!isSiteImmersive && vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
         {!isSiteImmersive && updateAvailable && (
           <div className="m3-banner m3-banner--warning" role="alert" style={{ margin: '0 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span>🎉 ¡Nueva versión de CadCat disponible con mejoras de cajones y CAD móvil!</span>
+            <span>{`🎉 ¡Nueva versión de CadCat disponible (v${APP_VERSION})!`}</span>
             <button
               type="button"
               className="m3-button m3-button--primary"
