@@ -360,4 +360,25 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     expect(html).toContain('repeat(auto-fit, minmax(160px, 1fr))');
     expect(html).toContain('repeat(auto-fit, minmax(140px, 1fr))');
   });
+
+  it('renders strictly one button to activate Modo Taller / Obra on mobile without duplicates', () => {
+    const htmlMobile = renderToString(
+      <ModuleForm
+        isMobile={true}
+        width={600}
+        height={720}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        onSwitchToSiteMode={vi.fn()}
+      />,
+    );
+
+    // Exactly one button in expert-sticky-header for mobile
+    const occurrences = (htmlMobile.match(/aria-label="Cambiar a Modo Taller"/g) || []).length;
+    expect(occurrences).toBe(1);
+
+    // Desktop button "Modo Obra (Táctil)" must NOT be present on mobile
+    expect(htmlMobile).not.toContain('Modo Obra (Táctil)');
+  });
 });

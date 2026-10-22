@@ -625,7 +625,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </div>
 
           <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            {onSwitchToSiteMode && (
+            {isMobileDevice && onSwitchToSiteMode && (
               <button
                 type="button"
                 onClick={onSwitchToSiteMode}

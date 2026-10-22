@@ -170,28 +170,6 @@ export function App(): ReactElement {
             </nav>
 
             <div className="m3-top-app-bar__actions">
-              {vm.isOneHandDevice && (
-                <button
-                  type="button"
-                  className="m3-button m3-button--tonal"
-                  onClick={vm.toggleUiMode}
-                  style={{
-                    padding: '0.2rem 0.6rem',
-                    minHeight: '36px',
-                    fontSize: '0.78rem',
-                    borderRadius: '18px',
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                  }}
-                  aria-label={vm.uiMode === 'site' ? 'Cambiar a Modo Experto' : 'Cambiar a Modo Taller'}
-                  title={vm.uiMode === 'site' ? 'Cambiar a Modo Experto' : 'Cambiar a Modo Taller'}
-                >
-                  <span>{vm.uiMode === 'site' ? '⚙️' : '🏗️'}</span>
-                  <span>{vm.uiMode === 'site' ? 'Experto' : 'Taller'}</span>
-                </button>
-              )}
               <ThemeToggle
                 themeMode={themeMode}
                 effectiveTheme={effectiveTheme}
