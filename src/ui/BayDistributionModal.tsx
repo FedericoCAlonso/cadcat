@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, type ReactElement } from 'react';
 import {
   type BayContent,
+  type BayContentSubdivided,
   type BayContentShelves,
   type BayContentDrawerStack,
   type TrackSize,
@@ -13,6 +14,10 @@ import {
   splitCellAtPath,
   createMatrixGrid,
   removeSplitAtPath,
+  getCellAtPath,
+  updateTrackAtPath,
+  addTrackAtPath,
+  removeTrackAtPath,
 } from '../resolver/composition/bayCellTree';
 
 export interface BayDistributionModalProps {
@@ -87,6 +92,13 @@ export function BayDistributionModal({
     return dividers.find((d) => d.id === selectedEdgeId) ?? null;
   }, [dividers, selectedEdgeId]);
 
+  const edgeSubdivided = useMemo(() => {
+    if (!selectedEdge) return null;
+    const node = getCellAtPath(draft, selectedEdge.path);
+    if (!node || node.type !== 'subdivided') return null;
+    return node as BayContentSubdivided;
+  }, [draft, selectedEdge]);
+
   if (!isOpen) return null;
 
   // Generate N x M matrix (Word-table initial grid generator)
@@ -102,6 +114,26 @@ export function BayDistributionModal({
     setSelectedPath([0]);
     setSelectedEdgeId(null);
     setShowMatrixCreator(false);
+  };
+
+  // Split selected cell with custom arbitrary tracks (e.g. 100mm fixed + 70/30)
+  const handleSplitCustom = (
+    axis: 'horizontal' | 'vertical',
+    tracks: TrackSize[],
+    thickness = 18,
+  ) => {
+    if (!selectedCell) return;
+    const updated = splitCellAtPath(
+      draft,
+      selectedCell.path,
+      axis,
+      tracks,
+      thickness,
+      thickness <= 9 ? 'mat-plywood-guatambu-6' : undefined,
+      thickness <= 9 ? 'dado-groove' : 'confirmat',
+    );
+    setDraft(updated);
+    setSelectionType('cell');
   };
 
   // Split selected cell into rows (inserts horizontal shelf dividing Y)
@@ -746,6 +778,174 @@ export function BayDistributionModal({
                     🗑️ Quitar Arista
                   </button>
                 </div>
+
+                {/* Track Inspector: Cotas y Pistas de este Eje */}
+                {edgeSubdivided && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      marginTop: '0.65rem',
+                      paddingTop: '0.65rem',
+                      borderTop: '1px solid var(--md-sys-color-outline-variant)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                        📏 Pistas y Cotas ({selectedEdge.axis === 'horizontal' ? 'Columnas' : 'Filas'}):
+                      </span>
+                      <button
+                        type="button"
+                        style={{
+                          background: 'none',
+                          border: '1px solid var(--md-sys-color-primary)',
+                          color: 'var(--md-sys-color-primary)',
+                          fontSize: '0.72rem',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                        onClick={() => {
+                          const next = addTrackAtPath(draft, selectedEdge.path);
+                          setDraft(next);
+                        }}
+                      >
+                        + Agregar División
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {edgeSubdivided.tracks.map((track, tIdx) => {
+                        const isFixed = track.type === 'fixed';
+                        const isSelectedTrack =
+                          selectedEdge.dividerIndex === tIdx ||
+                          selectedEdge.dividerIndex === tIdx - 1;
+
+                        return (
+                          <div
+                            key={`track-${tIdx}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              padding: '0.35rem 0.5rem',
+                              backgroundColor: isSelectedTrack
+                                ? 'var(--md-sys-color-surface-container)'
+                                : 'var(--md-sys-color-surface)',
+                              borderRadius: 'var(--md-sys-shape-corner-xs)',
+                              border: isSelectedTrack
+                                ? '1px solid #f59e0b'
+                                : '1px solid var(--md-sys-color-outline-variant)',
+                              fontSize: '0.78rem',
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, minWidth: '32px' }}>
+                              #{tIdx + 1}:
+                            </span>
+
+                            <div className="builder-segmented-btn-group" style={{ flex: '0 0 auto' }}>
+                              <button
+                                type="button"
+                                className={`builder-segmented-btn ${isFixed ? 'selected' : ''}`}
+                                style={{ fontSize: '0.7rem', padding: '0.15rem 0.35rem' }}
+                                onClick={() => {
+                                  const next = updateTrackAtPath(
+                                    draft,
+                                    selectedEdge.path,
+                                    tIdx,
+                                    { type: 'fixed', valueMm: 100 },
+                                  );
+                                  setDraft(next);
+                                }}
+                              >
+                                Fijo mm
+                              </button>
+                              <button
+                                type="button"
+                                className={`builder-segmented-btn ${!isFixed ? 'selected' : ''}`}
+                                style={{ fontSize: '0.7rem', padding: '0.15rem 0.35rem' }}
+                                onClick={() => {
+                                  const next = updateTrackAtPath(
+                                    draft,
+                                    selectedEdge.path,
+                                    tIdx,
+                                    { type: 'fractional', valueFr: 1 },
+                                  );
+                                  setDraft(next);
+                                }}
+                              >
+                                Proporc.
+                              </button>
+                            </div>
+
+                            <input
+                              type="number"
+                              style={{
+                                width: isFixed ? '60px' : '45px',
+                                padding: '0.2rem 0.35rem',
+                                fontSize: '0.78rem',
+                                borderRadius: '4px',
+                                border: '1px solid var(--md-sys-color-outline)',
+                                textAlign: 'right',
+                              }}
+                              value={isFixed ? track.valueMm : track.valueFr}
+                              min={1}
+                              step={isFixed ? 10 : 1}
+                              onChange={(e) => {
+                                const val = Math.max(1, parseFloat(e.target.value) || 1);
+                                const nextTrack: TrackSize = isFixed
+                                  ? { type: 'fixed', valueMm: val }
+                                  : { type: 'fractional', valueFr: val };
+                                const next = updateTrackAtPath(
+                                  draft,
+                                  selectedEdge.path,
+                                  tIdx,
+                                  nextTrack,
+                                );
+                                setDraft(next);
+                              }}
+                            />
+                            <span
+                              style={{
+                                color: 'var(--md-sys-color-on-surface-variant)',
+                                fontSize: '0.72rem',
+                              }}
+                            >
+                              {isFixed ? 'mm' : 'fr'}
+                            </span>
+
+                            {edgeSubdivided.tracks.length > 1 && (
+                              <button
+                                type="button"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--md-sys-color-error)',
+                                  cursor: 'pointer',
+                                  fontSize: '0.8rem',
+                                  marginLeft: 'auto',
+                                }}
+                                onClick={() => {
+                                  const next = removeTrackAtPath(
+                                    draft,
+                                    selectedEdge.path,
+                                    tIdx,
+                                  );
+                                  setDraft(next);
+                                }}
+                                title="Eliminar esta pista"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -818,6 +1018,20 @@ export function BayDistributionModal({
                       style={{ fontSize: '0.78rem', padding: '0.45rem' }}
                     >
                       ⬍ 3 Casilleros (6mm)
+                    </button>
+                    <button
+                      type="button"
+                      className="builder-segmented-btn"
+                      onClick={() =>
+                        handleSplitCustom('horizontal', [
+                          { type: 'fixed', valueMm: 100 },
+                          { type: 'fractional', valueFr: 7 },
+                          { type: 'fractional', valueFr: 3 },
+                        ])
+                      }
+                      style={{ fontSize: '0.78rem', padding: '0.45rem', gridColumn: 'span 2' }}
+                    >
+                      ⬍ 100mm fijo + 70% / 30% proporcional
                     </button>
                   </div>
                 </div>
@@ -1030,6 +1244,116 @@ export function BayDistributionModal({
                           </button>
                         </div>
                       </div>
+
+                      {/* Espesor de la Caja del Cajón */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Espesor de placa de la caja:</span>
+                        <div className="builder-chip-selector" role="group">
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15) === 6 ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                boxThicknessMm: 6,
+                                slideType: 'wood-runner',
+                                frontMount: 'inset',
+                                drawerType: 'simple-interior',
+                                boxJointType: 'glue',
+                              });
+                            }}
+                          >
+                            6 mm (Cajoncito)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15) === 9 ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                boxThicknessMm: 9,
+                                boxJointType: 'glue',
+                              });
+                            }}
+                          >
+                            9 mm (Fino)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15) === 15 ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                boxThicknessMm: 15,
+                                boxJointType: 'confirmat',
+                              });
+                            }}
+                          >
+                            15 mm
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15) === 18 ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                boxThicknessMm: 18,
+                                boxJointType: 'confirmat',
+                              });
+                            }}
+                          >
+                            18 mm
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Aviso y opciones de frente para cajas delgadas <= 9mm */}
+                      {((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15) <= 9 && (
+                        <>
+                          <div
+                            style={{
+                              fontSize: '0.74rem',
+                              padding: '0.45rem 0.6rem',
+                              backgroundColor: '#fef3c7',
+                              color: '#92400e',
+                              borderRadius: '4px',
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            🪵 <strong>Caja encolada sin tornillos en canto:</strong> En placas de {((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15)} mm las uniones son encoladas/encastradas sin perforaciones en canto. Deslizamiento suave sobre madera.
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Espesor del Frente:</span>
+                            <div className="builder-segmented-btn-group">
+                              <button
+                                type="button"
+                                className={`builder-segmented-btn ${((selectedCell.content as BayContentDrawerStack).frontThicknessMm ?? 18) === 18 ? 'selected' : ''}`}
+                                onClick={() => {
+                                  const ds = selectedCell.content as BayContentDrawerStack;
+                                  handleUpdateCellContent({ ...ds, frontThicknessMm: 18 });
+                                }}
+                              >
+                                18 mm (Frente a tono)
+                              </button>
+                              <button
+                                type="button"
+                                className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).frontThicknessMm === 6 ? 'selected' : ''}`}
+                                onClick={() => {
+                                  const ds = selectedCell.content as BayContentDrawerStack;
+                                  handleUpdateCellContent({ ...ds, frontThicknessMm: 6 });
+                                }}
+                              >
+                                6 mm (Monolítico liviano)
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

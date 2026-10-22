@@ -252,6 +252,98 @@ export function distributeTracksEvenlyAtPath(root: BayContent, path: number[]): 
 }
 
 /**
+ * Updates a specific track's sizing mode (fixed mm vs fractional fr) and value.
+ */
+export function updateTrackAtPath(
+  root: BayContent,
+  path: number[],
+  trackIndex: number,
+  newTrack: TrackSize,
+): BayContent {
+  const current = getCellAtPath(root, path);
+  if (!current || current.type !== 'subdivided') return root;
+
+  const sub = current as BayContentSubdivided;
+  if (trackIndex < 0 || trackIndex >= sub.tracks.length) return root;
+
+  const nextTracks = [...sub.tracks];
+  nextTracks[trackIndex] = newTrack;
+
+  return updateCellAtPath(root, path, {
+    ...sub,
+    tracks: nextTracks,
+  });
+}
+
+/**
+ * Replaces all tracks of a subdivided node at path with custom track definitions.
+ * Preserves existing child bays where possible.
+ */
+export function updateSubdivisionTracksAtPath(
+  root: BayContent,
+  path: number[],
+  newTracks: TrackSize[],
+): BayContent {
+  const current = getCellAtPath(root, path);
+  if (!current || current.type !== 'subdivided') return root;
+
+  const sub = current as BayContentSubdivided;
+  const newBays: BayContent[] = newTracks.map((_, i) => sub.bays[i] ?? { type: 'empty' });
+
+  return updateCellAtPath(root, path, {
+    ...sub,
+    tracks: newTracks,
+    bays: newBays,
+  });
+}
+
+/**
+ * Appends a new track (division) to the subdivision at path.
+ */
+export function addTrackAtPath(
+  root: BayContent,
+  path: number[],
+  track: TrackSize = { type: 'fractional', valueFr: 1 },
+): BayContent {
+  const current = getCellAtPath(root, path);
+  if (!current || current.type !== 'subdivided') return root;
+
+  const sub = current as BayContentSubdivided;
+  return updateCellAtPath(root, path, {
+    ...sub,
+    tracks: [...sub.tracks, track],
+    bays: [...sub.bays, { type: 'empty' }],
+  });
+}
+
+/**
+ * Removes a track and its child cell from the subdivision at path.
+ */
+export function removeTrackAtPath(
+  root: BayContent,
+  path: number[],
+  trackIndex: number,
+): BayContent {
+  const current = getCellAtPath(root, path);
+  if (!current || current.type !== 'subdivided') return root;
+
+  const sub = current as BayContentSubdivided;
+  if (sub.tracks.length <= 1) {
+    // If removing the only track, replace subdivision with empty or remaining child
+    return updateCellAtPath(root, path, sub.bays[0] ?? { type: 'empty' });
+  }
+
+  const nextTracks = sub.tracks.filter((_, i) => i !== trackIndex);
+  const nextBays = sub.bays.filter((_, i) => i !== trackIndex);
+
+  return updateCellAtPath(root, path, {
+    ...sub,
+    tracks: nextTracks,
+    bays: nextBays,
+  });
+}
+
+/**
  * Splits a cell at a specific path into rows or columns (Word-table style split).
  */
 export function splitCellAtPath(
@@ -285,6 +377,8 @@ export function splitCellAtPath(
 
 /**
  * Creates an aligned N rows x M columns matrix grid (Word-style initial table creation).
+ * Supports continuous reference spine boards with custom thickness (e.g. 18mm or 6mm)
+ * and custom track sizing for rows and columns.
  */
 export function createMatrixGrid(
   rows: number,
@@ -292,6 +386,9 @@ export function createMatrixGrid(
   continuity: 'horizontal-continuous' | 'vertical-continuous' = 'horizontal-continuous',
   dividerThicknessMm = 18,
   jointType?: 'confirmat' | 'dado-groove',
+  customRowTracks?: TrackSize[],
+  customColTracks?: TrackSize[],
+  secondaryDividerThicknessMm?: number,
 ): BayContent {
   const safeRows = Math.max(1, Math.min(12, Math.round(rows)));
   const safeCols = Math.max(1, Math.min(12, Math.round(cols)));
@@ -305,17 +402,29 @@ export function createMatrixGrid(
   if (dividerThicknessMm <= 6) dividerMaterialId = 'mat-plywood-guatambu-6';
   else if (dividerThicknessMm <= 9) dividerMaterialId = 'mat-plywood-guatambu-9';
 
+  const secThickness = secondaryDividerThicknessMm ?? dividerThicknessMm;
+  const secJoint = secThickness <= 9 ? 'dado-groove' : (jointType ?? 'confirmat');
+  let secMaterialId: string | undefined = undefined;
+  if (secThickness <= 6) secMaterialId = 'mat-plywood-guatambu-6';
+  else if (secThickness <= 9) secMaterialId = 'mat-plywood-guatambu-9';
+
+  const defaultRowTracks: TrackSize[] = customRowTracks ?? Array.from({ length: safeRows }, () => ({
+    type: 'fractional',
+    valueFr: 1,
+  }));
+
+  const defaultColTracks: TrackSize[] = customColTracks ?? Array.from({ length: safeCols }, () => ({
+    type: 'fractional',
+    valueFr: 1,
+  }));
+
   if (safeRows === 1) {
     // Single row with M columns
-    const tracks: TrackSize[] = Array.from({ length: safeCols }, () => ({
-      type: 'fractional',
-      valueFr: 1,
-    }));
     return {
       type: 'subdivided',
       axis: 'horizontal',
-      tracks,
-      bays: tracks.map(() => ({ type: 'empty' })),
+      tracks: defaultColTracks,
+      bays: defaultColTracks.map(() => ({ type: 'empty' })),
       dividerThicknessMm,
       dividerMaterialId,
       jointType: effectiveJoint,
@@ -324,15 +433,11 @@ export function createMatrixGrid(
 
   if (safeCols === 1) {
     // Single column with N rows
-    const tracks: TrackSize[] = Array.from({ length: safeRows }, () => ({
-      type: 'fractional',
-      valueFr: 1,
-    }));
     return {
       type: 'subdivided',
       axis: 'vertical',
-      tracks,
-      bays: tracks.map(() => ({ type: 'empty' })),
+      tracks: defaultRowTracks,
+      bays: defaultRowTracks.map(() => ({ type: 'empty' })),
       dividerThicknessMm,
       dividerMaterialId,
       jointType: effectiveJoint,
@@ -341,33 +446,23 @@ export function createMatrixGrid(
 
   // Multi-row and multi-column grid
   if (continuity === 'horizontal-continuous') {
-    // Shelves run full width continuously; each row has columns
-    const rowTracks: TrackSize[] = Array.from({ length: safeRows }, () => ({
-      type: 'fractional',
-      valueFr: 1,
-    }));
-
-    const colTracks: TrackSize[] = Array.from({ length: safeCols }, () => ({
-      type: 'fractional',
-      valueFr: 1,
-    }));
-
-    const rowBays: BayContent[] = rowTracks.map(
+    // Shelves run full width continuously (primary reference spine); each row has columns
+    const rowBays: BayContent[] = defaultRowTracks.map(
       (): BayContentSubdivided => ({
         type: 'subdivided',
         axis: 'horizontal',
-        tracks: colTracks,
-        bays: colTracks.map(() => ({ type: 'empty' })),
-        dividerThicknessMm,
-        dividerMaterialId,
-        jointType: effectiveJoint,
+        tracks: defaultColTracks,
+        bays: defaultColTracks.map(() => ({ type: 'empty' })),
+        dividerThicknessMm: secThickness,
+        dividerMaterialId: secMaterialId,
+        jointType: secJoint,
       }),
     );
 
     return {
       type: 'subdivided',
       axis: 'vertical',
-      tracks: rowTracks,
+      tracks: defaultRowTracks,
       bays: rowBays,
       dividerThicknessMm,
       dividerMaterialId,
@@ -376,32 +471,22 @@ export function createMatrixGrid(
   }
 
   // Vertical partitions run floor-to-roof continuously; each column has rows
-  const colTracks: TrackSize[] = Array.from({ length: safeCols }, () => ({
-    type: 'fractional',
-    valueFr: 1,
-  }));
-
-  const rowTracks: TrackSize[] = Array.from({ length: safeRows }, () => ({
-    type: 'fractional',
-    valueFr: 1,
-  }));
-
-  const colBays: BayContent[] = colTracks.map(
+  const colBays: BayContent[] = defaultColTracks.map(
     (): BayContentSubdivided => ({
       type: 'subdivided',
       axis: 'vertical',
-      tracks: rowTracks,
-      bays: rowTracks.map(() => ({ type: 'empty' })),
-      dividerThicknessMm,
-      dividerMaterialId,
-      jointType: effectiveJoint,
+      tracks: defaultRowTracks,
+      bays: defaultRowTracks.map(() => ({ type: 'empty' })),
+      dividerThicknessMm: secThickness,
+      dividerMaterialId: secMaterialId,
+      jointType: secJoint,
     }),
   );
 
   return {
     type: 'subdivided',
     axis: 'horizontal',
-    tracks: colTracks,
+    tracks: defaultColTracks,
     bays: colBays,
     dividerThicknessMm,
     dividerMaterialId,

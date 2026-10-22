@@ -119,6 +119,9 @@ export type BayContent =
       frontMount?: DrawerFrontMount;
       hasTransomDividers?: boolean;
       slideType: DrawerSlideType;
+      boxThicknessMm?: number;
+      frontThicknessMm?: number;
+      boxJointType?: 'glue' | 'confirmat' | 'dado-groove';
       gapMm?: number;
       boxHeightRatio?: number;
       drawerType?: DrawerType;

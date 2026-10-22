@@ -1,4 +1,4 @@
-import { type Piece, type Joint, type SubAssembly } from '../../model';
+import { type Piece, type Joint, type JointKind, type SubAssembly } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
@@ -31,6 +31,8 @@ export interface DrawerConfig {
   frontMaterialId?: string;
   boxMaterialId?: string;
   boxThicknessMm?: number;
+  frontThicknessMm?: number;
+  boxJointKind?: JointKind;
   slideType: DrawerSlideType;
   frontMount?: DrawerFrontMount;
   customSlideClearanceMm?: number;
@@ -131,6 +133,7 @@ export function buildDrawerSubAssembly(
 
   const isSimpleInterior = actualDrawerType === 'simple-interior';
   const isInset = isSimpleInterior || actualFrontMount === 'inset';
+  const actualFrontT = config.frontThicknessMm ?? T;
 
   // Effective box side & back height (can be lower than front)
   const effectiveBoxSideHeight = Math.max(
@@ -150,14 +153,14 @@ export function buildDrawerSubAssembly(
 
   const frontOffsetX = isInset ? T + gapMm : gapMm;
   const frontOffsetY = isInset ? baseYMm + gapMm : baseYMm;
-  const frontOffsetZ = isInset ? 0 : -T;
+  const frontOffsetZ = isInset ? 0 : -actualFrontT;
 
   const front = createPiece({
     id: `${idPrefix}-front-${index}`,
     role: 'drawer-front',
     materialId: actualFrontMaterialId,
     contour: createRectangularContour(frontWidth, frontHeight),
-    thicknessMm: T,
+    thicknessMm: actualFrontT,
     structural: false,
   });
   if (edgeBandId) {
@@ -176,7 +179,7 @@ export function buildDrawerSubAssembly(
 
   // Box offset in Z: behind carcase face if applied, behind inset front if inset
   // boxFrontOffsetMm defaults to 0 so front and box are in flush direct contact
-  const boxOffsetZ = isInset ? T + boxFrontOffsetMm : boxFrontOffsetMm;
+  const boxOffsetZ = isInset ? actualFrontT + boxFrontOffsetMm : boxFrontOffsetMm;
   const boxY = baseYMm + boxBottomClearanceMm;
   const boxX = T + Math.round(slideClearance / 2);
 
@@ -247,20 +250,27 @@ export function buildDrawerSubAssembly(
   });
 
   // 4. Drawer Bottom Construction
+  // For thin box walls (<= 9mm, e.g. 6mm organizer drawers), bottom-screwed is avoided because screws into 6mm edges will burst the board.
+  // We use grooved or flush-thick (glued).
+  const isThinBox = actualBoxT <= 9;
+  const effectiveBottomMount = isThinBox && bottomMount === 'bottom-screwed' ? 'grooved' : bottomMount;
+  const effectiveGrooveDepth = isThinBox ? Math.min(grooveDepthMm, Math.max(2, Math.floor(actualBoxT / 2))) : grooveDepthMm;
+  const effectiveGrooveOffset = isThinBox ? Math.min(grooveOffsetMm, 4) : grooveOffsetMm;
+
   let bottomWidth: number;
   let bottomDepth: number;
-  let bottomThickness = actualBottomThickness;
+  let bottomThickness = isThinBox ? (bottomThicknessMm ?? Math.min(actualBoxT, 6)) : actualBottomThickness;
   let bottomOffsetX: number;
   let bottomOffsetY: number;
   let bottomOffsetZ: number;
 
-  if (bottomMount === 'grooved') {
-    bottomWidth = Math.round(drawerBoxWidth - 2 * actualBoxT + 2 * grooveDepthMm - 1);
-    bottomDepth = Math.round(boxDepth - 2 * actualBoxT + 2 * grooveDepthMm - 1);
-    bottomOffsetX = boxX + actualBoxT - grooveDepthMm + 0.5;
-    bottomOffsetY = boxY + grooveOffsetMm;
-    bottomOffsetZ = boxOffsetZ + (isSimpleInterior ? 0 : actualBoxT) - grooveDepthMm + 0.5;
-  } else if (bottomMount === 'bottom-screwed') {
+  if (effectiveBottomMount === 'grooved') {
+    bottomWidth = Math.round(drawerBoxWidth - 2 * actualBoxT + 2 * effectiveGrooveDepth - 1);
+    bottomDepth = Math.round(boxDepth - 2 * actualBoxT + 2 * effectiveGrooveDepth - 1);
+    bottomOffsetX = boxX + actualBoxT - effectiveGrooveDepth + 0.5;
+    bottomOffsetY = boxY + effectiveGrooveOffset;
+    bottomOffsetZ = boxOffsetZ + (isSimpleInterior ? 0 : actualBoxT) - effectiveGrooveDepth + 0.5;
+  } else if (effectiveBottomMount === 'bottom-screwed') {
     const defaultDeductionW = defaultProjectConfigJson.hardware.drawerBottomScrewedDeductionWidthMm ?? 2.0;
     const defaultDeductionD = defaultProjectConfigJson.hardware.drawerBottomScrewedDeductionDepthMm ?? 2.0;
     const dedW = bottomScrewedDeductionWidthMm ?? defaultDeductionW;
@@ -298,17 +308,21 @@ export function buildDrawerSubAssembly(
   });
 
   // 5. Box Joints
+  // If box walls are thin (<= 9mm, e.g. 6mm or 9mm craft/organizer drawers), joints are glued ('glue') or rebated ('rebate'), NEVER confirmat or screw drilled into edges!
+  const effectiveBoxJointKind: JointKind = config.boxJointKind ?? (isThinBox ? 'glue' : 'confirmat');
+  const frontToSideJointKind: JointKind = (isThinBox || actualFrontT <= 9) ? (config.boxJointKind ?? 'glue') : 'confirmat';
+
   if (boxFront) {
     joints.push(
       createJoint({
         a: { pieceId: boxSideL.id, faceId: 'inner' },
         b: { pieceId: boxFront.id, faceId: 'left-edge' },
-        kind: 'confirmat',
+        kind: effectiveBoxJointKind,
       }),
       createJoint({
         a: { pieceId: boxSideR.id, faceId: 'inner' },
         b: { pieceId: boxFront.id, faceId: 'right-edge' },
-        kind: 'confirmat',
+        kind: effectiveBoxJointKind,
       }),
     );
   } else {
@@ -317,12 +331,12 @@ export function buildDrawerSubAssembly(
       createJoint({
         a: { pieceId: front.id, faceId: 'inner' },
         b: { pieceId: boxSideL.id, faceId: 'front-edge' },
-        kind: 'confirmat',
+        kind: frontToSideJointKind,
       }),
       createJoint({
         a: { pieceId: front.id, faceId: 'inner' },
         b: { pieceId: boxSideR.id, faceId: 'front-edge' },
-        kind: 'confirmat',
+        kind: frontToSideJointKind,
       }),
     );
   }
@@ -331,22 +345,22 @@ export function buildDrawerSubAssembly(
     createJoint({
       a: { pieceId: boxSideL.id, faceId: 'inner' },
       b: { pieceId: boxBack.id, faceId: 'left-edge' },
-      kind: 'confirmat',
+      kind: effectiveBoxJointKind,
     }),
     createJoint({
       a: { pieceId: boxSideR.id, faceId: 'inner' },
       b: { pieceId: boxBack.id, faceId: 'right-edge' },
-      kind: 'confirmat',
+      kind: effectiveBoxJointKind,
     }),
     createJoint({
       a: { pieceId: boxSideL.id, faceId: 'inner' },
       b: { pieceId: boxBottom.id, faceId: 'left-edge' },
-      kind: bottomMount === 'grooved' ? 'groove' : 'rebate',
+      kind: effectiveBottomMount === 'grooved' ? 'groove' : (isThinBox ? 'glue' : 'rebate'),
     }),
     createJoint({
       a: { pieceId: boxSideR.id, faceId: 'inner' },
       b: { pieceId: boxBottom.id, faceId: 'right-edge' },
-      kind: bottomMount === 'grooved' ? 'groove' : 'rebate',
+      kind: effectiveBottomMount === 'grooved' ? 'groove' : (isThinBox ? 'glue' : 'rebate'),
     }),
     // Slide hardware joints connecting drawer sides to cabinet side
     createJoint({

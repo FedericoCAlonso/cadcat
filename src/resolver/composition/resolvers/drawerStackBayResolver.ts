@@ -18,7 +18,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
     const { bay, content, materials, options } = context;
     const {
       carcassThicknessMm: T,
-      boxThicknessMm = 15,
+      boxThicknessMm: defaultBoxThicknessMm = 15,
       edgeBandId,
       rootPieceId,
       idPrefix = `bay-${bay.bayIndex}`,
@@ -34,12 +34,17 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       frontMount,
       hasTransomDividers = false,
       slideType,
+      boxThicknessMm: contentBoxThicknessMm,
+      frontThicknessMm: contentFrontThicknessMm,
+      boxJointType,
       gapMm = 2.0,
       drawerType,
       bottomMount = 'bottom-screwed',
       topPullGapMm = 0,
       boxSideHeightOffsetMm = 0,
     } = content;
+
+    const effectiveBoxThicknessMm = contentBoxThicknessMm ?? defaultBoxThicknessMm;
 
     if (drawerTracks.length === 0) {
       return { pieces, joints, placementNodes, subAssemblies };
@@ -122,7 +127,9 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
           frontMaterialId: materials.frontsMaterialId,
           boxMaterialId: materials.drawerBoxesMaterialId,
           backingMaterialId: materials.backingsMaterialId,
-          boxThicknessMm,
+          boxThicknessMm: effectiveBoxThicknessMm,
+          frontThicknessMm: contentFrontThicknessMm,
+          boxJointKind: boxJointType === 'dado-groove' ? 'rebate' : boxJointType,
           backingThicknessMm: options.backingThicknessMm,
           bottomScrewedDeductionWidthMm: content.bottomScrewedDeductionWidthMm ?? options.drawerBottomScrewedDeductionWidthMm,
           bottomScrewedDeductionDepthMm: content.bottomScrewedDeductionDepthMm ?? options.drawerBottomScrewedDeductionDepthMm,
