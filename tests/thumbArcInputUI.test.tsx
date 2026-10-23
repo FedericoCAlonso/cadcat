@@ -316,4 +316,98 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     container.remove();
   });
+
+  it('supports arcOnly numeric mode with upper-half (+1) and lower-half (-1) arc taps and no external stepper buttons', () => {
+    const handleChange = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Ancho Total"
+          value={800}
+          arcOnly={true}
+          step={1}
+          coarseStep={10}
+          extraCoarseStep={50}
+          onChange={handleChange}
+        />,
+      );
+    });
+
+    // Radial arc track MUST exist in arcOnly mode
+    const arcDiv = container.querySelector('.thumb-arc-track');
+    expect(arcDiv).not.toBeNull();
+
+    // External coarse stepper buttons (-50, +50, -10, +10) must NOT exist
+    expect(container.textContent).not.toContain('-50');
+    expect(container.textContent).not.toContain('+50');
+    expect(container.textContent).not.toContain('-10');
+    expect(container.textContent).not.toContain('+10');
+
+    // Tap upper half (+1)
+    const upperTapBtn = container.querySelector('button[data-arc-tap="upper"]');
+    expect(upperTapBtn).not.toBeNull();
+    act(() => {
+      upperTapBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleChange).toHaveBeenCalledWith(801);
+
+    // Tap lower half (-1)
+    const lowerTapBtn = container.querySelector('button[data-arc-tap="lower"]');
+    expect(lowerTapBtn).not.toBeNull();
+    act(() => {
+      lowerTapBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleChange).toHaveBeenCalledWith(799);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
+
+  it('supports arcOnly discrete options mode, advancing/stepping back via upper/lower arc taps', () => {
+    const handleSelectOption = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const options = [
+      { id: 'inset', label: 'Interior (Entre Laterales)', sublabel: 'Laterales de piso a techo' },
+      { id: 'overlay', label: 'Pasante (Piso / Sombrero)', sublabel: 'Laterales apoyan sobre base' },
+    ];
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Unión de Base"
+          value={0}
+          arcOnly={true}
+          options={options}
+          selectedOptionId="inset"
+          onSelectOption={handleSelectOption}
+          onChange={vi.fn()}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain('Interior (Entre Laterales)');
+    expect(container.textContent).toContain('Opción 1 de 2');
+
+    // Tap upper half -> advances to 'overlay'
+    const upperTapBtn = container.querySelector('button[data-arc-tap="upper"]');
+    expect(upperTapBtn).not.toBeNull();
+    act(() => {
+      upperTapBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(handleSelectOption).toHaveBeenCalledWith('overlay');
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });

@@ -23,6 +23,14 @@ import {
   isPointOnKnob,
 } from '../resolver/thumbArc';
 
+export interface ThumbArcOption {
+  id: string;
+  label: string;
+  sublabel?: string;
+  badge?: string;
+  disabled?: boolean;
+}
+
 export interface ThumbArcInputProps {
   id?: string;
   label: string;
@@ -41,11 +49,27 @@ export interface ThumbArcInputProps {
   compact?: boolean;
   extraCoarseStep?: number;
   showArc?: boolean;
+  /**
+   * When true, renders ONLY the radial thumb arc with the readout embedded in its concave pocket,
+   * omitting external stepper/preset button rows. Tapping the upper half of the arc increments (+1 / next),
+   * and tapping the lower half decrements (-1 / prev).
+   */
+  arcOnly?: boolean;
+  /**
+   * Optional discrete options mode: the radial arc acts as a jog dial / selector wheel across options.
+   */
+  options?: ThumbArcOption[];
+  selectedOptionId?: string;
+  onSelectOption?: (id: string) => void;
+  onIncrement?: () => void;
+  onDecrement?: () => void;
 }
 
 /**
- * Mobile-first gesture-controlled radial input (Modo Obra).
- * Enables ergonomic thumb-sweep adjustment for one-handed operation in workshop and site environments.
+ * Mobile-first gesture-controlled radial input (Modo Taller / Obra).
+ * Supports both continuous numeric values (mm / counts) and discrete option lists.
+ * Tapping the upper half of the arc increments (+1 or next option);
+ * tapping the lower half decrements (-1 or previous option).
  */
 export function ThumbArcInput({
   id,
@@ -65,10 +89,32 @@ export function ThumbArcInput({
   compact = false,
   extraCoarseStep,
   showArc = true,
+  arcOnly = false,
+  options,
+  selectedOptionId,
+  onSelectOption,
+  onIncrement,
+  onDecrement,
 }: ThumbArcInputProps): ReactElement {
   // Hand mode state (controlled or local fallback)
   const [internalHandMode, setInternalHandMode] = useState<HandMode>('right');
   const activeHandMode = controlledHandMode ?? internalHandMode;
+
+  const isOptionsMode = Boolean(options && options.length > 0 && onSelectOption);
+  const enabledOptions = options?.filter((o) => !o.disabled) ?? [];
+  const activeOptionIndex = isOptionsMode
+    ? Math.max(
+        0,
+        enabledOptions.findIndex((o) => o.id === selectedOptionId),
+      )
+    : 0;
+  const activeOption = isOptionsMode ? (enabledOptions[activeOptionIndex] ?? enabledOptions[0]) : undefined;
+
+  const effectiveMin = isOptionsMode ? 0 : min;
+  const effectiveMax = isOptionsMode ? Math.max(1, enabledOptions.length - 1) : max;
+  const effectiveStep = isOptionsMode ? 1 : step;
+  const effectiveCoarseStep = isOptionsMode ? 1 : coarseStep;
+  const effectiveValue = isOptionsMode ? activeOptionIndex : value;
 
   const handleHandModeToggle = useCallback(() => {
     const nextMode: HandMode = activeHandMode === 'right' ? 'left' : 'right';
@@ -80,7 +126,7 @@ export function ThumbArcInput({
     triggerHaptic('tick');
   }, [activeHandMode, onHandModeChange]);
 
-  // Direct editing modal/input state
+  // Direct editing modal/input state (for numeric mode)
   const [isDirectEditing, setIsDirectEditing] = useState<boolean>(false);
   const [directText, setDirectText] = useState<string>(String(value));
 
@@ -100,46 +146,118 @@ export function ThumbArcInput({
     setIsDirectEditing(false);
   }, [directText, min, max, step, onChange]);
 
+  // Step / Option advance helper (used by arc upper/lower tap and steppers)
+  const stepByDirection = useCallback(
+    (direction: 1 | -1) => {
+      if (direction === 1 && onIncrement) {
+        triggerHaptic('tick');
+        onIncrement();
+        return;
+      }
+      if (direction === -1 && onDecrement) {
+        triggerHaptic('tick');
+        onDecrement();
+        return;
+      }
+
+      if (isOptionsMode && onSelectOption && enabledOptions.length > 0) {
+        const nextIdx = (activeOptionIndex + direction + enabledOptions.length) % enabledOptions.length;
+        const target = enabledOptions[nextIdx];
+        if (target) {
+          triggerHaptic('major');
+          onSelectOption(target.id);
+        }
+        return;
+      }
+
+      const next = clampAndStepValue(value + direction * step, min, max, step);
+      if (next !== value) {
+        triggerHaptic('tick');
+        onChange(next);
+      }
+    },
+    [
+      onIncrement,
+      onDecrement,
+      isOptionsMode,
+      onSelectOption,
+      enabledOptions,
+      activeOptionIndex,
+      value,
+      step,
+      min,
+      max,
+      onChange,
+    ],
+  );
+
   // Touch / Pointer tracking state for radial arc
   const arcContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef<boolean>(false);
+  const didMoveRef = useRef<boolean>(false);
+  const downClientPointRef = useRef<Point2D>({ x: 0, y: 0 });
+  const downNormalizedPointRef = useRef<Point2D>({ x: 0, y: 0 });
   const prevAngleRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
-  const accumulatedValueRef = useRef<number>(value);
+  const accumulatedValueRef = useRef<number>(effectiveValue);
 
-  // Keep accumulated value in sync when value changes from outside
   useEffect(() => {
     if (!isDraggingRef.current) {
-      accumulatedValueRef.current = value;
+      accumulatedValueRef.current = effectiveValue;
     }
-  }, [value]);
+  }, [effectiveValue]);
 
   const arcConfig: ThumbArcConfig = {
     ...DEFAULT_THUMB_ARC_CONFIG,
-    min,
-    max,
-    step,
-    coarseStep,
+    min: effectiveMin,
+    max: effectiveMax,
+    step: effectiveStep,
+    coarseStep: effectiveCoarseStep,
+    mmPerRadian: isOptionsMode
+      ? Math.max(1, enabledOptions.length) / (Math.PI / 3.2)
+      : DEFAULT_THUMB_ARC_CONFIG.mmPerRadian,
+    fastAngularVelocityThreshold: isOptionsMode
+      ? 99
+      : DEFAULT_THUMB_ARC_CONFIG.fastAngularVelocityThreshold,
     handMode: activeHandMode,
   };
 
   const baseWidth = 360;
-  const baseHeight = compact ? 230 : 260;
-  const baseSvgHeight = compact ? 240 : 270;
-  const baseRadius = compact ? 245 : 275;
+  const baseHeight = arcOnly ? 196 : compact ? 230 : 260;
+  const baseSvgHeight = arcOnly ? 206 : compact ? 240 : 270;
+  const baseRadius = arcOnly ? 225 : compact ? 245 : 275;
 
-  // SVG Geometry for visual arc (calibrated for regular or compact viewport)
+  // SVG Geometry for visual arc
   const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
 
   // Knob position along visual arc based on value percentage
   // Sweeping up (elevating thumb) increases value (+); sweeping down decreases (-).
-  const valueRatio = Math.max(0, Math.min(1, (value - min) / (max - min)));
-  const knobAngleDeg = activeHandMode === 'right'
-    ? -165 + valueRatio * 60
-    : -15 - valueRatio * 60;
+  const valueRange = Math.max(1, effectiveMax - effectiveMin);
+  const valueRatio =
+    isOptionsMode && enabledOptions.length <= 1
+      ? 0.5
+      : Math.max(0, Math.min(1, (effectiveValue - effectiveMin) / valueRange));
+  const knobAngleDeg = activeHandMode === 'right' ? -165 + valueRatio * 60 : -15 - valueRatio * 60;
   const knobAngleRad = (knobAngleDeg * Math.PI) / 180;
   const knobX = svgTrack.center.x + svgTrack.radius * Math.cos(knobAngleRad);
   const knobY = svgTrack.center.y + svgTrack.radius * Math.sin(knobAngleRad);
+
+  // Midpoint of the arc (50% ratio) to split upper half (+) vs lower half (-)
+  const midAngleDeg = activeHandMode === 'right' ? -135 : -45;
+  const midAngleRad = (midAngleDeg * Math.PI) / 180;
+  const midX = svgTrack.center.x + svgTrack.radius * Math.cos(midAngleRad);
+  const midY = svgTrack.center.y + svgTrack.radius * Math.sin(midAngleRad);
+
+  // Upper and lower label coordinates along the arc
+  const upperBadgeDeg = activeHandMode === 'right' ? -111 : -69;
+  const upperBadgeRad = (upperBadgeDeg * Math.PI) / 180;
+  const upperBadgeX = svgTrack.center.x + svgTrack.radius * Math.cos(upperBadgeRad);
+  const upperBadgeY = svgTrack.center.y + svgTrack.radius * Math.sin(upperBadgeRad);
+
+  const lowerBadgeDeg = activeHandMode === 'right' ? -159 : -21;
+  const lowerBadgeRad = (lowerBadgeDeg * Math.PI) / 180;
+  const lowerBadgeX = svgTrack.center.x + svgTrack.radius * Math.cos(lowerBadgeRad);
+  const lowerBadgeY = svgTrack.center.y + svgTrack.radius * Math.sin(lowerBadgeRad);
 
   const handlePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -153,10 +271,7 @@ export function ThumbArcInput({
         y: (e.clientY - rect.top) * scaleY,
       };
 
-      // 1. Direct hit on the visual knob (< 35px) captures immediately regardless of angular tolerance
       const isOverKnob = isPointOnKnob(normalizedPoint, { x: knobX, y: knobY }, 35);
-
-      // 2. Proportional hit on the radial arc corridor with expanded tolerance (55px)
       const isOnArc = isPointOnThumbArc(normalizedPoint, baseWidth, baseSvgHeight, activeHandMode, {
         radius: baseRadius,
         radialTolerance: 55,
@@ -168,6 +283,9 @@ export function ThumbArcInput({
 
       arcContainerRef.current.setPointerCapture(e.pointerId);
       isDraggingRef.current = true;
+      didMoveRef.current = false;
+      downClientPointRef.current = { x: e.clientX, y: e.clientY };
+      downNormalizedPointRef.current = normalizedPoint;
 
       const pivot = getThumbPivotPoint(rect.width, rect.height, activeHandMode);
       const point = {
@@ -178,15 +296,23 @@ export function ThumbArcInput({
       const angle = calculatePointAngle(point, pivot);
       prevAngleRef.current = angle;
       lastTimeRef.current = performance.now();
-      accumulatedValueRef.current = value;
+      accumulatedValueRef.current = effectiveValue;
       triggerHaptic('tick');
     },
-    [activeHandMode, value, baseWidth, baseSvgHeight, baseRadius, knobX, knobY],
+    [activeHandMode, effectiveValue, baseWidth, baseSvgHeight, baseRadius, knobX, knobY],
   );
 
   const handlePointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!isDraggingRef.current || !arcContainerRef.current) return;
+
+      const moveDist = Math.hypot(
+        e.clientX - downClientPointRef.current.x,
+        e.clientY - downClientPointRef.current.y,
+      );
+      if (moveDist > 6) {
+        didMoveRef.current = true;
+      }
 
       const rect = arcContainerRef.current.getBoundingClientRect();
       const pivot = getThumbPivotPoint(rect.width, rect.height, activeHandMode);
@@ -209,28 +335,59 @@ export function ThumbArcInput({
       const nextAccumulated = accumulatedValueRef.current + valueDelta;
       accumulatedValueRef.current = nextAccumulated;
 
-      const clamped = clampAndStepValue(nextAccumulated, min, max, step);
-      if (clamped !== value) {
-        const haptic = evaluateHapticFeedback(value, clamped, arcConfig);
+      const clamped = clampAndStepValue(nextAccumulated, effectiveMin, effectiveMax, effectiveStep);
+      if (clamped !== effectiveValue) {
+        const haptic = evaluateHapticFeedback(effectiveValue, clamped, arcConfig);
         triggerHaptic(haptic);
-        onChange(clamped);
+        if (isOptionsMode && onSelectOption) {
+          const targetOpt = enabledOptions[clamped];
+          if (targetOpt) {
+            onSelectOption(targetOpt.id);
+          }
+        } else {
+          onChange(clamped);
+        }
       }
     },
-    [activeHandMode, arcConfig, min, max, step, value, onChange],
+    [
+      activeHandMode,
+      arcConfig,
+      effectiveMin,
+      effectiveMax,
+      effectiveStep,
+      effectiveValue,
+      isOptionsMode,
+      onSelectOption,
+      enabledOptions,
+      onChange,
+    ],
   );
 
-  const handlePointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    if (isDraggingRef.current && arcContainerRef.current) {
-      try {
-        arcContainerRef.current.releasePointerCapture(e.pointerId);
-      } catch {
-        // Pointer capture release safety
-      }
-    }
-    isDraggingRef.current = false;
-  }, []);
+  const handlePointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!isDraggingRef.current) return;
 
-  // Quick stepper adjustments
+      if (arcContainerRef.current) {
+        try {
+          arcContainerRef.current.releasePointerCapture(e.pointerId);
+        } catch {
+          // Pointer capture release safety
+        }
+      }
+      isDraggingRef.current = false;
+
+      // Tap gesture on the arc (without dragging):
+      // Upper half of the arc -> +1 / next option; Lower half -> -1 / previous option
+      if (!didMoveRef.current) {
+        const normPt = downNormalizedPointRef.current;
+        const isUpperHalf = normPt.y <= midY;
+        stepByDirection(isUpperHalf ? 1 : -1);
+      }
+    },
+    [midY, stepByDirection],
+  );
+
+  // Quick stepper adjustments (for legacy / non-arcOnly mode)
   const applyDelta = useCallback(
     (delta: number) => {
       const next = clampAndStepValue(value + delta, min, max, step);
@@ -252,8 +409,12 @@ export function ThumbArcInput({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: compact ? '0.45rem 0.6rem max(0.45rem, env(safe-area-inset-bottom, 0.45rem))' : '0.85rem 0.75rem',
-        borderRadius: compact ? '18px' : '24px',
+        padding: arcOnly
+          ? '0.2rem 0.35rem'
+          : compact
+            ? '0.45rem 0.6rem max(0.45rem, env(safe-area-inset-bottom, 0.45rem))'
+            : '0.85rem 0.75rem',
+        borderRadius: arcOnly ? '16px' : compact ? '18px' : '24px',
         backgroundColor: 'var(--md-sys-color-surface-container)',
         border: '1px solid var(--md-sys-color-outline-variant)',
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
@@ -261,12 +422,12 @@ export function ThumbArcInput({
         userSelect: 'none',
         width: '100%',
         maxWidth: '460px',
-        margin: compact ? 'auto auto 0' : '0 auto',
+        margin: compact || arcOnly ? 'auto auto 0' : '0 auto',
         boxSizing: 'border-box',
       }}
     >
-      {/* Top Header: Label & Hand Mode Switch (Hidden when compact) */}
-      {!compact && (
+      {/* Top Header: Label & Hand Mode Switch (Hidden when compact or arcOnly) */}
+      {!compact && !arcOnly && (
         <div
           style={{
             display: 'flex',
@@ -300,7 +461,6 @@ export function ThumbArcInput({
             </h3>
           </div>
 
-          {/* Hand Mode Toggle Button */}
           <button
             type="button"
             onClick={handleHandModeToggle}
@@ -328,138 +488,140 @@ export function ThumbArcInput({
         </div>
       )}
 
-      {/* Numerical Readout & Direct Tapping */}
-      <div style={{ width: '100%', margin: compact ? '0.15rem 0 0.25rem' : '0.75rem 0', textAlign: 'center' }}>
-        {isDirectEditing ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.4rem',
-            }}
-          >
-            <input
-              type="number"
-              value={directText}
-              min={min}
-              max={max}
-              step={step}
-              autoFocus
-              onChange={(e) => setDirectText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleDirectSubmit();
-                if (e.key === 'Escape') setIsDirectEditing(false);
-              }}
+      {/* Numerical Readout & Direct Tapping (When not arcOnly) */}
+      {!arcOnly && (
+        <div style={{ width: '100%', margin: compact ? '0.15rem 0 0.25rem' : '0.75rem 0', textAlign: 'center' }}>
+          {isDirectEditing ? (
+            <div
               style={{
-                fontSize: compact ? '1.6rem' : '2.2rem',
-                fontWeight: 800,
-                width: compact ? '140px' : '180px',
-                textAlign: 'center',
-                padding: '0.25rem 0.4rem',
-                borderRadius: '12px',
-                border: '2px solid var(--md-sys-color-primary)',
-                backgroundColor: 'var(--md-sys-color-surface)',
-                color: 'var(--md-sys-color-on-surface)',
-                outline: 'none',
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleDirectSubmit}
-              className="m3-button m3-button--filled"
-              aria-label="Confirmar valor"
-              style={{
-                minHeight: compact ? '40px' : '48px',
-                minWidth: compact ? '40px' : '48px',
-                borderRadius: '12px',
-                fontSize: '1rem',
-                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
               }}
             >
-              ✓
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsDirectEditing(false)}
-              className="m3-button m3-button--outlined"
-              aria-label="Cancelar edición"
+              <input
+                type="number"
+                value={directText}
+                min={min}
+                max={max}
+                step={step}
+                autoFocus
+                onChange={(e) => setDirectText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleDirectSubmit();
+                  if (e.key === 'Escape') setIsDirectEditing(false);
+                }}
+                style={{
+                  fontSize: compact ? '1.6rem' : '2.2rem',
+                  fontWeight: 800,
+                  width: compact ? '140px' : '180px',
+                  textAlign: 'center',
+                  padding: '0.25rem 0.4rem',
+                  borderRadius: '12px',
+                  border: '2px solid var(--md-sys-color-primary)',
+                  backgroundColor: 'var(--md-sys-color-surface)',
+                  color: 'var(--md-sys-color-on-surface)',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleDirectSubmit}
+                className="m3-button m3-button--filled"
+                aria-label="Confirmar valor"
+                style={{
+                  minHeight: compact ? '40px' : '48px',
+                  minWidth: compact ? '40px' : '48px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                }}
+              >
+                ✓
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDirectEditing(false)}
+                className="m3-button m3-button--outlined"
+                aria-label="Cancelar edición"
+                style={{
+                  minHeight: compact ? '40px' : '48px',
+                  minWidth: compact ? '40px' : '48px',
+                  borderRadius: '12px',
+                  fontSize: '1rem',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => setIsDirectEditing(true)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Valor actual: ${value} ${unit}. Tocar para editar con teclado.`}
+              title="Tocar para editar con teclado"
               style={{
-                minHeight: compact ? '40px' : '48px',
-                minWidth: compact ? '40px' : '48px',
-                borderRadius: '12px',
-                fontSize: '1rem',
+                display: 'inline-flex',
+                alignItems: 'baseline',
+                justifyContent: 'center',
+                gap: '0.35rem',
+                cursor: 'pointer',
+                padding: compact ? '0.15rem 0.8rem' : '0.2rem 1rem',
+                borderRadius: compact ? '14px' : '16px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px dashed var(--md-sys-color-outline)',
               }}
             >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <div
-            onClick={() => setIsDirectEditing(true)}
-            role="button"
-            tabIndex={0}
-            aria-label={`Valor actual: ${value} ${unit}. Tocar para editar con teclado.`}
-            title="Tocar para editar con teclado"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'baseline',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              cursor: 'pointer',
-              padding: compact ? '0.15rem 0.8rem' : '0.2rem 1rem',
-              borderRadius: compact ? '14px' : '16px',
-              backgroundColor: 'var(--md-sys-color-surface-container-high)',
-              border: '1px dashed var(--md-sys-color-outline)',
-            }}
-          >
-            <span
-              style={{
-                fontSize: compact ? '2rem' : '2.75rem',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                color: 'var(--md-sys-color-primary)',
-                lineHeight: 1.1,
-              }}
-            >
-              {value}
-            </span>
-            <span
-              style={{
-                fontSize: compact ? '1rem' : '1.1rem',
-                fontWeight: 700,
-                color: 'var(--md-sys-color-on-surface-variant)',
-              }}
-            >
-              {unit}
-            </span>
-            <span
-              style={{
-                fontSize: '0.85rem',
-                marginLeft: '0.25rem',
-                opacity: 0.7,
-              }}
-            >
-              ✏️
-            </span>
-          </div>
-        )}
+              <span
+                style={{
+                  fontSize: compact ? '2rem' : '2.75rem',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  color: 'var(--md-sys-color-primary)',
+                  lineHeight: 1.1,
+                }}
+              >
+                {value}
+              </span>
+              <span
+                style={{
+                  fontSize: compact ? '1rem' : '1.1rem',
+                  fontWeight: 700,
+                  color: 'var(--md-sys-color-on-surface-variant)',
+                }}
+              >
+                {unit}
+              </span>
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  marginLeft: '0.25rem',
+                  opacity: 0.7,
+                }}
+              >
+                ✏️
+              </span>
+            </div>
+          )}
 
-        {helpText && !compact && (
-          <div
-            style={{
-              fontSize: '0.8rem',
-              color: 'var(--md-sys-color-outline)',
-              marginTop: '0.35rem',
-            }}
-          >
-            {helpText}
-          </div>
-        )}
-      </div>
+          {helpText && !compact && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--md-sys-color-outline)',
+                marginTop: '0.35rem',
+              }}
+            >
+              {helpText}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* In compact mode: place Presets & Steppers ABOVE the thumb arc, so the arc rests at the bottom */}
-      {compact && (
+      {/* In compact mode (when not arcOnly): place Presets & Steppers ABOVE the thumb arc */}
+      {compact && !arcOnly && (
         <>
           {quickPresets && quickPresets.length > 0 && (
             <div
@@ -504,7 +666,6 @@ export function ThumbArcInput({
             </div>
           )}
 
-          {/* Stepper Buttons (Touch Targets >= 48px per M3) */}
           <div
             style={{
               display: 'grid',
@@ -637,10 +798,10 @@ export function ThumbArcInput({
             height: `${baseHeight}px`,
             position: 'relative',
             overflow: 'hidden',
-            borderRadius: compact ? '16px' : '24px',
+            borderRadius: arcOnly ? '14px' : compact ? '16px' : '24px',
             backgroundColor: 'var(--md-sys-color-surface)',
             border: '1px solid var(--md-sys-color-outline-variant)',
-            cursor: 'default',
+            cursor: 'pointer',
             touchAction: 'none',
             display: 'flex',
             alignItems: 'center',
@@ -661,7 +822,7 @@ export function ThumbArcInput({
               d={svgTrack.pathD}
               fill="none"
               stroke="var(--md-sys-color-surface-container-highest)"
-              strokeWidth={compact ? '30' : '36'}
+              strokeWidth={arcOnly ? '34' : compact ? '30' : '36'}
               strokeLinecap="round"
             />
 
@@ -670,15 +831,79 @@ export function ThumbArcInput({
               d={svgTrack.pathD}
               fill="none"
               stroke="var(--md-sys-color-primary-container)"
-              strokeWidth={compact ? '18' : '22'}
+              strokeWidth={arcOnly ? '22' : compact ? '18' : '22'}
               strokeLinecap="round"
             />
+
+            {/* Midpoint Divider Tick separating Upper Half (+ / Next) and Lower Half (- / Prev) */}
+            <circle
+              cx={midX.toFixed(1)}
+              cy={midY.toFixed(1)}
+              r="3"
+              fill="var(--md-sys-color-outline)"
+              opacity="0.55"
+            />
+
+            {/* Upper Half Tap Indicator (+1 / Siguiente) */}
+            <g transform={`translate(${upperBadgeX.toFixed(1)}, ${upperBadgeY.toFixed(1)})`}>
+              <circle r="11" fill="var(--md-sys-color-primary)" opacity="0.18" />
+              <text
+                x="0"
+                y="3.5"
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="900"
+                fill="var(--md-sys-color-primary)"
+              >
+                +
+              </text>
+            </g>
+
+            {/* Lower Half Tap Indicator (-1 / Anterior) */}
+            <g transform={`translate(${lowerBadgeX.toFixed(1)}, ${lowerBadgeY.toFixed(1)})`}>
+              <circle r="11" fill="var(--md-sys-color-on-surface)" opacity="0.12" />
+              <text
+                x="0"
+                y="3.5"
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="900"
+                fill="var(--md-sys-color-on-surface)"
+              >
+                −
+              </text>
+            </g>
+
+            {/* Option Tick Marks along the arc when in discrete options mode */}
+            {isOptionsMode &&
+              enabledOptions.map((opt, idx) => {
+                const ratio =
+                  enabledOptions.length <= 1 ? 0.5 : idx / Math.max(1, enabledOptions.length - 1);
+                const deg = activeHandMode === 'right' ? -165 + ratio * 60 : -15 - ratio * 60;
+                const rad = (deg * Math.PI) / 180;
+                const tx = svgTrack.center.x + svgTrack.radius * Math.cos(rad);
+                const ty = svgTrack.center.y + svgTrack.radius * Math.sin(rad);
+                return (
+                  <circle
+                    key={opt.id}
+                    cx={tx.toFixed(1)}
+                    cy={ty.toFixed(1)}
+                    r={idx === activeOptionIndex ? '5' : '3'}
+                    fill={
+                      idx === activeOptionIndex
+                        ? 'var(--md-sys-color-on-primary)'
+                        : 'var(--md-sys-color-primary)'
+                    }
+                    opacity={idx === activeOptionIndex ? 1 : 0.5}
+                  />
+                );
+              })}
 
             {/* Knob handle along the natural thumb zone */}
             <circle
               cx={knobX.toFixed(1)}
               cy={knobY.toFixed(1)}
-              r={compact ? '18' : '22'}
+              r={arcOnly ? '19' : compact ? '18' : '22'}
               fill="var(--md-sys-color-primary)"
               stroke="var(--md-sys-color-surface)"
               strokeWidth="3.5"
@@ -687,36 +912,273 @@ export function ThumbArcInput({
             <circle
               cx={knobX.toFixed(1)}
               cy={knobY.toFixed(1)}
-              r={compact ? '7' : '8'}
+              r={arcOnly ? '7' : compact ? '7' : '8'}
               fill="var(--md-sys-color-on-primary)"
             />
           </svg>
 
-          {/* Floating guidance overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: compact ? '6px' : '10px',
-              [activeHandMode === 'right' ? 'right' : 'left']: compact ? '10px' : '14px',
-              fontSize: compact ? '0.72rem' : '0.78rem',
-              fontWeight: 600,
-              color: 'var(--md-sys-color-outline)',
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              backgroundColor: 'rgba(255,255,255,0.7)',
-              padding: '0.15rem 0.45rem',
-              borderRadius: '10px',
-            }}
-          >
-            <span>⤴️ Deslizar pulgar (+)</span>
-          </div>
+          {/* Embedded Readout inside the concave pocket of the arc when arcOnly={true} */}
+          {arcOnly && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '12px',
+                [activeHandMode === 'right' ? 'right' : 'left']: '12px',
+                maxWidth: '68%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: activeHandMode === 'right' ? 'flex-end' : 'flex-start',
+                textAlign: activeHandMode === 'right' ? 'right' : 'left',
+                pointerEvents: isOptionsMode ? 'none' : 'auto',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '14px',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  color: 'var(--md-sys-color-outline)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                }}
+              >
+                {label}
+              </span>
+
+              {isOptionsMode && activeOption ? (
+                <>
+                  <span
+                    style={{
+                      fontSize: '0.98rem',
+                      fontWeight: 900,
+                      color: 'var(--md-sys-color-primary)',
+                      lineHeight: 1.2,
+                      marginTop: '2px',
+                    }}
+                  >
+                    {activeOption.label}
+                  </span>
+                  {activeOption.sublabel && (
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--md-sys-color-on-surface-variant)',
+                        marginTop: '2px',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {activeOption.sublabel}
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      color: 'var(--md-sys-color-outline)',
+                      marginTop: '3px',
+                    }}
+                  >
+                    {`Opción ${activeOptionIndex + 1} de ${enabledOptions.length} · Tap + / −`}
+                  </span>
+                </>
+              ) : isDirectEditing ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '2px' }}>
+                  <input
+                    type="number"
+                    value={directText}
+                    min={min}
+                    max={max}
+                    step={step}
+                    autoFocus
+                    onChange={(e) => setDirectText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleDirectSubmit();
+                      if (e.key === 'Escape') setIsDirectEditing(false);
+                    }}
+                    style={{
+                      fontSize: '1.3rem',
+                      fontWeight: 800,
+                      width: '92px',
+                      textAlign: 'center',
+                      padding: '0.15rem 0.3rem',
+                      borderRadius: '8px',
+                      border: '2px solid var(--md-sys-color-primary)',
+                      backgroundColor: 'var(--md-sys-color-surface)',
+                      color: 'var(--md-sys-color-on-surface)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDirectSubmit}
+                    aria-label="Confirmar valor"
+                    style={{
+                      minHeight: '34px',
+                      minWidth: '34px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--md-sys-color-primary)',
+                      color: 'var(--md-sys-color-on-primary)',
+                      border: 'none',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✓
+                  </button>
+                </div>
+              ) : (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDirectEditing(true);
+                  }}
+                  aria-label={`Valor actual: ${value} ${unit}. Tocar para editar.`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    gap: '0.25rem',
+                    cursor: 'pointer',
+                    marginTop: '1px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '1.65rem',
+                      fontWeight: 900,
+                      color: 'var(--md-sys-color-primary)',
+                      lineHeight: 1.05,
+                    }}
+                  >
+                    {`${value} `}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      color: 'var(--md-sys-color-on-surface-variant)',
+                    }}
+                  >
+                    {unit}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>✏️</span>
+                </div>
+              )}
+
+              {!isOptionsMode && helpText && (
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    color: 'var(--md-sys-color-outline)',
+                    marginTop: '2px',
+                  }}
+                >
+                  {helpText}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Accessible Upper / Lower Arc Tap Buttons for fine adjustment (+1 / -1 or Next / Prev) */}
+          {arcOnly && (
+            <>
+              <button
+                type="button"
+                data-arc-tap="upper"
+                aria-label={isOptionsMode ? 'Opción siguiente (mitad superior del arco)' : `Sumar ${step} ${unit} (mitad superior del arco)`}
+                title={isOptionsMode ? 'Tap mitad superior: Opción siguiente' : `Tap mitad superior: +${step} ${unit}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stepByDirection(1);
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '6px',
+                  [activeHandMode === 'right' ? 'right' : 'left']: '8px',
+                  minHeight: '36px',
+                  padding: '0 0.55rem',
+                  borderRadius: '18px',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  color: 'var(--md-sys-color-primary)',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.2rem',
+                  opacity: 0.92,
+                }}
+              >
+                <span>▲</span>
+                <span>{isOptionsMode ? 'Sig.' : `+${step}`}</span>
+              </button>
+
+              <button
+                type="button"
+                data-arc-tap="lower"
+                aria-label={isOptionsMode ? 'Opción anterior (mitad inferior del arco)' : `Restar ${step} ${unit} (mitad inferior del arco)`}
+                title={isOptionsMode ? 'Tap mitad inferior: Opción anterior' : `Tap mitad inferior: -${step} ${unit}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stepByDirection(-1);
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  [activeHandMode === 'right' ? 'left' : 'right']: '8px',
+                  minHeight: '36px',
+                  padding: '0 0.55rem',
+                  borderRadius: '18px',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  color: 'var(--md-sys-color-on-surface)',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.2rem',
+                  opacity: 0.92,
+                }}
+              >
+                <span>▼</span>
+                <span>{isOptionsMode ? 'Ant.' : `-${step}`}</span>
+              </button>
+            </>
+          )}
+
+          {/* Floating guidance overlay (when not arcOnly) */}
+          {!arcOnly && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: compact ? '6px' : '10px',
+                [activeHandMode === 'right' ? 'right' : 'left']: compact ? '10px' : '14px',
+                fontSize: compact ? '0.72rem' : '0.78rem',
+                fontWeight: 600,
+                color: 'var(--md-sys-color-outline)',
+                pointerEvents: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                backgroundColor: 'rgba(255,255,255,0.7)',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '10px',
+              }}
+            >
+              <span>⤴️ Deslizar pulgar (+)</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Stepper Buttons & Presets for non-compact mode */}
-      {!compact && (
+      {/* Stepper Buttons & Presets for non-compact mode (when not arcOnly) */}
+      {!compact && !arcOnly && (
         <>
           <div
             style={{
