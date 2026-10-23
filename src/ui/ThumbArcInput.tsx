@@ -223,9 +223,9 @@ export function ThumbArcInput({
   };
 
   const baseWidth = 360;
-  const baseHeight = arcOnly ? 156 : compact ? 230 : 260;
-  const baseSvgHeight = arcOnly ? 168 : compact ? 240 : 270;
-  const baseRadius = arcOnly ? 205 : compact ? 245 : 275;
+  const baseHeight = arcOnly ? 165 : compact ? 230 : 260;
+  const baseSvgHeight = arcOnly ? 175 : compact ? 240 : 270;
+  const baseRadius = arcOnly ? 165 : compact ? 245 : 275;
 
   // SVG Geometry for visual arc
   const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
@@ -413,15 +413,16 @@ export function ThumbArcInput({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        gap: arcOnly ? '0.35rem' : undefined,
         padding: arcOnly
-          ? '0.2rem 0.35rem'
+          ? '0'
           : compact
             ? '0.45rem 0.6rem max(0.45rem, env(safe-area-inset-bottom, 0.45rem))'
             : '0.85rem 0.75rem',
-        borderRadius: arcOnly ? '16px' : compact ? '18px' : '24px',
-        backgroundColor: 'var(--md-sys-color-surface-container)',
-        border: '1px solid var(--md-sys-color-outline-variant)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
+        borderRadius: arcOnly ? '0' : compact ? '18px' : '24px',
+        backgroundColor: arcOnly ? 'transparent' : 'var(--md-sys-color-surface-container)',
+        border: arcOnly ? 'none' : '1px solid var(--md-sys-color-outline-variant)',
+        boxShadow: arcOnly ? 'none' : '0 4px 16px rgba(0, 0, 0, 0.06)',
         position: 'relative',
         userSelect: 'none',
         width: '100%',
@@ -786,7 +787,7 @@ export function ThumbArcInput({
         </>
       )}
 
-      {/* Full-Width Readout Banner ABOVE the Arc Slider Zone when arcOnly={true} */}
+      {/* Full-Width Readout Banner OUTSIDE and ABOVE the Arc Slider Container when arcOnly={true} */}
       {arcOnly && (
         <div
           data-arc-readout="full-width-banner"
@@ -797,11 +798,10 @@ export function ThumbArcInput({
             justifyContent: 'space-between',
             gap: '0.6rem',
             backgroundColor: 'var(--md-sys-color-surface-container-high)',
-            padding: '0.45rem 0.75rem',
+            padding: '0.5rem 0.8rem',
             borderRadius: '14px',
             border: '1.5px solid var(--md-sys-color-outline-variant)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-            marginBottom: '0.25rem',
             boxSizing: 'border-box',
           }}
         >
@@ -1129,29 +1129,6 @@ export function ThumbArcInput({
             />
           </svg>
 
-          {/* Subtle non-intrusive guidance inside the clean arc zone */}
-          {arcOnly && (
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: '8px',
-                [activeHandMode === 'right' ? 'left' : 'right']: '12px',
-                fontSize: '0.68rem',
-                fontWeight: 700,
-                color: 'var(--md-sys-color-outline)',
-                opacity: 0.75,
-                pointerEvents: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: activeHandMode === 'right' ? 'flex-start' : 'flex-end',
-                gap: '2px',
-              }}
-            >
-              <span>{isOptionsMode ? '⤴️ Deslizar o Tap para cambiar opción' : '⤴️ Deslizar o Tap (+1 / -1)'}</span>
-            </div>
-          )}
-
           {/* Accessible Upper / Lower Arc Tap Buttons for fine adjustment (+1 / -1 or Next / Prev) */}
           {arcOnly && (
             <>
@@ -1166,10 +1143,10 @@ export function ThumbArcInput({
                 }}
                 style={{
                   position: 'absolute',
-                  top: '6px',
-                  [activeHandMode === 'right' ? 'right' : 'left']: '8px',
+                  top: '10px',
+                  [activeHandMode === 'right' ? 'left' : 'right']: '10px',
                   minHeight: '36px',
-                  padding: '0 0.55rem',
+                  padding: '0 0.6rem',
                   borderRadius: '18px',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   backgroundColor: 'var(--md-sys-color-surface-container)',

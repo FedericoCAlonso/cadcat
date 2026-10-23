@@ -19,6 +19,8 @@ import {
 import { type RoofType, type BackingType, type BayContent, type BayBoundingBox } from '../resolver';
 import { resolveBackingReserveMm } from '../resolver/composition/backingReserve';
 import { BayDistributionModal } from './BayDistributionModal';
+import { APP_VERSION } from '../version';
+import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 
 export type ObraGridType = '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
 export type ObraBayContentType = 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided';
@@ -944,6 +946,23 @@ export function ModoObraWizard({
           </div>
 
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => void forcePurgeCacheAndReload()}
+              title="Actualizar caché a la última versión"
+              aria-label={`Versión v${APP_VERSION}. Tocar para forzar actualización`}
+              style={{
+                fontSize: '0.62rem',
+                fontWeight: 700,
+                color: 'var(--md-sys-color-outline)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                padding: '0 4px',
+                cursor: 'pointer',
+              }}
+            >
+              {`v${APP_VERSION}`}
+            </button>
             {OBRA_STEPS.map((s, idx) => (
               <span
                 key={s.id}
