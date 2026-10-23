@@ -38,6 +38,7 @@ export function BayDistributionModal({
   bayIndex,
   bayWidth,
   bayHeight,
+  bayDepth,
   initialContent,
 }: BayDistributionModalProps): ReactElement | null {
   // Working draft of the bay content tree
@@ -1195,9 +1196,9 @@ export function BayDistributionModal({
                         </div>
                       </div>
 
-                      {/* Deslizamiento */}
+                      {/* Deslizamiento y Correderas */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Deslizamiento:</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Sistema de deslizamiento:</span>
                         <div className="builder-segmented-btn-group">
                           <button
                             type="button"
@@ -1207,8 +1208,6 @@ export function BayDistributionModal({
                               handleUpdateCellContent({
                                 ...ds,
                                 slideType: 'wood-runner',
-                                frontMount: 'inset', // Sin sobretapa
-                                drawerType: 'simple-interior',
                               });
                             }}
                           >
@@ -1216,25 +1215,124 @@ export function BayDistributionModal({
                           </button>
                           <button
                             type="button"
-                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).slideType === 'telescopic' ? 'selected' : ''}`}
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).slideType === 'telescopic' || !(selectedCell.content as BayContentDrawerStack).slideType ? 'selected' : ''}`}
                             onClick={() => {
                               const ds = selectedCell.content as BayContentDrawerStack;
                               handleUpdateCellContent({
                                 ...ds,
                                 slideType: 'telescopic',
-                                drawerType: 'standard',
                               });
                             }}
                           >
                             ⚙️ Telescópica (25.4mm)
                           </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).slideType === 'undermount' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                slideType: 'undermount',
+                              });
+                            }}
+                          >
+                            🔻 Oculta (10mm)
+                          </button>
                         </div>
                       </div>
 
-                      {/* Frente / Sobretapa */}
+                      {/* Medida de Corredera / Profundidad de Caja */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Frente del cajón:</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                          Medida comercial de corredera / profundidad:
+                        </span>
+                        <div className="builder-chip-selector" role="group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${!(selectedCell.content as BayContentDrawerStack).boxDepthMm ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              const updated = { ...ds };
+                              delete updated.boxDepthMm;
+                              handleUpdateCellContent(updated);
+                            }}
+                          >
+                            Auto ({Math.max(50, bayDepth - (bayDepth <= 350 ? 20 : 50))}mm)
+                          </button>
+                          {[250, 300, 350, 400, 450, 500, 550, 600]
+                            .filter((len) => len <= bayDepth)
+                            .map((len) => (
+                              <button
+                                key={len}
+                                type="button"
+                                className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).boxDepthMm === len ? 'selected' : ''}`}
+                                style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                                onClick={() => {
+                                  const ds = selectedCell.content as BayContentDrawerStack;
+                                  handleUpdateCellContent({
+                                    ...ds,
+                                    boxDepthMm: len,
+                                  });
+                                }}
+                              >
+                                {len} mm
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Tipo de Tapa / Frente (Estructura) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Tipo de tapa (Estructura):</span>
                         <div className="builder-segmented-btn-group">
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).drawerType !== 'simple-interior' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                drawerType: 'standard',
+                              });
+                            }}
+                          >
+                            🔲 Tapa Doble (Frente postizo)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).drawerType === 'simple-interior' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                drawerType: 'simple-interior',
+                              });
+                            }}
+                          >
+                            🔲 Tapa Simple (Estructural)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Posición del Frente (Montaje) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Posición del frente (Montaje):</span>
+                        <div className="builder-segmented-btn-group">
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).frontMount === 'applied' || !(selectedCell.content as BayContentDrawerStack).frontMount ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                frontMount: 'applied',
+                              });
+                            }}
+                          >
+                            🔲 Aplicado (Solapado)
+                          </button>
                           <button
                             type="button"
                             className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).frontMount === 'inset' ? 'selected' : ''}`}
@@ -1243,25 +1341,56 @@ export function BayDistributionModal({
                               handleUpdateCellContent({
                                 ...ds,
                                 frontMount: 'inset',
-                                drawerType: 'simple-interior',
                               });
                             }}
                           >
-                            🔲 Embutido (sin sobretapa)
+                            🔲 Embutido a la luz
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Construcción del Fondo */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Construcción del fondo:</span>
+                        <div className="builder-segmented-btn-group">
                           <button
                             type="button"
-                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).frontMount === 'applied' ? 'selected' : ''}`}
+                            className={`builder-segmented-btn ${!(selectedCell.content as BayContentDrawerStack).bottomMount || (selectedCell.content as BayContentDrawerStack).bottomMount === 'bottom-screwed' ? 'selected' : ''}`}
                             onClick={() => {
                               const ds = selectedCell.content as BayContentDrawerStack;
                               handleUpdateCellContent({
                                 ...ds,
-                                frontMount: 'applied',
-                                drawerType: 'standard',
+                                bottomMount: 'bottom-screwed',
                               });
                             }}
                           >
-                            🔲 Con sobretapa aplicada
+                            Atornillado/Clavado
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).bottomMount === 'grooved' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                bottomMount: 'grooved',
+                              });
+                            }}
+                          >
+                            Ranurado (3-6mm)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).bottomMount === 'flush-thick' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                bottomMount: 'flush-thick',
+                              });
+                            }}
+                          >
+                            Grueso al ras (15/18mm)
                           </button>
                         </div>
                       </div>
@@ -1278,9 +1407,6 @@ export function BayDistributionModal({
                               handleUpdateCellContent({
                                 ...ds,
                                 boxThicknessMm: 6,
-                                slideType: 'wood-runner',
-                                frontMount: 'inset',
-                                drawerType: 'simple-interior',
                                 boxJointType: 'glue',
                               });
                             }}
@@ -1345,7 +1471,7 @@ export function BayDistributionModal({
                               lineHeight: 1.35,
                             }}
                           >
-                            🪵 <strong>Caja encolada sin tornillos en canto:</strong> En placas de {((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15)} mm las uniones son encoladas/encastradas sin perforaciones en canto. Deslizamiento suave sobre madera.
+                            🪵 <strong>Caja encolada sin tornillos en canto:</strong> En placas de {((selectedCell.content as BayContentDrawerStack).boxThicknessMm ?? 15)} mm las uniones son encoladas/encastradas sin perforaciones en canto.
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>

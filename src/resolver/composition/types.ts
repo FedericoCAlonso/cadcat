@@ -131,6 +131,7 @@ export type BayContent =
       bottomScrewedDeductionWidthMm?: number;
       bottomScrewedDeductionDepthMm?: number;
       slideClearanceMm?: number;
+      boxDepthMm?: number;
     }
   | {
       type: 'pull-out-tray';

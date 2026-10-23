@@ -121,6 +121,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
           depthMm: bay.depth,
           frontHeightMm: frontHeight,
           boxHeightMm: boxHeight,
+          boxDepthMm: content.boxDepthMm,
           baseYMm: drawerBaseY,
           carcaseThicknessMm: T,
           materialId: materials.carcassMaterialId,
