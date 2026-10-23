@@ -405,6 +405,33 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     expect(handleSelectOption).toHaveBeenCalledWith('overlay');
 
+    // Verify anti-occlusion opposite-thumb placement: right hand -> readout on left side
+    const readoutRight = container.querySelector('[data-arc-readout="opposite-thumb"]') as HTMLElement;
+    expect(readoutRight).not.toBeNull();
+    expect(readoutRight.getAttribute('data-readout-side')).toBe('left');
+    expect(readoutRight.style.top).toBe('8px');
+    expect(readoutRight.style.left).toBe('8px');
+
+    // Re-render in left-handed mode -> readout moves to right side
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Unión de Base"
+          value={0}
+          arcOnly={true}
+          handMode="left"
+          options={options}
+          selectedOptionId="inset"
+          onSelectOption={handleSelectOption}
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const readoutLeft = container.querySelector('[data-arc-readout="opposite-thumb"]') as HTMLElement;
+    expect(readoutLeft.getAttribute('data-readout-side')).toBe('right');
+    expect(readoutLeft.style.top).toBe('8px');
+    expect(readoutLeft.style.right).toBe('8px');
+
     act(() => {
       rootInstance.unmount();
     });

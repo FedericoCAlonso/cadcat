@@ -972,7 +972,7 @@ export function ModoObraWizard({
         </div>
       </header>
 
-      {/* 2. Unified 3-Zone Body: [Top: Enlarged CAD Diagram] + [Middle: Compact Strip] + [Bottom: Universal Thumb Arc] */}
+      {/* 2. Unified 2-Block Body: [Top: Expanded CAD Canvas (flex: 1)] + [Bottom: Cohesive Anti-Occlusion Console] */}
       <main
         style={{
           flex: 1,
@@ -980,22 +980,17 @@ export function ModoObraWizard({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.25rem 0.6rem',
+          justifyContent: 'flex-start',
+          padding: '0.25rem 0.55rem',
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           boxSizing: 'border-box',
           width: '100%',
-          gap: '0.3rem',
+          gap: '0.25rem',
         }}
       >
-        <div style={{ width: '100%', textAlign: 'center', flexShrink: 0 }}>
-          <h2 className="visually-hidden">{activeStep.title}</h2>
-          <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--md-sys-color-outline)' }}>
-            {activeStep.subtitle}
-          </p>
-        </div>
+        <h2 className="visually-hidden">{activeStep.title}</h2>
 
         {/* ─────────────────────────────────────────────────────────────
             ETAPA 1: MÓDULO Y TIPO (Esquema grande + Arco selector de plantilla)
@@ -1008,12 +1003,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.35rem',
+              gap: '0.3rem',
             }}
           >
             <WorkshopContextDiagram
               step="module-type"
+              subtitle={activeStep.subtitle}
               selectedTemplateId={selectedTemplateId}
               width={width}
               height={height}
@@ -1021,73 +1016,84 @@ export function ModoObraWizard({
               plinthHeightMm={plinthHeightMm}
             />
 
-            {/* Middle strip: Quick scrollable pills of templates */}
             <div
-              role="tablist"
-              aria-label="Plantillas de mueble disponibles"
+              className="obra-bottom-console"
               style={{
-                display: 'flex',
-                gap: '0.35rem',
                 width: '100%',
                 maxWidth: '460px',
                 margin: '0 auto',
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-                paddingBottom: '2px',
                 flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem',
               }}
             >
-              {templates.slice(0, 8).map((tpl) => {
-                const isSelected = selectedTemplateId === tpl.id;
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isSelected}
-                    onClick={() => {
-                      triggerHaptic('major');
-                      onTemplateChange?.(tpl.id);
-                    }}
-                    style={{
-                      minHeight: '40px',
-                      padding: '0 0.65rem',
-                      borderRadius: '20px',
-                      border: isSelected
-                        ? '2px solid var(--md-sys-color-primary)'
-                        : '1px solid var(--md-sys-color-outline-variant)',
-                      backgroundColor: isSelected
-                        ? 'var(--md-sys-color-primary-container)'
-                        : 'var(--md-sys-color-surface-container-high)',
-                      color: isSelected
-                        ? 'var(--md-sys-color-on-primary-container)'
-                        : 'var(--md-sys-color-on-surface)',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {tpl.name}
-                  </button>
-                );
-              })}
-            </div>
+              {/* Quick scrollable pills of templates */}
+              <div
+                role="tablist"
+                aria-label="Plantillas de mueble disponibles"
+                style={{
+                  display: 'flex',
+                  gap: '0.35rem',
+                  width: '100%',
+                  overflowX: 'auto',
+                  scrollbarWidth: 'none',
+                  paddingBottom: '2px',
+                  flexShrink: 0,
+                }}
+              >
+                {templates.slice(0, 8).map((tpl) => {
+                  const isSelected = selectedTemplateId === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        triggerHaptic('major');
+                        onTemplateChange?.(tpl.id);
+                      }}
+                      style={{
+                        minHeight: '38px',
+                        padding: '0 0.65rem',
+                        borderRadius: '18px',
+                        border: isSelected
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: isSelected
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface-container-high)',
+                        color: isSelected
+                          ? 'var(--md-sys-color-on-primary-container)'
+                          : 'var(--md-sys-color-on-surface)',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {tpl.name}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Bottom: Universal Thumb Arc Selector */}
-            <ThumbArcInput
-              id="obra-arc-template"
-              label="Plantilla de Mueble"
-              value={0}
-              onChange={() => {}}
-              handMode={handMode}
-              onHandModeChange={onHandModeChange}
-              arcOnly={true}
-              options={templateArcOptions}
-              selectedOptionId={selectedTemplateId}
-              onSelectOption={(tplId) => onTemplateChange?.(tplId)}
-            />
+              {/* Universal Thumb Arc Selector */}
+              <ThumbArcInput
+                id="obra-arc-template"
+                label="Plantilla de Mueble"
+                value={0}
+                onChange={() => {}}
+                handMode={handMode}
+                onHandModeChange={onHandModeChange}
+                arcOnly={true}
+                options={templateArcOptions}
+                selectedOptionId={selectedTemplateId}
+                onSelectOption={(tplId) => onTemplateChange?.(tplId)}
+              />
+            </div>
           </div>
         )}
 
@@ -1102,12 +1108,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.35rem',
+              gap: '0.3rem',
             }}
           >
             <WorkshopContextDiagram
               step="dimensions"
+              subtitle={activeStep.subtitle}
               width={width}
               height={height}
               depth={depth}
@@ -1122,18 +1128,28 @@ export function ModoObraWizard({
               onSelectDimension={setDimensionField}
             />
 
-            {/* Middle Strip: Compact 4-Dimension Segmented Pills + Prev/Next */}
             <div
+              className="obra-bottom-console"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
                 width: '100%',
                 maxWidth: '460px',
                 margin: '0 auto',
                 flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem',
               }}
             >
+              {/* Compact 4-Dimension Segmented Pills + Prev/Next */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  width: '100%',
+                  flexShrink: 0,
+                }}
+              >
               <button
                 type="button"
                 onClick={goToPrevDimension}
@@ -1298,6 +1314,7 @@ export function ModoObraWizard({
                 arcOnly={true}
               />
             )}
+            </div>
           </div>
         )}
 
@@ -1312,12 +1329,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.3rem',
+              gap: '0.28rem',
             }}
           >
             <WorkshopContextDiagram
               step="material"
+              subtitle={activeStep.subtitle}
               materialRole={effectiveMaterialRole}
               onSelectMaterialRole={(role) => {
                 triggerHaptic('tick');
@@ -1330,8 +1347,8 @@ export function ModoObraWizard({
               activeRoleThicknessMm={activeRoleConfig.currentThicknessMm}
             />
 
-            {/* Middle Strip: Role Tabs + Thickness/Material Pills */}
             <div
+              className="obra-bottom-console"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -1342,6 +1359,16 @@ export function ModoObraWizard({
                 flexShrink: 0,
               }}
             >
+              {/* Middle Strip: Role Tabs + Thickness/Material Pills */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  width: '100%',
+                  flexShrink: 0,
+                }}
+              >
               {/* Role Tabs + Sync Button */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', width: '100%' }}>
                 <div
@@ -1545,6 +1572,7 @@ export function ModoObraWizard({
                 onSelectOption={handleSelectMaterialForRole}
               />
             )}
+            </div>
           </div>
         )}
 
@@ -1559,12 +1587,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.35rem',
+              gap: '0.3rem',
             }}
           >
             <WorkshopContextDiagram
               step="base-roof"
+              subtitle={activeStep.subtitle}
               hasPlinth={hasPlinth}
               plinthHeightMm={plinthHeightMm}
               hasWallHangingRail={hasWallHangingRail}
@@ -1579,8 +1607,8 @@ export function ModoObraWizard({
               selectedTemplateId={selectedTemplateId}
             />
 
-            {/* Middle Strip: Quick Pills for Base Options & Roof Options */}
             <div
+              className="obra-bottom-console"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -1591,6 +1619,16 @@ export function ModoObraWizard({
                 flexShrink: 0,
               }}
             >
+              {/* Middle Strip: Quick Pills for Base Options & Roof Options */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  width: '100%',
+                  flexShrink: 0,
+                }}
+              >
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.25rem' }}>
                 {baseSupportOptions.map((opt) => {
                   const isActive = currentBaseOptionId === opt.id;
@@ -1708,6 +1746,7 @@ export function ModoObraWizard({
                 onSelectOption={handleSelectBaseOption}
               />
             )}
+            </div>
           </div>
         )}
 
@@ -1722,12 +1761,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.35rem',
+              gap: '0.3rem',
             }}
           >
             <WorkshopContextDiagram
               step="backing"
+              subtitle={activeStep.subtitle}
               depth={depth}
               hasBacking={hasBacking}
               backingType={backingType}
@@ -1740,17 +1779,27 @@ export function ModoObraWizard({
               gridType={gridType}
             />
 
-            {/* Middle Strip: Sub-parameter pills (Anclaje vs Espesor de Fondo) */}
             <div
+              className="obra-bottom-console"
               style={{
                 display: 'flex',
-                gap: '0.35rem',
+                flexDirection: 'column',
+                gap: '0.25rem',
                 width: '100%',
                 maxWidth: '460px',
                 margin: '0 auto',
                 flexShrink: 0,
               }}
             >
+              {/* Middle Strip: Sub-parameter pills (Anclaje vs Espesor de Fondo) */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.35rem',
+                  width: '100%',
+                  flexShrink: 0,
+                }}
+              >
               <button
                 type="button"
                 onClick={() => {
@@ -1841,6 +1890,7 @@ export function ModoObraWizard({
                 onSelectOption={handleSelectBackingOption}
               />
             )}
+            </div>
           </div>
         )}
 
@@ -1855,12 +1905,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.35rem',
+              gap: '0.3rem',
             }}
           >
             <WorkshopContextDiagram
               step="bays-grid"
+              subtitle={activeStep.subtitle}
               width={width}
               height={height}
               depth={depth}
@@ -1882,18 +1932,28 @@ export function ModoObraWizard({
               }}
             />
 
-            {/* Middle Strip: 1 Vano / 2 Vanos / 3 Vanos + Matriz Especial */}
             <div
+              className="obra-bottom-console"
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '0.3rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.25rem',
                 width: '100%',
                 maxWidth: '460px',
                 margin: '0 auto',
                 flexShrink: 0,
               }}
             >
+              {/* Middle Strip: 1 Vano / 2 Vanos / 3 Vanos + Matriz Especial */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '0.3rem',
+                  width: '100%',
+                  flexShrink: 0,
+                }}
+              >
               {[
                 { type: '1-bay' as ObraGridType, label: '1 Vano', enabled: true },
                 { type: '2-bays-vertical' as ObraGridType, label: '2 Vanos', enabled: true },
@@ -1982,6 +2042,7 @@ export function ModoObraWizard({
                 onSelectOption={(id) => onGridTypeChange?.(id as ObraGridType)}
               />
             )}
+            </div>
           </div>
         )}
 
@@ -1996,12 +2057,12 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.35rem',
+              gap: '0.3rem',
             }}
           >
             <WorkshopContextDiagram
               step="bays-equipment"
+              subtitle={activeStep.subtitle}
               width={width}
               gridType={gridType}
               bays={bays}
@@ -2013,8 +2074,8 @@ export function ModoObraWizard({
               }}
             />
 
-            {/* Middle Strip: Equipment Type Pills + Contextual Sub-Axis Pills */}
             <div
+              className="obra-bottom-console"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -2025,6 +2086,16 @@ export function ModoObraWizard({
                 flexShrink: 0,
               }}
             >
+              {/* Middle Strip: Equipment Type Pills + Contextual Sub-Axis Pills */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem',
+                  width: '100%',
+                  flexShrink: 0,
+                }}
+              >
               {/* Equipment types row */}
               <div
                 style={{
@@ -2419,6 +2490,7 @@ export function ModoObraWizard({
                 }}
               />
             )}
+            </div>
           </div>
         )}
       </main>

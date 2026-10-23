@@ -247,6 +247,10 @@ export function ThumbArcInput({
   const midAngleRad = (midAngleDeg * Math.PI) / 180;
   const midX = svgTrack.center.x + svgTrack.radius * Math.cos(midAngleRad);
   const midY = svgTrack.center.y + svgTrack.radius * Math.sin(midAngleRad);
+  const midInnerX = svgTrack.center.x + (svgTrack.radius - 17) * Math.cos(midAngleRad);
+  const midInnerY = svgTrack.center.y + (svgTrack.radius - 17) * Math.sin(midAngleRad);
+  const midOuterX = svgTrack.center.x + (svgTrack.radius + 17) * Math.cos(midAngleRad);
+  const midOuterY = svgTrack.center.y + (svgTrack.radius + 17) * Math.sin(midAngleRad);
 
   // Upper and lower label coordinates along the arc
   const upperBadgeDeg = activeHandMode === 'right' ? -111 : -69;
@@ -835,13 +839,23 @@ export function ThumbArcInput({
               strokeLinecap="round"
             />
 
-            {/* Midpoint Divider Tick separating Upper Half (+ / Next) and Lower Half (- / Prev) */}
+            {/* Midpoint Divider Line separating Upper Half (+ / Next) and Lower Half (- / Prev) */}
+            <line
+              x1={midInnerX.toFixed(1)}
+              y1={midInnerY.toFixed(1)}
+              x2={midOuterX.toFixed(1)}
+              y2={midOuterY.toFixed(1)}
+              stroke="var(--md-sys-color-outline)"
+              strokeWidth="2"
+              strokeDasharray="3 2"
+              opacity="0.65"
+            />
             <circle
               cx={midX.toFixed(1)}
               cy={midY.toFixed(1)}
-              r="3"
+              r="3.5"
               fill="var(--md-sys-color-outline)"
-              opacity="0.55"
+              opacity="0.7"
             />
 
             {/* Upper Half Tap Indicator (+1 / Siguiente) */}
@@ -917,33 +931,40 @@ export function ThumbArcInput({
             />
           </svg>
 
-          {/* Embedded Readout inside the concave pocket of the arc when arcOnly={true} */}
+          {/* Anti-Occlusion HUD Readout Card:
+              Placed in the opposite quadrant from the active hand (Top-Left for Right-Handed,
+              Top-Right for Left-Handed) so the thumb and palm NEVER cover the text */}
           {arcOnly && (
             <div
+              data-arc-readout="opposite-thumb"
+              data-readout-side={activeHandMode === 'right' ? 'left' : 'right'}
               style={{
                 position: 'absolute',
-                bottom: '12px',
-                [activeHandMode === 'right' ? 'right' : 'left']: '12px',
-                maxWidth: '68%',
+                top: '8px',
+                [activeHandMode === 'right' ? 'left' : 'right']: '8px',
+                width: '56%',
+                maxWidth: '212px',
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: activeHandMode === 'right' ? 'flex-end' : 'flex-start',
-                textAlign: activeHandMode === 'right' ? 'right' : 'left',
+                alignItems: activeHandMode === 'right' ? 'flex-start' : 'flex-end',
+                textAlign: activeHandMode === 'right' ? 'left' : 'right',
                 pointerEvents: isOptionsMode ? 'none' : 'auto',
                 backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                padding: '0.45rem 0.7rem',
+                padding: '0.5rem 0.7rem',
                 borderRadius: '14px',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                border: '1.5px solid var(--md-sys-color-outline-variant)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.07)',
+                zIndex: 2,
               }}
             >
               <span
                 style={{
-                  fontSize: '0.68rem',
+                  fontSize: '0.66rem',
                   fontWeight: 800,
                   color: 'var(--md-sys-color-outline)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.03em',
+                  lineHeight: 1.15,
                 }}
               >
                 {label}
@@ -953,11 +974,11 @@ export function ThumbArcInput({
                 <>
                   <span
                     style={{
-                      fontSize: '0.98rem',
+                      fontSize: '0.96rem',
                       fontWeight: 900,
                       color: 'var(--md-sys-color-primary)',
                       lineHeight: 1.2,
-                      marginTop: '2px',
+                      marginTop: '3px',
                     }}
                   >
                     {activeOption.label}
@@ -976,17 +997,20 @@ export function ThumbArcInput({
                   )}
                   <span
                     style={{
-                      fontSize: '0.66rem',
-                      fontWeight: 700,
-                      color: 'var(--md-sys-color-outline)',
-                      marginTop: '3px',
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      color: 'var(--md-sys-color-primary)',
+                      backgroundColor: 'var(--md-sys-color-primary-container)',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: '6px',
+                      marginTop: '4px',
                     }}
                   >
-                    {`Opción ${activeOptionIndex + 1} de ${enabledOptions.length} · Tap + / −`}
+                    {`Opción ${activeOptionIndex + 1} de ${enabledOptions.length}`}
                   </span>
                 </>
               ) : isDirectEditing ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '3px' }}>
                   <input
                     type="number"
                     value={directText}
@@ -1043,12 +1067,12 @@ export function ThumbArcInput({
                     alignItems: 'baseline',
                     gap: '0.25rem',
                     cursor: 'pointer',
-                    marginTop: '1px',
+                    marginTop: '2px',
                   }}
                 >
                   <span
                     style={{
-                      fontSize: '1.65rem',
+                      fontSize: '1.8rem',
                       fontWeight: 900,
                       color: 'var(--md-sys-color-primary)',
                       lineHeight: 1.05,
@@ -1058,14 +1082,14 @@ export function ThumbArcInput({
                   </span>
                   <span
                     style={{
-                      fontSize: '0.88rem',
+                      fontSize: '0.9rem',
                       fontWeight: 700,
                       color: 'var(--md-sys-color-on-surface-variant)',
                     }}
                   >
                     {unit}
                   </span>
-                  <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>✏️</span>
+                  <span style={{ fontSize: '0.74rem', opacity: 0.75 }}>✏️</span>
                 </div>
               )}
 
@@ -1074,12 +1098,32 @@ export function ThumbArcInput({
                   style={{
                     fontSize: '0.66rem',
                     color: 'var(--md-sys-color-outline)',
-                    marginTop: '2px',
+                    marginTop: '3px',
+                    lineHeight: 1.15,
                   }}
                 >
                   {helpText}
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Non-occluding Thumb Pivot Watermark in the palm corner */}
+          {arcOnly && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: '8px',
+                [activeHandMode === 'right' ? 'right' : 'left']: '10px',
+                fontSize: '0.64rem',
+                fontWeight: 700,
+                color: 'var(--md-sys-color-outline)',
+                opacity: 0.55,
+                pointerEvents: 'none',
+              }}
+            >
+              {activeHandMode === 'right' ? '⤴️ Pulgar Diestro' : '⤴️ Pulgar Zurdo'}
             </div>
           )}
 

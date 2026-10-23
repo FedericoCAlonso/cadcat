@@ -16,6 +16,7 @@ export type WorkshopStepId =
 
 export interface WorkshopContextDiagramProps {
   step: WorkshopStepId;
+  subtitle?: string;
   selectedTemplateId?: string;
   width?: number;
   height?: number;
@@ -52,6 +53,7 @@ export interface WorkshopContextDiagramProps {
  */
 export function WorkshopContextDiagram({
   step,
+  subtitle,
   selectedTemplateId = 'base-modular',
   width = 800,
   height = 750,
@@ -106,13 +108,14 @@ export function WorkshopContextDiagram({
     <div
       role="img"
       aria-label={`Esquema técnico de contexto: ${step}`}
+      className="workshop-cad-canvas-card"
       style={{
         width: '100%',
         maxWidth: '460px',
-        flex: 1,
-        minHeight: '175px',
-        maxHeight: '265px',
+        flex: '1 1 0%',
+        minHeight: '165px',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: 'var(--md-sys-color-surface-container-lowest, #ffffff)',
@@ -120,12 +123,53 @@ export function WorkshopContextDiagram({
         border: '1.5px solid var(--md-sys-color-outline-variant, #e0e3e7)',
         boxShadow: '0 6px 18px rgba(0,0,0,0.06)',
         boxSizing: 'border-box',
-        padding: '6px 8px',
+        padding: '4px 8px 6px',
         overflow: 'hidden',
         position: 'relative',
         margin: '0 auto',
       }}
     >
+      {/* Top Blueprint HUD Strip integrated into the CAD Canvas */}
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '0.4rem',
+          padding: '2px 4px 4px',
+          borderBottom: '1px dashed var(--md-sys-color-outline-variant)',
+          flexShrink: 0,
+          boxSizing: 'border-box',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '0.68rem',
+            fontWeight: 700,
+            color: 'var(--md-sys-color-on-surface-variant)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {subtitle ?? '📐 Plano interactivo · Toca una zona para editar'}
+        </span>
+        <span
+          style={{
+            fontSize: '0.66rem',
+            fontWeight: 800,
+            color: 'var(--md-sys-color-primary)',
+            backgroundColor: 'var(--md-sys-color-primary-container)',
+            padding: '1px 6px',
+            borderRadius: '6px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          {`${width}×${height}×${depth} mm`}
+        </span>
+      </div>
       {/* ─────────────────────────────────────────────────────────────
           ETAPA 1: MÓDULO Y TIPO (Silueta arquitectónica ampliada)
          ───────────────────────────────────────────────────────────── */}
