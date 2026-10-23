@@ -405,32 +405,14 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     expect(handleSelectOption).toHaveBeenCalledWith('overlay');
 
-    // Verify anti-occlusion opposite-thumb placement: right hand -> readout on left side
-    const readoutRight = container.querySelector('[data-arc-readout="opposite-thumb"]') as HTMLElement;
-    expect(readoutRight).not.toBeNull();
-    expect(readoutRight.getAttribute('data-readout-side')).toBe('left');
-    expect(readoutRight.style.top).toBe('8px');
-    expect(readoutRight.style.left).toBe('8px');
-
-    // Re-render in left-handed mode -> readout moves to right side
-    act(() => {
-      rootInstance.render(
-        <ThumbArcInput
-          label="Unión de Base"
-          value={0}
-          arcOnly={true}
-          handMode="left"
-          options={options}
-          selectedOptionId="inset"
-          onSelectOption={handleSelectOption}
-          onChange={vi.fn()}
-        />,
-      );
-    });
-    const readoutLeft = container.querySelector('[data-arc-readout="opposite-thumb"]') as HTMLElement;
-    expect(readoutLeft.getAttribute('data-readout-side')).toBe('right');
-    expect(readoutLeft.style.top).toBe('8px');
-    expect(readoutLeft.style.right).toBe('8px');
+    // Verify full-width readout banner is rendered OUTSIDE .thumb-arc-track and spans 100% width
+    const readoutBanner = container.querySelector('[data-arc-readout="full-width-banner"]') as HTMLElement;
+    const arcTrack = container.querySelector('.thumb-arc-track') as HTMLElement;
+    expect(readoutBanner).not.toBeNull();
+    expect(arcTrack).not.toBeNull();
+    expect(readoutBanner.style.width).toBe('100%');
+    // The readout banner must NOT be inside the slider track zone
+    expect(arcTrack.contains(readoutBanner)).toBe(false);
 
     act(() => {
       rootInstance.unmount();

@@ -223,9 +223,9 @@ export function ThumbArcInput({
   };
 
   const baseWidth = 360;
-  const baseHeight = arcOnly ? 196 : compact ? 230 : 260;
-  const baseSvgHeight = arcOnly ? 206 : compact ? 240 : 270;
-  const baseRadius = arcOnly ? 225 : compact ? 245 : 275;
+  const baseHeight = arcOnly ? 156 : compact ? 230 : 260;
+  const baseSvgHeight = arcOnly ? 168 : compact ? 240 : 270;
+  const baseRadius = arcOnly ? 205 : compact ? 245 : 275;
 
   // SVG Geometry for visual arc
   const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
@@ -786,6 +786,204 @@ export function ThumbArcInput({
         </>
       )}
 
+      {/* Full-Width Readout Banner ABOVE the Arc Slider Zone when arcOnly={true} */}
+      {arcOnly && (
+        <div
+          data-arc-readout="full-width-banner"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.6rem',
+            backgroundColor: 'var(--md-sys-color-surface-container-high)',
+            padding: '0.45rem 0.75rem',
+            borderRadius: '14px',
+            border: '1.5px solid var(--md-sys-color-outline-variant)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            marginBottom: '0.25rem',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              textAlign: 'left',
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            <span
+              style={{
+                fontSize: '0.66rem',
+                fontWeight: 800,
+                color: 'var(--md-sys-color-outline)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                lineHeight: 1.15,
+              }}
+            >
+              {label}
+            </span>
+
+            {isOptionsMode && activeOption ? (
+              <>
+                <span
+                  style={{
+                    fontSize: '0.98rem',
+                    fontWeight: 900,
+                    color: 'var(--md-sys-color-primary)',
+                    lineHeight: 1.2,
+                    marginTop: '2px',
+                  }}
+                >
+                  {activeOption.label}
+                </span>
+                {activeOption.sublabel && (
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      color: 'var(--md-sys-color-on-surface-variant)',
+                      marginTop: '1px',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {activeOption.sublabel}
+                  </span>
+                )}
+              </>
+            ) : (
+              !isOptionsMode &&
+              helpText && (
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--md-sys-color-on-surface-variant)',
+                    marginTop: '2px',
+                    lineHeight: 1.15,
+                  }}
+                >
+                  {helpText}
+                </span>
+              )
+            )}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {isOptionsMode && activeOption ? (
+              <span
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  color: 'var(--md-sys-color-on-primary-container)',
+                  backgroundColor: 'var(--md-sys-color-primary-container)',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {`Opción ${activeOptionIndex + 1} de ${enabledOptions.length}`}
+              </span>
+            ) : isDirectEditing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <input
+                  type="number"
+                  value={directText}
+                  min={min}
+                  max={max}
+                  step={step}
+                  autoFocus
+                  onChange={(e) => setDirectText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDirectSubmit();
+                    if (e.key === 'Escape') setIsDirectEditing(false);
+                  }}
+                  style={{
+                    fontSize: '1.3rem',
+                    fontWeight: 800,
+                    width: '92px',
+                    textAlign: 'center',
+                    padding: '0.15rem 0.3rem',
+                    borderRadius: '8px',
+                    border: '2px solid var(--md-sys-color-primary)',
+                    backgroundColor: 'var(--md-sys-color-surface)',
+                    color: 'var(--md-sys-color-on-surface)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleDirectSubmit}
+                  aria-label="Confirmar valor"
+                  style={{
+                    minHeight: '34px',
+                    minWidth: '34px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--md-sys-color-primary)',
+                    color: 'var(--md-sys-color-on-primary)',
+                    border: 'none',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✓
+                </button>
+              </div>
+            ) : (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDirectEditing(true);
+                }}
+                aria-label={`Valor actual: ${value} ${unit}. Tocar para editar.`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'baseline',
+                  gap: '0.25rem',
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--md-sys-color-surface)',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '10px',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '1.65rem',
+                    fontWeight: 900,
+                    color: 'var(--md-sys-color-primary)',
+                    lineHeight: 1.05,
+                  }}
+                >
+                  {`${value} `}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    color: 'var(--md-sys-color-on-surface-variant)',
+                  }}
+                >
+                  {unit}
+                </span>
+                <span style={{ fontSize: '0.72rem', opacity: 0.75 }}>✏️</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Thumb Radial Sweep Arc Area (Anchored at the bottom for natural thumb sweep) */}
       {showArc && (
         <div
@@ -931,199 +1129,26 @@ export function ThumbArcInput({
             />
           </svg>
 
-          {/* Anti-Occlusion HUD Readout Card:
-              Placed in the opposite quadrant from the active hand (Top-Left for Right-Handed,
-              Top-Right for Left-Handed) so the thumb and palm NEVER cover the text */}
-          {arcOnly && (
-            <div
-              data-arc-readout="opposite-thumb"
-              data-readout-side={activeHandMode === 'right' ? 'left' : 'right'}
-              style={{
-                position: 'absolute',
-                top: '8px',
-                [activeHandMode === 'right' ? 'left' : 'right']: '8px',
-                width: '56%',
-                maxWidth: '212px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: activeHandMode === 'right' ? 'flex-start' : 'flex-end',
-                textAlign: activeHandMode === 'right' ? 'left' : 'right',
-                pointerEvents: isOptionsMode ? 'none' : 'auto',
-                backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                padding: '0.5rem 0.7rem',
-                borderRadius: '14px',
-                border: '1.5px solid var(--md-sys-color-outline-variant)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.07)',
-                zIndex: 2,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '0.66rem',
-                  fontWeight: 800,
-                  color: 'var(--md-sys-color-outline)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  lineHeight: 1.15,
-                }}
-              >
-                {label}
-              </span>
-
-              {isOptionsMode && activeOption ? (
-                <>
-                  <span
-                    style={{
-                      fontSize: '0.96rem',
-                      fontWeight: 900,
-                      color: 'var(--md-sys-color-primary)',
-                      lineHeight: 1.2,
-                      marginTop: '3px',
-                    }}
-                  >
-                    {activeOption.label}
-                  </span>
-                  {activeOption.sublabel && (
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--md-sys-color-on-surface-variant)',
-                        marginTop: '2px',
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {activeOption.sublabel}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 800,
-                      color: 'var(--md-sys-color-primary)',
-                      backgroundColor: 'var(--md-sys-color-primary-container)',
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: '6px',
-                      marginTop: '4px',
-                    }}
-                  >
-                    {`Opción ${activeOptionIndex + 1} de ${enabledOptions.length}`}
-                  </span>
-                </>
-              ) : isDirectEditing ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '3px' }}>
-                  <input
-                    type="number"
-                    value={directText}
-                    min={min}
-                    max={max}
-                    step={step}
-                    autoFocus
-                    onChange={(e) => setDirectText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleDirectSubmit();
-                      if (e.key === 'Escape') setIsDirectEditing(false);
-                    }}
-                    style={{
-                      fontSize: '1.3rem',
-                      fontWeight: 800,
-                      width: '92px',
-                      textAlign: 'center',
-                      padding: '0.15rem 0.3rem',
-                      borderRadius: '8px',
-                      border: '2px solid var(--md-sys-color-primary)',
-                      backgroundColor: 'var(--md-sys-color-surface)',
-                      color: 'var(--md-sys-color-on-surface)',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleDirectSubmit}
-                    aria-label="Confirmar valor"
-                    style={{
-                      minHeight: '34px',
-                      minWidth: '34px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--md-sys-color-primary)',
-                      color: 'var(--md-sys-color-on-primary)',
-                      border: 'none',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ✓
-                  </button>
-                </div>
-              ) : (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsDirectEditing(true);
-                  }}
-                  aria-label={`Valor actual: ${value} ${unit}. Tocar para editar.`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'baseline',
-                    gap: '0.25rem',
-                    cursor: 'pointer',
-                    marginTop: '2px',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '1.8rem',
-                      fontWeight: 900,
-                      color: 'var(--md-sys-color-primary)',
-                      lineHeight: 1.05,
-                    }}
-                  >
-                    {`${value} `}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.9rem',
-                      fontWeight: 700,
-                      color: 'var(--md-sys-color-on-surface-variant)',
-                    }}
-                  >
-                    {unit}
-                  </span>
-                  <span style={{ fontSize: '0.74rem', opacity: 0.75 }}>✏️</span>
-                </div>
-              )}
-
-              {!isOptionsMode && helpText && (
-                <span
-                  style={{
-                    fontSize: '0.66rem',
-                    color: 'var(--md-sys-color-outline)',
-                    marginTop: '3px',
-                    lineHeight: 1.15,
-                  }}
-                >
-                  {helpText}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Non-occluding Thumb Pivot Watermark in the palm corner */}
+          {/* Subtle non-intrusive guidance inside the clean arc zone */}
           {arcOnly && (
             <div
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                bottom: '8px',
-                [activeHandMode === 'right' ? 'right' : 'left']: '10px',
-                fontSize: '0.64rem',
+                top: '8px',
+                [activeHandMode === 'right' ? 'left' : 'right']: '12px',
+                fontSize: '0.68rem',
                 fontWeight: 700,
                 color: 'var(--md-sys-color-outline)',
-                opacity: 0.55,
+                opacity: 0.75,
                 pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: activeHandMode === 'right' ? 'flex-start' : 'flex-end',
+                gap: '2px',
               }}
             >
-              {activeHandMode === 'right' ? '⤴️ Pulgar Diestro' : '⤴️ Pulgar Zurdo'}
+              <span>{isOptionsMode ? '⤴️ Deslizar o Tap para cambiar opción' : '⤴️ Deslizar o Tap (+1 / -1)'}</span>
             </div>
           )}
 
