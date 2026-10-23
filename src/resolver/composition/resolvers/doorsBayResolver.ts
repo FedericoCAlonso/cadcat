@@ -99,6 +99,10 @@ export class DoorsBayResolver implements IBayContentResolver<BayContentDoors> {
       count,
       hingeSide,
       mountType: normMount,
+      hingeType: content.hingeType,
+      doorThicknessMm: content.doorThicknessMm,
+      catchType: content.catchType,
+      handle: content.handle,
     });
 
     pieces.push(...doorsResult.pieces);

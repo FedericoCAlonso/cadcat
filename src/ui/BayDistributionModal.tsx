@@ -4,7 +4,9 @@ import {
   type BayContentSubdivided,
   type BayContentShelves,
   type BayContentDrawerStack,
+  type BayContentDoors,
   type TrackSize,
+  type DoorHingeType,
 } from '../resolver/composition/types';
 import {
   computeTreeGeometry,
@@ -1395,6 +1397,101 @@ export function BayDistributionModal({
                         </div>
                       </div>
 
+                      {/* Faja Compensatoria Lateral (Anti-colisión de bisagras) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                          Faja compensatoria (cajones tras puertas batientes):
+                        </span>
+                        <div className="builder-segmented-btn-group">
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${!(selectedCell.content as BayContentDrawerStack).hasHingeSpacer ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({ ...ds, hasHingeSpacer: false });
+                            }}
+                          >
+                            Ninguna
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).hasHingeSpacer && (selectedCell.content as BayContentDrawerStack).hingeSpacerSide !== 'right' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                hasHingeSpacer: true,
+                                hingeSpacerSide: 'left',
+                                hingeSpacerWidthMm: 25,
+                              });
+                            }}
+                          >
+                            Faja Izq (25mm)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).hasHingeSpacer && (selectedCell.content as BayContentDrawerStack).hingeSpacerSide === 'right' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({
+                                ...ds,
+                                hasHingeSpacer: true,
+                                hingeSpacerSide: 'right',
+                                hingeSpacerWidthMm: 25,
+                              });
+                            }}
+                          >
+                            Faja Der (25mm)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tirador del cajón */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Tirador / Manija del cajón:</span>
+                        <div className="builder-chip-selector" role="group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${!(selectedCell.content as BayContentDrawerStack).handle || (selectedCell.content as BayContentDrawerStack).handle?.type === 'none' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({ ...ds, handle: { type: 'none' } });
+                            }}
+                          >
+                            Sin tirador (Uñero / Push)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).handle?.type === 'knob' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const ds = selectedCell.content as BayContentDrawerStack;
+                              handleUpdateCellContent({ ...ds, handle: { type: 'knob', protrusionMm: 25 } });
+                            }}
+                          >
+                            Pomo
+                          </button>
+                          {[96, 128, 160, 192].map((pitch) => (
+                            <button
+                              key={pitch}
+                              type="button"
+                              className={`builder-segmented-btn ${(selectedCell.content as BayContentDrawerStack).handle?.type === 'bar' && (selectedCell.content as BayContentDrawerStack).handle?.centerToCenterMm === pitch ? 'selected' : ''}`}
+                              style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                              onClick={() => {
+                                const ds = selectedCell.content as BayContentDrawerStack;
+                                handleUpdateCellContent({
+                                  ...ds,
+                                  handle: { type: 'bar', centerToCenterMm: pitch, protrusionMm: 25 },
+                                });
+                              }}
+                            >
+                              Barral {pitch}mm
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Espesor de la Caja del Cajón */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Espesor de placa de la caja:</span>
@@ -1501,6 +1598,291 @@ export function BayDistributionModal({
                           </div>
                         </>
                       )}
+                    </div>
+                  )}
+
+                  {/* Sub-parameters for Doors */}
+                  {selectedCell.content.type === 'doors' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {/* Cantidad de Hojas y Apertura */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Cantidad de hojas y apertura:</span>
+                        <div className="builder-segmented-btn-group">
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).count === 1 && ((selectedCell.content as BayContentDoors).hingeSide !== 'right') ? 'selected' : ''}`}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({
+                                ...d,
+                                count: 1,
+                                hingeSide: 'left',
+                              });
+                            }}
+                          >
+                            🚪 1 Hoja (Bisagra Izq)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).count === 1 && (selectedCell.content as BayContentDoors).hingeSide === 'right' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({
+                                ...d,
+                                count: 1,
+                                hingeSide: 'right',
+                              });
+                            }}
+                          >
+                            🚪 1 Hoja (Bisagra Der)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).count === 2 ? 'selected' : ''}`}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({
+                                ...d,
+                                count: 2,
+                              });
+                            }}
+                          >
+                            🚪🚪 2 Hojas (Partida)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Posición de Montaje */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Montaje de la puerta:</span>
+                        <div className="builder-segmented-btn-group">
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).mountType === 'full-overlay' || !(selectedCell.content as BayContentDoors).mountType ? 'selected' : ''}`}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({
+                                ...d,
+                                mountType: 'full-overlay',
+                              });
+                            }}
+                          >
+                            🔲 Aplicada (Solapada)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).mountType === 'inset' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({
+                                ...d,
+                                mountType: 'inset',
+                              });
+                            }}
+                          >
+                            🔲 Embutida a la luz
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).mountType === 'half-overlay' ? 'selected' : ''}`}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({
+                                ...d,
+                                mountType: 'half-overlay',
+                              });
+                            }}
+                          >
+                            🔲 Semi-aplicada
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Espesor de la Puerta */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Espesor de la puerta:</span>
+                        <div className="builder-chip-selector" role="group">
+                          {[6, 9, 15, 18].map((thick) => {
+                            const d = selectedCell.content as BayContentDoors;
+                            const isSelected = (d.doorThicknessMm ?? 18) === thick;
+                            return (
+                              <button
+                                key={thick}
+                                type="button"
+                                className={`builder-segmented-btn ${isSelected ? 'selected' : ''}`}
+                                onClick={() => {
+                                  let nextHinge: DoorHingeType = d.hingeType ?? 'cup-35';
+                                  if (thick <= 9 && nextHinge === 'cup-35') {
+                                    nextHinge = 'butt-hinge';
+                                  }
+                                  handleUpdateCellContent({
+                                    ...d,
+                                    doorThicknessMm: thick,
+                                    hingeType: nextHinge,
+                                  });
+                                }}
+                              >
+                                {thick} mm {thick <= 9 ? '(Fina/Liviana)' : ''}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Tipo de Bisagra */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Tipo de bisagra:</span>
+                        <div className="builder-chip-selector" role="group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          {((selectedCell.content as BayContentDoors).doorThicknessMm ?? 18) > 9 && (
+                            <button
+                              type="button"
+                              className={`builder-segmented-btn ${!(selectedCell.content as BayContentDoors).hingeType || (selectedCell.content as BayContentDoors).hingeType === 'cup-35' ? 'selected' : ''}`}
+                              style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                              onClick={() => {
+                                const d = selectedCell.content as BayContentDoors;
+                                handleUpdateCellContent({ ...d, hingeType: 'cup-35' });
+                              }}
+                            >
+                              ⚙️ Cazoleta Ø35mm (Articulada)
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).hingeType === 'butt-hinge' || (((selectedCell.content as BayContentDoors).doorThicknessMm ?? 18) <= 9 && (!(selectedCell.content as BayContentDoors).hingeType || (selectedCell.content as BayContentDoors).hingeType === 'butt-hinge')) ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, hingeType: 'butt-hinge' });
+                            }}
+                          >
+                            📖 Libro / Común
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).hingeType === 'piano-hinge' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, hingeType: 'piano-hinge' });
+                            }}
+                          >
+                            🎹 Piano / Continua
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Advertencia para puertas finas */}
+                      {((selectedCell.content as BayContentDoors).doorThicknessMm ?? 18) <= 9 && (
+                        <div
+                          style={{
+                            fontSize: '0.74rem',
+                            padding: '0.45rem 0.6rem',
+                            backgroundColor: '#fef3c7',
+                            color: '#92400e',
+                            borderRadius: '4px',
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          🚪 <strong>Tapa delgada ({((selectedCell.content as BayContentDoors).doorThicknessMm ?? 18)}mm):</strong> Las bisagras de cazoleta de 35mm traspasan placas menores a 12mm. Se utilizan bisagras tipo libro o piano fijadas superficialmente con tornillos cortos.
+                        </div>
+                      )}
+
+                      {/* Retén / Traba de Cierre */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Retén / Traba de cierre:</span>
+                        <div className="builder-chip-selector" role="group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${!(selectedCell.content as BayContentDoors).catchType || (selectedCell.content as BayContentDoors).catchType === 'none' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, catchType: 'none' });
+                            }}
+                          >
+                            Ninguno
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).catchType === 'magnetic-catch' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, catchType: 'magnetic-catch' });
+                            }}
+                          >
+                            🧲 Magnético
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).catchType === 'roller-catch' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, catchType: 'roller-catch' });
+                            }}
+                          >
+                            ⚪ A rodillo / bolilla
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).catchType === 'push-catch' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, catchType: 'push-catch' });
+                            }}
+                          >
+                            🔘 Pulsador Push Tip-On
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tirador / Manija de la puerta */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Tirador / Manija:</span>
+                        <div className="builder-chip-selector" role="group" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${!(selectedCell.content as BayContentDoors).handle || (selectedCell.content as BayContentDoors).handle?.type === 'none' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, handle: { type: 'none' } });
+                            }}
+                          >
+                            Sin tirador (Uñero / Push)
+                          </button>
+                          <button
+                            type="button"
+                            className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).handle?.type === 'knob' ? 'selected' : ''}`}
+                            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              const d = selectedCell.content as BayContentDoors;
+                              handleUpdateCellContent({ ...d, handle: { type: 'knob', protrusionMm: 25 } });
+                            }}
+                          >
+                            Pomo
+                          </button>
+                          {[96, 128, 160, 192].map((pitch) => (
+                            <button
+                              key={pitch}
+                              type="button"
+                              className={`builder-segmented-btn ${(selectedCell.content as BayContentDoors).handle?.type === 'bar' && (selectedCell.content as BayContentDoors).handle?.centerToCenterMm === pitch ? 'selected' : ''}`}
+                              style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.76rem' }}
+                              onClick={() => {
+                                const d = selectedCell.content as BayContentDoors;
+                                handleUpdateCellContent({
+                                  ...d,
+                                  handle: { type: 'bar', centerToCenterMm: pitch, protrusionMm: 25 },
+                                });
+                              }}
+                            >
+                              Barral {pitch}mm
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

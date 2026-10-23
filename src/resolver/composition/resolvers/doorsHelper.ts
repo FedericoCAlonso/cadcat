@@ -1,4 +1,4 @@
-import { type Piece, type Joint } from '../../../model';
+import { type Piece, type Joint, type JointKind } from '../../../model';
 import { createPiece, createRectangularContour } from '../../piece';
 import { createJoint } from '../../joint';
 import { type PlacementNode } from '../../tree';
@@ -8,7 +8,13 @@ import {
   calculateHingeCount,
   calculateHingePositions,
 } from '../../templates/door';
-import { type BayBoundingBox, type DoorMountType } from '../types';
+import {
+  type BayBoundingBox,
+  type DoorMountType,
+  type DoorHingeType,
+  type DoorCatchType,
+  type HandleConfig,
+} from '../types';
 
 export interface BuildDoorsForBayParams {
   bay: BayBoundingBox;
@@ -23,6 +29,10 @@ export interface BuildDoorsForBayParams {
   count?: 1 | 2;
   hingeSide?: 'left' | 'right';
   mountType?: DoorMountType;
+  hingeType?: DoorHingeType;
+  doorThicknessMm?: number;
+  catchType?: DoorCatchType;
+  handle?: HandleConfig;
 }
 
 export function buildDoorsForBay(params: BuildDoorsForBayParams): {
@@ -30,7 +40,18 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
   joints: Joint[];
   placementNodes: PlacementNode[];
 } {
-  const { bay, materials, options, count = 1, hingeSide = 'left', mountType = 'full-overlay' } = params;
+  const {
+    bay,
+    materials,
+    options,
+    count = 1,
+    hingeSide = 'left',
+    mountType = 'full-overlay',
+    hingeType = 'concealed-cup',
+    doorThicknessMm,
+    catchType,
+    handle,
+  } = params;
   const {
     carcassThicknessMm: T,
     frontThicknessMm = T,
@@ -39,11 +60,18 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
     idPrefix = `bay-${bay.bayIndex}`,
   } = options;
 
+  const actualDoorT = doorThicknessMm ?? frontThicknessMm;
   const pieces: Piece[] = [];
   const joints: Joint[] = [];
   const placementNodes: PlacementNode[] = [];
 
   const normMount = normalizeDoorMountType(mountType);
+  const effectiveHingeKind: JointKind =
+    hingeType === 'butt-hinge'
+      ? 'butt-hinge'
+      : hingeType === 'piano' || hingeType === 'piano-hinge'
+        ? 'piano-hinge'
+        : 'hinge';
 
   if (count === 1) {
     const doorResult = buildDoorSubAssembly(
@@ -55,7 +83,7 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
         openingHeightMm: bay.height,
         carcaseThicknessMm: T,
         materialId: materials.frontsMaterialId,
-        doorThicknessMm: frontThicknessMm,
+        doorThicknessMm: actualDoorT,
         edgeBandId,
       },
       rootPieceId,
@@ -70,7 +98,12 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
 
     const doorBottomY = doorResult.placementNode.relativeOffset.y;
 
-    for (const posMm of doorResult.hingePositionsMm) {
+    const hingePositions =
+      effectiveHingeKind === 'piano-hinge'
+        ? [Math.round(bay.height / 2)]
+        : doorResult.hingePositionsMm;
+
+    for (const posMm of hingePositions) {
       joints.push(
         createJoint({
           a: { pieceId: doorResult.doorPiece.id, faceId: 'inner' },
@@ -78,11 +111,43 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
             pieceId: hingeSide === 'left' ? bay.leftPieceId : bay.rightPieceId,
             faceId: 'inner',
           },
-          kind: 'hinge',
+          kind: effectiveHingeKind,
           offsetMm: doorBottomY + posMm,
           doorOffsetMm: posMm,
           hingeSide,
           hingeCrank: normMount,
+        }),
+      );
+    }
+
+    // Optional catch / latch
+    if (catchType && catchType !== 'none') {
+      const catchKind: JointKind =
+        catchType === 'magnetic' || catchType === 'magnetic-catch'
+          ? 'magnetic-catch'
+          : catchType === 'roller' || catchType === 'roller-catch'
+            ? 'roller-catch'
+            : 'push-catch';
+      joints.push(
+        createJoint({
+          a: { pieceId: doorResult.doorPiece.id, faceId: 'inner' },
+          b: { pieceId: hingeSide === 'left' ? bay.rightPieceId : bay.leftPieceId, faceId: 'inner' },
+          kind: catchKind,
+          offsetMm: doorBottomY + Math.round(bay.height / 2),
+        }),
+      );
+    }
+
+    // Optional handle
+    if (handle && handle.type && handle.type !== 'none' && handle.type !== 'push-to-open' && handle.type !== 'integrated-groove') {
+      const pitch = handle.type === 'knob' ? 0 : (handle.centerToCenterMm ?? 128);
+      joints.push(
+        createJoint({
+          a: { pieceId: doorResult.doorPiece.id, faceId: 'inner' },
+          b: { pieceId: doorResult.doorPiece.id, faceId: 'inner' },
+          kind: 'handle',
+          offsetMm: pitch,
+          hingeSide,
         }),
       );
     }
@@ -114,7 +179,7 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
       leftDoorX = bay.x - T / 2 + revealMm;
       rightDoorX = leftDoorX + singleDoorWidth + gapMm;
       doorY = bay.y - T + revealMm;
-      doorZ = bay.z - frontThicknessMm;
+      doorZ = bay.z - actualDoorT;
     } else {
       // Full overlay (codo-0)
       const totalOverlayWidth = bay.width + 2 * T - 2 * revealMm;
@@ -123,7 +188,7 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
       leftDoorX = bay.x - T + revealMm;
       rightDoorX = leftDoorX + singleDoorWidth + gapMm;
       doorY = bay.y - T + revealMm;
-      doorZ = bay.z - frontThicknessMm;
+      doorZ = bay.z - actualDoorT;
     }
 
     const leftDoorPiece = createPiece({
@@ -131,7 +196,7 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
       role: 'door-left',
       materialId: materials.frontsMaterialId,
       contour: createRectangularContour(singleDoorWidth, doorHeight),
-      thicknessMm: frontThicknessMm,
+      thicknessMm: actualDoorT,
       structural: false,
     });
 
@@ -140,7 +205,7 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
       role: 'door-right',
       materialId: materials.frontsMaterialId,
       contour: createRectangularContour(singleDoorWidth, doorHeight),
-      thicknessMm: frontThicknessMm,
+      thicknessMm: actualDoorT,
       structural: false,
     });
 
@@ -168,14 +233,17 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
     );
 
     const hingeCount = calculateHingeCount(doorHeight);
-    const hingePositionsMm = calculateHingePositions(doorHeight, hingeCount, 100);
+    const hingePositionsMm =
+      effectiveHingeKind === 'piano-hinge'
+        ? [Math.round(doorHeight / 2)]
+        : calculateHingePositions(doorHeight, hingeCount, 100);
 
     for (const posMm of hingePositionsMm) {
       joints.push(
         createJoint({
           a: { pieceId: leftDoorPiece.id, faceId: 'inner' },
           b: { pieceId: bay.leftPieceId, faceId: 'inner' },
-          kind: 'hinge',
+          kind: effectiveHingeKind,
           offsetMm: doorY + posMm,
           doorOffsetMm: posMm,
           hingeSide: 'left',
@@ -184,11 +252,56 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
         createJoint({
           a: { pieceId: rightDoorPiece.id, faceId: 'inner' },
           b: { pieceId: bay.rightPieceId, faceId: 'inner' },
-          kind: 'hinge',
+          kind: effectiveHingeKind,
           offsetMm: doorY + posMm,
           doorOffsetMm: posMm,
           hingeSide: 'right',
           hingeCrank: normMount,
+        }),
+      );
+    }
+
+    // Optional catch for double door
+    if (catchType && catchType !== 'none') {
+      const catchKind: JointKind =
+        catchType === 'magnetic' || catchType === 'magnetic-catch'
+          ? 'magnetic-catch'
+          : catchType === 'roller' || catchType === 'roller-catch'
+            ? 'roller-catch'
+            : 'push-catch';
+      joints.push(
+        createJoint({
+          a: { pieceId: leftDoorPiece.id, faceId: 'inner' },
+          b: { pieceId: bay.leftPieceId, faceId: 'inner' },
+          kind: catchKind,
+          offsetMm: doorY + Math.round(doorHeight / 2),
+        }),
+        createJoint({
+          a: { pieceId: rightDoorPiece.id, faceId: 'inner' },
+          b: { pieceId: bay.rightPieceId, faceId: 'inner' },
+          kind: catchKind,
+          offsetMm: doorY + Math.round(doorHeight / 2),
+        }),
+      );
+    }
+
+    // Optional handles for double doors
+    if (handle && handle.type && handle.type !== 'none' && handle.type !== 'push-to-open' && handle.type !== 'integrated-groove') {
+      const pitch = handle.type === 'knob' ? 0 : (handle.centerToCenterMm ?? 128);
+      joints.push(
+        createJoint({
+          a: { pieceId: leftDoorPiece.id, faceId: 'inner' },
+          b: { pieceId: leftDoorPiece.id, faceId: 'inner' },
+          kind: 'handle',
+          offsetMm: pitch,
+          hingeSide: 'left',
+        }),
+        createJoint({
+          a: { pieceId: rightDoorPiece.id, faceId: 'inner' },
+          b: { pieceId: rightDoorPiece.id, faceId: 'inner' },
+          kind: 'handle',
+          offsetMm: pitch,
+          hingeSide: 'right',
         }),
       );
     }

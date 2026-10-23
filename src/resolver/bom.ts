@@ -1,5 +1,6 @@
 import {
   type EdgeBand,
+  type Joint,
 } from '../model';
 import { type ResolvedModule, type ResolvedPiece } from './resolver';
 import {
@@ -67,6 +68,12 @@ export function getHardwareCountForJoint(jointKind: string, contactLengthMm?: nu
       }
       return 2;
     case 'hinge':
+    case 'butt-hinge':
+    case 'piano-hinge':
+    case 'magnetic-catch':
+    case 'push-catch':
+    case 'roller-catch':
+    case 'handle':
       return 1;
     case 'slide':
       return 2;
@@ -94,6 +101,18 @@ function getHardwareMetadata(jointKind: string): { hardwareId: string; name: str
       return { hardwareId: 'hw-dowel-8x35', name: 'Wooden Dowel 8x35mm' };
     case 'hinge':
       return { hardwareId: 'hw-hinge-cup-35', name: 'Concealed Euro Cup Hinge 35mm' };
+    case 'butt-hinge':
+      return { hardwareId: 'hw-hinge-butt', name: 'Bisagra Libro / Munición (Butt Hinge)' };
+    case 'piano-hinge':
+      return { hardwareId: 'hw-hinge-piano', name: 'Bisagra Piano Continua (Piano Hinge)' };
+    case 'magnetic-catch':
+      return { hardwareId: 'hw-catch-magnetic', name: 'Retén Magnético con Contraplaca' };
+    case 'push-catch':
+      return { hardwareId: 'hw-catch-push', name: 'Pulsador Tip-On / Push-to-Open' };
+    case 'roller-catch':
+      return { hardwareId: 'hw-catch-roller', name: 'Retén a Rodillo / Bolilla' };
+    case 'handle':
+      return { hardwareId: 'hw-handle', name: 'Tirador / Manija con Tornillos M4' };
     case 'slide':
       return { hardwareId: 'hw-slide-telescopic', name: 'Ball Bearing Telescopic Drawer Slide' };
     case 'shelf-pin':
@@ -165,7 +184,7 @@ export function generateBOMEdgeBands(
 /**
  * Count hardware items derived from module joints.
  */
-export function generateBOMHardware(resolvedModule: ResolvedModule): BOMHardwareItem[] {
+export function generateBOMHardware(resolvedModule: { joints: Joint[] } | ResolvedModule): BOMHardwareItem[] {
   const counts = new Map<string, { name: string; jointKind: string; count: number }>();
 
   for (const joint of resolvedModule.joints) {

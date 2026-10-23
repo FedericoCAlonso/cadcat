@@ -9,6 +9,7 @@ import {
   HingeJointStrategy,
   ShelfPinJointStrategy,
   SlideJointStrategy,
+  HandleJointStrategy,
 } from './strategies';
 
 export class JointMachiningRegistry implements IJointMachiningRegistry {
@@ -41,6 +42,7 @@ export class JointMachiningRegistry implements IJointMachiningRegistry {
       new HingeJointStrategy(),
       new ShelfPinJointStrategy(),
       new SlideJointStrategy(),
+      new HandleJointStrategy(),
     ];
   }
 }

@@ -15,6 +15,14 @@ export const trackSizeSchema = z.union([
   }),
 ]);
 
+export const handleTemplateSchema = z.object({
+  type: z.enum(['none', 'bar', 'knob', 'profile-j', 'integrated-groove', 'push-to-open']),
+  centerToCenterMm: z.number().positive().optional(),
+  protrusionMm: z.number().nonnegative().optional(),
+  orientation: z.enum(['horizontal', 'vertical']).optional(),
+  positionFromEdgeMm: z.number().nonnegative().optional(),
+});
+
 export type BayContentSchemaType =
   | { type: 'empty' }
   | {
@@ -23,6 +31,11 @@ export type BayContentSchemaType =
       shelfType: 'adjustable' | 'fixed';
       setbackMm?: number;
       hasAntiSagBrace?: boolean;
+      shelfTracks?: Array<{ type: 'fixed'; valueMm: number } | { type: 'fractional'; valueFr: number }>;
+      hasDoors?: boolean;
+      doorCount?: 1 | 2;
+      doorMountType?: 'full-overlay' | 'half-overlay' | 'inset' | 'overlay' | 'codo-0' | 'codo-9' | 'codo-18';
+      doorHingeSide?: 'left' | 'right';
     }
   | {
       type: 'drawer-stack';
@@ -30,8 +43,30 @@ export type BayContentSchemaType =
       frontMount?: 'applied' | 'inset';
       hasTransomDividers?: boolean;
       slideType: 'telescopic' | 'undermount' | 'metal-box' | 'roller' | 'wood-runner';
+      boxThicknessMm?: number;
+      frontThicknessMm?: number;
+      boxJointType?: 'glue' | 'confirmat' | 'dado-groove';
       gapMm?: number;
       boxHeightRatio?: number;
+      drawerType?: 'standard' | 'simple-interior';
+      bottomMount?: 'grooved' | 'bottom-screwed' | 'flush-thick';
+      topPullGapMm?: number;
+      boxSideHeightOffsetMm?: number;
+      bottomScrewedDeductionWidthMm?: number;
+      bottomScrewedDeductionDepthMm?: number;
+      slideClearanceMm?: number;
+      boxDepthMm?: number;
+      hasHingeSpacer?: boolean;
+      hingeSpacerWidthMm?: number;
+      hingeSpacerSide?: 'left' | 'right';
+      handle?: {
+        type: 'none' | 'bar' | 'knob' | 'profile-j' | 'integrated-groove' | 'push-to-open';
+        centerToCenterMm?: number;
+        protrusionMm?: number;
+        orientation?: 'horizontal' | 'vertical';
+        positionFromEdgeMm?: number;
+      };
+      interiorSafetyClearanceMm?: number;
     }
   | {
       type: 'pull-out-tray';
@@ -48,6 +83,16 @@ export type BayContentSchemaType =
       interiorShelvesCount?: number;
       shelfType?: 'adjustable' | 'fixed';
       shelvesSetbackMm?: number;
+      hingeType?: 'concealed-cup' | 'butt-hinge' | 'piano' | 'cup-35' | 'piano-hinge';
+      doorThicknessMm?: number;
+      catchType?: 'none' | 'magnetic' | 'roller' | 'push-to-open' | 'magnetic-catch' | 'roller-catch' | 'push-catch';
+      handle?: {
+        type: 'none' | 'bar' | 'knob' | 'profile-j' | 'integrated-groove' | 'push-to-open';
+        centerToCenterMm?: number;
+        protrusionMm?: number;
+        orientation?: 'horizontal' | 'vertical';
+        positionFromEdgeMm?: number;
+      };
     }
   | {
       type: 'bi-fold-closure';
@@ -57,6 +102,15 @@ export type BayContentSchemaType =
       interiorShelvesCount?: number;
       shelfType?: 'adjustable' | 'fixed';
       shelvesSetbackMm?: number;
+      doorThicknessMm?: number;
+      catchType?: 'none' | 'magnetic' | 'roller' | 'push-to-open' | 'magnetic-catch' | 'roller-catch' | 'push-catch';
+      handle?: {
+        type: 'none' | 'bar' | 'knob' | 'profile-j' | 'integrated-groove' | 'push-to-open';
+        centerToCenterMm?: number;
+        protrusionMm?: number;
+        orientation?: 'horizontal' | 'vertical';
+        positionFromEdgeMm?: number;
+      };
     }
   | {
       type: 'subdivided';
@@ -81,6 +135,19 @@ export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
       shelfType: z.enum(['adjustable', 'fixed']),
       setbackMm: z.number().optional(),
       hasAntiSagBrace: z.boolean().optional(),
+      shelfTracks: z.array(trackSizeSchema).optional(),
+      hasDoors: z.boolean().optional(),
+      doorCount: z.union([z.literal(1), z.literal(2)]).optional(),
+      doorMountType: z.enum([
+        'full-overlay',
+        'half-overlay',
+        'inset',
+        'overlay',
+        'codo-0',
+        'codo-9',
+        'codo-18',
+      ]).optional(),
+      doorHingeSide: z.enum(['left', 'right']).optional(),
     }),
     z.object({
       type: z.literal('drawer-stack'),
@@ -93,6 +160,19 @@ export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
       boxJointType: z.enum(['glue', 'confirmat', 'dado-groove']).optional(),
       gapMm: z.number().optional(),
       boxHeightRatio: z.number().optional(),
+      drawerType: z.enum(['standard', 'simple-interior']).optional(),
+      bottomMount: z.enum(['grooved', 'bottom-screwed', 'flush-thick']).optional(),
+      topPullGapMm: z.number().optional(),
+      boxSideHeightOffsetMm: z.number().optional(),
+      bottomScrewedDeductionWidthMm: z.number().optional(),
+      bottomScrewedDeductionDepthMm: z.number().optional(),
+      slideClearanceMm: z.number().optional(),
+      boxDepthMm: z.number().optional(),
+      hasHingeSpacer: z.boolean().optional(),
+      hingeSpacerWidthMm: z.number().optional(),
+      hingeSpacerSide: z.enum(['left', 'right']).optional(),
+      handle: handleTemplateSchema.optional(),
+      interiorSafetyClearanceMm: z.number().optional(),
     }),
     z.object({
       type: z.literal('pull-out-tray'),
@@ -117,6 +197,10 @@ export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
       interiorShelvesCount: z.number().int().nonnegative().optional(),
       shelfType: z.enum(['adjustable', 'fixed']).optional(),
       shelvesSetbackMm: z.number().optional(),
+      hingeType: z.enum(['concealed-cup', 'butt-hinge', 'piano', 'cup-35', 'piano-hinge']).optional(),
+      doorThicknessMm: z.number().optional(),
+      catchType: z.enum(['none', 'magnetic', 'roller', 'push-to-open', 'magnetic-catch', 'roller-catch', 'push-catch']).optional(),
+      handle: handleTemplateSchema.optional(),
     }),
     z.object({
       type: z.literal('bi-fold-closure'),
@@ -126,6 +210,9 @@ export const bayContentSchema: z.ZodType<BayContentSchemaType> = z.lazy(() =>
       interiorShelvesCount: z.number().int().nonnegative().optional(),
       shelfType: z.enum(['adjustable', 'fixed']).optional(),
       shelvesSetbackMm: z.number().optional(),
+      doorThicknessMm: z.number().optional(),
+      catchType: z.enum(['none', 'magnetic', 'roller', 'push-to-open', 'magnetic-catch', 'roller-catch', 'push-catch']).optional(),
+      handle: handleTemplateSchema.optional(),
     }),
     z.object({
       type: z.literal('subdivided'),

@@ -15,6 +15,12 @@ export const jointKindSchema = z.enum([
   'glue',
   'butt',
   'hinge',
+  'butt-hinge',
+  'piano-hinge',
+  'magnetic-catch',
+  'push-catch',
+  'roller-catch',
+  'handle',
   'slide',
   'shelf-pin',
 ]);

@@ -6,3 +6,4 @@ export { DowelJointStrategy } from './dowelStrategy';
 export { HingeJointStrategy } from './hingeStrategy';
 export { ShelfPinJointStrategy } from './shelfPinStrategy';
 export { SlideJointStrategy } from './slideStrategy';
+export { HandleJointStrategy } from './handleStrategy';

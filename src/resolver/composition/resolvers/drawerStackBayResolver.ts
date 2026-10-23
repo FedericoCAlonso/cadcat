@@ -54,6 +54,49 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
     const effectiveDrawerType = drawerType ?? (slideType === 'wood-runner' ? 'simple-interior' : 'standard');
 
     const useTransoms = hasTransomDividers && effectiveFrontMount === 'inset';
+
+    // Hinge Spacer (faja compensatoria lateral para cajones interiores detrás de puertas)
+    const hasHingeSpacer = content.hasHingeSpacer ?? false;
+    const spacerWidth = hasHingeSpacer ? (content.hingeSpacerWidthMm ?? 25) : 0;
+    const spacerSide = content.hingeSpacerSide ?? 'left';
+    const effectiveOpeningWidth = bay.width - spacerWidth;
+
+    let spacerId: string | undefined;
+    if (hasHingeSpacer) {
+      spacerId = `${idPrefix}-hinge-spacer`;
+      const spacerHeight = bay.height;
+      const spacerDepth = content.boxDepthMm ?? (bay.depth <= 350 ? Math.max(50, bay.depth - 20) : Math.max(300, bay.depth - 50));
+
+      const spacerPiece = createPiece({
+        id: spacerId,
+        role: 'hinge-spacer',
+        materialId: materials.carcassMaterialId,
+        contour: createRectangularContour(spacerDepth, spacerHeight),
+        thicknessMm: spacerWidth,
+        structural: true,
+      });
+      pieces.push(spacerPiece);
+
+      const spacerX = spacerSide === 'left' ? bay.x : bay.x + bay.width - spacerWidth;
+      placementNodes.push({
+        pieceId: spacerId,
+        parentPieceId: rootPieceId,
+        relativeOffset: {
+          x: spacerX,
+          y: bay.y,
+          z: 0,
+        },
+      });
+
+      joints.push(
+        createJoint({
+          a: { pieceId: spacerSide === 'left' ? bay.leftPieceId : bay.rightPieceId, faceId: 'inner' },
+          b: { pieceId: spacerId, faceId: 'inner' },
+          kind: 'screw',
+        }),
+      );
+    }
+
     const resolved = resolveTracks(
       bay.height,
       drawerTracks,
@@ -117,7 +160,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
         {
           idPrefix: `${idPrefix}-drawer`,
           index: i + 1,
-          openingWidthMm: bay.width,
+          openingWidthMm: effectiveOpeningWidth,
           depthMm: bay.depth,
           frontHeightMm: frontHeight,
           boxHeightMm: boxHeight,
@@ -147,8 +190,8 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
         rootPieceId,
       );
 
-      // Shift X placements to align with this bay's X offset
-      const xOffsetDelta = bay.x - T;
+      // Shift X placements to align with this bay's X offset (taking spacer into account)
+      const xOffsetDelta = bay.x - T + (hasHingeSpacer && spacerSide === 'left' ? spacerWidth : 0);
       for (const node of drawerResult.placementNodes) {
         node.relativeOffset.x += xOffsetDelta;
         placementNodes.push(node);
@@ -157,7 +200,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       pieces.push(...drawerResult.pieces);
       subAssemblies.push(drawerResult.subAssembly);
 
-      // Slide joints between drawer box and enclosing sides
+      // Slide joints between drawer box and enclosing sides (or spacer)
       const boxSideL = drawerResult.pieces.find((p) => p.role === 'drawer-side' && p.id.includes('-l-'));
       const boxSideR = drawerResult.pieces.find((p) => p.role === 'drawer-side' && p.id.includes('-r-'));
 
@@ -165,7 +208,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
         joints.push(
           createJoint({
             a: { pieceId: boxSideL.id, faceId: 'outer' },
-            b: { pieceId: bay.leftPieceId, faceId: 'inner' },
+            b: { pieceId: hasHingeSpacer && spacerSide === 'left' && spacerId ? spacerId : bay.leftPieceId, faceId: 'inner' },
             kind: 'slide',
             offsetMm: drawerBaseY + 30,
           }),
@@ -175,11 +218,27 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
         joints.push(
           createJoint({
             a: { pieceId: boxSideR.id, faceId: 'outer' },
-            b: { pieceId: bay.rightPieceId, faceId: 'inner' },
+            b: { pieceId: hasHingeSpacer && spacerSide === 'right' && spacerId ? spacerId : bay.rightPieceId, faceId: 'inner' },
             kind: 'slide',
             offsetMm: drawerBaseY + 30,
           }),
         );
+      }
+
+      // Add handle joint if configured
+      if (content.handle && content.handle.type && content.handle.type !== 'none' && content.handle.type !== 'push-to-open' && content.handle.type !== 'integrated-groove') {
+        const frontPiece = drawerResult.pieces.find((p) => p.role === 'drawer-front');
+        if (frontPiece) {
+          const pitch = content.handle.type === 'knob' ? 0 : (content.handle.centerToCenterMm ?? 128);
+          joints.push(
+            createJoint({
+              a: { pieceId: frontPiece.id, faceId: 'inner' },
+              b: { pieceId: frontPiece.id, faceId: 'inner' },
+              kind: 'handle',
+              offsetMm: pitch,
+            }),
+          );
+        }
       }
 
       // Add internal drawer box joints from the drawer sub-assembly (excluding generic slide)

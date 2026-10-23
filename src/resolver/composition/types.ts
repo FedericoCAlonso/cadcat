@@ -90,6 +90,20 @@ export type DrawerSlideType = 'telescopic' | 'undermount' | 'metal-box' | 'rolle
 export type DrawerFrontMount = 'applied' | 'inset';
 export type DrawerType = 'standard' | 'simple-interior';
 export type DrawerBottomMount = 'grooved' | 'bottom-screwed' | 'flush-thick';
+
+export type HandleType = 'none' | 'bar' | 'knob' | 'profile-j' | 'integrated-groove' | 'push-to-open';
+
+export interface HandleConfig {
+  type: HandleType;
+  centerToCenterMm?: number; // 96, 128, 160, 192, 256, 320
+  protrusionMm?: number; // Default: 25 for bar/knob, 0 for groove/push/none
+  orientation?: 'horizontal' | 'vertical';
+  positionFromEdgeMm?: number; // Default: 40
+}
+
+export type DoorHingeType = 'concealed-cup' | 'butt-hinge' | 'piano' | 'cup-35' | 'piano-hinge';
+export type DoorCatchType = 'none' | 'magnetic' | 'roller' | 'push-to-open' | 'magnetic-catch' | 'roller-catch' | 'push-catch';
+
 export type DoorMountType =
   | 'codo-0'
   | 'codo-9'
@@ -132,6 +146,11 @@ export type BayContent =
       bottomScrewedDeductionDepthMm?: number;
       slideClearanceMm?: number;
       boxDepthMm?: number;
+      hasHingeSpacer?: boolean;
+      hingeSpacerWidthMm?: number;
+      hingeSpacerSide?: 'left' | 'right';
+      handle?: HandleConfig;
+      interiorSafetyClearanceMm?: number;
     }
   | {
       type: 'pull-out-tray';
@@ -148,6 +167,10 @@ export type BayContent =
       interiorShelvesCount?: number;
       shelfType?: 'adjustable' | 'fixed';
       shelvesSetbackMm?: number;
+      hingeType?: DoorHingeType;
+      doorThicknessMm?: number;
+      catchType?: DoorCatchType;
+      handle?: HandleConfig;
     }
   | {
       type: 'bi-fold-closure';
@@ -157,6 +180,9 @@ export type BayContent =
       interiorShelvesCount?: number;
       shelfType?: 'adjustable' | 'fixed';
       shelvesSetbackMm?: number;
+      doorThicknessMm?: number;
+      catchType?: DoorCatchType;
+      handle?: HandleConfig;
     }
   | {
       type: 'subdivided';
