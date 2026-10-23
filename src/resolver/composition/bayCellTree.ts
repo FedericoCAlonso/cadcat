@@ -170,6 +170,13 @@ export function getCellAtPath(root: BayContent, path: number[]): BayContent | nu
 }
 
 /**
+ * Returns a canonical string key for a tree path (e.g. [0, 1] -> "0.1", [] -> "root").
+ */
+export function pathKey(path: readonly number[]): string {
+  return path.length === 0 ? 'root' : path.join('.');
+}
+
+/**
  * Immutably updates the cell content at a specific path.
  */
 export function updateCellAtPath(
@@ -197,6 +204,24 @@ export function updateCellAtPath(
     ...sub,
     bays: updatedBays,
   };
+}
+
+/**
+ * Immutably updates multiple leaf cells at their respective paths in a single batch operation.
+ */
+export function updateCellsAtPaths(
+  root: BayContent,
+  paths: readonly (readonly number[])[],
+  updater: BayContent | ((current: BayContent, path: readonly number[]) => BayContent),
+): BayContent {
+  let next = root;
+  for (const p of paths) {
+    const mutablePath = [...p];
+    const current = getCellAtPath(next, mutablePath) ?? { type: 'empty' };
+    const replacement = typeof updater === 'function' ? updater(current, p) : updater;
+    next = updateCellAtPath(next, mutablePath, replacement);
+  }
+  return next;
 }
 
 /**
@@ -373,6 +398,33 @@ export function splitCellAtPath(
   };
 
   return updateCellAtPath(root, path, newSubdivided);
+}
+
+/**
+ * Splits multiple leaf cells at their respective paths in a single batch operation.
+ */
+export function splitCellsAtPaths(
+  root: BayContent,
+  paths: readonly (readonly number[])[],
+  axis: 'horizontal' | 'vertical',
+  tracks: TrackSize[],
+  dividerThicknessMm = 18,
+  dividerMaterialId?: string,
+  jointType?: 'dado-groove' | 'confirmat',
+): BayContent {
+  let next = root;
+  for (const p of paths) {
+    next = splitCellAtPath(
+      next,
+      [...p],
+      axis,
+      tracks,
+      dividerThicknessMm,
+      dividerMaterialId,
+      jointType,
+    );
+  }
+  return next;
 }
 
 /**

@@ -17,10 +17,11 @@ import {
 } from '../resolver/composition/types';
 import {
   computeTreeGeometry,
-  updateCellAtPath,
+  pathKey,
+  updateCellsAtPaths,
   updateDividerAtPath,
   distributeTracksEvenlyAtPath,
-  splitCellAtPath,
+  splitCellsAtPaths,
   createMatrixGrid,
   removeSplitAtPath,
   getCellAtPath,
@@ -64,7 +65,8 @@ export function BayDistributionModal({
 
   // Selection mode: 'cell' or 'edge'
   const [selectionType, setSelectionType] = useState<'cell' | 'edge'>('cell');
-  const [selectedPath, setSelectedPath] = useState<number[]>([]);
+  const [selectedPaths, setSelectedPaths] = useState<number[][]>([[]]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState<boolean>(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   // Quick matrix generator inline view
@@ -92,7 +94,8 @@ export function BayDistributionModal({
     if (isOpen) {
       setDraft(initialContent);
       setSelectionType('cell');
-      setSelectedPath([]);
+      setSelectedPaths([[]]);
+      setIsMultiSelectMode(false);
       setSelectedEdgeId(null);
       setShowMatrixCreator(false);
     }
@@ -103,22 +106,26 @@ export function BayDistributionModal({
     return computeTreeGeometry(draft, bayWidth, bayHeight, 18);
   }, [draft, bayWidth, bayHeight]);
 
-  // Keep selected path valid
+  // Keep selected paths valid against current leaf cells
   useEffect(() => {
     if (cells.length === 0) return;
-    const exists = cells.some(
-      (c) => JSON.stringify(c.path) === JSON.stringify(selectedPath),
-    );
-    if (!exists && cells[0]) {
-      setSelectedPath(cells[0].path);
+    const validKeySet = new Set(cells.map((c) => pathKey(c.path)));
+    const validSelected = selectedPaths.filter((p) => validKeySet.has(pathKey(p)));
+    if (validSelected.length === 0 && cells[0]) {
+      setSelectedPaths([cells[0].path]);
+    } else if (validSelected.length !== selectedPaths.length) {
+      setSelectedPaths(validSelected);
     }
-  }, [cells, selectedPath]);
+  }, [cells, selectedPaths]);
 
-  const selectedCell = useMemo(() => {
-    return cells.find(
-      (c) => JSON.stringify(c.path) === JSON.stringify(selectedPath),
-    ) ?? cells[0];
-  }, [cells, selectedPath]);
+  const selectedCells = useMemo(() => {
+    const keySet = new Set(selectedPaths.map((p) => pathKey(p)));
+    const matched = cells.filter((c) => keySet.has(pathKey(c.path)));
+    if (matched.length > 0) return matched;
+    return cells[0] ? [cells[0]] : [];
+  }, [cells, selectedPaths]);
+
+  const selectedCell = selectedCells[0] ?? cells[0];
 
   const selectedEdge = useMemo(() => {
     return dividers.find((d) => d.id === selectedEdgeId) ?? null;
@@ -133,6 +140,8 @@ export function BayDistributionModal({
 
   if (!isOpen) return null;
 
+  const targetCellPaths = selectedCells.map((c) => c.path);
+
   // Generate N x M matrix (Word-table initial grid generator)
   const handleGenerateMatrix = () => {
     const newGrid = createMatrixGrid(
@@ -143,21 +152,21 @@ export function BayDistributionModal({
     );
     setDraft(newGrid);
     setSelectionType('cell');
-    setSelectedPath([0]);
+    setSelectedPaths([[0]]);
     setSelectedEdgeId(null);
     setShowMatrixCreator(false);
   };
 
-  // Split selected cell with custom arbitrary tracks (e.g. 100mm fixed + 70/30)
+  // Split selected cell(s) with custom arbitrary tracks (e.g. 100mm fixed + 70/30)
   const handleSplitCustom = (
     axis: 'horizontal' | 'vertical',
     tracks: TrackSize[],
     thickness = 18,
   ) => {
-    if (!selectedCell) return;
-    const updated = splitCellAtPath(
+    if (targetCellPaths.length === 0) return;
+    const updated = splitCellsAtPaths(
       draft,
-      selectedCell.path,
+      targetCellPaths,
       axis,
       tracks,
       thickness,
@@ -166,11 +175,12 @@ export function BayDistributionModal({
     );
     setDraft(updated);
     setSelectionType('cell');
+    setSelectedPaths(targetCellPaths.map((p) => [...p, 0]));
   };
 
-  // Split selected cell into rows (inserts horizontal shelf dividing Y)
+  // Split selected cell(s) into rows (inserts horizontal shelf dividing Y)
   const handleSplitRows = (topHeightMm?: number, thickness = 18) => {
-    if (!selectedCell) return;
+    if (targetCellPaths.length === 0) return;
     const tracks: TrackSize[] = topHeightMm
       ? [
           { type: 'fixed', valueMm: topHeightMm },
@@ -181,28 +191,29 @@ export function BayDistributionModal({
           { type: 'fractional', valueFr: 1 },
         ];
 
-    const updated = splitCellAtPath(
+    const updated = splitCellsAtPaths(
       draft,
-      selectedCell.path,
+      targetCellPaths,
       'vertical', // In gridSolver: 'vertical' axis places horizontal shelves dividing Y
       tracks,
       thickness,
     );
     setDraft(updated);
     setSelectionType('cell');
+    setSelectedPaths(targetCellPaths.map((p) => [...p, 0]));
   };
 
-  // Split selected cell into columns (inserts vertical partition dividing X)
+  // Split selected cell(s) into columns (inserts vertical partition dividing X)
   const handleSplitColumns = (columns = 2, thickness = 18) => {
-    if (!selectedCell) return;
+    if (targetCellPaths.length === 0) return;
     const tracks: TrackSize[] = Array.from({ length: columns }, () => ({
       type: 'fractional',
       valueFr: 1,
     }));
 
-    const updated = splitCellAtPath(
+    const updated = splitCellsAtPaths(
       draft,
-      selectedCell.path,
+      targetCellPaths,
       'horizontal', // In gridSolver: 'horizontal' axis places vertical partitions dividing X
       tracks,
       thickness,
@@ -211,6 +222,7 @@ export function BayDistributionModal({
     );
     setDraft(updated);
     setSelectionType('cell');
+    setSelectedPaths(targetCellPaths.map((p) => [...p, 0]));
   };
 
   // Distribute tracks evenly (Word-style "Distribuir uniformemente")
@@ -243,30 +255,38 @@ export function BayDistributionModal({
       setDraft(updated);
       setSelectionType('cell');
       setSelectedEdgeId(null);
-      setSelectedPath([]);
+      setSelectedPaths([[]]);
       return;
     }
 
     if (!selectedCell || selectedCell.path.length === 0) {
       setDraft({ type: 'empty' });
-      setSelectedPath([]);
+      setSelectedPaths([[]]);
       return;
     }
     const updated = removeSplitAtPath(draft, selectedCell.path);
     setDraft(updated);
-    setSelectedPath([]);
+    setSelectedPaths([[]]);
   };
 
-  // Update content of selected leaf cell
+  // Update content of all selected leaf cells in block
   const handleUpdateCellContent = (newContent: BayContent) => {
-    if (!selectedCell) return;
-    const updated = updateCellAtPath(draft, selectedCell.path, newContent);
+    if (targetCellPaths.length === 0) return;
+    const updated = updateCellsAtPaths(draft, targetCellPaths, newContent);
     setDraft(updated);
   };
 
-  const svgPadding = 20;
-  const svgW = bayWidth + 2 * svgPadding;
-  const svgH = bayHeight + 2 * svgPadding;
+  // Normalized CAD viewport geometry so the blueprint never overflows on tall/wide bays
+  const safeBayW = Math.max(100, bayWidth);
+  const safeBayH = Math.max(100, bayHeight);
+  const normScale = 320 / Math.max(safeBayW, safeBayH);
+  const drawW = safeBayW * normScale;
+  const drawH = safeBayH * normScale;
+  const padX = 26;
+  const padY = 22;
+  const svgW = drawW + padX * 2;
+  const svgH = drawH + padY * 2;
+  const selectedKeySet = new Set(selectedCells.map((c) => pathKey(c.path)));
 
   return (
     <div
@@ -519,80 +539,273 @@ export function BayDistributionModal({
               border: '1px solid var(--md-sys-color-outline-variant)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
               <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface)' }}>
                 Plano del Vano (Tocá una celda o una arista divisoria)
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-primary)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-primary)', fontWeight: 600 }}>
                 {cells.length} {cells.length === 1 ? 'celda' : 'celdas'} · {dividers.length} {dividers.length === 1 ? 'arista' : 'aristas'}
+                {selectionType === 'cell' && selectedCells.length > 1 && (
+                  <> · <strong style={{ color: 'var(--md-sys-color-tertiary, #0d9488)' }}>{selectedCells.length} seleccionadas</strong></>
+                )}
               </span>
             </div>
 
-            {/* SVG Interactive Blueprint */}
+            {/* Multi-Cell Block Selection Toolbar */}
+            {cells.length > 1 && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.4rem 0.55rem',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  borderRadius: 'var(--md-sys-shape-corner-sm)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                }}
+              >
+                <button
+                  type="button"
+                  data-testid="toggle-multi-select"
+                  aria-pressed={isMultiSelectMode}
+                  onClick={() => setIsMultiSelectMode((prev) => !prev)}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.3rem 0.65rem',
+                    minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                    borderRadius: 'var(--md-sys-shape-corner-full)',
+                    backgroundColor: isMultiSelectMode
+                      ? 'var(--md-sys-color-primary)'
+                      : 'var(--md-sys-color-surface)',
+                    color: isMultiSelectMode
+                      ? 'var(--md-sys-color-on-primary)'
+                      : 'var(--md-sys-color-on-surface)',
+                    border: '1px solid var(--md-sys-color-outline)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isMultiSelectMode ? '☑️ Selección Múltiple: ON' : '☐ Selección Múltiple'}
+                </button>
+                <button
+                  type="button"
+                  data-testid="select-all-cells"
+                  onClick={() => {
+                    setSelectionType('cell');
+                    setSelectedEdgeId(null);
+                    setIsMultiSelectMode(true);
+                    setSelectedPaths(cells.map((c) => c.path));
+                  }}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.3rem 0.6rem',
+                    minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                    borderRadius: 'var(--md-sys-shape-corner-full)',
+                    backgroundColor: 'var(--md-sys-color-surface)',
+                    color: 'var(--md-sys-color-primary)',
+                    border: '1px solid var(--md-sys-color-outline-variant)',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  ✓ Todas ({cells.length})
+                </button>
+                {cells.some((c) => c.content.type === 'empty') && (
+                  <button
+                    type="button"
+                    data-testid="select-empty-cells"
+                    onClick={() => {
+                      const emptyPaths = cells
+                        .filter((c) => c.content.type === 'empty')
+                        .map((c) => c.path);
+                      if (emptyPaths.length > 0) {
+                        setSelectionType('cell');
+                        setSelectedEdgeId(null);
+                        setIsMultiSelectMode(emptyPaths.length > 1);
+                        setSelectedPaths(emptyPaths);
+                      }
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '0.3rem 0.6rem',
+                      minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: 'var(--md-sys-color-surface)',
+                      color: 'var(--md-sys-color-on-surface)',
+                      border: '1px solid var(--md-sys-color-outline-variant)',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                    }}
+                  >
+                    ⬜ Solo Libres
+                  </button>
+                )}
+                {selectedCells.length > 1 && (
+                  <button
+                    type="button"
+                    data-testid="clear-multi-select"
+                    onClick={() => {
+                      setIsMultiSelectMode(false);
+                      setSelectedPaths(selectedCell ? [selectedCell.path] : []);
+                    }}
+                    style={{
+                      fontSize: '0.74rem',
+                      padding: '0.25rem 0.55rem',
+                      minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                      borderRadius: 'var(--md-sys-shape-corner-full)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--md-sys-color-on-surface-variant)',
+                      border: '1px dashed var(--md-sys-color-outline)',
+                      cursor: 'pointer',
+                      marginLeft: 'auto',
+                    }}
+                  >
+                    ✕ Solo 1 celda
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* SVG Interactive Blueprint — strictly contained, never overflows */}
             <div
+              data-testid="bay-blueprint-canvas-container"
               style={{
-                flex: 1,
-                minHeight: isMobile ? '200px' : '280px',
-                maxHeight: isMobile ? '250px' : 'none',
+                width: '100%',
+                height: isMobile ? '220px' : '340px',
+                minHeight: isMobile ? '190px' : '260px',
+                maxHeight: isMobile ? '240px' : '380px',
+                overflow: 'hidden',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: 'var(--md-sys-color-surface-container-lowest)',
                 borderRadius: 'var(--md-sys-shape-corner-sm)',
-                padding: '0.5rem',
+                padding: '0.4rem',
                 border: '1px solid var(--md-sys-color-outline-variant)',
+                boxSizing: 'border-box',
               }}
             >
               <svg
+                data-testid="bay-blueprint-svg"
                 viewBox={`0 0 ${svgW} ${svgH}`}
+                preserveAspectRatio="xMidYMid meet"
                 style={{
                   width: '100%',
-                  maxHeight: '400px',
+                  height: '100%',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
                   display: 'block',
+                  userSelect: 'none',
                 }}
               >
+                <defs>
+                  {cells.map((cell, idx) => {
+                    const clipId = `cell-clip-${cell.path.join('-') || idx}`;
+                    const rx = padX + cell.x * normScale;
+                    const ry = padY + cell.y * normScale;
+                    const rw = Math.max(1, cell.width * normScale);
+                    const rh = Math.max(1, cell.height * normScale);
+                    return (
+                      <clipPath key={clipId} id={clipId}>
+                        <rect x={rx + 1.5} y={ry + 1.5} width={Math.max(1, rw - 3)} height={Math.max(1, rh - 3)} rx={3} />
+                      </clipPath>
+                    );
+                  })}
+                </defs>
+
+                {/* Overall Bay Dimensions Annotation (Top & Left) */}
+                <text
+                  x={padX + drawW / 2}
+                  y={Math.max(11, padY - 7)}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight={600}
+                  fill="var(--md-sys-color-on-surface-variant)"
+                >
+                  ↔ {Math.round(bayWidth)} mm
+                </text>
+                <text
+                  x={Math.max(9, padX - 8)}
+                  y={padY + drawH / 2}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight={600}
+                  fill="var(--md-sys-color-on-surface-variant)"
+                  transform={`rotate(-90, ${Math.max(9, padX - 8)}, ${padY + drawH / 2})`}
+                >
+                  ↕ {Math.round(bayHeight)} mm
+                </text>
+
                 {/* Structural bay perimeter outline */}
                 <rect
-                  x={svgPadding}
-                  y={svgPadding}
-                  width={bayWidth}
-                  height={bayHeight}
+                  x={padX}
+                  y={padY}
+                  width={drawW}
+                  height={drawH}
                   fill="none"
                   stroke="var(--md-sys-color-outline)"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
+                  strokeWidth={1.75}
+                  strokeDasharray="4 3"
                 />
 
                 {/* 1. Render Leaf Cells */}
                 {cells.map((cell, idx) => {
-                  const isSelected =
-                    selectionType === 'cell' &&
-                    JSON.stringify(cell.path) === JSON.stringify(selectedPath);
-                  const rx = svgPadding + cell.x;
-                  const ry = svgPadding + cell.y;
+                  const key = pathKey(cell.path);
+                  const isSelected = selectionType === 'cell' && selectedKeySet.has(key);
+                  const isPrimarySelected =
+                    isSelected && selectedCell !== undefined && pathKey(selectedCell.path) === key;
+                  const rx = padX + cell.x * normScale;
+                  const ry = padY + cell.y * normScale;
+                  const rw = Math.max(2, cell.width * normScale);
+                  const rh = Math.max(2, cell.height * normScale);
+                  const minDim = Math.min(rw, rh);
+                  const clipId = `cell-clip-${cell.path.join('-') || idx}`;
 
                   let icon = '⬜';
                   let label = 'Libre';
                   if (cell.content.type === 'shelves') {
                     icon = '📚';
-                    label = `${cell.content.count} ${cell.content.count === 1 ? 'Estante' : 'Estantes'}`;
+                    label = `${cell.content.count} ${cell.content.count === 1 ? 'Est.' : 'Est.'}`;
                   } else if (cell.content.type === 'drawer-stack') {
                     icon = '🗄️';
                     const count = cell.content.drawerTracks?.length ?? 1;
-                    label = `${count} ${count === 1 ? 'Cajón' : 'Cajones'}`;
+                    label = `${count} ${count === 1 ? 'Cajón' : 'Caj.'}`;
                   } else if (cell.content.type === 'doors') {
                     icon = '🚪';
-                    label = `${cell.content.count} ${cell.content.count === 1 ? 'Puerta' : 'Puertas'}`;
+                    label = `${cell.content.count} ${cell.content.count === 1 ? 'Pta.' : 'Ptas.'}`;
                   }
+
+                  const showIcon = minDim >= 24;
+                  const showLabel = rh >= 40 && rw >= 38;
+                  const showDims = rh >= 56 && rw >= 44;
+                  const iconFontSize = Math.min(18, Math.max(10, minDim * 0.24));
+                  const labelFontSize = Math.min(10.5, Math.max(7.5, minDim * 0.13));
+                  const dimFontSize = Math.min(9.5, Math.max(7, minDim * 0.11));
 
                   return (
                     <g
                       key={`cell-${cell.path.join('-') || idx}`}
+                      data-testid={`bay-cell-${cell.path.join('-') || 'root'}`}
                       onClick={(e) => {
                         e.stopPropagation();
+                        const additive =
+                          isMultiSelectMode || e.ctrlKey || e.metaKey || e.shiftKey;
                         setSelectionType('cell');
-                        setSelectedPath(cell.path);
                         setSelectedEdgeId(null);
+                        if (additive) {
+                          setSelectedPaths((prev) => {
+                            const exists = prev.some((p) => pathKey(p) === key);
+                            if (exists) {
+                              return prev.length > 1
+                                ? prev.filter((p) => pathKey(p) !== key)
+                                : prev;
+                            }
+                            return [...prev, cell.path];
+                          });
+                        } else {
+                          setSelectedPaths([cell.path]);
+                        }
                       }}
                       style={{ cursor: 'pointer' }}
                     >
@@ -600,8 +813,8 @@ export function BayDistributionModal({
                       <rect
                         x={rx}
                         y={ry}
-                        width={cell.width}
-                        height={cell.height}
+                        width={rw}
+                        height={rh}
                         fill={
                           isSelected
                             ? 'var(--md-sys-color-primary-container)'
@@ -612,45 +825,81 @@ export function BayDistributionModal({
                             ? 'var(--md-sys-color-primary)'
                             : 'var(--md-sys-color-outline-variant)'
                         }
-                        strokeWidth={isSelected ? 2.5 : 1}
+                        strokeWidth={isPrimarySelected ? 2.5 : isSelected ? 2 : 1}
                         rx={3}
                       />
 
-                      {/* Cell Info / Icon */}
-                      <text
-                        x={rx + cell.width / 2}
-                        y={ry + cell.height / 2 - 8}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={Math.min(22, Math.max(12, Math.min(cell.width, cell.height) * 0.22))}
-                      >
-                        {icon}
-                      </text>
+                      {/* Clipped interior text & badges so nothing ever overflows cell boundaries */}
+                      <g clipPath={`url(#${clipId})`}>
+                        {/* Multi-select Check Badge */}
+                        {isSelected && (selectedCells.length > 1 || isMultiSelectMode) && minDim >= 22 && (
+                          <g>
+                            <circle
+                              cx={rx + Math.min(11, rw * 0.22)}
+                              cy={ry + Math.min(11, rh * 0.22)}
+                              r={Math.min(7.5, minDim * 0.16)}
+                              fill="var(--md-sys-color-primary)"
+                            />
+                            <text
+                              x={rx + Math.min(11, rw * 0.22)}
+                              y={ry + Math.min(11, rh * 0.22)}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fontSize={Math.min(9, minDim * 0.18)}
+                              fill="var(--md-sys-color-on-primary)"
+                              fontWeight={700}
+                            >
+                              ✓
+                            </text>
+                          </g>
+                        )}
 
-                      {/* Equipment Label */}
-                      <text
-                        x={rx + cell.width / 2}
-                        y={ry + cell.height / 2 + 10}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={Math.min(12, Math.max(9, Math.min(cell.width, cell.height) * 0.12))}
-                        fill="var(--md-sys-color-on-surface)"
-                        fontWeight={500}
-                      >
-                        {label}
-                      </text>
+                        {/* Cell Info / Icon */}
+                        {showIcon && (
+                          <text
+                            x={rx + rw / 2}
+                            y={
+                              showLabel
+                                ? ry + rh / 2 - labelFontSize * 0.75
+                                : ry + rh / 2
+                            }
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize={iconFontSize}
+                          >
+                            {icon}
+                          </text>
+                        )}
 
-                      {/* Cell Dimensions mm */}
-                      <text
-                        x={rx + cell.width / 2}
-                        y={ry + cell.height - 8}
-                        textAnchor="middle"
-                        dominantBaseline="auto"
-                        fontSize={Math.min(11, Math.max(8, Math.min(cell.width, cell.height) * 0.1))}
-                        fill="var(--md-sys-color-on-surface-variant)"
-                      >
-                        {cell.width} × {cell.height}
-                      </text>
+                        {/* Equipment Label */}
+                        {showLabel && (
+                          <text
+                            x={rx + rw / 2}
+                            y={ry + rh / 2 + iconFontSize * 0.45}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize={labelFontSize}
+                            fill="var(--md-sys-color-on-surface)"
+                            fontWeight={600}
+                          >
+                            {label}
+                          </text>
+                        )}
+
+                        {/* Cell Dimensions mm */}
+                        {showDims && (
+                          <text
+                            x={rx + rw / 2}
+                            y={ry + rh - 5}
+                            textAnchor="middle"
+                            dominantBaseline="auto"
+                            fontSize={dimFontSize}
+                            fill="var(--md-sys-color-on-surface-variant)"
+                          >
+                            {Math.round(cell.width)}×{Math.round(cell.height)}
+                          </text>
+                        )}
+                      </g>
                     </g>
                   );
                 })}
@@ -659,14 +908,16 @@ export function BayDistributionModal({
                 {dividers.map((edge) => {
                   const isEdgeSelected =
                     selectionType === 'edge' && selectedEdgeId === edge.id;
-                  const ex = svgPadding + edge.x;
-                  const ey = svgPadding + edge.y;
+                  const ex = padX + edge.x * normScale;
+                  const ey = padY + edge.y * normScale;
+                  const ew = Math.max(2.5, edge.width * normScale);
+                  const eh = Math.max(2.5, edge.height * normScale);
 
-                  // Minimum touch/click target of at least 14px for comfortable selection
-                  const hitWidth = Math.max(edge.width, 14);
-                  const hitHeight = Math.max(edge.height, 14);
-                  const hitX = ex - (hitWidth - edge.width) / 2;
-                  const hitY = ey - (hitHeight - edge.height) / 2;
+                  // Minimum touch/click target in normalized SVG units
+                  const hitWidth = Math.max(ew, 12);
+                  const hitHeight = Math.max(eh, 12);
+                  const hitX = ex - (hitWidth - ew) / 2;
+                  const hitY = ey - (hitHeight - eh) / 2;
 
                   const isThin = edge.thicknessMm <= 9;
 
@@ -693,8 +944,8 @@ export function BayDistributionModal({
                       <rect
                         x={ex}
                         y={ey}
-                        width={edge.width}
-                        height={edge.height}
+                        width={ew}
+                        height={eh}
                         fill={
                           isEdgeSelected
                             ? '#f59e0b'
@@ -707,7 +958,7 @@ export function BayDistributionModal({
                             ? '#b45309'
                             : 'var(--md-sys-color-surface-container-highest)'
                         }
-                        strokeWidth={isEdgeSelected ? 2 : 0.5}
+                        strokeWidth={isEdgeSelected ? 1.8 : 0.5}
                       />
                     </g>
                   );
@@ -716,9 +967,9 @@ export function BayDistributionModal({
             </div>
 
             {/* Quick Helper Legend */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-              <span>💡 Hacé clic en una celda para equipar o dividir</span>
-              <span>Hacé clic en una arista para cambiar espesor</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.35rem', fontSize: '0.74rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+              <span>💡 Clic o ☑️ Selección Múltiple (Ctrl/Shift+Clic) para configurar en bloque</span>
+              <span>Clic en arista para cambiar espesor</span>
             </div>
           </div>
 
@@ -1048,9 +1299,52 @@ export function BayDistributionModal({
               </div>
             )}
 
-            {/* Case B: A Cell is selected */}
+            {/* Case B: One or Multiple Cells are selected */}
             {selectionType === 'cell' && selectedCell && (
               <>
+                {/* Block Configuration Banner when multiple cells are selected */}
+                {selectedCells.length > 1 && (
+                  <div
+                    data-testid="batch-selection-banner"
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.6rem 0.85rem',
+                      backgroundColor: 'var(--md-sys-color-primary-container)',
+                      color: 'var(--md-sys-color-on-primary-container)',
+                      borderRadius: 'var(--md-sys-shape-corner-sm)',
+                      border: '1.5px solid var(--md-sys-color-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>
+                      ☑️ Configurando en Bloque: {selectedCells.length} de {cells.length} celdas seleccionadas
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMultiSelectMode(false);
+                        setSelectedPaths([selectedCell.path]);
+                      }}
+                      style={{
+                        fontSize: '0.74rem',
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: 'var(--md-sys-shape-corner-full)',
+                        backgroundColor: 'var(--md-sys-color-surface)',
+                        color: 'var(--md-sys-color-on-surface)',
+                        border: '1px solid var(--md-sys-color-outline)',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Desagrupar
+                    </button>
+                  </div>
+                )}
+
                 {/* Cell Split Actions (Word Table Operations) */}
                 <div
                   style={{
@@ -1065,9 +1359,11 @@ export function BayDistributionModal({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                      ✂️ Dividir Celda ({selectedCell.width} × {selectedCell.height} mm):
+                      {selectedCells.length > 1
+                        ? `✂️ Dividir ${selectedCells.length} Celdas en Bloque:`
+                        : `✂️ Dividir Celda (${selectedCell.width} × ${selectedCell.height} mm):`}
                     </span>
-                    {selectedCell.path.length > 0 && (
+                    {selectedCells.length === 1 && selectedCell.path.length > 0 && (
                       <button
                         type="button"
                         onClick={handleRemoveEdgeOrSplit}
@@ -1148,7 +1444,9 @@ export function BayDistributionModal({
                   }}
                 >
                   <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                    📦 Equipar esta celda:
+                    {selectedCells.length > 1
+                      ? `📦 Equipar ${selectedCells.length} Celdas en Bloque:`
+                      : '📦 Equipar esta celda:'}
                   </span>
 
                   <div className="builder-chip-selector" role="group">

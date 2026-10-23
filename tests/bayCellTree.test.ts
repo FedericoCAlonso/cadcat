@@ -4,9 +4,11 @@ import {
   computeTreeGeometry,
   getCellAtPath,
   updateCellAtPath,
+  updateCellsAtPaths,
   updateDividerAtPath,
   distributeTracksEvenlyAtPath,
   splitCellAtPath,
+  splitCellsAtPaths,
   createMatrixGrid,
   removeSplitAtPath,
 } from '../src/resolver/composition/bayCellTree';
@@ -206,5 +208,42 @@ describe('bayCellTree - Word table style interactive cell operations', () => {
       { type: 'fractional', valueFr: 1 },
       { type: 'fractional', valueFr: 1 },
     ]);
+  });
+
+  it('equips multiple selected cells in block using updateCellsAtPaths', () => {
+    const grid = createMatrixGrid(2, 2, 'horizontal-continuous', 18);
+    // Select diagonal cells [0, 0] and [1, 1] and equip both with 2 shelves in block
+    const updated = updateCellsAtPaths(grid, [[0, 0], [1, 1]], {
+      type: 'shelves',
+      count: 2,
+      shelfType: 'adjustable',
+    });
+
+    expect(getCellAtPath(updated, [0, 0])?.type).toBe('shelves');
+    expect(getCellAtPath(updated, [1, 1])?.type).toBe('shelves');
+    expect(getCellAtPath(updated, [0, 1])?.type).toBe('empty');
+    expect(getCellAtPath(updated, [1, 0])?.type).toBe('empty');
+  });
+
+  it('subdivides multiple selected cells in block using splitCellsAtPaths', () => {
+    const grid = createMatrixGrid(1, 3, 'horizontal-continuous', 18);
+    // Split outer columns [0] and [2] into 2 rows each, leaving middle column [1] intact
+    const updated = splitCellsAtPaths(
+      grid,
+      [[0], [2]],
+      'vertical',
+      [
+        { type: 'fractional', valueFr: 1 },
+        { type: 'fractional', valueFr: 1 },
+      ],
+      6,
+      'mat-6mm',
+      'dado-groove',
+    );
+
+    const cells = computeLeafCells(updated, 900, 600, 18);
+    // 2 rows in col 0 + 1 in col 1 + 2 rows in col 2 = 5 leaf cells
+    expect(cells.length).toBe(5);
+    expect(cells.map((c) => c.path)).toEqual([[0, 0], [0, 1], [1], [2, 0], [2, 1]]);
   });
 });
