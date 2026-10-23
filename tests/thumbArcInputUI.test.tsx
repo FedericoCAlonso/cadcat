@@ -419,4 +419,77 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     container.remove();
   });
+
+  it('cycles smoothly through discrete options when sliding/dragging the thumb arc without getting stuck at endpoints', () => {
+    const selectedHistory: string[] = [];
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    const options = [
+      { id: 'plinth', label: 'Con Zócalo' },
+      { id: 'floor', label: 'Al Piso' },
+      { id: 'wall', label: 'Suspendido' },
+    ];
+
+    const rootInstance = createRoot(container);
+    act(() => {
+      rootInstance.render(
+        <ThumbArcInput
+          label="Apoyo Inferior"
+          value={0}
+          arcOnly={true}
+          options={options}
+          selectedOptionId="plinth"
+          onSelectOption={(id) => selectedHistory.push(id)}
+          onChange={vi.fn()}
+        />,
+      );
+    });
+
+    const arcTrack = container.querySelector('.thumb-arc-track') as HTMLDivElement;
+    expect(arcTrack).not.toBeNull();
+
+    vi.spyOn(arcTrack, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 360,
+      height: 165,
+      right: 360,
+      bottom: 165,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+
+    // Simulate an upward thumb drag across 2 steps (from 'plinth' -> 'floor' -> 'wall')
+    act(() => {
+      const downEvt = new MouseEvent('pointerdown', { bubbles: true, clientX: 240, clientY: 140 }) as unknown as PointerEvent;
+      Object.defineProperty(downEvt, 'pointerId', { value: 1 });
+      arcTrack.dispatchEvent(downEvt);
+
+      const moveEvt1 = new MouseEvent('pointermove', { bubbles: true, clientX: 255, clientY: 110 }) as unknown as PointerEvent;
+      Object.defineProperty(moveEvt1, 'pointerId', { value: 1 });
+      arcTrack.dispatchEvent(moveEvt1);
+
+      const moveEvt2 = new MouseEvent('pointermove', { bubbles: true, clientX: 270, clientY: 80 }) as unknown as PointerEvent;
+      Object.defineProperty(moveEvt2, 'pointerId', { value: 1 });
+      arcTrack.dispatchEvent(moveEvt2);
+
+      // Continue upward to verify cyclic wrap-around ('wall' -> 'plinth') without getting stuck
+      const moveEvt3 = new MouseEvent('pointermove', { bubbles: true, clientX: 285, clientY: 50 }) as unknown as PointerEvent;
+      Object.defineProperty(moveEvt3, 'pointerId', { value: 1 });
+      arcTrack.dispatchEvent(moveEvt3);
+
+      const upEvt = new MouseEvent('pointerup', { bubbles: true, clientX: 285, clientY: 50 }) as unknown as PointerEvent;
+      Object.defineProperty(upEvt, 'pointerId', { value: 1 });
+      arcTrack.dispatchEvent(upEvt);
+    });
+
+    expect(selectedHistory).toEqual(['floor', 'wall', 'plinth']);
+
+    act(() => {
+      rootInstance.unmount();
+    });
+    container.remove();
+  });
 });

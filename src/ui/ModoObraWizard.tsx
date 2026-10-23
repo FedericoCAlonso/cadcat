@@ -528,7 +528,7 @@ export function ModoObraWizard({
   // Options lists for ThumbArcInput across stages
   const templateArcOptions = useMemo<ThumbArcOption[]>(
     () =>
-      templates.slice(0, 8).map((tpl) => ({
+      templates.map((tpl) => ({
         id: tpl.id,
         label: tpl.name,
         sublabel: tpl.category ? `Categoría: ${tpl.category}` : 'Plantilla de taller',
@@ -536,15 +536,17 @@ export function ModoObraWizard({
     [templates],
   );
 
-  const materialArcOptions = useMemo<ThumbArcOption[]>(
-    () =>
-      filteredRoleMaterials.map((mat) => ({
-        id: mat.id,
-        label: mat.name,
-        sublabel: `${getMaterialThicknessMm(mat) ?? 18} mm · ${activeRoleConfig.label}`,
-      })),
-    [filteredRoleMaterials, activeRoleConfig.label],
-  );
+  const materialArcOptions = useMemo<ThumbArcOption[]>(() => {
+    const sourceList =
+      filteredRoleMaterials.length <= 1 && materials.length > 1
+        ? materials
+        : filteredRoleMaterials;
+    return sourceList.map((mat) => ({
+      id: mat.id,
+      label: mat.name,
+      sublabel: `${getMaterialThicknessMm(mat) ?? 18} mm · ${activeRoleConfig.label}`,
+    }));
+  }, [filteredRoleMaterials, materials, activeRoleConfig.label]);
 
   const thicknessArcOptions = useMemo<ThumbArcOption[]>(
     () => [
@@ -579,12 +581,11 @@ export function ModoObraWizard({
     [plinthHeightMm],
   );
 
-  const currentBaseOptionId =
-    hasWallHangingRail || (!hasPlinth && selectedTemplateId.includes('wall'))
-      ? 'wall-hanging'
-      : hasPlinth
-        ? 'plinth-integrated'
-        : 'floor-direct';
+  const currentBaseOptionId = hasWallHangingRail
+    ? 'wall-hanging'
+    : hasPlinth
+      ? 'plinth-integrated'
+      : 'floor-direct';
 
   const handleSelectBaseOption = useCallback(
     (optId: string) => {
@@ -702,15 +703,22 @@ export function ModoObraWizard({
     [safeBayCount, bayBoxes, width, thickness, activeBayHeight, usableDepthMm],
   );
 
-  const equipmentTypeOptions = useMemo<ThumbArcOption[]>(
+  const equipmentArcOptions = useMemo<ThumbArcOption[]>(
     () => [
       { id: 'shelves', label: '📚 Estantes', sublabel: `Estantes a tope con fondo (${activeBayDepth} mm)` },
       { id: 'drawer-stack', label: '🗄️ Cajonera', sublabel: `Cajones con correderas (máx ${activeBayDepth} mm)` },
       { id: 'doors', label: '🚪 Puerta(s)', sublabel: 'Hojas batientes con bisagras cazoleta' },
       { id: 'empty', label: '⬜ Vano Libre', sublabel: 'Hueco abierto sin herrajes interiores' },
-      { id: 'subdivided', label: '🍱 Edición Especial (Matriz)', sublabel: 'Subdivisión asimétrica mm/% y 6mm' },
     ],
     [activeBayDepth],
+  );
+
+  const equipmentTypeOptions = useMemo<ThumbArcOption[]>(
+    () => [
+      ...equipmentArcOptions,
+      { id: 'subdivided', label: '🍱 Edición Especial (Matriz)', sublabel: 'Subdivisión asimétrica mm/% y 6mm' },
+    ],
+    [equipmentArcOptions],
   );
 
   return (
@@ -2383,8 +2391,13 @@ export function ModoObraWizard({
                 value={currentBay.count ?? 1}
                 onChange={(targetVal) => {
                   const cur = currentBay.count ?? 1;
-                  if (targetVal > cur) onAddShelf?.(activeBayIndex);
-                  else if (targetVal < cur && cur > 1) onRemoveShelf?.(activeBayIndex);
+                  const diff = Math.round(targetVal) - cur;
+                  if (diff > 0) {
+                    for (let i = 0; i < diff; i++) onAddShelf?.(activeBayIndex);
+                  } else if (diff < 0) {
+                    const removals = Math.min(cur - 1, Math.abs(diff));
+                    for (let i = 0; i < removals; i++) onRemoveShelf?.(activeBayIndex);
+                  }
                 }}
                 onIncrement={() => onAddShelf?.(activeBayIndex)}
                 onDecrement={() => {
@@ -2423,8 +2436,13 @@ export function ModoObraWizard({
                 value={currentBay.drawerTracks?.length ?? 3}
                 onChange={(targetVal) => {
                   const cur = currentBay.drawerTracks?.length ?? 3;
-                  if (targetVal > cur) onAddDrawer?.(activeBayIndex);
-                  else if (targetVal < cur && cur > 1) onRemoveDrawer?.(activeBayIndex, cur - 1);
+                  const diff = Math.round(targetVal) - cur;
+                  if (diff > 0) {
+                    for (let i = 0; i < diff; i++) onAddDrawer?.(activeBayIndex);
+                  } else if (diff < 0) {
+                    const removals = Math.min(cur - 1, Math.abs(diff));
+                    for (let i = 0; i < removals; i++) onRemoveDrawer?.(activeBayIndex, cur - 1 - i);
+                  }
                 }}
                 onIncrement={() => onAddDrawer?.(activeBayIndex)}
                 onDecrement={() => {
@@ -2498,14 +2516,12 @@ export function ModoObraWizard({
                 handMode={handMode}
                 onHandModeChange={onHandModeChange}
                 arcOnly={true}
-                options={equipmentTypeOptions}
-                selectedOptionId={currentBay?.type ?? 'empty'}
+                options={equipmentArcOptions}
+                selectedOptionId={
+                  currentBay?.type && currentBay.type !== 'subdivided' ? currentBay.type : 'empty'
+                }
                 onSelectOption={(id) => {
-                  if (id === 'subdivided') {
-                    setIsDistributionModalOpen(true);
-                  } else {
-                    onBayContentTypeChange?.(activeBayIndex, id as ObraBayContentType);
-                  }
+                  onBayContentTypeChange?.(activeBayIndex, id as ObraBayContentType);
                 }}
               />
             )}

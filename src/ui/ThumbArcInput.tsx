@@ -3,6 +3,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useRef,
   useState,
+  useMemo,
   useCallback,
   useEffect,
 } from 'react';
@@ -101,7 +102,10 @@ export function ThumbArcInput({
   const activeHandMode = controlledHandMode ?? internalHandMode;
 
   const isOptionsMode = Boolean(options && options.length > 0 && onSelectOption);
-  const enabledOptions = options?.filter((o) => !o.disabled) ?? [];
+  const enabledOptions = useMemo(
+    () => options?.filter((o) => !o.disabled) ?? [],
+    [options],
+  );
   const activeOptionIndex = isOptionsMode
     ? Math.max(
         0,
@@ -111,7 +115,7 @@ export function ThumbArcInput({
   const activeOption = isOptionsMode ? (enabledOptions[activeOptionIndex] ?? enabledOptions[0]) : undefined;
 
   const effectiveMin = isOptionsMode ? 0 : min;
-  const effectiveMax = isOptionsMode ? Math.max(1, enabledOptions.length - 1) : max;
+  const effectiveMax = isOptionsMode ? Math.max(0, enabledOptions.length - 1) : max;
   const effectiveStep = isOptionsMode ? 1 : step;
   const effectiveCoarseStep = isOptionsMode ? 1 : coarseStep;
   const effectiveValue = isOptionsMode ? activeOptionIndex : value;
@@ -195,30 +199,45 @@ export function ThumbArcInput({
   const arcContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef<boolean>(false);
   const didMoveRef = useRef<boolean>(false);
+  const didEmitStepDuringDragRef = useRef<boolean>(false);
   const downClientPointRef = useRef<Point2D>({ x: 0, y: 0 });
+  const prevClientPointRef = useRef<Point2D>({ x: 0, y: 0 });
   const downNormalizedPointRef = useRef<Point2D>({ x: 0, y: 0 });
   const prevAngleRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const accumulatedValueRef = useRef<number>(effectiveValue);
+  const lastEmittedOptionIndexRef = useRef<number>(activeOptionIndex);
+  const optionDragProgressRef = useRef<number>(0);
 
   useEffect(() => {
     if (!isDraggingRef.current) {
       accumulatedValueRef.current = effectiveValue;
+      lastEmittedOptionIndexRef.current = activeOptionIndex;
+      optionDragProgressRef.current = 0;
     }
-  }, [effectiveValue]);
+  }, [effectiveValue, activeOptionIndex]);
+
+  const numericSpan = Math.max(1, effectiveMax - effectiveMin);
+  const adaptiveNumericMmPerRadian =
+    numericSpan <= 20
+      ? Math.max(6, numericSpan * 2.0)
+      : numericSpan <= 60
+        ? Math.max(30, numericSpan * 1.8)
+        : DEFAULT_THUMB_ARC_CONFIG.mmPerRadian;
 
   const arcConfig: ThumbArcConfig = {
     ...DEFAULT_THUMB_ARC_CONFIG,
     min: effectiveMin,
-    max: effectiveMax,
+    max: Math.max(effectiveMin, effectiveMax),
     step: effectiveStep,
     coarseStep: effectiveCoarseStep,
     mmPerRadian: isOptionsMode
-      ? Math.max(1, enabledOptions.length) / (Math.PI / 3.2)
-      : DEFAULT_THUMB_ARC_CONFIG.mmPerRadian,
-    fastAngularVelocityThreshold: isOptionsMode
-      ? 99
-      : DEFAULT_THUMB_ARC_CONFIG.fastAngularVelocityThreshold,
+      ? Math.max(6, enabledOptions.length * 2.4)
+      : adaptiveNumericMmPerRadian,
+    fastAngularVelocityThreshold:
+      isOptionsMode || numericSpan <= 60
+        ? 99
+        : DEFAULT_THUMB_ARC_CONFIG.fastAngularVelocityThreshold,
     handMode: activeHandMode,
   };
 
@@ -275,20 +294,28 @@ export function ThumbArcInput({
         y: (e.clientY - rect.top) * scaleY,
       };
 
-      const isOverKnob = isPointOnKnob(normalizedPoint, { x: knobX, y: knobY }, 35);
-      const isOnArc = isPointOnThumbArc(normalizedPoint, baseWidth, baseSvgHeight, activeHandMode, {
-        radius: baseRadius,
-        radialTolerance: 55,
-      });
+      if (!arcOnly) {
+        const isOverKnob = isPointOnKnob(normalizedPoint, { x: knobX, y: knobY }, 35);
+        const isOnArc = isPointOnThumbArc(normalizedPoint, baseWidth, baseSvgHeight, activeHandMode, {
+          radius: baseRadius,
+          radialTolerance: 55,
+        });
 
-      if (!isOverKnob && !isOnArc) {
-        return;
+        if (!isOverKnob && !isOnArc) {
+          return;
+        }
       }
 
-      arcContainerRef.current.setPointerCapture(e.pointerId);
+      try {
+        arcContainerRef.current.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback when synthetic events lack pointer capture
+      }
       isDraggingRef.current = true;
       didMoveRef.current = false;
+      didEmitStepDuringDragRef.current = false;
       downClientPointRef.current = { x: e.clientX, y: e.clientY };
+      prevClientPointRef.current = { x: e.clientX, y: e.clientY };
       downNormalizedPointRef.current = normalizedPoint;
 
       const pivot = getThumbPivotPoint(rect.width, rect.height, activeHandMode);
@@ -301,9 +328,21 @@ export function ThumbArcInput({
       prevAngleRef.current = angle;
       lastTimeRef.current = performance.now();
       accumulatedValueRef.current = effectiveValue;
+      lastEmittedOptionIndexRef.current = activeOptionIndex;
+      optionDragProgressRef.current = 0;
       triggerHaptic('tick');
     },
-    [activeHandMode, effectiveValue, baseWidth, baseSvgHeight, baseRadius, knobX, knobY],
+    [
+      arcOnly,
+      activeHandMode,
+      effectiveValue,
+      activeOptionIndex,
+      baseWidth,
+      baseSvgHeight,
+      baseRadius,
+      knobX,
+      knobY,
+    ],
   );
 
   const handlePointerMove = useCallback(
@@ -314,8 +353,40 @@ export function ThumbArcInput({
         e.clientX - downClientPointRef.current.x,
         e.clientY - downClientPointRef.current.y,
       );
-      if (moveDist > 6) {
+      if (moveDist > 10) {
         didMoveRef.current = true;
+      }
+
+      const dxClient = e.clientX - prevClientPointRef.current.x;
+      const dyClient = e.clientY - prevClientPointRef.current.y;
+      prevClientPointRef.current = { x: e.clientX, y: e.clientY };
+
+      // Discrete Options Mode: smooth rotary/stepped dial without wind-up or endpoint lock
+      if (isOptionsMode && onSelectOption && enabledOptions.length > 0) {
+        const horizontalTangent = activeHandMode === 'right' ? dxClient : -dxClient;
+        const verticalUpward = -dyClient;
+        const projectedPixels = verticalUpward * 0.85 + horizontalTangent * 0.45;
+        const pixelsPerOptionStep = 26;
+
+        optionDragProgressRef.current += projectedPixels / pixelsPerOptionStep;
+
+        while (Math.abs(optionDragProgressRef.current) >= 0.75) {
+          const stepDir: 1 | -1 = optionDragProgressRef.current > 0 ? 1 : -1;
+          optionDragProgressRef.current -= stepDir;
+          const nextIdx =
+            (lastEmittedOptionIndexRef.current + stepDir + enabledOptions.length) %
+            enabledOptions.length;
+          if (nextIdx !== lastEmittedOptionIndexRef.current) {
+            lastEmittedOptionIndexRef.current = nextIdx;
+            didEmitStepDuringDragRef.current = true;
+            triggerHaptic('major');
+            const targetOpt = enabledOptions[nextIdx];
+            if (targetOpt) {
+              onSelectOption(targetOpt.id);
+            }
+          }
+        }
+        return;
       }
 
       const rect = arcContainerRef.current.getBoundingClientRect();
@@ -336,21 +407,19 @@ export function ThumbArcInput({
       lastTimeRef.current = now;
 
       const valueDelta = calculateArcDeltaValue(deltaRad, arcConfig, angularVelocity);
-      const nextAccumulated = accumulatedValueRef.current + valueDelta;
+      const safeMax = Math.max(effectiveMin, effectiveMax);
+      const nextAccumulated = Math.max(
+        effectiveMin,
+        Math.min(safeMax, accumulatedValueRef.current + valueDelta),
+      );
       accumulatedValueRef.current = nextAccumulated;
 
-      const clamped = clampAndStepValue(nextAccumulated, effectiveMin, effectiveMax, effectiveStep);
+      const clamped = clampAndStepValue(nextAccumulated, effectiveMin, safeMax, effectiveStep);
       if (clamped !== effectiveValue) {
+        didEmitStepDuringDragRef.current = true;
         const haptic = evaluateHapticFeedback(effectiveValue, clamped, arcConfig);
         triggerHaptic(haptic);
-        if (isOptionsMode && onSelectOption) {
-          const targetOpt = enabledOptions[clamped];
-          if (targetOpt) {
-            onSelectOption(targetOpt.id);
-          }
-        } else {
-          onChange(clamped);
-        }
+        onChange(clamped);
       }
     },
     [
@@ -386,9 +455,19 @@ export function ThumbArcInput({
         const normPt = downNormalizedPointRef.current;
         const isUpperHalf = normPt.y <= midY;
         stepByDirection(isUpperHalf ? 1 : -1);
+      } else if (isOptionsMode && !didEmitStepDuringDragRef.current) {
+        // Short flick/swipe gesture in options mode that didn't reach full drag step threshold:
+        // guarantee 1 step in the swipe direction so short swipes never feel dead or stuck
+        const totalDx = e.clientX - downClientPointRef.current.x;
+        const totalDy = e.clientY - downClientPointRef.current.y;
+        const horizontalTangent = activeHandMode === 'right' ? totalDx : -totalDx;
+        const netProjected = -totalDy * 0.85 + horizontalTangent * 0.45;
+        if (Math.abs(netProjected) >= 4) {
+          stepByDirection(netProjected > 0 ? 1 : -1);
+        }
       }
     },
-    [midY, stepByDirection],
+    [midY, stepByDirection, isOptionsMode, activeHandMode],
   );
 
   // Quick stepper adjustments (for legacy / non-arcOnly mode)
@@ -1137,6 +1216,7 @@ export function ThumbArcInput({
                 data-arc-tap="upper"
                 aria-label={isOptionsMode ? 'Opción siguiente (mitad superior del arco)' : `Sumar ${step} ${unit} (mitad superior del arco)`}
                 title={isOptionsMode ? 'Tap mitad superior: Opción siguiente' : `Tap mitad superior: +${step} ${unit}`}
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   stepByDirection(1);
@@ -1169,6 +1249,7 @@ export function ThumbArcInput({
                 data-arc-tap="lower"
                 aria-label={isOptionsMode ? 'Opción anterior (mitad inferior del arco)' : `Restar ${step} ${unit} (mitad inferior del arco)`}
                 title={isOptionsMode ? 'Tap mitad inferior: Opción anterior' : `Tap mitad inferior: -${step} ${unit}`}
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   stepByDirection(-1);
