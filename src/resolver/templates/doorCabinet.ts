@@ -13,6 +13,7 @@ import { resolveModule } from '../resolver';
 import { applyEdgeBandRule, type ResolvedPieceWithCutSize } from '../edgeBand';
 import { buildDoorSubAssembly, type DoorMountType } from './door';
 import { buildShelf } from './shelf';
+import { applyFrontEdgeBand } from '../frontEdge';
 
 export interface DoorCabinetParams {
   width: number;
@@ -87,10 +88,8 @@ export function buildDoorCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const fL = sideLeft.faces.find((f) => f.id === 'right-edge');
-    if (fL) fL.edgeBandId = edgeBandId;
-    const fR = sideRight.faces.find((f) => f.id === 'right-edge');
-    if (fR) fR.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(sideLeft, edgeBandId);
+    applyFrontEdgeBand(sideRight, edgeBandId);
   }
 
   // 2. Carcase Bottom
@@ -102,8 +101,7 @@ export function buildDoorCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = bottom.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(bottom, edgeBandId);
   }
 
   // 3. Rails (top front and top back)

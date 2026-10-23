@@ -13,6 +13,12 @@ import {
   type BayBoundingBox,
 } from './types';
 import { resolveCarcass } from './anchorSolver';
+import {
+  resolveBackingReserveMm,
+  THICK_BACKING_MIN_THICKNESS_MM,
+  DEFAULT_BACKING_THICKNESS_MM,
+  DEFAULT_BACKING_GROOVE_DISTANCE_MM,
+} from './backingReserve';
 import { subdivideBay } from './gridSolver';
 import { resolveBayContent } from './componentSolver';
 import { createPiece, createRectangularContour } from '../piece';
@@ -61,11 +67,14 @@ export function buildModularModule(
     edgeBandId,
   } = definition;
 
-  const isMultiBay = Boolean(grid && grid.tracks.length > 1 && grid.axis === 'horizontal');
+  const effectiveBackingThick = carcass.backingThicknessMm ?? backingThicknessMm ?? DEFAULT_BACKING_THICKNESS_MM;
+  const effectiveBackingType = carcass.backingType ?? 'groove';
+  const isMultiBay = Boolean(grid && grid.tracks.length > 1);
   const splitBackingPerBay =
     isMultiBay &&
-    carcass.hasBacking &&
-    carcass.backingType === 'groove' &&
+    Boolean(carcass.hasBacking) &&
+    !carcass.isIslandCabinet &&
+    effectiveBackingType !== 'none' &&
     carcass.backingMultiBayMode !== 'continuous';
 
   // 1. Solve Carcass Geometry & Boundary Cavity
@@ -74,10 +83,14 @@ export function buildModularModule(
     carcassMaterialId: materials.carcassMaterialId,
     carcassThicknessMm,
     backingMaterialId: materials.backingsMaterialId,
-    backingThicknessMm: carcass.backingThicknessMm ?? 3,
+    backingThicknessMm: effectiveBackingThick,
     edgeBandId,
     idPrefix: `${id}-carcass`,
     interferences: definition.interferences,
+    backingReserveMm: resolveBackingReserveMm({
+      ...carcass,
+      backingThicknessMm: effectiveBackingThick,
+    }),
   });
 
   const pieces: Piece[] = [...carcassResult.pieces];
@@ -110,8 +123,14 @@ export function buildModularModule(
 
   if (grid && grid.tracks.length > 1) {
     const dividerT = grid.dividerThicknessMm ?? carcassThicknessMm;
+    // When each bay has its own backing panel, the main grid divider separates the bays all the way
+    // to the back of the carcass so both per-bay backings anchor to it; each resulting bay's usable
+    // interior depth remains bounded by carcassResult.interior.depth (flush with the backing).
+    const gridParentBay: BayBoundingBox = splitBackingPerBay
+      ? { ...rootBay, depth: carcass.depth }
+      : rootBay;
     const subResult = subdivideBay(
-      rootBay,
+      gridParentBay,
       grid,
       materials.carcassMaterialId,
       dividerT,
@@ -123,68 +142,202 @@ export function buildModularModule(
     pieces.push(...subResult.dividerPieces);
     joints.push(...subResult.dividerJoints);
     placementNodes.push(...subResult.dividerPlacements);
-    resolvedBays = subResult.bayBoxes;
+    resolvedBays = subResult.bayBoxes.map((b) => ({
+      ...b,
+      depth: carcassResult.interior.depth,
+    }));
   }
 
-  // 3.1 Multi-bay Per-Bay Backing Panels (Option A)
+  // 3.1 Multi-bay Per-Bay Backing Panels (delimited by each bay)
   if (splitBackingPerBay) {
     const backingDepthMm = carcass.backingGrooveDepthMm ?? 8;
-    const backingDistMm = carcass.backingGrooveDistanceMm ?? 15;
-    const backingThick = carcass.backingThicknessMm ?? 3;
-    const backZ = carcass.depth - backingDistMm - backingThick;
+    const backingDistMm = carcass.backingGrooveDistanceMm ?? DEFAULT_BACKING_GROOVE_DISTANCE_MM;
+    const isThickBack =
+      effectiveBackingThick >= THICK_BACKING_MIN_THICKNESS_MM && effectiveBackingType !== 'overlay';
+    const isOverlayBack = effectiveBackingType === 'overlay';
+    const dividerT = grid?.dividerThicknessMm ?? carcassThicknessMm;
+    const isHorizontalGrid = grid?.axis !== 'vertical';
 
     for (let i = 0; i < resolvedBays.length; i++) {
       const b = resolvedBays[i]!;
       const backPieceId = `${id}-bay-${i + 1}-back`;
-      const backWidth = b.width + 2 * backingDepthMm;
-      const backHeight = b.height + 2 * backingDepthMm;
 
-      const backPiece = createPiece({
-        id: backPieceId,
-        role: 'back',
-        materialId: materials.backingsMaterialId ?? materials.carcassMaterialId,
-        contour: createRectangularContour(backWidth, backHeight),
-        thicknessMm: backingThick,
-        structural: false,
-      });
-      pieces.push(backPiece);
+      if (isThickBack) {
+        const backWidth = b.width;
+        const backHeight = b.height;
+        const backZ = carcass.depth - effectiveBackingThick;
 
-      placementNodes.push({
-        pieceId: backPieceId,
-        parentPieceId: rootPieceId,
-        relativeOffset: {
-          x: b.x - backingDepthMm,
-          y: b.y - backingDepthMm,
-          z: backZ,
-        },
-      });
+        const backPiece = createPiece({
+          id: backPieceId,
+          role: 'back',
+          materialId: materials.backingsMaterialId ?? materials.carcassMaterialId,
+          contour: createRectangularContour(backWidth, backHeight),
+          thicknessMm: effectiveBackingThick,
+          structural: true,
+        });
+        pieces.push(backPiece);
 
-      joints.push(
-        createJoint({
-          a: { pieceId: b.leftPieceId, faceId: 'inner' },
-          b: { pieceId: backPieceId, faceId: 'left-edge' },
-          kind: 'groove',
-        }),
-        createJoint({
-          a: { pieceId: b.rightPieceId, faceId: 'inner' },
-          b: { pieceId: backPieceId, faceId: 'right-edge' },
-          kind: 'groove',
-        }),
-        createJoint({
-          a: { pieceId: b.bottomPieceId, faceId: 'top' },
-          b: { pieceId: backPieceId, faceId: 'bottom-edge' },
-          kind: 'groove',
-        }),
-      );
+        placementNodes.push({
+          pieceId: backPieceId,
+          parentPieceId: rootPieceId,
+          relativeOffset: {
+            x: b.x,
+            y: b.y,
+            z: backZ,
+          },
+        });
 
-      if (b.topPieceId && b.topPieceId !== b.leftPieceId) {
         joints.push(
           createJoint({
-            a: { pieceId: b.topPieceId, faceId: 'bottom' },
-            b: { pieceId: backPieceId, faceId: 'top-edge' },
+            a: { pieceId: b.leftPieceId, faceId: 'inner' },
+            b: { pieceId: backPieceId, faceId: 'left-edge' },
+            kind: 'confirmat',
+          }),
+          createJoint({
+            a: { pieceId: b.rightPieceId, faceId: 'inner' },
+            b: { pieceId: backPieceId, faceId: 'right-edge' },
+            kind: 'confirmat',
+          }),
+          createJoint({
+            a: { pieceId: b.bottomPieceId, faceId: 'top' },
+            b: { pieceId: backPieceId, faceId: 'bottom-edge' },
+            kind: 'confirmat',
+          }),
+        );
+
+        if (b.topPieceId && b.topPieceId !== b.leftPieceId) {
+          joints.push(
+            createJoint({
+              a: { pieceId: b.topPieceId, faceId: 'bottom' },
+              b: { pieceId: backPieceId, faceId: 'top-edge' },
+              kind: 'confirmat',
+            }),
+          );
+        }
+      } else if (isOverlayBack) {
+        const leftOverlap = isHorizontalGrid
+          ? i === 0
+            ? carcassThicknessMm
+            : dividerT / 2
+          : carcassThicknessMm;
+        const rightOverlap = isHorizontalGrid
+          ? i === resolvedBays.length - 1
+            ? carcassThicknessMm
+            : dividerT / 2
+          : carcassThicknessMm;
+        const topOverlap = !isHorizontalGrid
+          ? i === 0
+            ? carcassThicknessMm
+            : dividerT / 2
+          : carcassThicknessMm;
+        const bottomOverlap = !isHorizontalGrid
+          ? i === resolvedBays.length - 1
+            ? carcassThicknessMm
+            : dividerT / 2
+          : carcassThicknessMm;
+
+        const backWidth = Math.round(b.width + leftOverlap + rightOverlap);
+        const backHeight = Math.round(b.height + topOverlap + bottomOverlap);
+
+        const backPiece = createPiece({
+          id: backPieceId,
+          role: 'back',
+          materialId: materials.backingsMaterialId ?? materials.carcassMaterialId,
+          contour: createRectangularContour(backWidth, backHeight),
+          thicknessMm: effectiveBackingThick,
+          structural: false,
+        });
+        pieces.push(backPiece);
+
+        placementNodes.push({
+          pieceId: backPieceId,
+          parentPieceId: rootPieceId,
+          relativeOffset: {
+            x: b.x - leftOverlap,
+            y: b.y - bottomOverlap,
+            z: carcass.depth,
+          },
+        });
+
+        joints.push(
+          createJoint({
+            a: { pieceId: b.leftPieceId, faceId: 'rear-edge' },
+            b: { pieceId: backPieceId, faceId: 'inner' },
+            kind: 'screw',
+          }),
+          createJoint({
+            a: { pieceId: b.rightPieceId, faceId: 'rear-edge' },
+            b: { pieceId: backPieceId, faceId: 'inner' },
+            kind: 'screw',
+          }),
+          createJoint({
+            a: { pieceId: b.bottomPieceId, faceId: 'rear-edge' },
+            b: { pieceId: backPieceId, faceId: 'inner' },
+            kind: 'screw',
+          }),
+        );
+
+        if (b.topPieceId && b.topPieceId !== b.leftPieceId) {
+          joints.push(
+            createJoint({
+              a: { pieceId: b.topPieceId, faceId: 'rear-edge' },
+              b: { pieceId: backPieceId, faceId: 'inner' },
+              kind: 'screw',
+            }),
+          );
+        }
+      } else {
+        const backWidth = b.width + 2 * backingDepthMm;
+        const backHeight = b.height + 2 * backingDepthMm;
+        const backZ = carcass.depth - backingDistMm - effectiveBackingThick;
+
+        const backPiece = createPiece({
+          id: backPieceId,
+          role: 'back',
+          materialId: materials.backingsMaterialId ?? materials.carcassMaterialId,
+          contour: createRectangularContour(backWidth, backHeight),
+          thicknessMm: effectiveBackingThick,
+          structural: false,
+        });
+        pieces.push(backPiece);
+
+        placementNodes.push({
+          pieceId: backPieceId,
+          parentPieceId: rootPieceId,
+          relativeOffset: {
+            x: b.x - backingDepthMm,
+            y: b.y - backingDepthMm,
+            z: backZ,
+          },
+        });
+
+        joints.push(
+          createJoint({
+            a: { pieceId: b.leftPieceId, faceId: 'inner' },
+            b: { pieceId: backPieceId, faceId: 'left-edge' },
+            kind: 'groove',
+          }),
+          createJoint({
+            a: { pieceId: b.rightPieceId, faceId: 'inner' },
+            b: { pieceId: backPieceId, faceId: 'right-edge' },
+            kind: 'groove',
+          }),
+          createJoint({
+            a: { pieceId: b.bottomPieceId, faceId: 'top' },
+            b: { pieceId: backPieceId, faceId: 'bottom-edge' },
             kind: 'groove',
           }),
         );
+
+        if (b.topPieceId && b.topPieceId !== b.leftPieceId) {
+          joints.push(
+            createJoint({
+              a: { pieceId: b.topPieceId, faceId: 'bottom' },
+              b: { pieceId: backPieceId, faceId: 'top-edge' },
+              kind: 'groove',
+            }),
+          );
+        }
       }
     }
   }

@@ -283,8 +283,8 @@ describe('Drawer Bottom Calculations & Nesting Optimization Improvements', () =>
       // Opening width = 600 - 36 = 564. Drawer box width = 564 - 25.4 = 539.
       // Bottom width = 539 - 2 = 537mm (reaches within 1mm of lateral box edges).
       expect(drawerBottom.contour.points[1]!.x).toBe(537);
-      // Box depth = 500 - 50 = 450. Bottom depth = 450 - 2 = 448mm (reaches within 1mm of front/back edges).
-      expect(drawerBottom.contour.points[2]!.y).toBe(448);
+      // Bay depth = 500 - 18 (groove backing reserve) = 482. Box depth = 482 - 50 = 432. Bottom depth = 432 - 2 = 430mm (reaches within 1mm of front/back edges).
+      expect(drawerBottom.contour.points[2]!.y).toBe(430);
     });
   });
 

@@ -1,5 +1,12 @@
 import { useState, useMemo, useEffect, type ReactElement } from 'react';
 import {
+  type Material,
+  DEFAULT_STANDARD_THICKNESSES_MM,
+  filterMaterialsByThickness,
+  getMaterialThicknessMm,
+  listThicknessOptions,
+} from '../model';
+import {
   type BayContent,
   type BayContentSubdivided,
   type BayContentShelves,
@@ -31,7 +38,14 @@ export interface BayDistributionModalProps {
   bayHeight: number;
   bayDepth: number;
   initialContent: BayContent;
+  materials?: readonly Material[];
+  standardThicknessesMm?: readonly number[];
 }
+
+/** Minimum touch target edge (px) for mobile viewports (Material Design 3). */
+const MOBILE_TOUCH_TARGET_PX = 48;
+/** Max share of the viewport height the inline matrix creator may occupy on mobile. */
+const MOBILE_MATRIX_BAR_MAX_HEIGHT = '45dvh';
 
 export function BayDistributionModal({
   isOpen,
@@ -42,6 +56,8 @@ export function BayDistributionModal({
   bayHeight,
   bayDepth,
   initialContent,
+  materials = [],
+  standardThicknessesMm = DEFAULT_STANDARD_THICKNESSES_MM,
 }: BayDistributionModalProps): ReactElement | null {
   // Working draft of the bay content tree
   const [draft, setDraft] = useState<BayContent>(initialContent);
@@ -212,6 +228,7 @@ export function BayDistributionModal({
   // Update properties of selected divider edge (arista)
   const handleUpdateSelectedEdge = (updates: {
     dividerThicknessMm?: number;
+    dividerMaterialId?: string;
     jointType?: 'confirmat' | 'minifix' | 'dado-groove';
   }) => {
     if (!selectedEdge) return;
@@ -298,9 +315,10 @@ export function BayDistributionModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '0.5rem',
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
           }}
         >
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <h2
               id="bay-dist-title"
               style={{
@@ -324,9 +342,15 @@ export function BayDistributionModal({
               className={`builder-segmented-btn ${showMatrixCreator ? 'selected' : ''}`}
               onClick={() => setShowMatrixCreator((v) => !v)}
               title="Definir matriz inicial de filas y columnas estilo Word"
-              style={{ fontSize: '0.85rem', padding: '0.45rem 0.85rem' }}
+              aria-label={showMatrixCreator ? 'Ocultar creador de matriz' : 'Definir matriz de filas y columnas'}
+              style={{
+                fontSize: '0.85rem',
+                padding: '0.45rem 0.85rem',
+                minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                whiteSpace: 'nowrap',
+              }}
             >
-              ▦ {showMatrixCreator ? 'Ocultar Creador' : 'Definir Matriz'}
+              ▦ {isMobile ? 'Matriz' : showMatrixCreator ? 'Ocultar Creador' : 'Definir Matriz'}
             </button>
             <button
               type="button"
@@ -341,6 +365,8 @@ export function BayDistributionModal({
                 color: 'var(--md-sys-color-on-surface)',
                 padding: '0.5rem',
                 borderRadius: '50%',
+                minWidth: `${MOBILE_TOUCH_TARGET_PX}px`,
+                minHeight: `${MOBILE_TOUCH_TARGET_PX}px`,
               }}
             >
               ✕
@@ -352,16 +378,20 @@ export function BayDistributionModal({
         {showMatrixCreator && (
           <div
             style={{
-              padding: '0.75rem 1.25rem',
+              padding: isMobile ? '0.65rem 0.85rem' : '0.75rem 1.25rem',
               backgroundColor: 'var(--md-sys-color-surface-container)',
               borderBottom: '1px solid var(--md-sys-color-outline-variant)',
               display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
               flexWrap: 'wrap',
-              gap: '1rem',
-              alignItems: 'center',
+              gap: isMobile ? '0.6rem' : '1rem',
+              alignItems: isMobile ? 'stretch' : 'center',
+              maxHeight: isMobile ? MOBILE_MATRIX_BAR_MAX_HEIGHT : undefined,
+              overflowY: isMobile ? 'auto' : undefined,
+              flexShrink: 0,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: isMobile ? 'space-between' : undefined }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Filas:</span>
               <div className="m3-stepper-field" style={{ maxWidth: '100px' }}>
                 <button
@@ -382,7 +412,7 @@ export function BayDistributionModal({
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: isMobile ? 'space-between' : undefined }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Columnas:</span>
               <div className="m3-stepper-field" style={{ maxWidth: '100px' }}>
                 <button
@@ -403,16 +433,16 @@ export function BayDistributionModal({
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: isMobile ? 'space-between' : undefined }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Espesor:</span>
               <div className="builder-segmented-btn-group">
-                {[18, 9, 6].map((t) => (
+                {listThicknessOptions(materials, standardThicknessesMm).map((t) => (
                   <button
                     key={t}
                     type="button"
                     className={`builder-segmented-btn ${matrixThickness === t ? 'selected' : ''}`}
                     onClick={() => setMatrixThickness(t)}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined }}
                   >
                     {t}mm
                   </button>
@@ -420,14 +450,14 @@ export function BayDistributionModal({
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: isMobile ? 'space-between' : undefined }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Estructura:</span>
               <div className="builder-segmented-btn-group">
                 <button
                   type="button"
                   className={`builder-segmented-btn ${matrixContinuity === 'horizontal-continuous' ? 'selected' : ''}`}
                   onClick={() => setMatrixContinuity('horizontal-continuous')}
-                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined }}
                   title="Estantes horizontales continuos de lado a lado"
                 >
                   ⬌ Estante continuo
@@ -436,7 +466,7 @@ export function BayDistributionModal({
                   type="button"
                   className={`builder-segmented-btn ${matrixContinuity === 'vertical-continuous' ? 'selected' : ''}`}
                   onClick={() => setMatrixContinuity('vertical-continuous')}
-                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined }}
                   title="Tabiques verticales continuos de piso a techo"
                 >
                   ⬍ Tabique continuo
@@ -451,6 +481,8 @@ export function BayDistributionModal({
               style={{
                 fontSize: '0.85rem',
                 padding: '0.45rem 1rem',
+                minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                width: isMobile ? '100%' : undefined,
                 borderRadius: 'var(--md-sys-shape-corner-full)',
                 backgroundColor: 'var(--md-sys-color-primary)',
                 color: 'var(--md-sys-color-on-primary)',
@@ -720,32 +752,75 @@ export function BayDistributionModal({
                   </span>
                 </div>
 
-                {/* Thickness Selector */}
+                {/* Thickness & Plate Selector (standard thicknesses first; filters matching plates) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Espesor de placa:</span>
                   <div className="builder-chip-selector" role="group">
-                    <button
-                      type="button"
-                      className={`builder-segmented-btn ${selectedEdge.thicknessMm === 18 ? 'selected' : ''}`}
-                      onClick={() => handleUpdateSelectedEdge({ dividerThicknessMm: 18, jointType: 'confirmat' })}
-                    >
-                      18 mm (Melamina)
-                    </button>
-                    <button
-                      type="button"
-                      className={`builder-segmented-btn ${selectedEdge.thicknessMm === 9 ? 'selected' : ''}`}
-                      onClick={() => handleUpdateSelectedEdge({ dividerThicknessMm: 9, jointType: 'dado-groove' })}
-                    >
-                      9 mm (Guatambú)
-                    </button>
-                    <button
-                      type="button"
-                      className={`builder-segmented-btn ${selectedEdge.thicknessMm === 6 ? 'selected' : ''}`}
-                      onClick={() => handleUpdateSelectedEdge({ dividerThicknessMm: 6, jointType: 'dado-groove' })}
-                    >
-                      6 mm (Casillero)
-                    </button>
+                    {listThicknessOptions(materials, standardThicknessesMm).map((t) => {
+                      const matching = filterMaterialsByThickness(materials, t);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          className={`builder-segmented-btn ${selectedEdge.thicknessMm === t ? 'selected' : ''}`}
+                          onClick={() =>
+                            handleUpdateSelectedEdge({
+                              dividerThicknessMm: t,
+                              jointType: t <= 9 ? 'dado-groove' : 'confirmat',
+                              dividerMaterialId: matching[0]?.id ?? selectedEdge.materialId,
+                            })
+                          }
+                          style={{ minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined }}
+                        >
+                          {t} mm
+                        </button>
+                      );
+                    })}
                   </div>
+                  {materials.length > 0 && (
+                    <div style={{ marginTop: '0.25rem' }}>
+                      <label
+                        htmlFor="bay-divider-plate-select"
+                        style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}
+                      >
+                        Placa del divisor ({selectedEdge.thicknessMm} mm):
+                      </label>
+                      <select
+                        id="bay-divider-plate-select"
+                        className="m3-select"
+                        value={
+                          selectedEdge.materialId ??
+                          filterMaterialsByThickness(materials, selectedEdge.thicknessMm)[0]?.id ??
+                          ''
+                        }
+                        onChange={(e) => {
+                          const picked = materials.find((m) => m.id === e.target.value);
+                          const nextT = getMaterialThicknessMm(picked) ?? selectedEdge.thicknessMm;
+                          handleUpdateSelectedEdge({
+                            dividerMaterialId: e.target.value || undefined,
+                            dividerThicknessMm: nextT,
+                            jointType: nextT <= 9 ? 'dado-groove' : 'confirmat',
+                          });
+                        }}
+                        style={{
+                          width: '100%',
+                          fontSize: '0.85rem',
+                          minHeight: isMobile ? `${MOBILE_TOUCH_TARGET_PX}px` : undefined,
+                        }}
+                      >
+                        {filterMaterialsByThickness(materials, selectedEdge.thicknessMm).length === 0 && (
+                          <option value={selectedEdge.materialId ?? ''}>
+                            Sin placas de {selectedEdge.thicknessMm} mm en el catálogo
+                          </option>
+                        )}
+                        {filterMaterialsByThickness(materials, selectedEdge.thicknessMm).map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name ?? m.id} ({m.thicknessMm} mm)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 {/* Joint Type Selector */}
@@ -1900,6 +1975,7 @@ export function BayDistributionModal({
             alignItems: 'center',
             justifyContent: 'flex-end',
             gap: '0.75rem',
+            flexShrink: 0,
             backgroundColor: 'var(--md-sys-color-surface-container-low)',
           }}
         >
@@ -1908,7 +1984,8 @@ export function BayDistributionModal({
             className="m3-btn-outlined"
             onClick={onClose}
             style={{
-              minHeight: '44px',
+              minHeight: `${MOBILE_TOUCH_TARGET_PX}px`,
+              flex: isMobile ? 1 : undefined,
               padding: '0.6rem 1.25rem',
               borderRadius: 'var(--md-sys-shape-corner-full)',
               border: '1px solid var(--md-sys-color-outline)',
@@ -1928,7 +2005,9 @@ export function BayDistributionModal({
               onClose();
             }}
             style={{
-              minHeight: '44px',
+              minHeight: `${MOBILE_TOUCH_TARGET_PX}px`,
+              flex: isMobile ? 2 : undefined,
+              justifyContent: 'center',
               padding: '0.6rem 1.5rem',
               borderRadius: 'var(--md-sys-shape-corner-full)',
               border: 'none',

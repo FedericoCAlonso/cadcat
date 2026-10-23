@@ -9,6 +9,7 @@ import {
   type BayGridDefinition,
   type BayBoundingBox,
 } from './types';
+import { applyFrontEdgeBand } from '../frontEdge';
 
 export interface ResolveTracksResult {
   tracks: ResolvedTrack[];
@@ -155,8 +156,7 @@ export function subdivideBay(
       });
 
       if (edgeBandId) {
-        const frontFace = piece.faces.find((f) => f.id === 'right-edge');
-        if (frontFace) frontFace.edgeBandId = edgeBandId;
+        applyFrontEdgeBand(piece, edgeBandId);
       }
 
       dividerPieces.push(piece);
@@ -211,8 +211,7 @@ export function subdivideBay(
       });
 
       if (edgeBandId) {
-        const frontFace = piece.faces.find((f) => f.id === 'right-edge');
-        if (frontFace) frontFace.edgeBandId = edgeBandId;
+        applyFrontEdgeBand(piece, edgeBandId);
       }
 
       dividerPieces.push(piece);

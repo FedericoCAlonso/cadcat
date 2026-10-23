@@ -98,9 +98,9 @@ describe('Doors & Backing Calculations - 4 Specific Fixes', () => {
 
         // Shelf depth should be bay.depth - 38
         // bay.depth with groove is 500 - 15 - 3 = 482mm
-        // shelfDepth = bay.depth (500) - 38 = 462mm
+        // shelfDepth = bay.depth (482) - 38 = 444mm
         const shelfDepth = shelf.contour.points[2]!.y; // height in 2D rectangle is piece length/depth
-        expect(shelfDepth).toBe(462);
+        expect(shelfDepth).toBe(444);
 
         // Check front edge of shelf (z = 38) does not intersect door (z in [0, 18])
         expect(shelfPlacement.relativeOffset.z).toBeGreaterThanOrEqual(18);

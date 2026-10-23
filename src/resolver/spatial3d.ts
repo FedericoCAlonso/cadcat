@@ -23,16 +23,21 @@ export interface ExplodedPieceBox extends SpatialPieceBox {
   explodedOffsetMm: Position3D;
 }
 
-/**
- * Determine spatial dimensions (size along X, Y, Z in mm) from piece role, contour, and thickness.
- */
-export function determinePieceSpatialSize(piece: Piece): Position3D {
-  const t = piece.thicknessMm;
-  const points = piece.contour.points;
-  const w = Math.abs(points[1]?.x ?? 100);
-  const h = Math.abs(points[2]?.y ?? 100);
+export type ContourAxisSource = 'width' | 'height' | 'thickness';
 
-  const role = piece.role.toLowerCase();
+export interface PieceOrientation {
+  x: ContourAxisSource;
+  y: ContourAxisSource;
+  z: ContourAxisSource;
+}
+
+/**
+ * Single source of truth: which contour dimension (width = contour X, height = contour Y)
+ * or thickness feeds each spatial axis (X lateral, Y vertical, Z depth; front at z = 0)
+ * for a piece role.
+ */
+export function resolvePieceOrientation(rawRole: string): PieceOrientation {
+  const role = rawRole.toLowerCase();
 
   // Vertical side & partition panels standing in YZ plane
   if (
@@ -41,27 +46,22 @@ export function determinePieceSpatialSize(piece: Piece): Position3D {
     !role.includes('drawer-box-front') &&
     !role.includes('drawer-box-back')
   ) {
-    // Width along X is thickness. Height along Y is contour height. Depth along Z is contour width.
-    return { x: t, y: h, z: w };
+    return { x: 'thickness', y: 'height', z: 'width' };
   }
 
   // Vertical panels standing in XY plane (vertical rails, hanging rail, plinth/zócalo)
-  if (
-    role.includes('rail-vertical') ||
-    role.includes('hanging-rail') ||
-    role.includes('plinth')
-  ) {
-    return { x: w, y: h, z: t };
+  if (role.includes('rail-vertical') || role.includes('hanging-rail') || role.includes('plinth')) {
+    return { x: 'width', y: 'height', z: 'thickness' };
   }
 
   // Cross brace running front-to-back in XZ plane
   if (role.includes('brace-middle')) {
-    return { x: h, y: t, z: w };
+    return { x: 'height', y: 'thickness', z: 'width' };
   }
 
   // Horizontal rails / stretchers / transoms in XZ plane
   if (role.includes('rail') || role.includes('transom')) {
-    return { x: w, y: t, z: h };
+    return { x: 'width', y: 'thickness', z: 'height' };
   }
 
   // Horizontal panels in XZ plane (bottom, shelf, top, tray-bottom) - excluding vertical shelf-brace
@@ -71,12 +71,41 @@ export function determinePieceSpatialSize(piece: Piece): Position3D {
     role.includes('top') ||
     role === 'tray-bottom'
   ) {
-    // Width along X is contour width. Thickness along Y is t. Depth along Z is contour height.
-    return { x: w, y: t, z: h };
+    return { x: 'width', y: 'thickness', z: 'height' };
   }
 
-  // Panels in XY plane (back, front, drawer-front, doors, bifold-leaf, shelf-brace, tray-lip-front, tray-lip-back)
-  return { x: w, y: h, z: t };
+  // Panels in XY plane (back, front, drawer-front, doors, bifold-leaf, shelf-brace, tray-lips)
+  return { x: 'width', y: 'height', z: 'thickness' };
+}
+
+/**
+ * Contour edge ids facing the module front (z = 0) and rear (z = max) for a piece role,
+ * or undefined when the piece does not extend along the depth axis (e.g. back panels, doors).
+ */
+export function resolveDepthEdgeFaceIds(
+  role: string,
+): { front: string; rear: string } | undefined {
+  const { z } = resolvePieceOrientation(role);
+  if (z === 'width') {
+    return { front: 'left-edge', rear: 'right-edge' };
+  }
+  if (z === 'height') {
+    return { front: 'bottom-edge', rear: 'top-edge' };
+  }
+  return undefined;
+}
+
+/**
+ * Determine spatial dimensions (size along X, Y, Z in mm) from piece role, contour, and thickness.
+ */
+export function determinePieceSpatialSize(piece: Piece): Position3D {
+  const t = piece.thicknessMm;
+  const points = piece.contour.points;
+  const w = Math.abs(points[1]?.x ?? 100);
+  const h = Math.abs(points[2]?.y ?? 100);
+  const values: Record<ContourAxisSource, number> = { width: w, height: h, thickness: t };
+  const o = resolvePieceOrientation(piece.role);
+  return { x: values[o.x], y: values[o.y], z: values[o.z] };
 }
 
 /**

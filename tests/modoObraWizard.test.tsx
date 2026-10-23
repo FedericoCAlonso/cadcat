@@ -8,7 +8,7 @@ import { type BayContent } from '../src/resolver';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', () => {
+describe('ModoObraWizard Component (Modo Obra 7-Step Coherent Workshop Flow)', () => {
   const dummyTemplates = [
     { id: 'base-modular', name: 'Bajo Mesada Estándar', category: 'Cocina' },
     { id: 'wall-cabinet', name: 'Alacena Colgante', category: 'Cocina' },
@@ -39,7 +39,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(html).toContain('Especial');
   });
 
-  it('navigates through steps using Siguiente and Anterior buttons interactively', () => {
+  it('navigates through the 7 coherent stages: 1.Tipo -> 2.Medidas -> 3.Placas -> 4.Base y Techo -> 5.Fondo -> 6.División de Vanos -> 7.Equipamiento Interior', () => {
     const handleWidthChange = vi.fn();
     const handleRoofTypeChange = vi.fn();
     const handleView3d = vi.fn();
@@ -70,7 +70,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(container.textContent).toContain('Módulo y Tipo');
     expect(container.textContent).toContain('Paso 1 de 7');
 
-    // Click "Siguiente ▶" button to go to Step 2 (Medidas Principales)
+    // Click "Siguiente ▶" to go to Step 2 (Medidas Principales)
     const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Siguiente'),
     );
@@ -82,18 +82,18 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(container.textContent).toContain('Medidas Principales');
     expect(container.textContent).toContain('Paso 2 de 7');
 
-    // Click "Siguiente ▶" again to go to Step 3 (Base / Apoyo)
+    // Click "Siguiente ▶" to go to Step 3 (Placas y Espesores)
     act(() => {
       nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(container.textContent).toContain('Base / Apoyo');
+    expect(container.textContent).toContain('Placas y Espesores');
     expect(container.textContent).toContain('Paso 3 de 7');
 
-    // Click "Siguiente ▶" again to go to Step 4 (Techo / Amarres)
+    // Click "Siguiente ▶" to go to Step 4 (Base y Techo)
     act(() => {
       nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(container.textContent).toContain('Techo / Amarres');
+    expect(container.textContent).toContain('Base y Techo');
     expect(container.textContent).toContain('Paso 4 de 7');
     expect(container.textContent).toContain('Sin Tapa (Hasta el Techo)');
 
@@ -117,7 +117,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     });
     expect(handleView3d).toHaveBeenCalled();
 
-    // Click "◀ Anterior" button to return to Step 3
+    // Click "◀ Anterior" button to return to Step 3 (Placas y Espesores)
     const prevBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Anterior'),
     );
@@ -125,7 +125,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     act(() => {
       prevBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(container.textContent).toContain('Base / Apoyo');
+    expect(container.textContent).toContain('Placas y Espesores');
     expect(container.textContent).toContain('Paso 3 de 7');
 
     act(() => {
@@ -155,7 +155,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(html).toContain('✏️ Volver a Ajustes');
   });
 
-  it('navigates dimensions in Step 2 via carousel buttons, micro-dots, and gestures', () => {
+  it('navigates dimensions in Step 2 via carousel buttons and segmented tabs', () => {
     const handleSwitchExpert = vi.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -179,7 +179,6 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       );
     });
 
-    // Verify prominent "Modo Experto" button is present and clickable in header
     const expertBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Modo Experto'),
     );
@@ -198,12 +197,10 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     });
 
     expect(container.textContent).toContain('Medidas Principales');
-    // Initially shows Ancho Total
     expect(container.textContent).toContain('Ancho Total:');
     expect(container.textContent).toContain('800 mm');
     expect(container.textContent).toContain('(1/4)');
 
-    // Click carousel forward button ▶ to navigate to Alto Total (2/4)
     const dimForwardBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.getAttribute('aria-label')?.includes('Medida siguiente'),
     );
@@ -216,7 +213,6 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(container.textContent).toContain('720 mm');
     expect(container.textContent).toContain('(2/4)');
 
-    // Click carousel forward button ▶ again to navigate to Profundidad (3/4)
     act(() => {
       dimForwardBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -224,7 +220,6 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(container.textContent).toContain('560 mm');
     expect(container.textContent).toContain('(3/4)');
 
-    // Click micro-dot for Espesor directly
     const dotEspesor = Array.from(container.querySelectorAll('button')).find(
       (b) => b.getAttribute('aria-label')?.includes('Espesor Placa'),
     );
@@ -237,7 +232,6 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(container.textContent).toContain('18 mm');
     expect(container.textContent).toContain('(4/4)');
 
-    // Click carousel back button ◀ to return to Profundidad (3/4)
     const dimBackBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.getAttribute('aria-label')?.includes('Medida anterior'),
     );
@@ -271,13 +265,11 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       />,
     );
 
-    // Header has step counter and title
     expect(html).toContain('Paso 1 de 7:');
     expect(html).toContain('Módulo y Tipo');
     expect(html).toContain('Modo Experto');
     expect(html).toContain('🖐️ D');
 
-    // Footer is single-row with all 3 actions
     expect(html).toContain('◀ Anterior');
     expect(html).toContain('👁️ Ver Modelo 3D');
     expect(html).toContain('Siguiente ▶');
@@ -300,17 +292,15 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       />,
     );
 
-    // Context schematic diagram is rendered
     expect(html).toContain('Esquema técnico de contexto: module-type');
     expect(html).toContain('BAJO MESADA BASE');
-    expect(html).toContain('MESADA 600 mm');
+    expect(html).toContain('MESADA 580 mm');
 
-    // Cluttered text boxes were removed per workshop UX requirements
     expect(html).not.toContain('Ingeniería Automática de Taller');
     expect(html).not.toContain('Tip de Obra');
   });
 
-  it('configures bay distribution and interior equipment in unified Step 6 (Vanos y Equipamiento)', () => {
+  it('configures bay division in Step 6 (División de Vanos) and interior equipment in Step 7 (Equipamiento Interior)', () => {
     const handleGridTypeChange = vi.fn();
     const handleBayContentTypeChange = vi.fn();
     const handleActiveBayIndexChange = vi.fn();
@@ -349,7 +339,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       );
     });
 
-    // Advance 5 times to reach Step 6 (Vanos y Equipamiento)
+    // Advance 5 times to reach Step 6 (División de Vanos)
     const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Siguiente'),
     );
@@ -360,17 +350,12 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     }
 
     expect(container.textContent).toContain('Paso 6 de 7');
-    expect(container.textContent).toContain('Vanos y Equipamiento');
-
-    // Both Bay count (1 Vano, 2 Vanos, 3 Vanos) and Equipment options are present in same view
+    expect(container.textContent).toContain('División de Vanos');
     expect(container.textContent).toContain('1 Vano');
     expect(container.textContent).toContain('2 Vanos');
     expect(container.textContent).toContain('3 Vanos');
-    expect(container.textContent).toContain('📚 Estantes');
-    expect(container.textContent).toContain('🗄️ Cajonera');
-    expect(container.textContent).toContain('🚪 Puerta(s)');
 
-    // Click on 3 Vanos button
+    // Click on 3 Vanos button in Step 6
     const threeBaysBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('3 Vanos'),
     );
@@ -379,6 +364,17 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       threeBaysBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(handleGridTypeChange).toHaveBeenCalledWith('3-bays-vertical');
+
+    // Advance once more to Step 7 (Equipamiento Interior)
+    act(() => {
+      nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Paso 7 de 7');
+    expect(container.textContent).toContain('Equipamiento Interior');
+    expect(container.textContent).toContain('📚 Estantes');
+    expect(container.textContent).toContain('🗄️ Cajonera');
+    expect(container.textContent).toContain('🚪 Puerta(s)');
 
     // Click on Cajonera equipment type
     const drawerBtn = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -400,7 +396,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     });
     expect(handleAddShelf).toHaveBeenCalledWith(0);
 
-    // Verify Edición Especial option is available in Step 6
+    // Verify Edición Especial option is available in Step 7
     expect(container.textContent).toContain('🍱 Edición Especial');
 
     // Click on Edición Especial button to open BayDistributionModal
@@ -422,7 +418,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     container.remove();
   });
 
-  it('allows multi-role material selection (casco, frentes, cajones, fondos) in Step 7', () => {
+  it('allows multi-role material selection and standard thickness filtering in Step 3 (Placas y Espesores)', () => {
     const dummyMaterials = [
       { id: 'mat-white', name: 'Melamina Blanca 18mm', thicknessMm: 18, color: '#ffffff', kind: 'melamine' as const, finish: 'matte' },
       { id: 'mat-oak', name: 'Roble Kendal 18mm', thicknessMm: 18, color: '#d2b48c', kind: 'melamine' as const, finish: 'textured' },
@@ -477,20 +473,20 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       );
     });
 
-    // Advance 6 times to reach Step 7 (Tablero / Melamina)
+    // Advance 2 times to reach Step 3 (Placas y Espesores)
     const nextBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Siguiente'),
     );
     expect(nextBtn).toBeDefined();
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 2; i++) {
       act(() => {
         nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
     }
 
-    expect(container.textContent).toContain('Paso 7 de 7');
-    expect(container.textContent).toContain('Tablero / Melamina');
+    expect(container.textContent).toContain('Paso 3 de 7');
+    expect(container.textContent).toContain('Placas y Espesores');
 
     // Role selector chips should be present: Casco, Frentes, Cajones, Fondos
     expect(container.textContent).toContain('Casco');
@@ -498,7 +494,12 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(container.textContent).toContain('Cajones');
     expect(container.textContent).toContain('Fondos');
 
-    // Step 8 initially is on Casco -> click Roble Kendal
+    // Standard thickness filter chips are present
+    expect(container.textContent).toContain('Todos los espesores');
+    expect(container.textContent).toContain('18 mm ★');
+    expect(container.textContent).toContain('3 mm ★');
+
+    // Step 3 initially is on Casco -> click Roble Kendal
     const oakBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Roble Kendal'),
     );
@@ -508,7 +509,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     });
     expect(handleMaterialChange).toHaveBeenCalledWith('mat-oak');
 
-    // Now switch to Frentes role tab
+    // Switch to Frentes role tab
     const frontsTabBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.getAttribute('role') === 'tab' && b.textContent?.includes('Frentes'),
     );
@@ -542,7 +543,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     container.remove();
   });
 
-  it('ensures mutually exclusive active states in Step 3 (Base / Apoyo)', () => {
+  it('ensures mutually exclusive active states in Step 4 (Base y Techo)', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const rootInstance = createRoot(container);
@@ -571,7 +572,7 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
       );
     });
 
-    // Advance to Step 3: Step 1 -> Step 2 -> Step 3
+    // Advance to Step 4: Step 1 -> Step 2 -> Step 3 -> Step 4
     const nextBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent?.includes('Siguiente ▶'),
     );
@@ -582,11 +583,13 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     act(() => {
       nextBtn?.click();
     });
+    act(() => {
+      nextBtn?.click();
+    });
 
-    expect(container.textContent).toContain('Paso 3 de 7:');
-    expect(container.textContent).toContain('Base / Apoyo');
+    expect(container.textContent).toContain('Paso 4 de 7:');
+    expect(container.textContent).toContain('Base y Techo');
 
-    // Only ONE option should have primary border/styling, not two simultaneously
     const plinthOption = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent?.includes('Con Zócalo / Plinto'),
     );
@@ -601,12 +604,9 @@ describe('ModoObraWizard Component (Modo Obra 7-Step Navigation & Gestures)', ()
     expect(floorOption).toBeDefined();
     expect(wallOption).toBeDefined();
 
-    // Verify plinth option has primary active border
     expect(plinthOption?.style.border).toContain('var(--md-sys-color-primary)');
-    // Floor option should NOT have primary active border
     expect(floorOption?.style.border).not.toContain('var(--md-sys-color-primary)');
 
-    // Clicking floor option triggers callbacks
     act(() => {
       floorOption?.click();
     });

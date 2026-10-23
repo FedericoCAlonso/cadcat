@@ -14,6 +14,7 @@ import { applyEdgeBandRule, type ResolvedPieceWithCutSize } from '../edgeBand';
 import { buildPartition } from './partition';
 import { buildShelf } from './shelf';
 import { buildDrawerSubAssembly, type DrawerSlideType } from './drawer';
+import { applyFrontEdgeBand } from '../frontEdge';
 
 export interface PartitionCabinetParams {
   width: number;
@@ -75,10 +76,8 @@ export function buildPartitionCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const fL = sideLeft.faces.find((f) => f.id === 'right-edge');
-    if (fL) fL.edgeBandId = edgeBandId;
-    const fR = sideRight.faces.find((f) => f.id === 'right-edge');
-    if (fR) fR.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(sideLeft, edgeBandId);
+    applyFrontEdgeBand(sideRight, edgeBandId);
   }
 
   // 2. Carcase Bottom
@@ -90,8 +89,7 @@ export function buildPartitionCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = bottom.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(bottom, edgeBandId);
   }
 
   // 3. Rails (top front and top back)

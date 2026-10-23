@@ -491,8 +491,8 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
       expect(doors.length).toBe(2);
       expect(shelves.length).toBe(2);
 
-      // Verify setback: bay.depth = 600, setback = 25 -> shelf depth = 575
-      expect(shelves[0]!.contour.points[2]!.y).toBe(575);
+      // Verify setback: bay.depth = 600 - 18 (groove backing reserve) = 582, setback = 25 -> shelf depth = 557
+      expect(shelves[0]!.contour.points[2]!.y).toBe(557);
 
       // Verify shelf-pin joints for adjustable shelves
       const shelfJoints = res.module.joints.filter((j) => j.kind === 'shelf-pin');

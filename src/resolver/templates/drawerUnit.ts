@@ -23,6 +23,7 @@ import {
   type DrawerBottomMount,
 } from './drawer';
 import defaultProjectConfigJson from '../../config/defaultProjectConfig.json';
+import { applyFrontEdgeBand } from '../frontEdge';
 
 /**
  * Slide clearance total in millimeters (both sides) from configuration.
@@ -109,8 +110,7 @@ export function buildDrawerUnit(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = sideLeft.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(sideLeft, edgeBandId);
   }
 
   const sideRight = createPiece({
@@ -121,8 +121,7 @@ export function buildDrawerUnit(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = sideRight.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(sideRight, edgeBandId);
   }
 
   // 2. Carcase Bottom
@@ -134,8 +133,7 @@ export function buildDrawerUnit(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = bottom.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(bottom, edgeBandId);
   }
 
   // 3. Carcase Rails

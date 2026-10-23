@@ -515,6 +515,13 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const group = pieceGroupRef.current;
     if (!group) return;
 
+    // Model frame: front face at z = 0, x grows from the left side (Vano 1) to the right side.
+    // The default camera looks toward +Z from the front (z < 0), where three.js shows +X on the
+    // screen's left. Mirror the piece group around the module's vertical center plane so the
+    // furniture is shown in Western reading order (left-to-right), without altering model data.
+    group.scale.x = -1;
+    group.position.x = 2 * bounds.center.x;
+
     // Clear existing meshes and their child geometries/materials
     while (group.children.length > 0) {
       const child = group.children[0];

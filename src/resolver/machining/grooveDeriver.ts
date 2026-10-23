@@ -1,6 +1,54 @@
 import { type Piece, type Joint } from '../../model';
 import { type CustomGrooveOperation } from '../../model/operation';
 import type { ResolvedPiece } from '../resolver';
+import type { Position3D } from '../tree';
+import { determinePieceSpatialSize, resolvePieceOrientation } from '../spatial3d';
+import { getPieceFaceNormalSign } from './faceNormal';
+
+type AnyPiece = Piece | ResolvedPiece;
+
+/** A backing panel slides into grooves; a rear rail (id ending in '-rail-back') receives them. */
+function isBackingPanel(piece: AnyPiece): boolean {
+  if (piece.role.includes('rail')) return false;
+  return piece.role === 'back' || piece.role.includes('back') || piece.id.endsWith('-back');
+}
+
+function getPosition(piece: AnyPiece): Position3D | undefined {
+  if ('positionMm' in piece && typeof piece.positionMm === 'object' && piece.positionMm !== null) {
+    return piece.positionMm as Position3D;
+  }
+  return undefined;
+}
+
+function spatialNormalAxis(piece: AnyPiece): 'x' | 'y' | 'z' {
+  const o = resolvePieceOrientation(piece.role);
+  if (o.x === 'thickness') return 'x';
+  if (o.y === 'thickness') return 'y';
+  return 'z';
+}
+
+/**
+ * Picks the face of the grooved piece that looks toward the sliding piece, using the real 3D
+ * placement and the same face-normal convention used by the 3D machining renderer.
+ * Returns undefined when placement is not available (unresolved pieces).
+ */
+function resolveFaceTowardSliding(
+  grooved: AnyPiece,
+  sliding: AnyPiece,
+): 'face-A' | 'face-B' | undefined {
+  const gp = getPosition(grooved);
+  const sp = getPosition(sliding);
+  if (!gp || !sp) return undefined;
+  const normal = spatialNormalAxis(grooved);
+  const gs = determinePieceSpatialSize(grooved as Piece);
+  const ss = determinePieceSpatialSize(sliding as Piece);
+  const gCenter = gp[normal] + gs[normal] / 2;
+  const sCenter = sp[normal] + ss[normal] / 2;
+  if (sCenter === gCenter) return undefined;
+  const desired = sCenter > gCenter ? 1 : -1;
+  const signA = getPieceFaceNormalSign(grooved.role, grooved.id, true, normal);
+  return signA === desired ? 'face-A' : 'face-B';
+}
 
 export interface DeriveGrooveOperationsOptions {
   backingThicknessMm?: number;
@@ -42,8 +90,8 @@ export function deriveModuleGrooveOperations(
     if (!pieceA || !pieceB) continue;
 
     // Identify which piece is the panel sliding into the groove and which receives the groove
-    const isBackA = pieceA.role === 'back' || pieceA.role.includes('back') || pieceA.id.endsWith('-back');
-    const isBackB = pieceB.role === 'back' || pieceB.role.includes('back') || pieceB.id.endsWith('-back');
+    const isBackA = isBackingPanel(pieceA);
+    const isBackB = isBackingPanel(pieceB);
     const isDrawerBottomA = pieceA.role === 'drawer-bottom' || (pieceA.role.includes('bottom') && (pieceA.role.includes('drawer') || pieceA.id.includes('drawer')));
     const isDrawerBottomB = pieceB.role === 'drawer-bottom' || (pieceB.role.includes('bottom') && (pieceB.role.includes('drawer') || pieceB.id.includes('drawer')));
     const isThinDividerA = (pieceA.role === 'partition' || pieceA.role === 'shelf') && pieceA.thicknessMm <= 9;
@@ -72,22 +120,28 @@ export function deriveModuleGrooveOperations(
     let widthMm = grooveWidth;
     let depthMm = backingGrooveDepthMm;
     let faceType: 'face-A' | 'face-B' = 'face-A';
+    let isDrawerGroove = false;
 
     if (isThinDivider) {
-      // Dado groove for thin partitions / shelves
-      axis = 'y';
-      faceType = 'face-A';
-      const posGrooved = ('positionMm' in groovedPiece && typeof groovedPiece.positionMm === 'object' && groovedPiece.positionMm !== null && 'x' in groovedPiece.positionMm)
-        ? ((groovedPiece.positionMm as Record<string, number>).x ?? 0)
-        : undefined;
-      const posSliding = ('positionMm' in slidingPiece && typeof slidingPiece.positionMm === 'object' && slidingPiece.positionMm !== null && 'x' in slidingPiece.positionMm)
-        ? ((slidingPiece.positionMm as Record<string, number>).x ?? 0)
-        : undefined;
+      // Dado groove for thin partitions / shelves. Orientation is derived from the grooved panel:
+      // - horizontal panel (bottom/top/shelf): contour X is width, Y is depth -> groove runs along
+      //   depth (axis 'y') at an offset measured along contour X.
+      // - vertical panel (side/partition): contour X is depth, Y is height -> groove runs along
+      //   depth (axis 'x') at an offset measured along contour Y.
+      const groovedOrientation = resolvePieceOrientation(groovedPiece.role);
+      const horizontalGrooved = groovedOrientation.z === 'height';
+      axis = horizontalGrooved ? 'y' : 'x';
+      const component: 'x' | 'y' = horizontalGrooved ? 'x' : 'y';
+      const posGrooved = getPosition(groovedPiece)?.[component];
+      const posSliding = getPosition(slidingPiece)?.[component];
       if (posGrooved !== undefined && posSliding !== undefined) {
-        offsetMm = Math.round(posSliding - posGrooved);
+        offsetMm = posSliding - posGrooved;
       } else {
         offsetMm = joint.offsetMm ?? 0;
       }
+      // Center the groove on the divider thickness so tolerance is split on both sides
+      offsetMm -= backingGrooveToleranceMm / 2;
+      faceType = resolveFaceTowardSliding(groovedPiece, slidingPiece) ?? 'face-A';
       widthMm = slidingPiece.thicknessMm + backingGrooveToleranceMm;
       depthMm = 4;
     } else if (r.includes('side-left') || r.includes('side-right') || r === 'side') {
@@ -117,10 +171,10 @@ export function deriveModuleGrooveOperations(
       offsetMm = h - backingGrooveDistanceMm - backingThicknessMm;
       widthMm = grooveWidth;
       depthMm = backingGrooveDepthMm;
-    } else if (r.includes('roof') || r.includes('top')) {
-      // Carcase roof / top panel: horizontal groove along X axis
+    } else if (r.includes('roof') || r.includes('top') || r.includes('shelf')) {
+      // Carcase roof / top panel or structural horizontal shelf: horizontal groove along X axis
       axis = 'x';
-      faceType = 'face-A'; // Bottom face
+      faceType = 'face-A';
       offsetMm = h - backingGrooveDistanceMm - backingThicknessMm;
       widthMm = grooveWidth;
       depthMm = backingGrooveDepthMm;
@@ -135,11 +189,20 @@ export function deriveModuleGrooveOperations(
       // Drawer box side: horizontal groove along X axis (depth)
       axis = 'x';
       faceType = 'face-A'; // Inner face
+      isDrawerGroove = true;
       offsetMm = 12; // Standard 12mm bottom reveal
       widthMm = slidingPiece.thicknessMm + backingGrooveToleranceMm;
       depthMm = Math.min(6, Math.round(groovedPiece.thicknessMm / 2));
     } else {
       continue;
+    }
+
+    if (!isThinDivider) {
+      faceType = resolveFaceTowardSliding(groovedPiece, slidingPiece) ?? faceType;
+      if (!isDrawerGroove) {
+        // Center the groove on the backing thickness so tolerance is split on both sides
+        offsetMm -= backingGrooveToleranceMm / 2;
+      }
     }
 
     const opKey = `${groovedPiece.id}-${faceType}-${axis}-${Math.round(offsetMm)}`;

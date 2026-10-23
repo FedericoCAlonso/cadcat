@@ -14,6 +14,7 @@ import {
   applyEdgeBandRule,
   type ResolvedPieceWithCutSize,
 } from '../index';
+import { applyFrontEdgeBand } from '../frontEdge';
 
 export interface BaseCabinetParams {
   width: number;
@@ -62,8 +63,7 @@ export function buildBaseCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = sideLeft.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(sideLeft, edgeBandId);
   }
 
   const sideRight = createPiece({
@@ -74,8 +74,7 @@ export function buildBaseCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = sideRight.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(sideRight, edgeBandId);
   }
 
   // 2. Bottom
@@ -87,8 +86,7 @@ export function buildBaseCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = bottom.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(bottom, edgeBandId);
   }
 
   // 3. One shelf
@@ -100,8 +98,7 @@ export function buildBaseCabinet(
     thicknessMm: T,
   });
   if (edgeBandId) {
-    const f = shelf.faces.find((face) => face.id === 'right-edge');
-    if (f) f.edgeBandId = edgeBandId;
+    applyFrontEdgeBand(shelf, edgeBandId);
   }
 
   // 4. Rails (front and back)

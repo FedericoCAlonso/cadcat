@@ -33,7 +33,11 @@ export class PullOutTrayBayResolver implements IBayContentResolver<BayContentPul
 
     const clearance = clearanceDeductionMm ?? (slideType === 'undermount' ? 10.0 : 25.4);
     const trayWidth = Math.round(bay.width - clearance);
-    const trayDepth = Math.max(250, bay.depth - 50);
+    const trayFrontOffsetMm = 10;
+    const trayDepth = Math.min(
+      Math.max(50, bay.depth - trayFrontOffsetMm),
+      Math.max(250, bay.depth - 50),
+    );
     const trayElevationY = elevationYMm ?? (bay.y + 30);
     const trayThickness = boxThicknessMm;
 

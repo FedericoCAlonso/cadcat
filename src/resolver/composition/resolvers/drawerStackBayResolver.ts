@@ -65,7 +65,10 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
     if (hasHingeSpacer) {
       spacerId = `${idPrefix}-hinge-spacer`;
       const spacerHeight = bay.height;
-      const spacerDepth = content.boxDepthMm ?? (bay.depth <= 350 ? Math.max(50, bay.depth - 20) : Math.max(300, bay.depth - 50));
+      const spacerDepth = Math.min(
+        bay.depth,
+        content.boxDepthMm ?? (bay.depth <= 350 ? Math.max(50, bay.depth - 20) : Math.max(300, bay.depth - 50)),
+      );
 
       const spacerPiece = createPiece({
         id: spacerId,

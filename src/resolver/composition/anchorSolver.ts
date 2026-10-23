@@ -1,7 +1,9 @@
 import { type Piece, type Joint, type InterferenceConfig, type SecondaryCut } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
+import { applyFrontEdgeBand, applyRearEdgeBand } from '../frontEdge';
 import { type PlacementNode } from '../tree';
+import { resolveBackingReserveMm } from './backingReserve';
 import {
   type CarcassDefinition,
   type InteriorBounds,
@@ -16,6 +18,12 @@ export interface AnchorSolverInput {
   edgeBandId?: string;
   idPrefix?: string;
   interferences?: InterferenceConfig;
+  /**
+   * Rear depth consumed by the backing panel. When omitted it is derived from the carcass
+   * backing settings; callers that solve the carcass without a backing (per-bay backings)
+   * must provide it so interior equipment still stops flush against the backing.
+   */
+  backingReserveMm?: number;
 }
 
 export interface AnchorSolverResult {
@@ -772,7 +780,16 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
   const isVerticalRail = roofType === 'front-back-rails' && railOrientation === 'vertical';
   const topObstructionMm = isVerticalRail ? railWidthMm : (roofType === 'none' ? 0 : T);
   const interiorHeight = height - T - plinthY - topObstructionMm;
-  const interiorDepth = depth;
+  const backingReserveMm =
+    input.backingReserveMm ??
+    resolveBackingReserveMm({
+      hasBacking,
+      backingType,
+      backingThicknessMm,
+      backingGrooveDistanceMm,
+      isIslandCabinet,
+    });
+  const interiorDepth = Math.max(1, depth - backingReserveMm);
 
   if (hasWallHangingRail) {
     const hangingRailId = `${idPrefix}-hanging-rail`;
@@ -1124,20 +1141,4 @@ export function resolveCarcass(input: AnchorSolverInput): AnchorSolverResult {
     topPieceId,
     interferences: input.interferences,
   };
-}
-
-function applyFrontEdgeBand(piece: Piece, edgeBandId: string): void {
-  const frontFace = piece.faces.find((f) => f.id === 'right-edge');
-  if (frontFace) {
-    frontFace.edgeBandId = edgeBandId;
-  }
-}
-
-function applyRearEdgeBand(piece: Piece, edgeBandId: string): void {
-  const isVertical = piece.role.includes('side') || piece.role.includes('partition');
-  const targetFaceId = isVertical ? 'left-edge' : 'bottom-edge';
-  const rearFace = piece.faces.find((f) => f.id === targetFaceId) ?? piece.faces.find((f) => f.id === 'left-edge');
-  if (rearFace) {
-    rearFace.edgeBandId = edgeBandId;
-  }
 }

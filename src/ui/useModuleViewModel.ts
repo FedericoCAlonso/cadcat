@@ -26,6 +26,7 @@ import {
   type FalseSquare,
   DEFAULT_COLUMN_OBSTACLE,
   DEFAULT_FALSE_SQUARE,
+  filterMaterialsByThickness,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -1123,9 +1124,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       if (current?.type === 'subdivided') {
         const isThin = dividerThicknessMm <= 9;
         const jointType = isThin ? 'dado-groove' : 'confirmat';
-        const dividerMaterialId = isThin
-          ? (dividerThicknessMm <= 6 ? 'mat-plywood-guatambu-6' : 'mat-plywood-guatambu-9')
-          : undefined;
+        // Plate follows the chosen thickness: first catalog plate matching it (no fixed ids)
+        const dividerMaterialId = filterMaterialsByThickness(materials, dividerThicknessMm)[0]?.id;
         next[bayIndex] = {
           ...current,
           dividerThicknessMm,
@@ -1135,7 +1135,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       }
       return next;
     });
-  }, []);
+  }, [materials]);
 
   const setSubdividedJointType = useCallback((bayIndex: number, jointType: 'dado-groove' | 'confirmat') => {
     setIsCustomModular(true);
@@ -1635,9 +1635,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const currentMat = materials.find((m) => m.id === backingsMaterialId);
     if (!currentMat || currentMat.thicknessMm !== thickness) {
       const matchingMat = materials.find((m) => m.thicknessMm === thickness);
-      if (matchingMat) {
-        setBackingsMaterialIdState(matchingMat.id);
-      }
+      setBackingsMaterialIdState(matchingMat ? matchingMat.id : '');
     }
     setIsCustomModular(true);
   }, [materials, backingsMaterialId]);
@@ -1960,6 +1958,13 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   // Piece-level overrides (Point 10)
   const setPieceMaterial = useCallback((pieceId: string, materialId: string | null) => {
+    // Thickness is automatic once a plate is chosen: drop any explicit thickness override
+    setPieceThicknessOverrides((prev) => {
+      if (!(pieceId in prev)) return prev;
+      const next = { ...prev };
+      delete next[pieceId];
+      return next;
+    });
     setPieceMaterialOverrides((prev) => {
       const next = { ...prev };
       if (!materialId) {
@@ -2113,6 +2118,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     selectedEquipmentId,
     sinkDrawerAdaptation,
     countertopFrontRailOrientation,
+    materials,
+    partitionPassThroughRoof,
+    interferences,
   ]);
 
   const countertopCalculation = useMemo<CountertopCalculationResult | null>(() => {
@@ -2379,6 +2387,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     selectedEquipmentId,
     sinkDrawerAdaptation,
     countertopFrontRailOrientation,
+    materials,
+    partitionPassThroughRoof,
+    interferences,
   ]);
 
   // Resolves 3D spatial boxes and bounding box

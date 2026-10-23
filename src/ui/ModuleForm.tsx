@@ -1,3 +1,4 @@
+import { ThicknessMaterialPicker } from './ThicknessMaterialPicker';
 import { useState, useMemo, useEffect, type ReactElement } from 'react';
 import type { Material, EdgeBand, JointStrategy, JointKind, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
 import type {
@@ -89,6 +90,8 @@ export interface ModuleFormProps {
   templates?: TemplateDefinition[];
   selectedTemplateId?: string;
   materials?: Material[];
+  /** Standard sheet thicknesses (mm) offered first in thickness selectors. */
+  standardThicknessesMm?: readonly number[];
   edgeBands?: EdgeBand[];
   selectedMaterialId?: string;
   selectedEdgeBandId?: string;
@@ -269,6 +272,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     templates,
     selectedTemplateId,
     materials = [],
+    standardThicknessesMm,
     edgeBands = [],
     selectedMaterialId = '',
     selectedEdgeBandId = '',
@@ -1079,55 +1083,27 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </div>
           )}
 
-          {/* Piece-level Material Override */}
+          {/* Piece-level Material + Thickness (thickness follows the plate; thickness-first filters plates) */}
           {materials && materials.length > 0 && (
             <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
-              <label
-                htmlFor={`piece-material-override-${selectedPiece.id}`}
-                style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.25rem' }}
-              >
-                🪵 Material de la Placa:
-              </label>
-              <select
+              <ThicknessMaterialPicker
                 id={`piece-material-override-${selectedPiece.id}`}
-                className="m3-select"
-                style={{ width: '100%', fontSize: '0.85rem' }}
-                value={pieceMaterialOverrides?.[selectedPiece.id] ?? selectedPiece.materialId}
-                onChange={(e) => onSetPieceMaterial?.(selectedPiece.id, e.target.value || null)}
-              >
-                {materials.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name ?? m.id} ({m.thicknessMm} mm)
-                  </option>
-                ))}
-              </select>
+                label="🪵 Material de la Placa:"
+                thicknessCaption="📏 Espesor de Placa (mm):"
+                materials={materials}
+                selectedMaterialId={pieceMaterialOverrides?.[selectedPiece.id] ?? selectedPiece.materialId}
+                onMaterialChange={(materialId) => onSetPieceMaterial?.(selectedPiece.id, materialId || null)}
+                standardThicknessesMm={standardThicknessesMm}
+                onThicknessWithoutPlate={(t) => onSetPieceThickness?.(selectedPiece.id, t)}
+              />
+              {pieceThicknessOverrides?.[selectedPiece.id] !== undefined && (
+                <div style={{ marginTop: '0.35rem', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
+                  Espesor fijado en {pieceThicknessOverrides[selectedPiece.id]} mm sin placa definida: elegí una placa de ese espesor para
+                  volver al cálculo automático.
+                </div>
+              )}
             </div>
           )}
-
-          {/* Piece-level Thickness Override */}
-          <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
-            <label
-              htmlFor={`piece-thickness-override-${selectedPiece.id}`}
-              style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.25rem' }}
-            >
-              📏 Espesor de Placa (mm):
-            </label>
-            <input
-              id={`piece-thickness-override-${selectedPiece.id}`}
-              type="number"
-              className="m3-input"
-              style={{ width: '100%', fontSize: '0.85rem', padding: '0.35rem 0.5rem' }}
-              min={3}
-              max={50}
-              value={pieceThicknessOverrides?.[selectedPiece.id] ?? selectedPiece.thicknessMm}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                if (!isNaN(val) && val > 0) {
-                  onSetPieceThickness?.(selectedPiece.id, val);
-                }
-              }}
-            />
-          </div>
 
           {/* Piece-level EdgeBand Overrides */}
           <div className="m3-structure-card" style={{ marginBottom: '0.5rem', padding: '0.6rem' }}>
@@ -1665,22 +1641,21 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             </legend>
 
             <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <label htmlFor="select-shelf-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-                Placa para Estantes:
-              </label>
-              <select
+              <ThicknessMaterialPicker
+
                 id="select-shelf-material"
-                value={selectedMaterialId}
-                onChange={(e) => onMaterialChange(e.target.value)}
-                className="m3-select"
-                style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-              >
-                {materials.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.thicknessMm} mm)
-                  </option>
-                ))}
-              </select>
+
+                label="Placa para Estantes:"
+
+                materials={materials}
+
+                selectedMaterialId={selectedMaterialId}
+
+                onMaterialChange={onMaterialChange}
+
+                standardThicknessesMm={standardThicknessesMm}
+
+              />
             </div>
 
             <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
@@ -3582,88 +3557,85 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
 
         {/* Material Casco */}
         <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-          <label htmlFor="select-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-            Placa para Casco (Laterales, piso, techo):
-            <span className="visually-hidden">Sheet Material:</span>
-          </label>
-          <select
+          <ThicknessMaterialPicker
+
             id="select-material"
-            value={selectedMaterialId}
-            onChange={(e) => onMaterialChange(e.target.value)}
-            className="m3-select"
-            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-          >
-            {materials.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} ({m.thicknessMm} mm)
-              </option>
-            ))}
-          </select>
+
+            label="Placa para Casco (Laterales, piso, techo):"
+
+            materials={materials}
+
+            selectedMaterialId={selectedMaterialId}
+
+            onMaterialChange={onMaterialChange}
+
+            standardThicknessesMm={standardThicknessesMm}
+
+          />
         </div>
 
         {/* Material Frentes / Puertas (Contextual) */}
         {onFrontsMaterialChange && (hasDoorsOrFronts || showAllRoleMaterials) && (
           <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            <label htmlFor="select-fronts-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-              Placa para Frentes / Puertas / Tapas:
-            </label>
-            <select
+            <ThicknessMaterialPicker
+
               id="select-fronts-material"
-              value={frontsMaterialId || selectedMaterialId}
-              onChange={(e) => onFrontsMaterialChange(e.target.value)}
-              className="m3-select"
-              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-            >
-              {materials.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.thicknessMm} mm)
-                </option>
-              ))}
-            </select>
+
+              label="Placa para Frentes / Puertas / Tapas:"
+
+              materials={materials}
+
+              selectedMaterialId={frontsMaterialId || selectedMaterialId}
+
+              onMaterialChange={onFrontsMaterialChange}
+
+              standardThicknessesMm={standardThicknessesMm}
+
+            />
           </div>
         )}
 
         {/* Material Cajones (Contextual) */}
         {onDrawerBoxesMaterialChange && (hasDrawers || showAllRoleMaterials) && (
           <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            <label htmlFor="select-drawer-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-              Placa para Cajas de Cajones interiores:
-            </label>
-            <select
+            <ThicknessMaterialPicker
+
               id="select-drawer-material"
-              value={drawerBoxesMaterialId || selectedMaterialId}
-              onChange={(e) => onDrawerBoxesMaterialChange(e.target.value)}
-              className="m3-select"
-              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-            >
-              {materials.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.thicknessMm} mm)
-                </option>
-              ))}
-            </select>
+
+              label="Placa para Cajas de Cajones interiores:"
+
+              materials={materials}
+
+              selectedMaterialId={drawerBoxesMaterialId || selectedMaterialId}
+
+              onMaterialChange={onDrawerBoxesMaterialChange}
+
+              standardThicknessesMm={standardThicknessesMm}
+
+            />
           </div>
         )}
 
         {/* Material Fondos y Traseras (Contextual) */}
         {onBackingsMaterialChange && (hasBackingBoard || showAllRoleMaterials) && (
           <div className="form-group" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            <label htmlFor="select-backings-material" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-              Placa para Fondos y Traseras:
-            </label>
-            <select
+            <ThicknessMaterialPicker
+
               id="select-backings-material"
-              value={backingsMaterialId || selectedMaterialId}
-              onChange={(e) => onBackingsMaterialChange(e.target.value)}
-              className="m3-select"
-              style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-            >
-              {materials.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.thicknessMm} mm)
-                </option>
-              ))}
-            </select>
+
+              label="Placa para Fondos y Traseras:"
+
+              materials={materials}
+
+              selectedMaterialId={backingsMaterialId || selectedMaterialId}
+
+              onMaterialChange={onBackingsMaterialChange}
+
+              standardThicknessesMm={standardThicknessesMm}
+
+              onThicknessWithoutPlate={(t) => onBackingThicknessChange?.(t)}
+
+            />
           </div>
         )}
 
@@ -3992,6 +3964,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         bayHeight={activeBayHeight}
         bayDepth={activeBayDepth}
         initialContent={activeBay}
+        materials={materials}
+        standardThicknessesMm={standardThicknessesMm}
       />
     </section>
   );

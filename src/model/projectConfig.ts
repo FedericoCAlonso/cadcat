@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { shopValueSchema, TO_CONFIRM } from './common';
+import { DEFAULT_STANDARD_THICKNESSES_MM } from './standardThickness';
 
 export const unitsConfigSchema = z.object({
   length: z.enum(['mm', 'cm', 'm']).default('mm'),
@@ -108,6 +109,7 @@ export const hardwareConfigSchema = z.object({
   maxDrawerSpanMm: z.number().positive().default(900.0),
   maxUnreinforcedSpanMm: z.number().positive().default(900.0),
   backingGrooveToleranceMm: z.number().min(0).default(0.5),
+  standardThicknessesMm: z.array(z.number().positive()).min(1).default([...DEFAULT_STANDARD_THICKNESSES_MM]),
   customSlideClearanceMm: z.number().positive().optional(),
 });
 export type HardwareConfig = z.infer<typeof hardwareConfigSchema>;

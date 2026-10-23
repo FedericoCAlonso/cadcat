@@ -2,6 +2,7 @@ import { type Piece, type Joint } from '../../model';
 import { createPiece, createRectangularContour } from '../piece';
 import { createJoint } from '../joint';
 import { type PlacementNode } from '../tree';
+import { applyFrontEdgeBand } from '../frontEdge';
 
 export interface PartitionConfig {
   id: string;
@@ -67,10 +68,7 @@ export function buildPartition(
 
   // Front edge is banded if edgeBandId specified
   if (edgeBandId) {
-    const frontEdge = piece.faces.find((f) => f.id === 'right-edge');
-    if (frontEdge) {
-      frontEdge.edgeBandId = edgeBandId;
-    }
+    applyFrontEdgeBand(piece, edgeBandId);
   }
 
   const joints: Joint[] = [

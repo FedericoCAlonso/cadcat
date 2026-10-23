@@ -120,20 +120,22 @@ export function buildDrawerSubAssembly(
     ? (bottomThicknessMm ?? actualBoxT)
     : (bottomThicknessMm ?? backingThicknessMm ?? 3);
 
+  const isSimpleInterior = actualDrawerType === 'simple-interior';
+  const isInset = isSimpleInterior || actualFrontMount === 'inset';
+  const actualFrontT = config.frontThicknessMm ?? T;
+  const boxOffsetZ = isInset ? actualFrontT + boxFrontOffsetMm : boxFrontOffsetMm;
+
   const slideClearance = customSlideClearanceMm ?? DRAWER_SLIDE_CLEARANCES_MM[slideType] ?? 25.4;
   const innerWidth = openingWidthMm;
   const drawerBoxWidth = Math.round(innerWidth - slideClearance);
+  const maxBoxDepth = Math.max(50, depthMm - boxOffsetZ);
   const defaultBoxDepth = depthMm <= 350 ? Math.max(50, depthMm - 20) : Math.max(300, depthMm - 50);
-  const boxDepth = config.boxDepthMm ?? defaultBoxDepth;
+  const boxDepth = Math.min(maxBoxDepth, config.boxDepthMm ?? defaultBoxDepth);
 
   const subPieceIds: string[] = [];
   const pieces: Piece[] = [];
   const placementNodes: PlacementNode[] = [];
   const joints: Joint[] = [];
-
-  const isSimpleInterior = actualDrawerType === 'simple-interior';
-  const isInset = isSimpleInterior || actualFrontMount === 'inset';
-  const actualFrontT = config.frontThicknessMm ?? T;
 
   // Effective box side & back height (can be lower than front)
   const effectiveBoxSideHeight = Math.max(
@@ -178,8 +180,6 @@ export function buildDrawerSubAssembly(
   });
 
   // Box offset in Z: behind carcase face if applied, behind inset front if inset
-  // boxFrontOffsetMm defaults to 0 so front and box are in flush direct contact
-  const boxOffsetZ = isInset ? actualFrontT + boxFrontOffsetMm : boxFrontOffsetMm;
   const boxY = baseYMm + boxBottomClearanceMm;
   const boxX = T + Math.round(slideClearance / 2);
 

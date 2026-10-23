@@ -425,8 +425,10 @@ export function App(): ReactElement {
                   onRoofTypeChange={vm.setRoofType}
                   hasBacking={vm.hasBacking}
                   backingType={vm.backingType}
+                  backingThicknessMm={vm.backingThicknessMm}
                   onHasBackingChange={vm.setHasBacking}
                   onBackingTypeChange={vm.setBackingType}
+                  onBackingThicknessChange={vm.setBackingThicknessMm}
                   gridType={vm.gridType}
                   bays={vm.bays}
                   bayBoxes={vm.bayBoxes}
@@ -444,6 +446,7 @@ export function App(): ReactElement {
                   onDoorHingeSideChange={vm.setDoorHingeSide}
                   onDoorInteriorShelvesCountChange={vm.setDoorInteriorShelvesCount}
                   materials={vm.materials}
+                  standardThicknessesMm={vm.projectConfig?.hardware?.standardThicknessesMm}
                   selectedMaterialId={vm.selectedMaterialId}
                   onMaterialChange={vm.setSelectedMaterialId}
                   frontsMaterialId={vm.frontsMaterialId}
@@ -478,6 +481,7 @@ export function App(): ReactElement {
                 templates={vm.templates}
                 selectedTemplateId={vm.selectedTemplateId}
                 materials={vm.materials}
+                standardThicknessesMm={vm.projectConfig?.hardware?.standardThicknessesMm}
                 edgeBands={vm.edgeBands}
                 selectedMaterialId={vm.selectedMaterialId}
                 selectedEdgeBandId={vm.selectedEdgeBandId}

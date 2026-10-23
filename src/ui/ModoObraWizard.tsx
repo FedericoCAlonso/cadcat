@@ -6,11 +6,18 @@ import {
 } from 'react';
 import { type HandMode, triggerHaptic } from '../resolver/thumbArc';
 import { ThumbArcInput } from './ThumbArcInput';
-import { WorkshopContextDiagram } from './WorkshopContextDiagram';
+import { WorkshopContextDiagram, type WorkshopStepId } from './WorkshopContextDiagram';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { type ProjectModuleItem } from '../model/project';
 import { type Material } from '../model/material';
+import {
+  DEFAULT_STANDARD_THICKNESSES_MM,
+  getMaterialThicknessMm,
+  listThicknessOptions,
+  filterMaterialsByThickness,
+} from '../model/standardThickness';
 import { type RoofType, type BackingType, type BayContent, type BayBoundingBox } from '../resolver';
+import { resolveBackingReserveMm } from '../resolver/composition/backingReserve';
 import { BayDistributionModal } from './BayDistributionModal';
 
 export type ObraGridType = '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal';
@@ -51,8 +58,10 @@ export interface ModoObraWizardProps {
   // Backing
   hasBacking?: boolean;
   backingType?: BackingType;
+  backingThicknessMm?: number;
   onHasBackingChange?: (val: boolean) => void;
   onBackingTypeChange?: (val: BackingType) => void;
+  onBackingThicknessChange?: (val: number) => void;
 
   // Bays / Grid
   gridType?: ObraGridType;
@@ -74,8 +83,9 @@ export interface ModoObraWizardProps {
   onDoorHingeSideChange?: (bayIdx: number, hingeSide: 'left' | 'right') => void;
   onDoorInteriorShelvesCountChange?: (bayIdx: number, count: number) => void;
 
-  // Materials
+  // Materials & Standard Thicknesses
   materials?: Material[];
+  standardThicknessesMm?: readonly number[];
   selectedMaterialId?: string;
   onMaterialChange?: (id: string) => void;
   frontsMaterialId?: string;
@@ -96,29 +106,72 @@ export interface ModoObraWizardProps {
 export type DimensionSubField = 'width' | 'height' | 'depth' | 'thickness';
 
 export interface ObraStepDefinition {
-  id: string;
+  id: WorkshopStepId;
   stepNumber: number;
   title: string;
+  shortTitle: string;
   subtitle: string;
 }
 
 export type MaterialRole = 'carcass' | 'fronts' | 'drawers' | 'backing';
 
+/**
+ * Reorganized 7 coherent workshop stages:
+ * 1. Módulo y Tipo -> 2. Medidas Principales -> 3. Placas y Espesores ->
+ * 4. Base y Techo -> 5. Fondo Trasero -> 6. División de Vanos -> 7. Equipamiento Interior
+ */
 export const OBRA_STEPS: ObraStepDefinition[] = [
-  { id: 'module-type', stepNumber: 1, title: 'Módulo y Tipo', subtitle: 'Seleccioná el mueble a relevar' },
-  { id: 'dimensions', stepNumber: 2, title: 'Medidas Principales', subtitle: 'Ancho, alto, profundidad y placa' },
-  { id: 'base-support', stepNumber: 3, title: 'Base / Apoyo', subtitle: 'Zócalo, patas regulables o suspendido' },
-  { id: 'roof-structure', stepNumber: 4, title: 'Techo / Amarres', subtitle: 'Tapa sólida, fajas o sin tapa a techo' },
-  { id: 'backing', stepNumber: 5, title: 'Fondo Trasero', subtitle: 'Ranurado 3mm, clavado o sin fondo' },
-  { id: 'bays-equipment', stepNumber: 6, title: 'Vanos y Equipamiento', subtitle: 'División vertical y equipamiento interior' },
-  { id: 'material', stepNumber: 7, title: 'Tablero / Melamina', subtitle: 'Placas para casco, frentes, cajones y fondos' },
+  {
+    id: 'module-type',
+    stepNumber: 1,
+    title: 'Módulo y Tipo',
+    shortTitle: 'Tipo',
+    subtitle: 'Seleccioná el mueble o plantilla a relevar',
+  },
+  {
+    id: 'dimensions',
+    stepNumber: 2,
+    title: 'Medidas Principales',
+    shortTitle: 'Medidas',
+    subtitle: 'Ancho, alto, profundidad exterior y espesor base',
+  },
+  {
+    id: 'material',
+    stepNumber: 3,
+    title: 'Placas y Espesores',
+    shortTitle: 'Placas',
+    subtitle: 'Espesor estándar y tablero para casco, frentes, cajones y fondos',
+  },
+  {
+    id: 'base-roof',
+    stepNumber: 4,
+    title: 'Base y Techo',
+    shortTitle: 'Casco',
+    subtitle: 'Apoyo inferior (zócalo/piso/colgado) y cierre superior (tapa/fajas)',
+  },
+  {
+    id: 'backing',
+    stepNumber: 5,
+    title: 'Fondo Trasero',
+    shortTitle: 'Fondo',
+    subtitle: 'Anclaje de fondo por vano, espesor y profundidad útil interior',
+  },
+  {
+    id: 'bays-grid',
+    stepNumber: 6,
+    title: 'División de Vanos',
+    shortTitle: 'Vanos',
+    subtitle: 'Cantidad de columnas de izquierda a derecha y matriz especial',
+  },
+  {
+    id: 'bays-equipment',
+    stepNumber: 7,
+    title: 'Equipamiento Interior',
+    shortTitle: 'Interior',
+    subtitle: 'Estantes, cajonera, puertas y accesorios para cada vano',
+  },
 ];
 
-/**
- * Modo Obra: Fully immersive gesture-driven mobile wizard for workshops and job sites.
- * Features 8 comprehensive carpentry configuration steps, zero vertical scroll,
- * radial thumb dial physics, and persistent 3D inspection.
- */
 export function ModoObraWizard({
   projectModules = [],
   activeModuleId,
@@ -145,8 +198,10 @@ export function ModoObraWizard({
   onRoofTypeChange,
   hasBacking = true,
   backingType = 'groove',
+  backingThicknessMm = 3,
   onHasBackingChange,
   onBackingTypeChange,
+  onBackingThicknessChange,
   gridType = '1-bay',
   bays = [],
   bayBoxes = [],
@@ -164,6 +219,7 @@ export function ModoObraWizard({
   onDoorHingeSideChange,
   onDoorInteriorShelvesCountChange,
   materials = [],
+  standardThicknessesMm = DEFAULT_STANDARD_THICKNESSES_MM,
   selectedMaterialId = '',
   onMaterialChange,
   frontsMaterialId = '',
@@ -180,11 +236,30 @@ export function ModoObraWizard({
 }: ModoObraWizardProps): ReactElement {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [dimensionField, setDimensionField] = useState<DimensionSubField>('width');
+  const [activeShellZone, setActiveShellZone] = useState<'base' | 'roof'>('base');
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState<boolean>(false);
+  const [roleThicknessFilterMm, setRoleThicknessFilterMm] = useState<number | null>(null);
+
+  const backingReserveMm = useMemo(
+    () =>
+      resolveBackingReserveMm({
+        hasBacking,
+        backingType,
+        backingThicknessMm,
+      }),
+    [hasBacking, backingType, backingThicknessMm],
+  );
+  const usableDepthMm = useMemo(
+    () => Math.max(1, Math.round((depth - backingReserveMm) * 10) / 10),
+    [depth, backingReserveMm],
+  );
 
   const activeBayBox = bayBoxes[activeBayIndex];
   const activeBayWidth = activeBayBox?.width ?? Math.max(100, Math.round(width - 2 * thickness));
-  const activeBayHeight = activeBayBox?.height ?? Math.max(100, Math.round(height - 2 * thickness - (hasPlinth ? plinthHeightMm : 0)));
+  const activeBayHeight =
+    activeBayBox?.height ??
+    Math.max(100, Math.round(height - 2 * thickness - (hasPlinth && !hasWallHangingRail ? plinthHeightMm : 0)));
+  const activeBayDepth = activeBayBox?.depth ?? usableDepthMm;
 
   const activeStep = OBRA_STEPS[currentStepIndex] ?? OBRA_STEPS[0]!;
 
@@ -203,12 +278,17 @@ export function ModoObraWizard({
   }, [currentStepIndex]);
 
   // Dimension fields list for carousel navigation in Step 2
-  const dimensionFieldsList = useMemo<Array<{ id: DimensionSubField; label: string; shortLabel: string; value: number }>>(() => [
-    { id: 'width', label: 'Ancho Total', shortLabel: 'Ancho', value: width },
-    { id: 'height', label: 'Alto Total', shortLabel: 'Alto', value: height },
-    { id: 'depth', label: 'Profundidad', shortLabel: 'Prof.', value: depth },
-    { id: 'thickness', label: 'Espesor Placa', shortLabel: 'Espesor', value: thickness },
-  ], [width, height, depth, thickness]);
+  const dimensionFieldsList = useMemo<
+    Array<{ id: DimensionSubField; label: string; shortLabel: string; value: number }>
+  >(
+    () => [
+      { id: 'width', label: 'Ancho Total', shortLabel: 'Ancho', value: width },
+      { id: 'height', label: 'Alto Total', shortLabel: 'Alto', value: height },
+      { id: 'depth', label: 'Profundidad', shortLabel: 'Prof.', value: depth },
+      { id: 'thickness', label: 'Espesor Placa', shortLabel: 'Espesor', value: thickness },
+    ],
+    [width, height, depth, thickness],
+  );
 
   const activeDimIndex = dimensionFieldsList.findIndex((d) => d.id === dimensionField);
   const currentDimConfig = dimensionFieldsList[activeDimIndex >= 0 ? activeDimIndex : 0]!;
@@ -234,33 +314,15 @@ export function ModoObraWizard({
     return projectModules.find((m) => m.id === activeModuleId) ?? projectModules[0];
   }, [projectModules, activeModuleId]);
 
-  // Contextual role detection for multi-role materials
+  // Contextual role detection for multi-role materials (Step 3)
   const [activeMaterialRole, setActiveMaterialRole] = useState<MaterialRole>('carcass');
 
-  const hasDoorsOrFronts = useMemo(() => {
-    return (
-      Boolean(frontsMaterialId) ||
-      bays.some(
-        (b) =>
-          b.type === 'doors' ||
-          b.type === 'bi-fold-closure' ||
-          (b.type === 'drawer-stack' && b.drawerType !== 'simple-interior'),
-      )
-    );
-  }, [frontsMaterialId, bays]);
-
-  const hasDrawers = useMemo(() => {
-    return (
-      Boolean(drawerBoxesMaterialId) ||
-      bays.some((b) => b.type === 'drawer-stack' || b.type === 'pull-out-tray')
-    );
-  }, [drawerBoxesMaterialId, bays]);
-
-  const hasBackingBoard = useMemo(() => {
-    return Boolean(backingsMaterialId) || (hasBacking && backingType !== 'none');
-  }, [backingsMaterialId, hasBacking, backingType]);
-
   const availableRoles = useMemo(() => {
+    const carcassMat = materials.find((m) => m.id === selectedMaterialId);
+    const frontsMat = materials.find((m) => m.id === (frontsMaterialId || selectedMaterialId));
+    const drawersMat = materials.find((m) => m.id === (drawerBoxesMaterialId || selectedMaterialId));
+    const backingsMat = materials.find((m) => m.id === (backingsMaterialId || selectedMaterialId));
+
     const list: Array<{
       id: MaterialRole;
       label: string;
@@ -268,6 +330,7 @@ export function ModoObraWizard({
       icon: string;
       description: string;
       currentMaterialName: string;
+      currentThicknessMm: number;
       isInherited: boolean;
     }> = [
       {
@@ -275,53 +338,46 @@ export function ModoObraWizard({
         label: 'Casco / Estructura',
         shortLabel: 'Casco',
         icon: '🏛️',
-        description: 'Placa principal para laterales, piso, techo y estantes interiores.',
-        currentMaterialName: materials.find((m) => m.id === selectedMaterialId)?.name ?? 'Sin seleccionar',
+        description: 'Placa principal para laterales, piso, techo, divisorias y estantes.',
+        currentMaterialName: carcassMat?.name ?? 'Sin seleccionar',
+        currentThicknessMm: getMaterialThicknessMm(carcassMat) ?? thickness,
         isInherited: false,
       },
-    ];
-
-    if (hasDoorsOrFronts) {
-      const isCustom = Boolean(frontsMaterialId);
-      const effectiveMat = materials.find((m) => m.id === (frontsMaterialId || selectedMaterialId));
-      list.push({
+      {
         id: 'fronts',
         label: 'Frentes y Puertas',
         shortLabel: 'Frentes',
         icon: '🚪',
         description: 'Placa exterior para hojas de puerta y tapas frontales de cajón.',
-        currentMaterialName: isCustom ? (effectiveMat?.name ?? 'Personalizado') : `Igual al Casco (${effectiveMat?.name ?? ''})`,
-        isInherited: !isCustom,
-      });
-    }
-
-    if (hasDrawers) {
-      const isCustom = Boolean(drawerBoxesMaterialId);
-      const effectiveMat = materials.find((m) => m.id === (drawerBoxesMaterialId || selectedMaterialId));
-      list.push({
+        currentMaterialName: frontsMaterialId
+          ? (frontsMat?.name ?? 'Personalizado')
+          : `Igual al Casco (${frontsMat?.name ?? ''})`,
+        currentThicknessMm: getMaterialThicknessMm(frontsMat) ?? thickness,
+        isInherited: !frontsMaterialId,
+      },
+      {
         id: 'drawers',
         label: 'Cajas de Cajones',
         shortLabel: 'Cajones',
         icon: '🗄️',
         description: 'Placa para laterales, contrafrentes y traseras de cajones interiores.',
-        currentMaterialName: isCustom ? (effectiveMat?.name ?? 'Personalizado') : `Igual al Casco (${effectiveMat?.name ?? ''})`,
-        isInherited: !isCustom,
-      });
-    }
-
-    if (hasBackingBoard) {
-      const isCustom = Boolean(backingsMaterialId && backingsMaterialId !== selectedMaterialId);
-      const effectiveMat = materials.find((m) => m.id === (backingsMaterialId || selectedMaterialId));
-      list.push({
+        currentMaterialName: drawerBoxesMaterialId
+          ? (drawersMat?.name ?? 'Personalizado')
+          : `Igual al Casco (${drawersMat?.name ?? ''})`,
+        currentThicknessMm: getMaterialThicknessMm(drawersMat) ?? thickness,
+        isInherited: !drawerBoxesMaterialId,
+      },
+      {
         id: 'backing',
         label: 'Fondos y Traseras',
         shortLabel: 'Fondos',
         icon: '🪵',
-        description: 'Placa para fondos del mueble y fondos de cajón (usualmente 3 mm o 18 mm).',
-        currentMaterialName: effectiveMat?.name ?? 'Sin seleccionar',
-        isInherited: !isCustom,
-      });
-    }
+        description: 'Placa para fondos del mueble (por vano) y fondos de cajón.',
+        currentMaterialName: backingsMat?.name ?? `${backingThicknessMm} mm`,
+        currentThicknessMm: getMaterialThicknessMm(backingsMat) ?? backingThicknessMm,
+        isInherited: !backingsMaterialId || backingsMaterialId === selectedMaterialId,
+      },
+    ];
 
     return list;
   }, [
@@ -330,9 +386,8 @@ export function ModoObraWizard({
     frontsMaterialId,
     drawerBoxesMaterialId,
     backingsMaterialId,
-    hasDoorsOrFronts,
-    hasDrawers,
-    hasBackingBoard,
+    thickness,
+    backingThicknessMm,
   ]);
 
   const effectiveMaterialRole: MaterialRole = availableRoles.some((r) => r.id === activeMaterialRole)
@@ -355,9 +410,23 @@ export function ModoObraWizard({
     }
   }, [effectiveMaterialRole, selectedMaterialId, frontsMaterialId, drawerBoxesMaterialId, backingsMaterialId]);
 
+  const thicknessOptions = useMemo(
+    () => listThicknessOptions(materials, standardThicknessesMm),
+    [materials, standardThicknessesMm],
+  );
+
+  const filteredRoleMaterials = useMemo(() => {
+    if (roleThicknessFilterMm === null) return materials;
+    const matches = filterMaterialsByThickness(materials, roleThicknessFilterMm);
+    return matches.length > 0 ? matches : materials;
+  }, [materials, roleThicknessFilterMm]);
+
   const handleSelectMaterialForRole = useCallback(
     (matId: string) => {
       triggerHaptic('major');
+      const chosenMat = materials.find((m) => m.id === matId);
+      const chosenThickness = getMaterialThicknessMm(chosenMat);
+
       switch (effectiveMaterialRole) {
         case 'fronts':
           onFrontsMaterialChange?.(matId);
@@ -367,18 +436,79 @@ export function ModoObraWizard({
           break;
         case 'backing':
           onBackingsMaterialChange?.(matId);
+          if (chosenThickness !== undefined) {
+            onBackingThicknessChange?.(chosenThickness);
+          }
           break;
         case 'carcass':
         default:
           onMaterialChange?.(matId);
+          if (chosenThickness !== undefined) {
+            onThicknessChange?.(chosenThickness);
+          }
           break;
       }
     },
-    [effectiveMaterialRole, onMaterialChange, onFrontsMaterialChange, onDrawerBoxesMaterialChange, onBackingsMaterialChange],
+    [
+      effectiveMaterialRole,
+      materials,
+      onMaterialChange,
+      onThicknessChange,
+      onFrontsMaterialChange,
+      onDrawerBoxesMaterialChange,
+      onBackingsMaterialChange,
+      onBackingThicknessChange,
+    ],
+  );
+
+  const handleSelectThicknessChipForRole = useCallback(
+    (thMm: number | null) => {
+      triggerHaptic('tick');
+      setRoleThicknessFilterMm(thMm);
+      if (thMm === null) return;
+
+      if (effectiveMaterialRole === 'backing') {
+        onBackingThicknessChange?.(thMm);
+      } else if (effectiveMaterialRole === 'carcass') {
+        onThicknessChange?.(thMm);
+      }
+
+      const matches = filterMaterialsByThickness(materials, thMm);
+      if (matches.length > 0 && !matches.some((m) => m.id === currentRoleMaterialId)) {
+        const firstMatch = matches[0]!;
+        switch (effectiveMaterialRole) {
+          case 'fronts':
+            onFrontsMaterialChange?.(firstMatch.id);
+            break;
+          case 'drawers':
+            onDrawerBoxesMaterialChange?.(firstMatch.id);
+            break;
+          case 'backing':
+            onBackingsMaterialChange?.(firstMatch.id);
+            break;
+          case 'carcass':
+          default:
+            onMaterialChange?.(firstMatch.id);
+            break;
+        }
+      }
+    },
+    [
+      effectiveMaterialRole,
+      materials,
+      currentRoleMaterialId,
+      onBackingThicknessChange,
+      onThicknessChange,
+      onFrontsMaterialChange,
+      onDrawerBoxesMaterialChange,
+      onBackingsMaterialChange,
+      onMaterialChange,
+    ],
   );
 
   const handleResetRoleToCarcass = useCallback(() => {
     triggerHaptic('tick');
+    setRoleThicknessFilterMm(null);
     if (effectiveMaterialRole === 'fronts') {
       onFrontsMaterialChange?.('');
     } else if (effectiveMaterialRole === 'drawers') {
@@ -516,9 +646,18 @@ export function ModoObraWizard({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.2rem',
-                backgroundColor: currentBay?.type === 'subdivided' ? 'var(--md-sys-color-primary-container)' : 'var(--md-sys-color-surface-container-high)',
-                border: currentBay?.type === 'subdivided' ? '1.5px solid var(--md-sys-color-primary)' : '1px solid var(--md-sys-color-outline-variant)',
-                color: currentBay?.type === 'subdivided' ? 'var(--md-sys-color-on-primary-container)' : 'var(--md-sys-color-on-surface)',
+                backgroundColor:
+                  currentBay?.type === 'subdivided'
+                    ? 'var(--md-sys-color-primary-container)'
+                    : 'var(--md-sys-color-surface-container-high)',
+                border:
+                  currentBay?.type === 'subdivided'
+                    ? '1.5px solid var(--md-sys-color-primary)'
+                    : '1px solid var(--md-sys-color-outline-variant)',
+                color:
+                  currentBay?.type === 'subdivided'
+                    ? 'var(--md-sys-color-on-primary-container)'
+                    : 'var(--md-sys-color-on-surface)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}
@@ -580,7 +719,7 @@ export function ModoObraWizard({
           </div>
         </div>
 
-        {/* Row 2: Step Title Context & Progress Indicator */}
+        {/* Row 2: Step Title Context & Interactive Stepper Pills */}
         <div
           style={{
             display: 'flex',
@@ -616,20 +755,29 @@ export function ModoObraWizard({
             </span>
           </div>
 
-          {/* Step Progress Line / Dots */}
-          <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flexShrink: 0 }}>
+          {/* Interactive Step Progress Dots */}
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
             {OBRA_STEPS.map((s, idx) => (
               <span
                 key={s.id}
+                role="presentation"
+                onClick={() => {
+                  triggerHaptic('tick');
+                  setCurrentStepIndex(idx);
+                }}
+                title={`Ir a Paso ${s.stepNumber}: ${s.title}`}
                 style={{
-                  width: idx === currentStepIndex ? '14px' : '5px',
-                  height: '4px',
-                  borderRadius: '2px',
+                  width: idx === currentStepIndex ? '16px' : '6px',
+                  height: '6px',
+                  borderRadius: '3px',
                   backgroundColor:
                     idx === currentStepIndex
                       ? 'var(--md-sys-color-primary)'
-                      : 'var(--md-sys-color-outline-variant)',
+                      : idx < currentStepIndex
+                        ? 'var(--md-sys-color-secondary)'
+                        : 'var(--md-sys-color-outline-variant)',
                   transition: 'all 0.2s ease',
+                  cursor: 'pointer',
                 }}
               />
             ))}
@@ -646,7 +794,7 @@ export function ModoObraWizard({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          padding: '0.35rem 0.6rem',
+          padding: '0.3rem 0.6rem',
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
@@ -655,12 +803,12 @@ export function ModoObraWizard({
         }}
       >
         {/* Step Subtitle / Accessibility Header */}
-        <div style={{ width: '100%', textAlign: 'center', marginBottom: '0.25rem' }}>
+        <div style={{ width: '100%', textAlign: 'center', marginBottom: '0.2rem' }}>
           <h2 className="visually-hidden">{activeStep.title}</h2>
           <p
             style={{
               margin: '0',
-              fontSize: '0.76rem',
+              fontSize: '0.74rem',
               color: 'var(--md-sys-color-outline)',
             }}
           >
@@ -668,25 +816,37 @@ export function ModoObraWizard({
           </p>
         </div>
 
-        {/* STEP 1: MÓDULO Y TIPO (PLANTILLA) */}
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 1: MÓDULO Y TIPO (PLANTILLA)
+           ───────────────────────────────────────────────────────────── */}
         {activeStep.id === 'module-type' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: 'auto' }}>
-            {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
               step="module-type"
               selectedTemplateId={selectedTemplateId}
+              width={width}
+              height={height}
+              depth={depth}
+              plinthHeightMm={plinthHeightMm}
             />
 
-            {/* Template Selection Grid (Directly at bottom in the Thumb Zone!) */}
             <div style={{ marginTop: '0.1rem' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.35rem' }}>
-                Seleccionar Plantilla:
+              <span
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: 'var(--md-sys-color-primary)',
+                  display: 'block',
+                  marginBottom: '0.35rem',
+                }}
+              >
+                Seleccionar Plantilla de Taller:
               </span>
               <div
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.5rem',
+                  gap: '0.45rem',
                   width: '100%',
                 }}
               >
@@ -701,9 +861,9 @@ export function ModoObraWizard({
                         onTemplateChange?.(tpl.id);
                       }}
                       style={{
-                        minHeight: '62px',
-                        padding: '0.5rem',
-                        borderRadius: '16px',
+                        minHeight: '58px',
+                        padding: '0.45rem 0.5rem',
+                        borderRadius: '14px',
                         border: isSelected
                           ? '2px solid var(--md-sys-color-primary)'
                           : '1px solid var(--md-sys-color-outline-variant)',
@@ -721,18 +881,20 @@ export function ModoObraWizard({
                         textAlign: 'center',
                       }}
                     >
-                      <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                      <span style={{ fontSize: '0.86rem', fontWeight: 700 }}>
                         {tpl.name.includes('Alacena')
                           ? '🧗 '
                           : tpl.name.includes('Cajonera')
                             ? '🗄️ '
                             : tpl.name.includes('Torre')
                               ? '🏛️ '
-                              : '🪵 '}
+                              : tpl.name.includes('Puerta')
+                                ? '🚪 '
+                                : '🪵 '}
                         {tpl.name}
                       </span>
                       {tpl.category && (
-                        <span style={{ fontSize: '0.72rem', opacity: 0.8, marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: '2px' }}>
                           {tpl.category}
                         </span>
                       )}
@@ -744,7 +906,9 @@ export function ModoObraWizard({
           </div>
         )}
 
-        {/* STEP 2: MEDIDAS PRINCIPALES */}
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 2: MEDIDAS PRINCIPALES
+           ───────────────────────────────────────────────────────────── */}
         {activeStep.id === 'dimensions' && (
           <div
             style={{
@@ -759,13 +923,18 @@ export function ModoObraWizard({
               padding: '0.1rem 0',
             }}
           >
-            {/* Top: Context Technical Schematic Diagram with interactive Cotas */}
             <WorkshopContextDiagram
               step="dimensions"
               width={width}
               height={height}
               depth={depth}
               thickness={thickness}
+              hasPlinth={hasPlinth}
+              plinthHeightMm={plinthHeightMm}
+              hasWallHangingRail={hasWallHangingRail}
+              hasBacking={hasBacking}
+              backingType={backingType}
+              backingThicknessMm={backingThicknessMm}
               activeDimension={dimensionField}
               onSelectDimension={setDimensionField}
             />
@@ -793,10 +962,10 @@ export function ModoObraWizard({
                 title="Medida anterior"
                 className="m3-button m3-button--tonal"
                 style={{
-                  minWidth: '40px',
-                  width: '40px',
-                  height: '40px',
-                  minHeight: '40px',
+                  minWidth: '44px',
+                  width: '44px',
+                  height: '44px',
+                  minHeight: '44px',
                   borderRadius: '10px',
                   fontSize: '0.95rem',
                   fontWeight: 700,
@@ -835,8 +1004,8 @@ export function ModoObraWizard({
                 <span style={{ fontSize: '0.68rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '1px' }}>
                   {dimensionField === 'width' && 'Costado exterior a costado exterior'}
                   {dimensionField === 'height' && 'Altura exterior de piso/zócalo a tapa'}
-                  {dimensionField === 'depth' && 'Profundidad de casco exterior'}
-                  {dimensionField === 'thickness' && 'Espesor nominal del tablero melamínico'}
+                  {dimensionField === 'depth' && `Profundidad exterior (útil interior: ${usableDepthMm} mm)`}
+                  {dimensionField === 'thickness' && 'Espesor nominal del tablero estructural'}
                 </span>
               </div>
 
@@ -847,10 +1016,10 @@ export function ModoObraWizard({
                 title="Medida siguiente"
                 className="m3-button m3-button--tonal"
                 style={{
-                  minWidth: '40px',
-                  width: '40px',
-                  height: '40px',
-                  minHeight: '40px',
+                  minWidth: '44px',
+                  width: '44px',
+                  height: '44px',
+                  minHeight: '44px',
                   borderRadius: '10px',
                   fontSize: '0.95rem',
                   fontWeight: 700,
@@ -866,7 +1035,7 @@ export function ModoObraWizard({
               </button>
             </div>
 
-            {/* Middle: Active Dimension Tactile Controls (Keypad / Presets / Steppers) */}
+            {/* Active Dimension Tactile Controls */}
             <div
               style={{
                 width: '100%',
@@ -948,22 +1117,22 @@ export function ModoObraWizard({
                   label="Espesor de Placa"
                   value={thickness}
                   onChange={(val) => onThicknessChange?.(val)}
-                  min={12}
+                  min={3}
                   max={30}
                   step={1}
                   coarseStep={3}
                   unit="mm"
-                  helpText="Espesor nominal del tablero melamínico (18 mm estándar)."
+                  helpText="Espesor nominal del tablero (estándar: 3, 6, 9, 15, 18, 25 mm)."
                   handMode={handMode}
                   onHandModeChange={onHandModeChange}
-                  quickPresets={[15, 18, 25]}
+                  quickPresets={[...standardThicknessesMm]}
                   compact={true}
                   showArc={false}
                 />
               )}
             </div>
 
-            {/* Bottom (Thumb Reach Zone): Full-width 4-Dimension Segmented Overview Bar */}
+            {/* Bottom 4-Dimension Segmented Overview Bar */}
             <div
               role="tablist"
               aria-label="Selector de medidas principales"
@@ -1035,101 +1204,396 @@ export function ModoObraWizard({
           </div>
         )}
 
-        {/* STEP 3: BASE / ESTRUCTURA DE PISO */}
-        {activeStep.id === 'base-support' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
-            {/* Context Technical Schematic Diagram */}
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 3: PLACAS Y ESPESORES (Sincronización automática espesor <-> placa)
+           ───────────────────────────────────────────────────────────── */}
+        {activeStep.id === 'material' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem', margin: '0 auto' }}>
             <WorkshopContextDiagram
-              step="base-support"
+              step="material"
+              materialRole={effectiveMaterialRole}
+              onSelectMaterialRole={(role) => {
+                triggerHaptic('tick');
+                setActiveMaterialRole(role);
+                setRoleThicknessFilterMm(null);
+              }}
+              thickness={thickness}
+              backingThicknessMm={backingThicknessMm}
+              activeMaterialName={activeRoleConfig.currentMaterialName}
+              activeRoleThicknessMm={activeRoleConfig.currentThicknessMm}
+            />
+
+            {/* 1. Banner descriptivo del rol activo + Botón Igual al Casco */}
+            <div
+              style={{
+                padding: '0.45rem 0.65rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container-high)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                  {activeRoleConfig.icon} {activeRoleConfig.label} ({activeRoleConfig.currentThicknessMm} mm)
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--md-sys-color-on-surface-variant)',
+                    lineHeight: '1.2',
+                  }}
+                >
+                  {activeRoleConfig.description}
+                </span>
+              </div>
+
+              {effectiveMaterialRole !== 'carcass' && (
+                <button
+                  type="button"
+                  onClick={handleResetRoleToCarcass}
+                  title="Restablecer para usar el mismo tablero que el Casco"
+                  aria-label="Restablecer para usar la misma placa que el casco"
+                  style={{
+                    minHeight: '40px',
+                    padding: '0 0.55rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--md-sys-color-outline)',
+                    backgroundColor: 'var(--md-sys-color-surface)',
+                    color: 'var(--md-sys-color-primary)',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  🔗 Igual al Casco
+                </button>
+              )}
+            </div>
+
+            {/* 2. Selector Segmentado de Roles (Casco, Frentes, Cajones, Fondos) */}
+            <div
+              role="tablist"
+              aria-label="Roles de placa o tablero"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '0.35rem',
+                width: '100%',
+              }}
+            >
+              {availableRoles.map((role) => {
+                const isActive = effectiveMaterialRole === role.id;
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => {
+                      triggerHaptic('tick');
+                      setActiveMaterialRole(role.id);
+                      setRoleThicknessFilterMm(null);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '48px',
+                      padding: '0.3rem 0.25rem',
+                      borderRadius: '12px',
+                      border: isActive
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isActive
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container)',
+                      color: isActive
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                      }}
+                    >
+                      <span>{role.icon}</span>
+                      <span>{role.shortLabel}</span>
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        opacity: 0.85,
+                        marginTop: '1px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '100%',
+                      }}
+                    >
+                      {`${role.currentThicknessMm}mm · ${role.currentMaterialName}`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 3. Filtro de Espesores Estándar (Primero estándar, luego catálogo) */}
+            <div
+              role="group"
+              aria-label="Filtrar placas por espesor estándar"
+              style={{
+                display: 'flex',
+                gap: '0.3rem',
+                overflowX: 'auto',
+                paddingBottom: '0.1rem',
+                scrollbarWidth: 'none',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleSelectThicknessChipForRole(null)}
+                style={{
+                  minHeight: '38px',
+                  padding: '0 0.55rem',
+                  borderRadius: '10px',
+                  border:
+                    roleThicknessFilterMm === null
+                      ? '2px solid var(--md-sys-color-primary)'
+                      : '1px solid var(--md-sys-color-outline-variant)',
+                  backgroundColor:
+                    roleThicknessFilterMm === null
+                      ? 'var(--md-sys-color-primary-container)'
+                      : 'var(--md-sys-color-surface)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}
+              >
+                Todos los espesores
+              </button>
+              {thicknessOptions.map((thMm) => {
+                const isSelected = roleThicknessFilterMm === thMm;
+                const isStd = standardThicknessesMm.includes(thMm);
+                return (
+                  <button
+                    key={thMm}
+                    type="button"
+                    onClick={() => handleSelectThicknessChipForRole(thMm)}
+                    style={{
+                      minHeight: '38px',
+                      padding: '0 0.55rem',
+                      borderRadius: '10px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface)',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {`${thMm} mm${isStd ? ' ★' : ''}`}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 4. Grilla Táctil de Placas del Catálogo */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '0.4rem',
+                width: '100%',
+              }}
+            >
+              {filteredRoleMaterials.map((mat) => {
+                const isSelected = currentRoleMaterialId === mat.id;
+                const matThickness = getMaterialThicknessMm(mat);
+                return (
+                  <button
+                    key={mat.id}
+                    type="button"
+                    onClick={() => handleSelectMaterialForRole(mat.id)}
+                    style={{
+                      minHeight: '56px',
+                      padding: '0.45rem',
+                      borderRadius: '14px',
+                      border: isSelected
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: isSelected
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: isSelected
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      position: 'relative',
+                    }}
+                  >
+                    {isSelected && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          color: 'var(--md-sys-color-primary)',
+                        }}
+                      >
+                        ✓
+                      </span>
+                    )}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{mat.name}</span>
+                    <span style={{ fontSize: '0.72rem', opacity: 0.85, marginTop: '2px' }}>
+                      {`${matThickness ?? 18} mm · Tablero de taller`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 4: BASE Y TECHO (Armazón Inferior y Cierre Superior)
+           ───────────────────────────────────────────────────────────── */}
+        {activeStep.id === 'base-roof' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem', margin: '0 auto' }}>
+            <WorkshopContextDiagram
+              step="base-roof"
               hasPlinth={hasPlinth}
+              plinthHeightMm={plinthHeightMm}
               hasWallHangingRail={hasWallHangingRail}
+              roofType={roofType}
+              height={height}
+              thickness={thickness}
+              activeShellZone={activeShellZone}
+              onSelectShellZone={(zone) => {
+                triggerHaptic('tick');
+                setActiveShellZone(zone);
+              }}
               selectedTemplateId={selectedTemplateId}
             />
 
-            {/* Base Option Buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.45rem' }}>
-              {[
-                {
-                  id: 'plinth-integrated',
-                  label: '🪚 Con Zócalo / Plinto (100 mm)',
-                  desc: 'Frente y laterales con retroceso para elevar el módulo del piso.',
-                  active: hasPlinth && !hasWallHangingRail,
-                  onSelect: () => {
-                    onHasPlinthChange?.(true);
-                    onHasWallHangingRailChange?.(false);
-                  },
-                },
-                {
-                  id: 'floor-direct',
-                  label: '🪵 Apoyo Directo al Piso',
-                  desc: 'Costados apoyan directo con regatones plásticos sanitarios.',
-                  active: !hasPlinth && !hasWallHangingRail,
-                  onSelect: () => {
-                    onHasPlinthChange?.(false);
-                    onHasWallHangingRailChange?.(false);
-                  },
-                },
-                {
-                  id: 'wall-hanging',
-                  label: '🧗 Suspendido / Flotante (Alacena)',
-                  desc: 'Sin base inferior. Incluye faja trasera de fijación a pared.',
-                  active: hasWallHangingRail || (!hasPlinth && selectedTemplateId.includes('wall')),
-                  onSelect: () => {
-                    onHasPlinthChange?.(false);
-                    onHasWallHangingRailChange?.(true);
-                  },
-                },
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('major');
-                    opt.onSelect();
-                  }}
-                  style={{
-                    minHeight: '52px',
-                    padding: '0.6rem 0.8rem',
-                    borderRadius: '14px',
-                    border: opt.active
-                      ? '2px solid var(--md-sys-color-primary)'
-                      : '1px solid var(--md-sys-color-outline-variant)',
-                    backgroundColor: opt.active
-                      ? 'var(--md-sys-color-primary-container)'
-                      : 'var(--md-sys-color-surface-container-high)',
-                    color: opt.active
-                      ? 'var(--md-sys-color-on-primary-container)'
-                      : 'var(--md-sys-color-on-surface)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{ fontSize: '0.92rem', fontWeight: 700 }}>{opt.label}</span>
-                  <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '2px' }}>{opt.desc}</span>
-                </button>
-              ))}
-            </div>
-
-            {hasPlinth && onPlinthHeightChange && (
-              <div
+            {/* Bloque 1: Base / Apoyo Inferior */}
+            <fieldset
+              style={{
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                borderRadius: '14px',
+                padding: '0.4rem 0.5rem',
+                margin: 0,
+                backgroundColor: 'var(--md-sys-color-surface-container-low)',
+              }}
+            >
+              <legend
                 style={{
-                  padding: '0.6rem',
-                  borderRadius: '14px',
-                  backgroundColor: 'var(--md-sys-color-surface-container)',
-                  border: '1px solid var(--md-sys-color-outline-variant)',
-                  marginTop: '0.15rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  color: 'var(--md-sys-color-primary)',
+                  padding: '0 0.35rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Altura de Base / Zócalo:</span>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--md-sys-color-primary)' }}>
-                    {`${plinthHeightMm} mm`}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', marginTop: '0.4rem' }}>
+                1. Base / Apoyo Inferior
+              </legend>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
+                {[
+                  {
+                    id: 'plinth-integrated',
+                    label: '🪚 Con Zócalo / Plinto',
+                    sub: `${plinthHeightMm} mm retraído`,
+                    active: hasPlinth && !hasWallHangingRail,
+                    onSelect: () => {
+                      setActiveShellZone('base');
+                      onHasPlinthChange?.(true);
+                      onHasWallHangingRailChange?.(false);
+                    },
+                  },
+                  {
+                    id: 'floor-direct',
+                    label: '🪵 Apoyo Directo al Piso',
+                    sub: 'Regatón sanitario',
+                    active: !hasPlinth && !hasWallHangingRail,
+                    onSelect: () => {
+                      setActiveShellZone('base');
+                      onHasPlinthChange?.(false);
+                      onHasWallHangingRailChange?.(false);
+                    },
+                  },
+                  {
+                    id: 'wall-hanging',
+                    label: '🧗 Suspendido / Flotante',
+                    sub: 'Alacena a pared',
+                    active: hasWallHangingRail || (!hasPlinth && selectedTemplateId.includes('wall')),
+                    onSelect: () => {
+                      setActiveShellZone('base');
+                      onHasPlinthChange?.(false);
+                      onHasWallHangingRailChange?.(true);
+                    },
+                  },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('major');
+                      opt.onSelect();
+                    }}
+                    style={{
+                      minHeight: '54px',
+                      padding: '0.35rem 0.3rem',
+                      borderRadius: '12px',
+                      border: opt.active
+                        ? '2px solid var(--md-sys-color-primary)'
+                        : '1px solid var(--md-sys-color-outline-variant)',
+                      backgroundColor: opt.active
+                        ? 'var(--md-sys-color-primary-container)'
+                        : 'var(--md-sys-color-surface-container-high)',
+                      color: opt.active
+                        ? 'var(--md-sys-color-on-primary-container)'
+                        : 'var(--md-sys-color-on-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.2 }}>{opt.label}</span>
+                    <span style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>{opt.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {hasPlinth && !hasWallHangingRail && onPlinthHeightChange && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.3rem', marginTop: '0.35rem' }}>
                   {[80, 100, 120, 150].map((h) => (
                     <button
                       key={h}
@@ -1139,136 +1603,131 @@ export function ModoObraWizard({
                         onPlinthHeightChange(h);
                       }}
                       style={{
-                        minHeight: '44px',
-                        borderRadius: '10px',
-                        border: plinthHeightMm === h
-                          ? '2px solid var(--md-sys-color-primary)'
-                          : '1px solid var(--md-sys-color-outline-variant)',
-                        backgroundColor: plinthHeightMm === h
-                          ? 'var(--md-sys-color-primary-container)'
-                          : 'var(--md-sys-color-surface)',
+                        minHeight: '38px',
+                        borderRadius: '8px',
+                        border:
+                          plinthHeightMm === h
+                            ? '2px solid var(--md-sys-color-primary)'
+                            : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor:
+                          plinthHeightMm === h
+                            ? 'var(--md-sys-color-primary-container)'
+                            : 'var(--md-sys-color-surface)',
                         fontWeight: 700,
-                        fontSize: '0.85rem',
+                        fontSize: '0.78rem',
                         cursor: 'pointer',
                       }}
                     >
-                      {`${h}mm`}
+                      {`Zócalo ${h}mm`}
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </fieldset>
 
-        {/* STEP 4: TECHO / AMARRES SUPERIORES (Incluye alacena sin tapa hasta el techo) */}
-        {activeStep.id === 'roof-structure' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
-            {/* Context Technical Schematic Diagram */}
-            <WorkshopContextDiagram
-              step="roof-structure"
-              roofType={roofType}
-              selectedTemplateId={selectedTemplateId}
-            />
-
-            {/* Option Buttons in Thumb Zone */}
-            {[
-              {
-                id: 'solid-panel',
-                roof: 'solid-panel' as RoofType,
-                title: '🪵 Tapa Ciega Completa',
-                badge: 'Estándar cerrado',
-                desc: 'Tablero melamínico entero de 18 mm. Recomendado para alacenas bajas tradicionales y torres de hornos.',
-              },
-              {
-                id: 'none',
-                roof: 'none' as RoofType,
-                title: '🚫 Sin Tapa (Hasta el Techo)',
-                badge: 'Solución anti-mugre',
-                desc: 'Abierto superiormente. Para alacenas que van a cielorraso: evita la acumulación de grasa y polvo inaccesible, aprovecha la altura máxima y ahorra placa.',
-              },
-              {
-                id: 'front-back-rails',
-                roof: 'front-back-rails' as RoofType,
-                title: '📏 2 Fajas de Amarre (80 mm)',
-                badge: 'Bajo mesada',
-                desc: 'Fajas superior frontal y trasera. Estándar para muebles bajo mesada para asentar la mesada de granito, cuarzo o madera.',
-              },
-            ].map((opt) => {
-              const isSelected = roofType === opt.roof;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('major');
-                    onRoofTypeChange?.(opt.roof);
-                  }}
-                  style={{
-                    minHeight: '64px',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: '14px',
-                    border: isSelected
-                      ? '2px solid var(--md-sys-color-primary)'
-                      : '1px solid var(--md-sys-color-outline-variant)',
-                    backgroundColor: isSelected
-                      ? 'var(--md-sys-color-primary-container)'
-                      : 'var(--md-sys-color-surface-container-high)',
-                    color: isSelected
-                      ? 'var(--md-sys-color-on-primary-container)'
-                      : 'var(--md-sys-color-on-surface)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.94rem', fontWeight: 700 }}>{opt.title}</span>
-                    <span
+            {/* Bloque 2: Techo / Amarres Superiores */}
+            <fieldset
+              style={{
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                borderRadius: '14px',
+                padding: '0.4rem 0.5rem',
+                margin: 0,
+                backgroundColor: 'var(--md-sys-color-surface-container-low)',
+              }}
+            >
+              <legend
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  color: 'var(--md-sys-color-primary)',
+                  padding: '0 0.35rem',
+                }}
+              >
+                2. Techo / Amarres Superiores
+              </legend>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
+                {[
+                  {
+                    id: 'solid-panel',
+                    roof: 'solid-panel' as RoofType,
+                    title: '🪵 Tapa Ciega Completa',
+                    badge: 'Cerrado 18mm',
+                  },
+                  {
+                    id: 'none',
+                    roof: 'none' as RoofType,
+                    title: '🚫 Sin Tapa (Hasta el Techo)',
+                    badge: 'Anti-mugre',
+                  },
+                  {
+                    id: 'front-back-rails',
+                    roof: 'front-back-rails' as RoofType,
+                    title: '📏 2 Fajas de Amarre',
+                    badge: 'Bajo mesada',
+                  },
+                ].map((opt) => {
+                  const isSelected = roofType === opt.roof;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('major');
+                        setActiveShellZone('roof');
+                        onRoofTypeChange?.(opt.roof);
+                      }}
                       style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '8px',
+                        minHeight: '56px',
+                        padding: '0.35rem 0.3rem',
+                        borderRadius: '12px',
+                        border: isSelected
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
                         backgroundColor: isSelected
-                          ? 'var(--md-sys-color-primary)'
-                          : 'var(--md-sys-color-surface-container-highest)',
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface-container-high)',
                         color: isSelected
-                          ? 'var(--md-sys-color-on-primary)'
-                          : 'var(--md-sys-color-outline)',
+                          ? 'var(--md-sys-color-on-primary-container)'
+                          : 'var(--md-sys-color-on-surface)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        textAlign: 'center',
                       }}
                     >
-                      {opt.badge}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '4px', lineHeight: 1.3 }}>
-                    {opt.desc}
-                  </span>
-                </button>
-              );
-            })}
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.2 }}>{opt.title}</span>
+                      <span style={{ fontSize: '0.66rem', opacity: 0.85, marginTop: '2px' }}>{opt.badge}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           </div>
         )}
 
-        {/* STEP 5: FONDO TRASERO */}
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 5: FONDO TRASERO (Con reserva de fondo y espesor en vivo)
+           ───────────────────────────────────────────────────────────── */}
         {activeStep.id === 'backing' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
-            {/* Context Technical Schematic Diagram */}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem', margin: '0 auto' }}>
             <WorkshopContextDiagram
               step="backing"
+              depth={depth}
               hasBacking={hasBacking}
               backingType={backingType}
+              backingThicknessMm={backingThicknessMm}
+              gridType={gridType}
             />
 
-            {/* Backing Option Buttons in Thumb Zone */}
+            {/* Opciones de Anclaje de Fondo */}
             {[
               {
                 id: 'groove',
-                title: '🔲 Fondo Ranurado (3 mm)',
+                title: `🔲 Fondo Ranurado (${backingThicknessMm} mm)`,
                 badge: 'Taller profesional',
-                desc: 'MDF de 3 mm embutido en ranura a 10 mm del borde posterior. Escuadra perfecta y terminación oculta.',
+                desc: `Embutido en ranura. Descuenta ranura + placa (-${backingReserveMm} mm) → Prof. útil: ${usableDepthMm} mm.`,
                 onSelect: () => {
                   onHasBackingChange?.(true);
                   onBackingTypeChange?.('groove');
@@ -1277,9 +1736,9 @@ export function ModoObraWizard({
               },
               {
                 id: 'applied-back',
-                title: '🔨 Fondo Clavado / Atornillado',
+                title: `🔨 Fondo Clavado / Atornillado (${backingThicknessMm} mm)`,
                 badge: 'Montaje rápido',
-                desc: 'Tablero fijado por detrás con tornillos o clavos perimetrales.',
+                desc: `Fijado por detrás a tope. Descuenta espesor de fondo → Prof. útil: ${Math.max(1, depth - backingThicknessMm)} mm.`,
                 onSelect: () => {
                   onHasBackingChange?.(true);
                   onBackingTypeChange?.('overlay');
@@ -1290,7 +1749,7 @@ export function ModoObraWizard({
                 id: 'none',
                 title: '❌ Sin Fondo',
                 badge: 'Vanos abiertos',
-                desc: 'Mueble abierto por detrás. Necesario para cajas de térmicas, llaves de paso o ventilación.',
+                desc: `Mueble abierto por detrás para instalaciones o paso libre (${depth} mm útiles).`,
                 onSelect: () => {
                   onHasBackingChange?.(false);
                   onBackingTypeChange?.('none');
@@ -1306,8 +1765,8 @@ export function ModoObraWizard({
                   opt.onSelect();
                 }}
                 style={{
-                  minHeight: '60px',
-                  padding: '0.65rem 0.85rem',
+                  minHeight: '56px',
+                  padding: '0.5rem 0.75rem',
                   borderRadius: '14px',
                   border: opt.active
                     ? '2px solid var(--md-sys-color-primary)'
@@ -1326,12 +1785,12 @@ export function ModoObraWizard({
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.94rem', fontWeight: 700 }}>{opt.title}</span>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>{opt.title}</span>
                   <span
                     style={{
-                      fontSize: '0.7rem',
+                      fontSize: '0.68rem',
                       fontWeight: 700,
-                      padding: '0.15rem 0.45rem',
+                      padding: '0.12rem 0.45rem',
                       borderRadius: '8px',
                       backgroundColor: opt.active
                         ? 'var(--md-sys-color-primary)'
@@ -1344,35 +1803,103 @@ export function ModoObraWizard({
                     {opt.badge}
                   </span>
                 </div>
-                <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '4px', lineHeight: 1.3 }}>
+                <span style={{ fontSize: '0.72rem', opacity: 0.88, marginTop: '3px', lineHeight: 1.25 }}>
                   {opt.desc}
                 </span>
               </button>
             ))}
+
+            {/* Selector rápido de espesor de fondo cuando hasBacking está activo */}
+            {hasBacking && (
+              <div
+                style={{
+                  padding: '0.45rem 0.6rem',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--md-sys-color-surface-container)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>Espesor de Placa de Fondo:</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--md-sys-color-primary)' }}>
+                    {`${backingThicknessMm} mm · Prof. útil: ${usableDepthMm} mm`}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.3rem' }}>
+                  {[3, 5.5, 6, 18].map((th) => {
+                    const isTh = Math.abs(backingThicknessMm - th) < 0.1;
+                    return (
+                      <button
+                        key={th}
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('tick');
+                          onBackingThicknessChange?.(th);
+                          const match = filterMaterialsByThickness(materials, th)[0];
+                          if (match) {
+                            onBackingsMaterialChange?.(match.id);
+                          }
+                        }}
+                        style={{
+                          minHeight: '42px',
+                          borderRadius: '10px',
+                          border: isTh
+                            ? '2px solid var(--md-sys-color-primary)'
+                            : '1px solid var(--md-sys-color-outline-variant)',
+                          backgroundColor: isTh
+                            ? 'var(--md-sys-color-primary-container)'
+                            : 'var(--md-sys-color-surface)',
+                          fontWeight: 700,
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {th === 18 ? '18mm Est.' : `${th} mm`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* STEP 6: DISTRIBUCIÓN Y EQUIPAMIENTO DE VANOS */}
-        {activeStep.id === 'bays-equipment' && (
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 6: DIVISIÓN DE VANOS (Grilla occidental Izquierda a Derecha)
+           ───────────────────────────────────────────────────────────── */}
+        {activeStep.id === 'bays-grid' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
-            {/* Context Technical Schematic Diagram */}
             <WorkshopContextDiagram
-              step="bays-equipment"
+              step="bays-grid"
               width={width}
+              height={height}
+              depth={depth}
+              thickness={thickness}
+              hasPlinth={hasPlinth}
+              plinthHeightMm={plinthHeightMm}
+              hasWallHangingRail={hasWallHangingRail}
+              hasBacking={hasBacking}
+              backingType={backingType}
+              backingThicknessMm={backingThicknessMm}
               gridType={gridType}
               bays={bays}
+              bayBoxes={bayBoxes}
               activeBayIndex={activeBayIndex}
+              onSelectBayIndex={(idx) => {
+                triggerHaptic('tick');
+                onActiveBayIndexChange?.(idx);
+              }}
             />
 
-            {/* Bay count selection buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', width: '100%' }}>
+            {/* Selección de Cantidad de Vanos */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', width: '100%' }}>
               {[
-                { type: '1-bay' as ObraGridType, label: '1 Vano', desc: 'Sin división', enabled: true },
-                { type: '2-bays-vertical' as ObraGridType, label: '2 Vanos', desc: '1 divisoria', enabled: true },
+                { type: '1-bay' as ObraGridType, label: '1 Vano', desc: 'Sin divisoria · 1 Fondo', enabled: true },
+                { type: '2-bays-vertical' as ObraGridType, label: '2 Vanos', desc: 'Izq + Der · 2 Fondos', enabled: true },
                 {
                   type: '3-bays-vertical' as ObraGridType,
                   label: '3 Vanos',
-                  desc: '2 divisorias',
+                  desc: '3 Columnas · 3 Fondos',
                   enabled: width >= 800,
                 },
               ].map((opt) => {
@@ -1387,9 +1914,9 @@ export function ModoObraWizard({
                       onGridTypeChange?.(opt.type);
                     }}
                     style={{
-                      minHeight: '48px',
-                      padding: '0.25rem 0.2rem',
-                      borderRadius: '12px',
+                      minHeight: '56px',
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: '14px',
                       border: isSelected
                         ? '2px solid var(--md-sys-color-primary)'
                         : '1px solid var(--md-sys-color-outline-variant)',
@@ -1408,46 +1935,218 @@ export function ModoObraWizard({
                       textAlign: 'center',
                     }}
                   >
-                    <span style={{ fontSize: '0.84rem', fontWeight: 800 }}>{opt.label}</span>
-                    <span style={{ fontSize: '0.67rem', opacity: 0.8, marginTop: '1px' }}>{opt.desc}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{opt.label}</span>
+                    <span style={{ fontSize: '0.68rem', opacity: 0.85, marginTop: '2px' }}>{opt.desc}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Column Selector when safeBayCount > 1 */}
-            {safeBayCount > 1 && (
-              <div
-                style={{
-                  padding: '0.4rem 0.5rem',
-                  borderRadius: '12px',
-                  backgroundColor: 'var(--md-sys-color-surface-container)',
-                  border: '1px solid var(--md-sys-color-outline-variant)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.3rem',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)' }}>
-                    Columna a equipar:
-                  </span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--md-sys-color-primary)' }}>
-                    {`Editando Columna ${activeBayIndex + 1} de ${safeBayCount}`}
-                  </span>
-                </div>
+            {/* Tarjetas de selección de Vano (Orden Occidental: Vano 1 Izquierda -> Derecha) */}
+            <div
+              style={{
+                padding: '0.45rem 0.55rem',
+                borderRadius: '12px',
+                backgroundColor: 'var(--md-sys-color-surface-container)',
+                border: '1px solid var(--md-sys-color-outline-variant)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.35rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>
+                  Vanos (Izquierda a Derecha):
+                </span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
+                  {`Vano ${activeBayIndex + 1} seleccionado (${activeBayWidth}×${activeBayHeight}×${activeBayDepth} mm)`}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${safeBayCount}, 1fr)`, gap: '0.35rem' }}>
+                {Array.from({ length: safeBayCount }).map((_, idx) => {
+                  const isBayActive = activeBayIndex === idx;
+                  const box = bayBoxes[idx];
+                  const bw = box?.width ?? Math.round((width - (safeBayCount + 1) * thickness) / safeBayCount);
+                  const posLabel =
+                    safeBayCount === 1
+                      ? 'Único'
+                      : idx === 0
+                        ? 'Izquierda'
+                        : idx === safeBayCount - 1
+                          ? 'Derecha'
+                          : 'Centro';
+
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('tick');
+                        onActiveBayIndexChange?.(idx);
+                      }}
+                      style={{
+                        minHeight: '48px',
+                        padding: '0.25rem 0.35rem',
+                        borderRadius: '10px',
+                        border: isBayActive
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: isBayActive
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface)',
+                        color: isBayActive
+                          ? 'var(--md-sys-color-on-primary-container)'
+                          : 'var(--md-sys-color-on-surface)',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{`Vano ${idx + 1} (${posLabel})`}</span>
+                      <span style={{ fontSize: '0.68rem', opacity: 0.85, fontWeight: 600 }}>
+                        {`Luz: ${bw} mm`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Acceso directo a Matriz de Subdivisión Especial */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('major');
+                setIsDistributionModalOpen(true);
+              }}
+              style={{
+                minHeight: '48px',
+                width: '100%',
+                borderRadius: '12px',
+                border:
+                  currentBay?.type === 'subdivided'
+                    ? '2px solid var(--md-sys-color-primary)'
+                    : '1px solid var(--md-sys-color-outline-variant)',
+                backgroundColor:
+                  currentBay?.type === 'subdivided'
+                    ? 'var(--md-sys-color-primary-container)'
+                    : 'var(--md-sys-color-surface-container-high)',
+                color:
+                  currentBay?.type === 'subdivided'
+                    ? 'var(--md-sys-color-on-primary-container)'
+                    : 'var(--md-sys-color-on-surface)',
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <span>🍱</span>
+              <span>{`Abrir Edición Especial (Matriz) en Vano ${activeBayIndex + 1}`}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            ETAPA 7: EQUIPAMIENTO INTERIOR POR VANO
+           ───────────────────────────────────────────────────────────── */}
+        {activeStep.id === 'bays-equipment' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem', margin: '0 auto' }}>
+            <WorkshopContextDiagram
+              step="bays-equipment"
+              width={width}
+              gridType={gridType}
+              bays={bays}
+              bayBoxes={bayBoxes}
+              activeBayIndex={activeBayIndex}
+              onSelectBayIndex={(idx) => {
+                triggerHaptic('tick');
+                onActiveBayIndexChange?.(idx);
+              }}
+            />
+
+            {/* Quick Bay Count + Active Column Bar */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.3rem',
+                width: '100%',
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.3rem', width: '100%' }}>
+                {[
+                  { type: '1-bay' as ObraGridType, label: '1 Vano', enabled: true },
+                  { type: '2-bays-vertical' as ObraGridType, label: '2 Vanos', enabled: true },
+                  { type: '3-bays-vertical' as ObraGridType, label: '3 Vanos', enabled: width >= 800 },
+                ].map((opt) => {
+                  const isSelected = gridType === opt.type;
+                  return (
+                    <button
+                      key={opt.type}
+                      type="button"
+                      disabled={!opt.enabled}
+                      onClick={() => {
+                        triggerHaptic('major');
+                        onGridTypeChange?.(opt.type);
+                      }}
+                      style={{
+                        minHeight: '38px',
+                        borderRadius: '10px',
+                        border: isSelected
+                          ? '2px solid var(--md-sys-color-primary)'
+                          : '1px solid var(--md-sys-color-outline-variant)',
+                        backgroundColor: isSelected
+                          ? 'var(--md-sys-color-primary-container)'
+                          : 'var(--md-sys-color-surface-container-high)',
+                        color: isSelected
+                          ? 'var(--md-sys-color-on-primary-container)'
+                          : 'var(--md-sys-color-on-surface)',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        opacity: opt.enabled ? 1 : 0.4,
+                        cursor: opt.enabled ? 'pointer' : 'not-allowed',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {safeBayCount > 1 && (
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(${safeBayCount}, 1fr)`, gap: '0.35rem' }}>
                   {Array.from({ length: safeBayCount }).map((_, idx) => {
                     const isBayActive = activeBayIndex === idx;
                     const bayObj = bays[idx];
                     const bayIcon =
-                      bayObj?.type === 'shelves' ? '📚' :
-                      bayObj?.type === 'drawer-stack' ? '🗄️' :
-                      bayObj?.type === 'doors' ? '🚪' : '⬜';
+                      bayObj?.type === 'shelves'
+                        ? '📚'
+                        : bayObj?.type === 'drawer-stack'
+                          ? '🗄️'
+                          : bayObj?.type === 'doors'
+                            ? '🚪'
+                            : bayObj?.type === 'subdivided'
+                              ? '🍱'
+                              : '⬜';
                     const bayName =
-                      bayObj?.type === 'shelves' ? 'Estantes' :
-                      bayObj?.type === 'drawer-stack' ? 'Cajonera' :
-                      bayObj?.type === 'doors' ? 'Puertas' : 'Libre';
+                      bayObj?.type === 'shelves'
+                        ? 'Estantes'
+                        : bayObj?.type === 'drawer-stack'
+                          ? 'Cajonera'
+                          : bayObj?.type === 'doors'
+                            ? 'Puertas'
+                            : bayObj?.type === 'subdivided'
+                              ? 'Matriz'
+                              : 'Libre';
 
                     return (
                       <button
@@ -1458,7 +2157,7 @@ export function ModoObraWizard({
                           onActiveBayIndexChange?.(idx);
                         }}
                         style={{
-                          minHeight: '44px',
+                          minHeight: '42px',
                           padding: '0.2rem 0.35rem',
                           borderRadius: '10px',
                           border: isBayActive
@@ -1471,24 +2170,22 @@ export function ModoObraWizard({
                             ? 'var(--md-sys-color-on-primary-container)'
                             : 'var(--md-sys-color-on-surface)',
                           fontWeight: 700,
-                          fontSize: '0.8rem',
+                          fontSize: '0.78rem',
                           display: 'flex',
-                          flexDirection: 'column',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          gap: '0.25rem',
                           cursor: 'pointer',
                         }}
                       >
-                        <span>{`Columna ${idx + 1}`}</span>
-                        <span style={{ fontSize: '0.67rem', opacity: 0.85, fontWeight: 500 }}>
-                          {`${bayIcon} ${bayName}`}
-                        </span>
+                        <span>{`Columna ${idx + 1}:`}</span>
+                        <span>{`${bayIcon} ${bayName}`}</span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Equipment Types (Estantes, Cajonera, Puertas, Vano Libre, Edición Especial) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem', width: '100%' }}>
@@ -1513,7 +2210,7 @@ export function ModoObraWizard({
                       }
                     }}
                     style={{
-                      minHeight: '44px',
+                      minHeight: '46px',
                       gridColumn: eq.fullWidth ? 'span 2' : 'span 1',
                       borderRadius: '12px',
                       border: isSelected
@@ -1540,26 +2237,20 @@ export function ModoObraWizard({
             {currentBay?.type === 'subdivided' && (
               <div
                 style={{
-                  padding: '0.65rem 0.75rem',
+                  padding: '0.55rem 0.7rem',
                   borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-primary-container)',
                   border: '1.5px solid var(--md-sys-color-primary)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.5rem',
+                  gap: '0.4rem',
                   alignItems: 'center',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ fontSize: '1.15rem' }}>🍱</span>
-                  <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--md-sys-color-on-primary-container)' }}>
-                    Distribución Especial de Celdas Activa
-                  </span>
-                </div>
-                <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--md-sys-color-on-primary-container)', opacity: 0.9 }}>
-                  Vano con matriz estilo Word (divisiones mixtas en mm/% y cajones de 6mm).
-                </p>
+                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--md-sys-color-on-primary-container)' }}>
+                  🍱 Distribución Especial de Celdas Activa (Prof. útil: {activeBayDepth} mm)
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -1572,7 +2263,7 @@ export function ModoObraWizard({
                     minHeight: '44px',
                     borderRadius: '10px',
                     fontWeight: 700,
-                    fontSize: '0.86rem',
+                    fontSize: '0.84rem',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1584,20 +2275,23 @@ export function ModoObraWizard({
                 </button>
               </div>
             )}
+
             {currentBay?.type === 'shelves' && (
               <div
                 style={{
-                  padding: '0.55rem 0.65rem',
+                  padding: '0.5rem 0.65rem',
                   borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.45rem',
+                  gap: '0.4rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>Cantidad de Estantes:</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                    {`Cantidad de Estantes (a tope ${activeBayDepth}mm):`}
+                  </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <button
                       type="button"
@@ -1607,8 +2301,8 @@ export function ModoObraWizard({
                         onRemoveShelf?.(activeBayIndex);
                       }}
                       style={{
-                        minWidth: '40px',
-                        height: '40px',
+                        minWidth: '42px',
+                        height: '42px',
                         borderRadius: '10px',
                         border: '1px solid var(--md-sys-color-outline-variant)',
                         backgroundColor: 'var(--md-sys-color-surface)',
@@ -1629,8 +2323,8 @@ export function ModoObraWizard({
                         onAddShelf?.(activeBayIndex);
                       }}
                       style={{
-                        minWidth: '40px',
-                        height: '40px',
+                        minWidth: '42px',
+                        height: '42px',
                         borderRadius: '10px',
                         border: '1px solid var(--md-sys-color-outline-variant)',
                         backgroundColor: 'var(--md-sys-color-surface)',
@@ -1658,7 +2352,7 @@ export function ModoObraWizard({
                           onShelfTypeChange?.(activeBayIndex, st as 'fixed' | 'adjustable');
                         }}
                         style={{
-                          height: '38px',
+                          minHeight: '40px',
                           borderRadius: '8px',
                           border: active
                             ? '2px solid var(--md-sys-color-primary)'
@@ -1682,17 +2376,19 @@ export function ModoObraWizard({
             {currentBay?.type === 'drawer-stack' && (
               <div
                 style={{
-                  padding: '0.55rem 0.65rem',
+                  padding: '0.5rem 0.65rem',
                   borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.45rem',
+                  gap: '0.4rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>Cantidad de Cajones:</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                    {`Cantidad de Cajones (Prof. máx ${activeBayDepth}mm):`}
+                  </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <button
                       type="button"
@@ -1703,8 +2399,8 @@ export function ModoObraWizard({
                         onRemoveDrawer?.(activeBayIndex, curLen - 1);
                       }}
                       style={{
-                        minWidth: '40px',
-                        height: '40px',
+                        minWidth: '42px',
+                        height: '42px',
                         borderRadius: '10px',
                         border: '1px solid var(--md-sys-color-outline-variant)',
                         backgroundColor: 'var(--md-sys-color-surface)',
@@ -1725,8 +2421,8 @@ export function ModoObraWizard({
                         onAddDrawer?.(activeBayIndex);
                       }}
                       style={{
-                        minWidth: '40px',
-                        height: '40px',
+                        minWidth: '42px',
+                        height: '42px',
                         borderRadius: '10px',
                         border: '1px solid var(--md-sys-color-outline-variant)',
                         backgroundColor: 'var(--md-sys-color-surface)',
@@ -1745,13 +2441,13 @@ export function ModoObraWizard({
             {currentBay?.type === 'doors' && (
               <div
                 style={{
-                  padding: '0.55rem 0.65rem',
+                  padding: '0.5rem 0.65rem',
                   borderRadius: '12px',
                   backgroundColor: 'var(--md-sys-color-surface-container)',
                   border: '1px solid var(--md-sys-color-outline-variant)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.45rem',
+                  gap: '0.4rem',
                 }}
               >
                 {/* 1 or 2 Doors */}
@@ -1769,7 +2465,7 @@ export function ModoObraWizard({
                             onDoorCountChange?.(activeBayIndex, cnt as 1 | 2);
                           }}
                           style={{
-                            minWidth: '50px',
+                            minWidth: '56px',
                             height: '38px',
                             borderRadius: '8px',
                             border: isCnt
@@ -1779,7 +2475,7 @@ export function ModoObraWizard({
                               ? 'var(--md-sys-color-primary-container)'
                               : 'var(--md-sys-color-surface)',
                             fontWeight: 700,
-                            fontSize: '0.84rem',
+                            fontSize: '0.82rem',
                             cursor: 'pointer',
                           }}
                         >
@@ -1849,8 +2545,8 @@ export function ModoObraWizard({
                             onDoorInteriorShelvesCountChange?.(activeBayIndex, num);
                           }}
                           style={{
-                            minWidth: '36px',
-                            height: '36px',
+                            minWidth: '38px',
+                            height: '38px',
                             borderRadius: '8px',
                             border: isNum
                               ? '2px solid var(--md-sys-color-primary)'
@@ -1862,7 +2558,7 @@ export function ModoObraWizard({
                               ? 'var(--md-sys-color-on-primary-container)'
                               : 'var(--md-sys-color-on-surface)',
                             fontWeight: 700,
-                            fontSize: '0.85rem',
+                            fontSize: '0.84rem',
                             cursor: 'pointer',
                           }}
                         >
@@ -1876,215 +2572,10 @@ export function ModoObraWizard({
             )}
 
             {currentBay?.type === 'empty' && (
-              <span style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-outline)', textAlign: 'center', marginTop: '0.35rem' }}>
-                Columna sin accesorios interiores (hueco libre).
+              <span style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-outline)', textAlign: 'center', marginTop: '0.2rem' }}>
+                {`Vano ${activeBayIndex + 1} libre (Prof. útil a tope con fondo: ${activeBayDepth} mm).`}
               </span>
             )}
-          </div>
-        )}
-
-        {/* STEP 7: MATERIAL / TABLERO DE MELAMINA */}
-        {activeStep.id === 'material' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.45rem', margin: '0 auto' }}>
-            {/* Context Technical Schematic Diagram */}
-            <WorkshopContextDiagram
-              step="material"
-              materialRole={activeMaterialRole}
-            />
-
-            {/* 1. Banner descriptivo del rol activo + Botón de Sincronización con el Casco (at Top) */}
-            <div
-              style={{
-                padding: '0.5rem 0.7rem',
-                borderRadius: '12px',
-                backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
-                  {activeRoleConfig.icon} {activeRoleConfig.label}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.72rem',
-                    color: 'var(--md-sys-color-on-surface-variant)',
-                    lineHeight: '1.25',
-                  }}
-                >
-                  {activeRoleConfig.description}
-                </span>
-              </div>
-
-              {effectiveMaterialRole !== 'carcass' && (
-                <button
-                  type="button"
-                  onClick={handleResetRoleToCarcass}
-                  title="Restablecer para usar el mismo tablero que el Casco"
-                  aria-label="Restablecer para usar la misma placa que el casco"
-                  style={{
-                    minHeight: '38px',
-                    padding: '0 0.55rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--md-sys-color-outline)',
-                    backgroundColor: 'var(--md-sys-color-surface)',
-                    color: 'var(--md-sys-color-primary)',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  🔗 Igual al Casco
-                </button>
-              )}
-            </div>
-
-            {/* 2. Selector Segmentado de Roles (Horizontal Scrollable Chips con >48px touch target) */}
-            <div
-              role="tablist"
-              aria-label="Roles de placa o tablero"
-              style={{
-                display: 'flex',
-                gap: '0.45rem',
-                width: '100%',
-                overflowX: 'auto',
-                paddingBottom: '0.2rem',
-                scrollbarWidth: 'none',
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              {availableRoles.map((role) => {
-                const isActive = effectiveMaterialRole === role.id;
-                return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    onClick={() => {
-                      triggerHaptic('tick');
-                      setActiveMaterialRole(role.id);
-                    }}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      justifyContent: 'center',
-                      minWidth: '125px',
-                      minHeight: '48px',
-                      padding: '0.35rem 0.65rem',
-                      borderRadius: '12px',
-                      border: isActive
-                        ? '2px solid var(--md-sys-color-primary)'
-                        : '1px solid var(--md-sys-color-outline-variant)',
-                      backgroundColor: isActive
-                        ? 'var(--md-sys-color-primary-container)'
-                        : 'var(--md-sys-color-surface-container)',
-                      color: isActive
-                        ? 'var(--md-sys-color-on-primary-container)'
-                        : 'var(--md-sys-color-on-surface)',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                      }}
-                    >
-                      <span>{role.icon}</span>
-                      <span>{role.shortLabel}</span>
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        opacity: 0.85,
-                        marginTop: '2px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '120px',
-                      }}
-                    >
-                      {role.currentMaterialName}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 3. Grilla Táctil de Placas del Catálogo (Directly at bottom above footer!) */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '0.45rem',
-                width: '100%',
-              }}
-            >
-              {materials.map((mat) => {
-                const isSelected = currentRoleMaterialId === mat.id;
-                return (
-                  <button
-                    key={mat.id}
-                    type="button"
-                    onClick={() => handleSelectMaterialForRole(mat.id)}
-                    style={{
-                      minHeight: '62px',
-                      padding: '0.5rem',
-                      borderRadius: '14px',
-                      border: isSelected
-                        ? '2px solid var(--md-sys-color-primary)'
-                        : '1px solid var(--md-sys-color-outline-variant)',
-                      backgroundColor: isSelected
-                        ? 'var(--md-sys-color-primary-container)'
-                        : 'var(--md-sys-color-surface-container-high)',
-                      color: isSelected
-                        ? 'var(--md-sys-color-on-primary-container)'
-                        : 'var(--md-sys-color-on-surface)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      position: 'relative',
-                    }}
-                  >
-                    {isSelected && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '4px',
-                          right: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: 800,
-                          color: 'var(--md-sys-color-primary)',
-                        }}
-                      >
-                        ✓
-                      </span>
-                    )}
-                    <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>{mat.name}</span>
-                    <span style={{ fontSize: '0.74rem', opacity: 0.85, marginTop: '2px' }}>
-                      {`${mat.thicknessMm} mm · Tablero de taller`}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
       </main>
@@ -2183,8 +2674,9 @@ export function ModoObraWizard({
         bayIndex={activeBayIndex}
         bayWidth={activeBayWidth}
         bayHeight={activeBayHeight}
-        bayDepth={depth}
+        bayDepth={activeBayDepth}
         initialContent={currentBay ?? { type: 'empty' }}
+        materials={materials}
       />
     </section>
   );

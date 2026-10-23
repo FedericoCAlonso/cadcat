@@ -98,12 +98,12 @@ describe('Workshop Benchmarks - Hand-Calculated Canonical Projects', () => {
       }
 
       // 4. Estante regulable interior:
-      // Ancho = 764 mm. Profundidad = 580 - setback (20mm) = 560 mm.
+      // Ancho = 764 mm. Profundidad útil vano = 580 - (10mm ranura + 3mm fondo) = 567 mm. Estante = 567 - setback (20mm) = 547 mm.
       const shelf = result.resolvedPieces.find((p) => p.role === 'shelf');
       expect(shelf).toBeDefined();
       const dimShelf = getPieceDimensions(shelf!);
       expect(dimShelf.width).toBe(764);
-      expect(dimShelf.height).toBe(580 - 20);
+      expect(dimShelf.height).toBe(580 - 13 - 20);
 
       // 5. Fondo MDF 3mm ranurado:
       // Ancho luz interior = 764 mm + 2 * 8 mm de ranura = 780 mm.
