@@ -1,9 +1,0 @@
-export { ConfirmatJointStrategy } from './confirmatStrategy';
-export { DowelAndConfirmatJointStrategy } from './dowelAndConfirmatStrategy';
-export { ScrewJointStrategy } from './screwStrategy';
-export { CamDowelJointStrategy } from './camDowelStrategy';
-export { DowelJointStrategy } from './dowelStrategy';
-export { HingeJointStrategy } from './hingeStrategy';
-export { ShelfPinJointStrategy } from './shelfPinStrategy';
-export { SlideJointStrategy } from './slideStrategy';
-export { HandleJointStrategy } from './handleStrategy';
