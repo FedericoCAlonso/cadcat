@@ -242,12 +242,60 @@ export function ThumbArcInput({
   };
 
   const baseWidth = 360;
-  const baseHeight = arcOnly ? 165 : compact ? 230 : 260;
-  const baseSvgHeight = arcOnly ? 175 : compact ? 240 : 270;
-  const baseRadius = arcOnly ? 165 : compact ? 245 : 275;
+  // +20% height increase for Modo Taller slider container (165 -> 198px) and SVG viewport (175 -> 210)
+  const baseHeight = arcOnly ? 198 : compact ? 230 : 260;
+  const baseSvgHeight = arcOnly ? 210 : compact ? 240 : 270;
+  const baseRadius = arcOnly ? 260 : compact ? 245 : 275;
 
-  // SVG Geometry for visual arc
-  const svgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
+  // SVG Geometry for visual arc:
+  // In arcOnly (Modo Taller), the arc is born at the 1/4 left mark (x = 90 of 360, y = 186) for right-hand mode
+  // (or 3/4 mark x = 270 for left-hand mode), crossing past the horizontal midpoint (x = 180) up to (330, 26).
+  const legacySvgTrack = computeThumbArcSvgPath(baseWidth, baseSvgHeight, activeHandMode, baseRadius);
+  const arcCenter: Point2D = arcOnly
+    ? { x: activeHandMode === 'right' ? 330 : 30, y: 286 }
+    : legacySvgTrack.center;
+  const arcRadius = arcOnly ? 260 : legacySvgTrack.radius;
+  const minAngleDeg = arcOnly
+    ? activeHandMode === 'right'
+      ? -157.38
+      : -22.62
+    : activeHandMode === 'right'
+      ? -165
+      : -15;
+  const maxAngleDeg = arcOnly
+    ? -90
+    : activeHandMode === 'right'
+      ? -105
+      : -75;
+  const angleSpanDeg = maxAngleDeg - minAngleDeg;
+
+  const svgTrack = useMemo(() => {
+    if (!arcOnly) return legacySvgTrack;
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    // Sweep clockwise from left-most angle to right-most angle so SVG arc flag is always 0 0 1
+    const [cwStartDeg, cwEndDeg] =
+      activeHandMode === 'right'
+        ? [minAngleDeg, maxAngleDeg]
+        : [maxAngleDeg, minAngleDeg];
+    const startRad = toRad(cwStartDeg);
+    const endRad = toRad(cwEndDeg);
+    const startPoint: Point2D = {
+      x: arcCenter.x + arcRadius * Math.cos(startRad),
+      y: arcCenter.y + arcRadius * Math.sin(startRad),
+    };
+    const endPoint: Point2D = {
+      x: arcCenter.x + arcRadius * Math.cos(endRad),
+      y: arcCenter.y + arcRadius * Math.sin(endRad),
+    };
+    const pathD = `M ${startPoint.x.toFixed(1)} ${startPoint.y.toFixed(1)} A ${arcRadius} ${arcRadius} 0 0 1 ${endPoint.x.toFixed(1)} ${endPoint.y.toFixed(1)}`;
+    return {
+      pathD,
+      startPoint,
+      endPoint,
+      center: arcCenter,
+      radius: arcRadius,
+    };
+  }, [arcOnly, legacySvgTrack, activeHandMode, minAngleDeg, maxAngleDeg, arcCenter, arcRadius]);
 
   // Knob position along visual arc based on value percentage
   // Sweeping up (elevating thumb) increases value (+); sweeping down decreases (-).
@@ -256,28 +304,28 @@ export function ThumbArcInput({
     isOptionsMode && enabledOptions.length <= 1
       ? 0.5
       : Math.max(0, Math.min(1, (effectiveValue - effectiveMin) / valueRange));
-  const knobAngleDeg = activeHandMode === 'right' ? -165 + valueRatio * 60 : -15 - valueRatio * 60;
+  const knobAngleDeg = minAngleDeg + valueRatio * angleSpanDeg;
   const knobAngleRad = (knobAngleDeg * Math.PI) / 180;
   const knobX = svgTrack.center.x + svgTrack.radius * Math.cos(knobAngleRad);
   const knobY = svgTrack.center.y + svgTrack.radius * Math.sin(knobAngleRad);
 
   // Midpoint of the arc (50% ratio) to split upper half (+) vs lower half (-)
-  const midAngleDeg = activeHandMode === 'right' ? -135 : -45;
+  const midAngleDeg = minAngleDeg + 0.5 * angleSpanDeg;
   const midAngleRad = (midAngleDeg * Math.PI) / 180;
   const midX = svgTrack.center.x + svgTrack.radius * Math.cos(midAngleRad);
   const midY = svgTrack.center.y + svgTrack.radius * Math.sin(midAngleRad);
-  const midInnerX = svgTrack.center.x + (svgTrack.radius - 17) * Math.cos(midAngleRad);
-  const midInnerY = svgTrack.center.y + (svgTrack.radius - 17) * Math.sin(midAngleRad);
-  const midOuterX = svgTrack.center.x + (svgTrack.radius + 17) * Math.cos(midAngleRad);
-  const midOuterY = svgTrack.center.y + (svgTrack.radius + 17) * Math.sin(midAngleRad);
+  const midInnerX = svgTrack.center.x + (svgTrack.radius - 20) * Math.cos(midAngleRad);
+  const midInnerY = svgTrack.center.y + (svgTrack.radius - 20) * Math.sin(midAngleRad);
+  const midOuterX = svgTrack.center.x + (svgTrack.radius + 20) * Math.cos(midAngleRad);
+  const midOuterY = svgTrack.center.y + (svgTrack.radius + 20) * Math.sin(midAngleRad);
 
   // Upper and lower label coordinates along the arc
-  const upperBadgeDeg = activeHandMode === 'right' ? -111 : -69;
+  const upperBadgeDeg = minAngleDeg + 0.82 * angleSpanDeg;
   const upperBadgeRad = (upperBadgeDeg * Math.PI) / 180;
   const upperBadgeX = svgTrack.center.x + svgTrack.radius * Math.cos(upperBadgeRad);
   const upperBadgeY = svgTrack.center.y + svgTrack.radius * Math.sin(upperBadgeRad);
 
-  const lowerBadgeDeg = activeHandMode === 'right' ? -159 : -21;
+  const lowerBadgeDeg = minAngleDeg + 0.18 * angleSpanDeg;
   const lowerBadgeRad = (lowerBadgeDeg * Math.PI) / 180;
   const lowerBadgeX = svgTrack.center.x + svgTrack.radius * Math.cos(lowerBadgeRad);
   const lowerBadgeY = svgTrack.center.y + svgTrack.radius * Math.sin(lowerBadgeRad);
@@ -492,7 +540,7 @@ export function ThumbArcInput({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: arcOnly ? '0.35rem' : undefined,
+        gap: arcOnly ? '0.2rem' : undefined,
         padding: arcOnly
           ? '0'
           : compact
@@ -875,10 +923,10 @@ export function ThumbArcInput({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '0.6rem',
+            gap: '0.5rem',
             backgroundColor: 'var(--md-sys-color-surface-container-high)',
-            padding: '0.5rem 0.8rem',
-            borderRadius: '14px',
+            padding: '0.32rem 0.7rem',
+            borderRadius: '12px',
             border: '1.5px solid var(--md-sys-color-outline-variant)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             boxSizing: 'border-box',
@@ -1103,7 +1151,7 @@ export function ThumbArcInput({
               d={svgTrack.pathD}
               fill="none"
               stroke="var(--md-sys-color-surface-container-highest)"
-              strokeWidth={arcOnly ? '34' : compact ? '30' : '36'}
+              strokeWidth={arcOnly ? '40' : compact ? '30' : '36'}
               strokeLinecap="round"
             />
 
@@ -1112,7 +1160,7 @@ export function ThumbArcInput({
               d={svgTrack.pathD}
               fill="none"
               stroke="var(--md-sys-color-primary-container)"
-              strokeWidth={arcOnly ? '22' : compact ? '18' : '22'}
+              strokeWidth={arcOnly ? '26' : compact ? '18' : '22'}
               strokeLinecap="round"
             />
 
@@ -1137,12 +1185,12 @@ export function ThumbArcInput({
 
             {/* Upper Half Tap Indicator (+1 / Siguiente) */}
             <g transform={`translate(${upperBadgeX.toFixed(1)}, ${upperBadgeY.toFixed(1)})`}>
-              <circle r="11" fill="var(--md-sys-color-primary)" opacity="0.18" />
+              <circle r="12" fill="var(--md-sys-color-primary)" opacity="0.18" />
               <text
                 x="0"
                 y="3.5"
                 textAnchor="middle"
-                fontSize="10"
+                fontSize="11"
                 fontWeight="900"
                 fill="var(--md-sys-color-primary)"
               >
@@ -1152,12 +1200,12 @@ export function ThumbArcInput({
 
             {/* Lower Half Tap Indicator (-1 / Anterior) */}
             <g transform={`translate(${lowerBadgeX.toFixed(1)}, ${lowerBadgeY.toFixed(1)})`}>
-              <circle r="11" fill="var(--md-sys-color-on-surface)" opacity="0.12" />
+              <circle r="12" fill="var(--md-sys-color-on-surface)" opacity="0.12" />
               <text
                 x="0"
                 y="3.5"
                 textAnchor="middle"
-                fontSize="11"
+                fontSize="12"
                 fontWeight="900"
                 fill="var(--md-sys-color-on-surface)"
               >
@@ -1170,7 +1218,7 @@ export function ThumbArcInput({
               enabledOptions.map((opt, idx) => {
                 const ratio =
                   enabledOptions.length <= 1 ? 0.5 : idx / Math.max(1, enabledOptions.length - 1);
-                const deg = activeHandMode === 'right' ? -165 + ratio * 60 : -15 - ratio * 60;
+                const deg = minAngleDeg + ratio * angleSpanDeg;
                 const rad = (deg * Math.PI) / 180;
                 const tx = svgTrack.center.x + svgTrack.radius * Math.cos(rad);
                 const ty = svgTrack.center.y + svgTrack.radius * Math.sin(rad);
@@ -1179,7 +1227,7 @@ export function ThumbArcInput({
                     key={opt.id}
                     cx={tx.toFixed(1)}
                     cy={ty.toFixed(1)}
-                    r={idx === activeOptionIndex ? '5' : '3'}
+                    r={idx === activeOptionIndex ? '5.5' : '3.5'}
                     fill={
                       idx === activeOptionIndex
                         ? 'var(--md-sys-color-on-primary)'
@@ -1194,7 +1242,7 @@ export function ThumbArcInput({
             <circle
               cx={knobX.toFixed(1)}
               cy={knobY.toFixed(1)}
-              r={arcOnly ? '19' : compact ? '18' : '22'}
+              r={arcOnly ? '22' : compact ? '18' : '22'}
               fill="var(--md-sys-color-primary)"
               stroke="var(--md-sys-color-surface)"
               strokeWidth="3.5"
@@ -1203,7 +1251,7 @@ export function ThumbArcInput({
             <circle
               cx={knobX.toFixed(1)}
               cy={knobY.toFixed(1)}
-              r={arcOnly ? '7' : compact ? '7' : '8'}
+              r={arcOnly ? '8' : compact ? '7' : '8'}
               fill="var(--md-sys-color-on-primary)"
             />
           </svg>

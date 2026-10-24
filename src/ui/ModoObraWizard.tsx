@@ -744,8 +744,8 @@ export function ModoObraWizard({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.2rem',
-          padding: 'max(0.3rem, env(safe-area-inset-top, 0.3rem)) 0.6rem 0.25rem',
+          gap: '0.12rem',
+          padding: 'max(0.18rem, env(safe-area-inset-top, 0.18rem)) 0.5rem 0.15rem',
           borderBottom: '1px solid var(--md-sys-color-outline-variant)',
           backgroundColor: 'var(--md-sys-color-surface-container)',
           flexShrink: 0,
@@ -1008,13 +1008,13 @@ export function ModoObraWizard({
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'flex-start',
-          padding: '0.25rem 0.55rem',
+          padding: '0.12rem 0.45rem',
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           boxSizing: 'border-box',
           width: '100%',
-          gap: '0.25rem',
+          gap: '0.15rem',
         }}
       >
         <h2 className="visually-hidden">{activeStep.title}</h2>
@@ -1030,7 +1030,7 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.3rem',
+              gap: '0.18rem',
             }}
           >
             <WorkshopContextDiagram
@@ -1135,7 +1135,7 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.3rem',
+              gap: '0.18rem',
             }}
           >
             <WorkshopContextDiagram
@@ -1614,7 +1614,7 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.3rem',
+              gap: '0.18rem',
             }}
           >
             <WorkshopContextDiagram
@@ -1788,7 +1788,7 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.3rem',
+              gap: '0.18rem',
             }}
           >
             <WorkshopContextDiagram
@@ -1932,7 +1932,7 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.3rem',
+              gap: '0.18rem',
             }}
           >
             <WorkshopContextDiagram
@@ -2084,7 +2084,7 @@ export function ModoObraWizard({
               minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.3rem',
+              gap: '0.18rem',
             }}
           >
             <WorkshopContextDiagram
@@ -2530,13 +2530,13 @@ export function ModoObraWizard({
         )}
       </main>
 
-      {/* 3. Ergonomic Bottom Navigation Bar (Single Row ~50px + safe-area) */}
+      {/* 3. Ergonomic Bottom Navigation Bar (Single Row ~46px + safe-area) */}
       <footer
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.4rem',
-          padding: '0.35rem 0.6rem max(0.35rem, env(safe-area-inset-bottom, 0.35rem))',
+          gap: '0.35rem',
+          padding: '0.22rem 0.5rem max(0.22rem, env(safe-area-inset-bottom, 0.22rem))',
           backgroundColor: 'var(--md-sys-color-surface-container)',
           borderTop: '1px solid var(--md-sys-color-outline-variant)',
           flexShrink: 0,
@@ -2553,10 +2553,10 @@ export function ModoObraWizard({
           aria-label="Paso anterior (o deslizar hacia abajo)"
           style={{
             flex: 1,
-            minHeight: '44px',
+            minHeight: '40px',
             padding: '0 0.35rem',
-            borderRadius: '12px',
-            fontSize: '0.84rem',
+            borderRadius: '10px',
+            fontSize: '0.82rem',
             fontWeight: 700,
             whiteSpace: 'nowrap',
             opacity: currentStepIndex === 0 ? 0.35 : 1,
@@ -2576,10 +2576,10 @@ export function ModoObraWizard({
           aria-label={is3dViewActive ? 'Volver al formulario de obra' : 'Ver modelo 3D en pantalla completa'}
           style={{
             flex: 1.25,
-            minHeight: '44px',
+            minHeight: '40px',
             padding: '0 0.4rem',
-            borderRadius: '12px',
-            fontSize: '0.84rem',
+            borderRadius: '10px',
+            fontSize: '0.82rem',
             fontWeight: 800,
             display: 'inline-flex',
             alignItems: 'center',
@@ -2600,10 +2600,10 @@ export function ModoObraWizard({
           aria-label="Siguiente paso (o deslizar hacia arriba)"
           style={{
             flex: 1,
-            minHeight: '44px',
+            minHeight: '40px',
             padding: '0 0.35rem',
-            borderRadius: '12px',
-            fontSize: '0.84rem',
+            borderRadius: '10px',
+            fontSize: '0.82rem',
             fontWeight: 700,
             whiteSpace: 'nowrap',
             opacity: currentStepIndex === OBRA_STEPS.length - 1 ? 0.35 : 1,

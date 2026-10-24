@@ -492,4 +492,34 @@ describe('ThumbArcInput Component (Modo Obra UI)', () => {
     });
     container.remove();
   });
+
+  it('renders arcOnly with +20% height (198px) and arc starting at 1/4 left (x=90 of 360) for right-hand mode', () => {
+    const rightHtml = renderToString(
+      <ThumbArcInput
+        label="Ancho Total"
+        value={600}
+        arcOnly={true}
+        handMode="right"
+        onChange={vi.fn()}
+      />,
+    );
+
+    // +20% height (165px * 1.2 = 198px, viewBox height 175 * 1.2 = 210)
+    expect(rightHtml).toContain('height:198px');
+    expect(rightHtml).toContain('viewBox="0 0 360 210"');
+    // Arc starts at 1/4 from the left edge (90.0 / 360 = 25%) and sweeps past midpoint (180) to 330.0
+    expect(rightHtml).toContain('M 90.0 186.0 A 260 260 0 0 1 330.0 26.0');
+
+    const leftHtml = renderToString(
+      <ThumbArcInput
+        label="Ancho Total"
+        value={600}
+        arcOnly={true}
+        handMode="left"
+        onChange={vi.fn()}
+      />,
+    );
+    // Symmetric for left-hand mode: sweeps from 30.0 (top-left) to 270.0 (3/4 mark = 1/4 from right edge)
+    expect(leftHtml).toContain('M 30.0 26.0 A 260 260 0 0 1 270.0 186.0');
+  });
 });
