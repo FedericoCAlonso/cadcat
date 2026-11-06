@@ -18,7 +18,7 @@ import type { JointKind, JointStrategy, Material, EdgeBand, InterferenceConfig }
 import { DEFAULT_UI_CONFIG } from '../config';
 import { translatePieceRole } from './localization';
 import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
-import { ViewerToolbar } from './ViewerToolbar';
+import { ViewerToolbar, type CameraPresetView } from './ViewerToolbar';
 import { PieceInspectorCard } from './PieceInspectorCard';
 
 export interface Viewport3DProps {
@@ -77,6 +77,58 @@ const DEFAULT_FALLBACK_BOUNDS: ModuleSpatialBounds = {
   center: { x: 300, y: 400, z: 280 },
   size: { x: 600, y: 800, z: 560 },
 };
+
+/**
+ * Result of raycasting a pointer position against pieces in the 3D scene.
+ */
+export interface RaycastPieceHit {
+  /** Identifier of the intersected piece. */
+  pieceId: string;
+  /** Three.js Mesh instance corresponding to the piece geometry. */
+  mesh: THREE.Mesh;
+}
+
+/**
+ * Shared helper to convert pointer client coordinates to normalized device coordinates
+ * and raycast against piece meshes inside pieceGroup.
+ * Used identically for hover outline detection and click selection to guarantee consistency.
+ *
+ * @param clientX Pointer client X coordinate
+ * @param clientY Pointer client Y coordinate
+ * @param domElement The canvas DOM element
+ * @param camera Three.js perspective camera
+ * @param raycaster Three.js raycaster instance
+ * @param pieceGroup Three.js group containing the piece meshes
+ * @returns The hit piece ID and mesh, or null if no piece was hit
+ */
+export function raycastPieceAtPointer(
+  clientX: number,
+  clientY: number,
+  domElement: HTMLElement,
+  camera: THREE.Camera,
+  raycaster: THREE.Raycaster,
+  pieceGroup: THREE.Group,
+): RaycastPieceHit | null {
+  const rect = domElement.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  const mouse = new THREE.Vector2(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -((clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(pieceGroup.children, true);
+  if (intersects.length > 0) {
+    let hit: THREE.Object3D | null = intersects[0]?.object ?? null;
+    while (hit && !hit.userData?.pieceId && hit.parent && hit.parent !== pieceGroup) {
+      hit = hit.parent;
+    }
+    const pieceId = hit?.userData?.pieceId as string | undefined;
+    if (pieceId && hit instanceof THREE.Mesh) {
+      return { pieceId, mesh: hit };
+    }
+  }
+  return null;
+}
 
 export function Viewport3D(props: Viewport3DProps): ReactElement {
   const {
@@ -261,6 +313,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       prevY = e.clientY;
     };
 
+    // Raycaster for piece interaction
+    const raycaster = new THREE.Raycaster();
+
     const onMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         hoverOutline.visible = false;
@@ -269,32 +324,30 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       }
 
       // Hover raycasting (only when not orbiting)
-      if (!containerRef.current || !rendererRef.current) return;
-      const rect = rendererRef.current.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      if (!rendererRef.current) return;
+      const hitResult = raycastPieceAtPointer(
+        e.clientX,
+        e.clientY,
+        rendererRef.current.domElement,
+        camera,
+        raycaster,
+        pieceGroup,
+      );
 
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(pieceGroup.children, true);
-
-      if (intersects.length > 0) {
-        let hit: THREE.Object3D | null = intersects[0]?.object ?? null;
-        while (hit && !hit.userData?.pieceId && hit.parent && hit.parent !== pieceGroup) {
-          hit = hit.parent;
-        }
-        if (hit instanceof THREE.Mesh && hit.geometry) {
-          const pId = hit.userData?.pieceId as string | undefined;
-          if (pId && pId !== selectedPieceIdRef.current) {
-            hoverOutline.geometry.dispose();
-            hoverOutline.geometry = new THREE.EdgesGeometry(hit.geometry);
-            hoverOutline.position.copy(hit.position);
-            hoverOutline.rotation.copy(hit.rotation);
-            hoverOutline.scale.copy(hit.scale);
-            hoverOutline.visible = true;
-            rendererRef.current.domElement.style.cursor = 'pointer';
-            return;
-          }
-        }
+      if (hitResult && hitResult.pieceId !== selectedPieceIdRef.current) {
+        const mesh = hitResult.mesh;
+        mesh.updateWorldMatrix(true, false);
+        hoverOutline.geometry.dispose();
+        hoverOutline.geometry = new THREE.EdgesGeometry(mesh.geometry);
+        hoverOutline.matrixAutoUpdate = false;
+        hoverOutline.matrix.copy(mesh.matrixWorld);
+        hoverOutline.matrixWorld.copy(mesh.matrixWorld);
+        mesh.getWorldPosition(hoverOutline.position);
+        mesh.getWorldQuaternion(hoverOutline.quaternion);
+        mesh.getWorldScale(hoverOutline.scale);
+        hoverOutline.visible = true;
+        rendererRef.current.domElement.style.cursor = 'pointer';
+        return;
       }
       hoverOutline.visible = false;
       if (rendererRef.current) {
@@ -361,32 +414,23 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
     };
 
-    // Raycast click for piece selection
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-
     const onClick = (e: MouseEvent) => {
-      if (!containerRef.current || !rendererRef.current) return;
-      const rect = rendererRef.current.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      if (!rendererRef.current) return;
+      const hitResult = raycastPieceAtPointer(
+        e.clientX,
+        e.clientY,
+        rendererRef.current.domElement,
+        camera,
+        raycaster,
+        pieceGroup,
+      );
 
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(pieceGroup.children, true);
-
-      if (intersects.length > 0) {
-        let hit: THREE.Object3D | null = intersects[0]?.object ?? null;
-        while (hit && !hit.userData?.pieceId && hit.parent && hit.parent !== pieceGroup) {
-          hit = hit.parent;
-        }
-        const pId = hit?.userData?.pieceId as string | undefined;
-        if (pId) {
-          onSelectPieceRef.current(pId);
-          setIsInspectorCollapsed(false);
-          const matchingMech = kinematicMechanismsRef.current?.find((m) => m.pieceIds.includes(pId));
-          if (matchingMech) {
-            setActiveMechId(matchingMech.id);
-          }
+      if (hitResult) {
+        onSelectPieceRef.current(hitResult.pieceId);
+        setIsInspectorCollapsed(false);
+        const matchingMech = kinematicMechanismsRef.current?.find((m) => m.pieceIds.includes(hitResult.pieceId));
+        if (matchingMech) {
+          setActiveMechId(matchingMech.id);
         }
       } else {
         onSelectPieceRef.current(null);
@@ -787,10 +831,13 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation, interferences, pieces]);
 
   // Camera presets
-  const setCameraView = (type: 'iso' | 'front' | 'top' | 'side') => {
+  const setCameraView = (type: CameraPresetView) => {
     const camera = cameraRef.current;
     if (!camera) return;
     const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z, 600);
+
+    // Reset camera up vector to default (0, 1, 0)
+    camera.up.set(0, 1, 0);
 
     if (type === 'iso') {
       camera.position.set(
@@ -800,10 +847,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       );
     } else if (type === 'front') {
       camera.position.set(bounds.center.x, bounds.center.y, bounds.center.z - maxDim * 2.5);
+    } else if (type === 'back') {
+      camera.position.set(bounds.center.x, bounds.center.y, bounds.center.z + maxDim * 2.5);
     } else if (type === 'top') {
+      camera.up.set(0, 0, 1);
       camera.position.set(bounds.center.x, bounds.center.y + maxDim * 2.8, bounds.center.z);
-    } else if (type === 'side') {
+    } else if (type === 'bottom') {
+      camera.up.set(0, 0, -1);
+      camera.position.set(bounds.center.x, bounds.center.y - maxDim * 2.8, bounds.center.z);
+    } else if (type === 'side' || type === 'right') {
       camera.position.set(bounds.center.x + maxDim * 2.5, bounds.center.y, bounds.center.z);
+    } else if (type === 'left') {
+      camera.position.set(bounds.center.x - maxDim * 2.5, bounds.center.y, bounds.center.z);
     }
 
     camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);

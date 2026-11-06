@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 /**
  * Camera preset view directions supported by the 3D viewport.
  */
-export type CameraPresetView = 'iso' | 'front' | 'top' | 'side';
+export type CameraPresetView = 'iso' | 'front' | 'back' | 'left' | 'right' | 'top' | 'bottom' | 'side';
 
 /**
  * Props for the combined 3D viewer toolbar component.
