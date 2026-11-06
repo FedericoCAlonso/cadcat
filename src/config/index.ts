@@ -56,6 +56,7 @@ export const dimensionBoundsSchema = z.object({
 });
 
 export const uiDefaultsSchema = z.object({
+  showInterferences: z.boolean().default(false),
   dimensions: z.object({
     width: dimensionBoundsSchema,
     height: dimensionBoundsSchema,

@@ -213,6 +213,8 @@ export interface ModuleFormProps {
   onRearStructuralRailsWidthChange?: (val: number) => void;
   // Architectural Interferences Lab (Hito 2)
   enableInterferencesLab?: boolean;
+  /** Whether the architectural interferences section and controls are visible in the UI. */
+  showInterferences?: boolean;
   columnObstacle?: ColumnObstacle;
   falseSquare?: FalseSquare;
   onColumnObstacleChange?: (col: ColumnObstacle) => void;
@@ -385,6 +387,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onRearStructuralRailsChange,
     onRearStructuralRailsWidthChange,
     enableInterferencesLab: _enableInterferencesLab = false,
+    showInterferences = DEFAULT_UI_CONFIG.showInterferences,
     columnObstacle,
     falseSquare,
     onColumnObstacleChange,
@@ -564,9 +567,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       { id: 'distribution' as FormSection, label: 'Vanos', icon: '🔲' },
       { id: 'interior' as FormSection, label: 'Interior', icon: '🚪' },
       { id: 'materials' as FormSection, label: 'Materiales', icon: '🎨' },
-      { id: 'interferences' as FormSection, label: 'Interferencias', icon: '📐' },
+      ...(showInterferences ? [{ id: 'interferences' as FormSection, label: 'Interferencias', icon: '📐' }] : []),
     ];
-  }, [isWallShelves]);
+  }, [isWallShelves, showInterferences]);
 
   // Section index for mobile step navigation
   const currentStepIndex = sectionsList.findIndex((s) => s.id === openSection);
@@ -715,19 +718,23 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         onDepthChange={onDepthChange}
         onSwitchToSiteMode={onSwitchToSiteMode}
         isMobileDevice={isMobileDevice}
-        activeInterferenceCount={activeInterferenceCount}
-        onOpenInterferences={() => {
-          setOpenSection('interferences');
-          setIsAllExpanded(false);
-          if (typeof document !== 'undefined') {
-            const el = document.getElementById('accordion-section-interferences');
-            if (el && typeof el.scrollIntoView === 'function') {
-              try {
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-              } catch {}
-            }
-          }
-        }}
+        activeInterferenceCount={showInterferences ? activeInterferenceCount : 0}
+        onOpenInterferences={
+          showInterferences
+            ? () => {
+                setOpenSection('interferences');
+                setIsAllExpanded(false);
+                if (typeof document !== 'undefined') {
+                  const el = document.getElementById('accordion-section-interferences');
+                  if (el && typeof el.scrollIntoView === 'function') {
+                    try {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    } catch {}
+                  }
+                }
+              }
+            : undefined
+        }
       />
 
       {/* 2. Compact Module & Project Bar */}
@@ -1215,25 +1222,27 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             />
           </Accordion>
 
-          {/* SECCIÓN 6: Interferencias Arquitectónicas */}
-          <Accordion
-            id="interferences"
-            icon="📐"
-            title="Interferencias"
-            summary={interferencesSummary}
-            isOpen={isAllExpanded || openSection === 'interferences'}
-            onToggle={() => handleToggleSection('interferences')}
-          >
-            <InterferencesSection
-              width={width}
-              height={height}
-              depth={depth}
-              columnObstacle={columnObstacle}
-              falseSquare={falseSquare}
-              onColumnObstacleChange={onColumnObstacleChange}
-              onFalseSquareChange={onFalseSquareChange}
-            />
-          </Accordion>
+          {/* SECCIÓN 6: Interferencias Arquitectónicas (Oculta según flag showInterferences) */}
+          {showInterferences && (
+            <Accordion
+              id="interferences"
+              icon="📐"
+              title="Interferencias"
+              summary={interferencesSummary}
+              isOpen={isAllExpanded || openSection === 'interferences'}
+              onToggle={() => handleToggleSection('interferences')}
+            >
+              <InterferencesSection
+                width={width}
+                height={height}
+                depth={depth}
+                columnObstacle={columnObstacle}
+                falseSquare={falseSquare}
+                onColumnObstacleChange={onColumnObstacleChange}
+                onFalseSquareChange={onFalseSquareChange}
+              />
+            </Accordion>
+          )}
         </>
       )}
 

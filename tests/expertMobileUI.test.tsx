@@ -232,7 +232,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     container.remove();
   });
 
-  it('shows export buttons and Save Module on final section (Interferencias) on mobile', () => {
+  it('shows export buttons and Save Module on final section (Materiales) on mobile', () => {
     const handleSave = vi.fn();
     const handleExportCsv = vi.fn();
     const handleExportPdf = vi.fn();
@@ -257,12 +257,12 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       );
     });
 
-    // Switch to final section tab (Interferencias)
-    const interferencesTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
-      b.textContent?.includes('Interferencias'),
+    // Switch to final section tab (Materiales)
+    const materialsTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
+      b.textContent?.includes('Materiales'),
     ) as HTMLButtonElement | undefined;
     act(() => {
-      interferencesTab?.click();
+      materialsTab?.click();
     });
 
     // Verify Save Module button in footer
@@ -390,5 +390,56 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
 
     // Desktop button "Modo Obra (Táctil)" must NOT be present on mobile
     expect(htmlMobile).not.toContain('Modo Obra (Táctil)');
+  });
+
+  it('controls visibility of Interferencias elements based on showInterferences flag', () => {
+    // 1. With showInterferences={false} (default)
+    const htmlHidden = renderToString(
+      <ModuleForm
+        isMobile={false}
+        width={600}
+        height={720}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        showInterferences={false}
+        columnObstacle={{
+          enabled: true,
+          type: 'vertical-column',
+          referenceEdge: 'left',
+          distanceFromReferenceMm: 0,
+          widthMm: 150,
+          depthMm: 120,
+          corner: 'back-left',
+        }}
+      />,
+    );
+    expect(htmlHidden).not.toContain('accordion-section-interferences');
+    expect(htmlHidden).not.toContain('interferencia');
+    expect(htmlHidden).not.toContain('📐 Interferencias');
+
+    // 2. With showInterferences={true}
+    const htmlVisible = renderToString(
+      <ModuleForm
+        isMobile={false}
+        width={600}
+        height={720}
+        depth={560}
+        materials={mockMaterials}
+        edgeBands={mockEdgeBands}
+        showInterferences={true}
+        columnObstacle={{
+          enabled: true,
+          type: 'vertical-column',
+          referenceEdge: 'left',
+          distanceFromReferenceMm: 0,
+          widthMm: 150,
+          depthMm: 120,
+          corner: 'back-left',
+        }}
+      />,
+    );
+    expect(htmlVisible).toContain('accordion-section-interferences');
+    expect(htmlVisible).toContain('interferencia');
   });
 });

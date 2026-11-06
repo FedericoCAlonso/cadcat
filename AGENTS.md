@@ -68,6 +68,7 @@ Este documento establece las directivas de calidad, diseño y arquitectura **est
 ### 6. Estricta Política Anti-Regresión y Preservación de Implementaciones Previas
 - **Inviolabilidad de Requerimientos Previos:** Queda terminantemente prohibido deshacer o eliminar implementaciones, herramientas, pantallas o accesos que el usuario solicitó específicamente (ej. botón *Edición Especial* de vanos, diagramas esquemáticos contextuales), salvo que el usuario pida **explícitamente** retirarlos.
 - **Validación Previa ante Indicaciones Contradictorias:** Si el usuario proporciona una indicación o solicitud que entra en aparente contradicción con un diseño, componente o regla previamente acordada, el agente **no debe aplicar cambios destructivos de manera automática**. Es mandatorio dialogar primero, señalar con respeto la posible contradicción y confirmar la intención del usuario antes de modificar o remover código existente.
+- **Interferencias:** UI hidden by flag. Planned for a later phase.
 
 ### 7. Flexibilidad Dimensional y Material en Subdivisión de Vanos
 - Prohibido asumir divisiones simétricas fijas (mitad y mitad) en resolutores o interfaces de grillas/matrices de vanos. El usuario debe poder definir posiciones relativas y absolutas con total libertad.
