@@ -264,14 +264,14 @@ export function InteriorSection({
 
       {/* Controles para Cajones (Stage 2 Step A: Grupos ergonómicos y diagramas) */}
       {activeBay.type === 'drawer-stack' && (
-        <div id="drawer-section-after" className="drawer-section-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div id="drawer-section-after" className="drawer-section-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
 
           {/* GRUPO 1: Distribución de frentes */}
           <div className="drawer-group">
             <h3 className="drawer-group-title">Distribución de frentes</h3>
 
             {/* Fila 2 columnas: Cantidad de cajones y Luz entre frentes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem', marginBottom: '0.35rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem', marginBottom: '0.25rem' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="drawer-field-label">Cantidad de cajones:</label>
                 <div className="m3-stepper-field">
@@ -283,8 +283,8 @@ export function InteriorSection({
                   >
                     −
                   </button>
-                  <div className="builder-stepper-display">
-                    {`${activeBay.drawerTracks.length} Cajones`}
+                  <div className="builder-stepper-display" style={{ whiteSpace: 'nowrap' }}>
+                    {activeBay.drawerTracks.length}
                   </div>
                   <button
                     type="button"
@@ -311,7 +311,7 @@ export function InteriorSection({
                   >
                     −
                   </button>
-                  <div className="builder-stepper-display">
+                  <div className="builder-stepper-display" style={{ whiteSpace: 'nowrap' }}>
                     {`${(activeBay.gapMm ?? 2.5).toFixed(1)} mm`}
                   </div>
                   <button

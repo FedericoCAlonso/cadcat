@@ -50,7 +50,7 @@ export function PanelStickyHeader({
 }: PanelStickyHeaderProps): ReactElement {
   return (
     <header className="panel-sticky-header">
-      <div className="panel-sticky-header__top-row">
+      <div className="panel-sticky-header__row">
         <div className="panel-sticky-header__titles">
           <span className="panel-sticky-header__badge">⚙️ Modo Experto</span>
           <h2 className="panel-sticky-header__section-name">
@@ -58,93 +58,91 @@ export function PanelStickyHeader({
           </h2>
         </div>
 
-        <div className="panel-sticky-header__actions">
-          {activeInterferenceCount > 0 && onOpenInterferences && (
-            <button
-              type="button"
-              onClick={onOpenInterferences}
-              className="panel-sticky-header__warning-badge"
-              title="Interferencias arquitectónicas activas en el módulo. Clic para ver o ajustar."
-              aria-label={`${activeInterferenceCount} interferencias activas`}
-            >
-              <span aria-hidden="true">⚠️</span>
-              <span>{`${activeInterferenceCount} ${activeInterferenceCount === 1 ? 'interferencia' : 'interferencias'}`}</span>
-            </button>
-          )}
+        <div className="panel-sticky-header__dimensions-bar">
+          <span className="dimensions-bar-unit" title="Milímetros (mm)">mm</span>
+          <div className="panel-sticky-header__dimensions-grid">
+            <div className="header-dim-col">
+              <label htmlFor="header-dim-width" className="header-dim-label-inside">
+                An
+              </label>
+              <NumericInput
+                id="header-dim-width"
+                value={width}
+                min={DEFAULT_UI_CONFIG.dimensions.width.min}
+                max={DEFAULT_UI_CONFIG.dimensions.width.max}
+                step={DEFAULT_UI_CONFIG.dimensions.width.step}
+                onChange={onWidthChange}
+                restoreOnInvalid={true}
+                ariaLabel="Ancho del módulo en mm"
+                className="header-dim-input"
+              />
+            </div>
 
-          {onSwitchToSiteMode && (
-            <button
-              type="button"
-              onClick={onSwitchToSiteMode}
-              className="m3-button m3-button--tonal panel-header-btn"
-              title="Cambiar a Modo Taller / Obra (gestual para celular)"
-              aria-label="Cambiar a Modo Taller"
-            >
-              <span aria-hidden="true">🏗️</span>
-              <span>Modo Taller</span>
-            </button>
-          )}
-        </div>
-      </div>
+            <div className="header-dim-col">
+              <label htmlFor="header-dim-height" className="header-dim-label-inside">
+                Al
+              </label>
+              <NumericInput
+                id="header-dim-height"
+                value={height}
+                min={DEFAULT_UI_CONFIG.dimensions.height.min}
+                max={DEFAULT_UI_CONFIG.dimensions.height.max}
+                step={DEFAULT_UI_CONFIG.dimensions.height.step}
+                onChange={onHeightChange}
+                restoreOnInvalid={true}
+                ariaLabel="Alto del módulo en mm"
+                className="header-dim-input"
+              />
+            </div>
 
-      <div className="panel-sticky-header__dimensions-bar">
-        <div className="dimensions-bar-header">
-          <span className="dimensions-bar-title">📐 Cotas</span>
-          <span className="dimensions-bar-unit">(mm)</span>
-        </div>
-
-        <div className="panel-sticky-header__dimensions-grid">
-          <div className="header-dim-col">
-            <label htmlFor="header-dim-width" className="header-dim-label">
-              Ancho
-            </label>
-            <NumericInput
-              id="header-dim-width"
-              value={width}
-              min={DEFAULT_UI_CONFIG.dimensions.width.min}
-              max={DEFAULT_UI_CONFIG.dimensions.width.max}
-              step={DEFAULT_UI_CONFIG.dimensions.width.step}
-              onChange={onWidthChange}
-              restoreOnInvalid={true}
-              ariaLabel="Ancho del módulo en mm"
-              className="header-dim-input"
-            />
-          </div>
-
-          <div className="header-dim-col">
-            <label htmlFor="header-dim-height" className="header-dim-label">
-              Alto
-            </label>
-            <NumericInput
-              id="header-dim-height"
-              value={height}
-              min={DEFAULT_UI_CONFIG.dimensions.height.min}
-              max={DEFAULT_UI_CONFIG.dimensions.height.max}
-              step={DEFAULT_UI_CONFIG.dimensions.height.step}
-              onChange={onHeightChange}
-              restoreOnInvalid={true}
-              ariaLabel="Alto del módulo en mm"
-              className="header-dim-input"
-            />
-          </div>
-
-          <div className="header-dim-col">
-            <label htmlFor="header-dim-depth" className="header-dim-label">
-              Prof.
-            </label>
-            <NumericInput
-              id="header-dim-depth"
-              value={depth}
-              min={DEFAULT_UI_CONFIG.dimensions.depth.min}
-              max={DEFAULT_UI_CONFIG.dimensions.depth.max}
-              step={DEFAULT_UI_CONFIG.dimensions.depth.step}
-              onChange={onDepthChange}
-              restoreOnInvalid={true}
-              ariaLabel="Profundidad del módulo en mm"
-              className="header-dim-input"
-            />
+            <div className="header-dim-col">
+              <label htmlFor="header-dim-depth" className="header-dim-label-inside">
+                Pr
+              </label>
+              <NumericInput
+                id="header-dim-depth"
+                value={depth}
+                min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+                max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+                step={DEFAULT_UI_CONFIG.dimensions.depth.step}
+                onChange={onDepthChange}
+                restoreOnInvalid={true}
+                ariaLabel="Profundidad del módulo en mm"
+                className="header-dim-input"
+              />
+            </div>
           </div>
         </div>
+
+        {(activeInterferenceCount > 0 && onOpenInterferences) || onSwitchToSiteMode ? (
+          <div className="panel-sticky-header__actions">
+            {activeInterferenceCount > 0 && onOpenInterferences && (
+              <button
+                type="button"
+                onClick={onOpenInterferences}
+                className="panel-sticky-header__warning-badge"
+                title="Interferencias arquitectónicas activas en el módulo. Clic para ver o ajustar."
+                aria-label={`${activeInterferenceCount} interferencias activas`}
+              >
+                <span aria-hidden="true">⚠️</span>
+                <span>{`${activeInterferenceCount}`}</span>
+              </button>
+            )}
+
+            {onSwitchToSiteMode && (
+              <button
+                type="button"
+                onClick={onSwitchToSiteMode}
+                className="m3-button m3-button--tonal panel-header-btn"
+                title="Cambiar a Modo Taller / Obra (gestual para celular)"
+                aria-label="Cambiar a Modo Taller"
+              >
+                <span aria-hidden="true">🏗️</span>
+                <span>Taller</span>
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
     </header>
   );

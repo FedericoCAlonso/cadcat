@@ -256,8 +256,10 @@ export function NumericInput({
           >
             −
           </button>
-          {inputElement}
-          {unit && <span className="numeric-input-unit">{unit}</span>}
+          <div className="numeric-input-field-container">
+            {inputElement}
+            {unit && <span className="numeric-input-unit-suffix">{unit}</span>}
+          </div>
           <button
             type="button"
             className="m3-stepper-btn"
@@ -279,12 +281,10 @@ export function NumericInput({
 
   if (unit) {
     return (
-      <div className="numeric-input-with-unit-wrapper" style={{ display: 'inline-flex', flexDirection: 'column' }}>
-        <div className="numeric-input-with-unit" style={{ display: 'inline-flex', alignItems: 'center' }}>
+      <div className="numeric-input-with-unit-wrapper" style={{ width: '100%', position: 'relative' }}>
+        <div className="numeric-input-field-container">
           {inputElement}
-          <span className="numeric-input-unit" style={{ paddingLeft: '0.4rem', fontSize: '0.82rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-            {unit}
-          </span>
+          <span className="numeric-input-unit-suffix">{unit}</span>
         </div>
         {isCurrentInvalid && rangeMessage && (
           <span className="numeric-input-validation-msg" role="alert" title={`Rango permitido: ${rangeMessage}`}>

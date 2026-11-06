@@ -1,5 +1,6 @@
 {
   "showInterferences": false,
+  "drawerTwoColumnThresholdPx": 520,
   "dimensions": {
     "width": {
       "default": 600,

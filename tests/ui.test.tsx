@@ -144,7 +144,7 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('2 Vanos (Parante)');
 
     // Drawer controls (Stage 2 Step A: visualizer, groups and diagram options)
-    expect(html).toContain('3 Cajones');
+    expect(html).toContain('Cantidad de cajones:');
     expect(html).toContain('Distribución a Escala');
     expect(html).toContain('Atajos:');
     expect(html).toContain('Ajustar Cajón 1');

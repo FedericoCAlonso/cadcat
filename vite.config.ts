@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cacheId: 'cadcat',
           globPatterns: ['**/*.{js,css,html,svg,json,png,ico}'],
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           skipWaiting: true,
           clientsClaim: true,
           cleanupOutdatedCaches: true,

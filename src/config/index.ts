@@ -57,6 +57,7 @@ export const dimensionBoundsSchema = z.object({
 
 export const uiDefaultsSchema = z.object({
   showInterferences: z.boolean().default(false),
+  drawerTwoColumnThresholdPx: z.number().positive().default(520),
   dimensions: z.object({
     width: dimensionBoundsSchema,
     height: dimensionBoundsSchema,

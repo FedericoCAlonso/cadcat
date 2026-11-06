@@ -1968,6 +1968,7 @@ legend.builder-section-title {
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-sm);
   min-height: 44px;
+  white-space: nowrap;
 }
 
 .builder-bay-tab-row {
@@ -3238,7 +3239,7 @@ legend.builder-section-title {
   z-index: 25;
   background-color: var(--md-sys-color-surface);
   border-bottom: 1px solid var(--md-sys-color-outline-variant);
-  padding: 0.65rem 0.85rem 0.5rem 0.85rem;
+  padding: 0.35rem 0.65rem;
   margin: -1.5rem -1.5rem 0.5rem -1.5rem;
   border-radius: var(--md-sys-shape-corner-lg) var(--md-sys-shape-corner-lg) 0 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -3247,61 +3248,62 @@ legend.builder-section-title {
 @media (max-width: 600px) {
   .panel-sticky-header {
     margin: -0.75rem -0.6rem 0.5rem -0.6rem;
-    padding: 0.5rem 0.65rem 0.45rem 0.65rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 0;
   }
 }
 
-.panel-sticky-header__top-row {
+.panel-sticky-header__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
 }
 
 .panel-sticky-header__titles {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0;
+  min-width: 0;
 }
 
 .panel-sticky-header__badge {
-  font: var(--md-sys-typescale-label-small);
-  color: var(--md-sys-color-primary);
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  color: var(--md-sys-color-primary);
+  line-height: 1;
 }
 
 .panel-sticky-header__section-name {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 800;
   color: var(--md-sys-color-on-surface);
-  line-height: 1.2;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .panel-sticky-header__actions {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .panel-sticky-header__warning-badge {
-  min-height: 34px;
-  padding: 0 0.65rem;
-  border-radius: 17px;
+  min-height: 28px;
+  padding: 0 0.5rem;
+  border-radius: 14px;
   border: 1px solid var(--md-sys-color-error, #b3261e);
   background-color: var(--md-sys-color-error-container, #f9dedc);
   color: var(--md-sys-color-on-error-container, #410e0b);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   cursor: pointer;
-  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .panel-sticky-header__warning-badge:hover {
@@ -3309,94 +3311,87 @@ legend.builder-section-title {
 }
 
 .panel-header-btn {
-  min-height: 38px;
-  padding: 0 0.75rem;
-  font-size: 0.78rem;
-  border-radius: 19px;
+  min-height: 28px;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+  border-radius: 14px;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .panel-sticky-header__dimensions-bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.35rem;
-  padding: 0.4rem 0.55rem;
   background-color: var(--md-sys-color-surface-container);
-  border-radius: var(--md-sys-shape-corner-sm);
+  border-radius: var(--md-sys-shape-corner-xs);
+  padding: 0.2rem 0.35rem;
   border: 1px solid var(--md-sys-color-outline-variant);
-}
-
-.dimensions-bar-header {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-}
-
-.dimensions-bar-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--md-sys-color-primary);
 }
 
 .dimensions-bar-unit {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.panel-sticky-header__dimensions-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.4rem;
-  width: 100%;
-}
-
-.header-dim-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.header-dim-label {
   font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--md-sys-color-on-surface-variant);
+  font-weight: 800;
+  color: var(--md-sys-color-primary);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
   user-select: none;
 }
 
-.header-dim-input {
-  width: 100%;
-  min-height: 34px;
-  box-sizing: border-box;
+.panel-sticky-header__dimensions-grid {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.header-dim-col {
+  display: inline-flex;
+  align-items: center;
   background-color: var(--md-sys-color-surface);
   border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 6px;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.88rem;
+  border-radius: var(--md-sys-shape-corner-xs);
+  padding: 0 0.25rem;
+  height: 28px;
+  width: 62px;
+  box-sizing: border-box;
+}
+
+.header-dim-col:focus-within {
+  border-color: var(--md-sys-color-primary);
+  outline: 1px solid var(--md-sys-color-primary);
+}
+
+.header-dim-label-inside {
+  font-size: 0.65rem;
   font-weight: 700;
-  color: var(--md-sys-color-on-surface);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-right: 0.15rem;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.header-dim-input {
+  width: 100% !important;
+  min-height: auto !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  color: var(--md-sys-color-on-surface) !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  box-shadow: none !important;
+  outline: none !important;
   -moz-appearance: textfield;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .header-dim-input::-webkit-outer-spin-button,
 .header-dim-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}
-
-.header-dim-input:focus {
-  outline: none;
-  border-color: var(--md-sys-color-primary);
-  box-shadow: 0 0 0 2px var(--md-sys-color-primary-container);
 }
 
 /* Numeric input validation styles */
@@ -3908,18 +3903,18 @@ legend.builder-section-title {
 .drawer-group {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.05rem;
 }
 
 .drawer-group .form-group {
-  margin-bottom: 0.25rem !important;
+  margin-bottom: 0.15rem !important;
 }
 
 .drawer-group-title {
   font-size: 0.8rem;
   font-weight: 800;
   color: var(--md-sys-color-primary);
-  margin: 0.35rem 0 0.15rem 0;
+  margin: 0.25rem 0 0.1rem 0;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -3950,8 +3945,8 @@ legend.builder-section-title {
 .drawer-option-btn {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 44px;
-  padding: 0.2rem 0.35rem;
+  min-height: 40px;
+  padding: 0.15rem 0.3rem;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -3974,8 +3969,8 @@ legend.builder-section-title {
   align-items: center;
   text-align: center;
   gap: 0.15rem;
-  padding: 0.25rem 0.15rem;
-  min-height: 48px;
+  padding: 0.2rem 0.15rem;
+  min-height: 44px;
 }
 
 .drawer-option-btn:hover {
@@ -4004,23 +3999,55 @@ legend.builder-section-title {
 .drawer-option-label {
   flex: 1;
   min-width: 0;
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 .drawer-segmented-row--3col .drawer-option-label {
   font-size: 0.68rem;
   line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* Trailing Unit Suffix for NumericInput */
+.numeric-input-field-container {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.numeric-input-field-container input {
+  width: 100% !important;
+  text-align: center;
+  padding-right: 1.8rem !important;
+}
+
+.numeric-input-unit-suffix {
+  position: absolute;
+  right: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface-variant);
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
 }
 
 /* Drawer Distribution Visualizer (Step A) */
 .drawer-distribution-visualizer {
+  container-type: inline-size;
+  container-name: drawer-viz;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding: 0.35rem 0.45rem;
+  padding: 0.3rem 0.4rem;
   background-color: var(--md-sys-color-surface-container-low);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-sm);
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .drawer-distribution-header {
@@ -4028,7 +4055,7 @@ legend.builder-section-title {
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .drawer-distribution-title {
@@ -4038,6 +4065,8 @@ legend.builder-section-title {
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--md-sys-color-primary);
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .drawer-distribution-cavity-pill {
@@ -4047,6 +4076,7 @@ legend.builder-section-title {
   border-radius: 8px;
   background-color: var(--md-sys-color-surface-container-high);
   color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
 }
 
 .drawer-distribution-custom-btn {
@@ -4054,6 +4084,8 @@ legend.builder-section-title {
   padding: 0.15rem 0.35rem;
   min-height: 26px;
   color: var(--md-sys-color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .drawer-distribution-custom-field {
@@ -4066,42 +4098,59 @@ legend.builder-section-title {
 .drawer-distribution-recipes {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  gap: 0.35rem;
+  width: 100%;
 }
 
 .drawer-recipes-caption {
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--md-sys-color-on-surface-variant);
-  margin-right: 0.15rem;
   flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.drawer-recipes-scroll-container {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .drawer-recipes-chips {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: none;
-  padding: 1px 0;
   -webkit-overflow-scrolling: touch;
+  padding: 1px 24px 1px 0;
 }
 
 .drawer-recipes-chips::-webkit-scrollbar {
   display: none;
 }
 
+.drawer-recipes-scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to right, transparent, var(--md-sys-color-surface-container-low));
+  pointer-events: none;
+}
+
 .drawer-recipe-chip {
   min-height: 24px;
-  padding: 0 0.5rem;
+  padding: 0 0.45rem;
   border-radius: 12px;
   border: 1px solid var(--md-sys-color-outline-variant);
   background-color: var(--md-sys-color-surface);
   color: var(--md-sys-color-on-surface);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -4120,43 +4169,55 @@ legend.builder-section-title {
   font-weight: 700;
 }
 
+/* 1 Column Layout by default for drawer visualizer */
 .drawer-elevation-and-editor {
   display: flex;
-  gap: 0.45rem;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
   margin-top: 0.1rem;
 }
 
-@media (max-width: 320px) {
+/* 2 Columns enabled strictly via container query when container is wider than config limit */
+@container drawer-viz (min-width: 520px) {
   .drawer-elevation-and-editor {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .drawer-elevation-diagram {
+    flex: 0 0 170px;
+  }
+  .drawer-selected-editor {
+    flex: 1 1 0;
   }
 }
 
 .drawer-elevation-diagram {
-  flex: 0 0 115px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 90px;
   background-color: var(--md-sys-color-surface);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 6px;
   padding: 2px;
+  box-sizing: border-box;
 }
 
 .drawer-elevation-band {
   width: 100%;
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 4px;
-  padding: 0.1rem 0.25rem;
+  padding: 0 0.45rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  transition: all 0.15s ease;
-  min-height: 22px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, outline 0.15s ease;
+  min-height: 28px;
+  box-sizing: border-box;
   text-align: left;
+  white-space: nowrap;
 }
 
 .drawer-elevation-band--frac {
@@ -4176,67 +4237,80 @@ legend.builder-section-title {
   background-color: var(--md-sys-color-primary-container) !important;
   color: var(--md-sys-color-on-primary-container) !important;
   font-weight: 700;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  /* Do not enlarge: no extra padding, margin or scale transform */
 }
 
 .drawer-band-content {
   display: flex;
   align-items: baseline;
-  gap: 0.3rem;
+  gap: 0.45rem;
+  white-space: nowrap;
 }
 
 .drawer-band-num {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .drawer-band-height {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
+  white-space: nowrap;
 }
 
 .drawer-band-tag {
   font-size: 0.65rem;
   font-weight: 700;
-  padding: 0.08rem 0.25rem;
+  padding: 0.08rem 0.35rem;
   border-radius: 4px;
   background-color: rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
 }
 
 .drawer-selected-editor {
-  flex: 1 1 0;
-  min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
   padding: 0.25rem 0.35rem;
   background-color: var(--md-sys-color-surface);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .drawer-selected-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
 }
 
 .drawer-selected-title {
   font-size: 0.74rem;
   font-weight: 700;
   color: var(--md-sys-color-on-surface);
+  white-space: nowrap;
 }
 
 .drawer-unit-toggle {
-  width: 100%;
+  display: flex;
+  width: auto;
+  min-width: 140px;
+  gap: 0.2rem;
 }
 
 .drawer-unit-toggle .m3-segmented-button__item {
+  flex: 1 1 0;
+  min-width: 0;
   font-size: 0.7rem;
   min-height: 26px;
-  padding: 0.1rem 0.35rem;
+  padding: 0.05rem 0.35rem;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .drawer-selected-field-row {
@@ -4253,4 +4327,5 @@ legend.builder-section-title {
   font-size: 0.68rem;
   font-weight: 600;
   color: var(--md-sys-color-on-surface-variant);
+  white-space: nowrap;
 }
