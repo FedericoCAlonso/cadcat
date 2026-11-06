@@ -15,8 +15,11 @@ import {
   type CountertopCalculationResult,
 } from '../resolver';
 import type { JointKind, JointStrategy, Material, EdgeBand, InterferenceConfig } from '../model';
+import { DEFAULT_UI_CONFIG } from '../config';
 import { translatePieceRole } from './localization';
 import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
+import { ViewerToolbar } from './ViewerToolbar';
+import { PieceInspectorCard } from './PieceInspectorCard';
 
 export interface Viewport3DProps {
   boxes: SpatialPieceBox[];
@@ -114,6 +117,15 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   const [wireframe, setWireframe] = useState<boolean>(false);
   const [showMachining3D, setShowMachining3D] = useState<boolean>(true);
   const [activeMechId, setActiveMechId] = useState<string>('all');
+  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState<boolean>(false);
+
+  // Mutable refs to access fresh state in Three.js event listeners without re-initializing WebGL scene
+  const selectedPieceIdRef = useRef(selectedPieceId);
+  selectedPieceIdRef.current = selectedPieceId;
+  const onSelectPieceRef = useRef(onSelectPiece);
+  onSelectPieceRef.current = onSelectPiece;
+  const kinematicMechanismsRef = useRef(kinematicMechanisms);
+  kinematicMechanismsRef.current = kinematicMechanisms;
 
   // Selected piece data lookup
   const selectedPiece = pieces.find((p) => p.id === selectedPieceId) ?? null;
@@ -125,6 +137,17 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       setActiveMechId(pieceMech.id);
     }
   }, [selectedPieceId, pieceMech]);
+
+  // Escape key closes inspector and clears piece selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedPieceIdRef.current) {
+        onSelectPieceRef.current(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -195,6 +218,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     scene.add(pieceGroup);
     pieceGroupRef.current = pieceGroup;
 
+    // Hover outline helper (distinct visual outline on hover without altering piece material)
+    const hoverOutlineGeom = new THREE.BufferGeometry();
+    const hoverOutlineMat = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      linewidth: 2,
+      depthTest: false,
+    });
+    const hoverOutline = new THREE.LineSegments(hoverOutlineGeom, hoverOutlineMat);
+    hoverOutline.visible = false;
+    hoverOutline.renderOrder = 999;
+    scene.add(hoverOutline);
+
     // Interactive mouse & touch orbit controls
     let isDragging = false;
     let prevX = 0;
@@ -227,8 +262,51 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      onRotate(e.clientX, e.clientY);
+      if (isDragging) {
+        hoverOutline.visible = false;
+        onRotate(e.clientX, e.clientY);
+        return;
+      }
+
+      // Hover raycasting (only when not orbiting)
+      if (!containerRef.current || !rendererRef.current) return;
+      const rect = rendererRef.current.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(pieceGroup.children, true);
+
+      if (intersects.length > 0) {
+        let hit: THREE.Object3D | null = intersects[0]?.object ?? null;
+        while (hit && !hit.userData?.pieceId && hit.parent && hit.parent !== pieceGroup) {
+          hit = hit.parent;
+        }
+        if (hit instanceof THREE.Mesh && hit.geometry) {
+          const pId = hit.userData?.pieceId as string | undefined;
+          if (pId && pId !== selectedPieceIdRef.current) {
+            hoverOutline.geometry.dispose();
+            hoverOutline.geometry = new THREE.EdgesGeometry(hit.geometry);
+            hoverOutline.position.copy(hit.position);
+            hoverOutline.rotation.copy(hit.rotation);
+            hoverOutline.scale.copy(hit.scale);
+            hoverOutline.visible = true;
+            rendererRef.current.domElement.style.cursor = 'pointer';
+            return;
+          }
+        }
+      }
+      hoverOutline.visible = false;
+      if (rendererRef.current) {
+        rendererRef.current.domElement.style.cursor = 'default';
+      }
+    };
+
+    const onMouseLeave = () => {
+      hoverOutline.visible = false;
+      if (rendererRef.current) {
+        rendererRef.current.domElement.style.cursor = 'default';
+      }
     };
 
     const onMouseUp = () => {
@@ -297,13 +375,21 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       const intersects = raycaster.intersectObjects(pieceGroup.children, true);
 
       if (intersects.length > 0) {
-        const hit = intersects[0]?.object;
+        let hit: THREE.Object3D | null = intersects[0]?.object ?? null;
+        while (hit && !hit.userData?.pieceId && hit.parent && hit.parent !== pieceGroup) {
+          hit = hit.parent;
+        }
         const pId = hit?.userData?.pieceId as string | undefined;
         if (pId) {
-          onSelectPiece(pId);
+          onSelectPieceRef.current(pId);
+          setIsInspectorCollapsed(false);
+          const matchingMech = kinematicMechanismsRef.current?.find((m) => m.pieceIds.includes(pId));
+          if (matchingMech) {
+            setActiveMechId(matchingMech.id);
+          }
         }
       } else {
-        onSelectPiece(null);
+        onSelectPieceRef.current(null);
       }
     };
 
@@ -311,6 +397,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     domElement.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    domElement.addEventListener('mouseleave', onMouseLeave);
     domElement.addEventListener('wheel', onWheel, { passive: false });
     domElement.addEventListener('click', onClick);
     domElement.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -349,11 +436,15 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       domElement.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      domElement.removeEventListener('mouseleave', onMouseLeave);
       domElement.removeEventListener('wheel', onWheel);
       domElement.removeEventListener('click', onClick);
       domElement.removeEventListener('touchstart', onTouchStart);
       domElement.removeEventListener('touchmove', onTouchMove);
       domElement.removeEventListener('touchend', onTouchEnd);
+
+      hoverOutlineGeom.dispose();
+      hoverOutlineMat.dispose();
 
       if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);
@@ -742,190 +833,185 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         data-testid="viewport-3d-canvas-wrapper"
       />
 
-      {kinematicMechanisms && kinematicMechanisms.length > 0 && (
-        <div className="m3-kinematics-bar" role="region" aria-label="Controles de cinemática y apertura">
-          <div className="m3-kinematics-header">
-            <div className="m3-kinematics-title-wrap">
-              <span className="m3-kinematics-title">
-                🎮 Cinemática / Apertura:
-              </span>
-            </div>
-
-            <div className="m3-kinematics-selector-wrap">
-              <select
-                aria-label="Seleccionar mecanismo móvil"
-                className="m3-select m3-kinematics-select"
-                value={activeMechId}
-                onChange={(e) => setActiveMechId(e.target.value)}
-              >
-                <option value="all">Todos los mecanismos ({kinematicMechanisms.length})</option>
-                {kinematicMechanisms.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="m3-kinematics-controls-body">
-            <div className="m3-kinematics-actions">
-              <button
-                type="button"
-                className="m3-btn m3-btn--small m3-btn--tonal"
-                onClick={() => {
-                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                  if (activeMechId === 'all') {
-                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0));
-                  } else {
-                    onMechanismOpenRatioChange(activeMechId, 0);
-                  }
-                }}
-              >
-                Cerrar (0%)
-              </button>
-              <button
-                type="button"
-                className="m3-btn m3-btn--small m3-btn--tonal"
-                onClick={() => {
-                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                  if (activeMechId === 'all') {
-                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0.5));
-                  } else {
-                    onMechanismOpenRatioChange(activeMechId, 0.5);
-                  }
-                }}
-              >
-                50%
-              </button>
-              <button
-                type="button"
-                className="m3-btn m3-btn--small m3-btn--primary"
-                onClick={() => {
-                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                  if (activeMechId === 'all') {
-                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 1));
-                  } else {
-                    onMechanismOpenRatioChange(activeMechId, 1);
-                  }
-                }}
-              >
-                Abrir (100%)
-              </button>
-            </div>
-
-            <div className="m3-kinematics-slider-row">
-              <label htmlFor="kinematics-slider" className="m3-kinematics-slider-label">
-                <span>Deslizador:</span>{' '}
-                <strong>
-                  {Math.round(
-                    (activeMechId === 'all'
-                      ? kinematicMechanisms.reduce((acc, m) => acc + (kinematicsState?.[m.id] ?? 0), 0) /
-                        kinematicMechanisms.length
-                      : (kinematicsState?.[activeMechId] ?? 0)) * 100,
-                  )}
-                  %
-                </strong>
-              </label>
-              <input
-                id="kinematics-slider"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={
-                  activeMechId === 'all'
-                    ? kinematicMechanisms.reduce((acc, m) => acc + (kinematicsState?.[m.id] ?? 0), 0) /
-                      kinematicMechanisms.length
-                    : (kinematicsState?.[activeMechId] ?? 0)
-                }
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
-                  if (activeMechId === 'all') {
-                    kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, val));
-                  } else {
-                    onMechanismOpenRatioChange(activeMechId, val);
-                  }
-                }}
-                className="viewport-3d-slider"
-                aria-label="Control deslizante de apertura cinemática"
+      {/* Floating Piece Inspector on right side of viewport */}
+      {selectedPiece && (
+        <div
+          className={`viewer-floating-inspector ${isInspectorCollapsed ? 'viewer-floating-inspector--collapsed' : ''}`}
+          style={{
+            '--inspector-width': `${DEFAULT_UI_CONFIG.inspectorWidthPx ?? 320}px`,
+          } as React.CSSProperties}
+        >
+          {isInspectorCollapsed ? (
+            <button
+              type="button"
+              className="m3-btn m3-btn--tonal viewer-inspector-expand-btn"
+              onClick={() => setIsInspectorCollapsed(false)}
+              title="Abrir inspector de pieza"
+              aria-label="Abrir inspector de pieza"
+            >
+              <span>🔍 {translatePieceRole(selectedPiece.role)}</span>
+              <span aria-hidden="true">◀</span>
+            </button>
+          ) : (
+            <div className="viewer-floating-inspector-inner">
+              <div className="viewer-floating-inspector-actions-bar">
+                <button
+                  type="button"
+                  className="viewer-inspector-minimize-btn"
+                  onClick={() => setIsInspectorCollapsed(true)}
+                  title="Minimizar inspector para no tapar el modelo"
+                  aria-label="Minimizar inspector"
+                >
+                  ▶
+                </button>
+              </div>
+              <PieceInspectorCard
+                selectedPiece={selectedPiece}
+                pieceMech={pieceMech}
+                kinematicsState={kinematicsState}
+                onMechanismOpenRatioChange={onMechanismOpenRatioChange}
+                materials={props.materials}
+                standardThicknessesMm={props.pieces[0]?.thicknessMm ? [props.pieces[0].thicknessMm] : undefined}
+                pieceMaterialOverrides={props.pieceMaterialOverrides}
+                onSetPieceMaterial={props.onSetPieceMaterial}
+                pieceThicknessOverrides={props.pieceThicknessOverrides}
+                onSetPieceThickness={props.onSetPieceThickness}
+                pieceEdgeBandOverrides={props.pieceEdgeBandOverrides}
+                onSetPieceEdgeBands={props.onSetPieceEdgeBands}
+                edgeBands={props.edgeBands}
+                pieceJointOverrides={props.pieceJointOverrides}
+                jointStrategy={props.defaultJointStrategy}
+                onSetPieceJointOverride={props.onSetPieceJointOverride}
+                onOpenMachiningModal={props.onOpenMachiningModal}
+                shelfDeflections={props.shelfDeflections}
+                onSelectPiece={props.onSelectPiece}
               />
             </div>
-          </div>
+          )}
         </div>
       )}
 
-      <div className="viewport-3d-toolbar">
+      {kinematicMechanisms && kinematicMechanisms.length > 0 && (() => {
+        const currentRatio = activeMechId === 'all'
+          ? kinematicMechanisms.reduce((acc, m) => acc + (kinematicsState?.[m.id] ?? 0), 0) / kinematicMechanisms.length
+          : (kinematicsState?.[activeMechId] ?? 0);
+        const isClosed = Math.abs(currentRatio - 0) < 0.05;
+        const isFifty = Math.abs(currentRatio - 0.5) < 0.05;
+        const isOpen = Math.abs(currentRatio - 1) < 0.05;
 
-        <div className="viewport-3d-slider-group">
-          <label htmlFor="exploded-slider">
-            Despiece / Vista Explotada:{' '}
-            <strong>{`${Math.round(explodedRatio * 100)}%`}</strong>
-            <span className="visually-hidden">Exploded View:</span>
-          </label>
-          <input
-            id="exploded-slider"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={explodedRatio}
-            onChange={(e) => onExplodedRatioChange(parseFloat(e.target.value))}
-            className="viewport-3d-slider"
-          />
-        </div>
+        return (
+          <div className="m3-kinematics-bar" role="region" aria-label="Controles de cinemática y apertura">
+            <div className="m3-kinematics-header">
+              <div className="m3-kinematics-title-wrap">
+                <span className="m3-kinematics-title">
+                  🎮 Cinemática / Apertura:
+                </span>
+              </div>
 
-        <div className="m3-button-row viewport-camera-row" style={{ marginTop: 0 }}>
-          <button
-            type="button"
-            className="m3-btn m3-btn--tonal"
-            onClick={() => setCameraView('iso')}
-          >
-            Isométrica
-            <span className="visually-hidden">Isometric</span>
-          </button>
-          <button
-            type="button"
-            className="m3-btn m3-btn--tonal"
-            onClick={() => setCameraView('front')}
-          >
-            Frente
-            <span className="visually-hidden">Front</span>
-          </button>
-          <button
-            type="button"
-            className="m3-btn m3-btn--tonal"
-            onClick={() => setCameraView('top')}
-          >
-            Planta
-            <span className="visually-hidden">Top</span>
-          </button>
-          <button
-            type="button"
-            className="m3-btn m3-btn--tonal"
-            onClick={() => setCameraView('side')}
-          >
-            Lateral
-            <span className="visually-hidden">Side</span>
-          </button>
-          <button
-            type="button"
-            className="m3-btn m3-btn--outlined"
-            onClick={() => setWireframe(!wireframe)}
-          >
-            {wireframe ? 'Sólido' : 'Líneas'}
-          </button>
-          <button
-            type="button"
-            className={`m3-btn ${showMachining3D ? 'm3-btn--primary' : 'm3-btn--outlined'}`}
-            onClick={() => setShowMachining3D(!showMachining3D)}
-            title="Visualizar mecanizados (agujeros, bisagras, ranuras) en las placas 3D"
-          >
-            ⚙️ Mecanizados {showMachining3D ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </div>
+              <div className="m3-kinematics-selector-wrap">
+                <select
+                  aria-label="Seleccionar mecanismo móvil"
+                  className="m3-select m3-kinematics-select"
+                  value={activeMechId}
+                  onChange={(e) => setActiveMechId(e.target.value)}
+                >
+                  <option value="all">Todos</option>
+                  {kinematicMechanisms.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="m3-kinematics-controls-body">
+              <div className="m3-kinematics-actions">
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${isClosed ? 'm3-btn--primary is-active' : 'm3-btn--tonal'}`}
+                  onClick={() => {
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, 0);
+                    }
+                  }}
+                >
+                  Cerrar
+                </button>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${isFifty ? 'm3-btn--primary is-active' : 'm3-btn--tonal'}`}
+                  onClick={() => {
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 0.5));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, 0.5);
+                    }
+                  }}
+                >
+                  50%
+                </button>
+                <button
+                  type="button"
+                  className={`m3-btn m3-btn--small ${isOpen ? 'm3-btn--primary is-active' : 'm3-btn--tonal'}`}
+                  onClick={() => {
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, 1));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, 1);
+                    }
+                  }}
+                >
+                  Abrir
+                </button>
+              </div>
+
+              <div className="m3-kinematics-slider-row">
+                <label htmlFor="kinematics-slider" className="m3-kinematics-slider-label">
+                  <span>Deslizador:</span>{' '}
+                  <strong>
+                    {Math.round(currentRatio * 100)}%
+                  </strong>
+                </label>
+                <input
+                  id="kinematics-slider"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={currentRatio}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (!onMechanismOpenRatioChange || !kinematicMechanisms) return;
+                    if (activeMechId === 'all') {
+                      kinematicMechanisms.forEach((m) => onMechanismOpenRatioChange(m.id, val));
+                    } else {
+                      onMechanismOpenRatioChange(activeMechId, val);
+                    }
+                  }}
+                  className="viewport-3d-slider"
+                  aria-label="Control deslizante de apertura cinemática"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      <ViewerToolbar
+        onSetCameraView={setCameraView}
+        wireframe={wireframe}
+        onToggleWireframe={() => setWireframe(!wireframe)}
+        showMachining3D={showMachining3D}
+        onToggleMachining3D={() => setShowMachining3D(!showMachining3D)}
+        explodedRatio={explodedRatio}
+        onExplodedRatioChange={onExplodedRatioChange}
+      />
 
       <p className="viewport-touch-hint">
         {selectedPiece ? (

@@ -136,10 +136,11 @@ describe('Viewport3D Kinematics and Piece Inspector (Points 10 & 11)', () => {
     );
 
     expect(html).toContain('Cinemática / Apertura:');
+    expect(html).toContain('Todos');
     expect(html).toContain('Cajón 1');
-    expect(html).toContain('Cerrar (0%)');
+    expect(html).toContain('Cerrar');
     expect(html).toContain('50%');
-    expect(html).toContain('Abrir (100%)');
+    expect(html).toContain('Abrir');
     expect(html).toContain('id="kinematics-slider"');
   });
 
