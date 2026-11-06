@@ -31,8 +31,7 @@ const mockEdgeBands: EdgeBand[] = [
 ];
 
 describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
-  it('renders sticky top header with Modo Experto title, quick 3D button, and section tabs in mobile mode', () => {
-    const handleView3d = vi.fn();
+  it('renders sticky top header with Modo Experto title and section tabs in mobile mode', () => {
     const handleSwitchSite = vi.fn();
 
     const html = renderToString(
@@ -43,27 +42,25 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
         depth={550}
         materials={mockMaterials}
         edgeBands={mockEdgeBands}
-        onView3dClick={handleView3d}
         onSwitchToSiteMode={handleSwitchSite}
       />,
     );
 
     // Verify Sticky Header
-    expect(html).toContain('expert-sticky-header');
+    expect(html).toContain('panel-sticky-header');
     expect(html).toContain('Modo Experto');
-    expect(html).toContain('Ver 3D');
     expect(html).toContain('Modo Taller');
 
-    // Verify Section Tabs
-    expect(html).toContain('📏 Medidas');
-    expect(html).toContain('🏗️ Estructura');
-    expect(html).toContain('🔲 Vanos');
-    expect(html).toContain('🚪 Interior');
-    expect(html).toContain('🎨 Materiales');
-    expect(html).toContain('👁️ Todo');
+    // Verify Section Tabs and Toggle All button
+    expect(html).toContain('Medidas');
+    expect(html).toContain('Estructura');
+    expect(html).toContain('Vanos');
+    expect(html).toContain('Interior');
+    expect(html).toContain('Materiales');
+    expect(html).toContain('Abrir todo');
   });
 
-  it('starts with all sections accessible and continuous on mobile ("Todo" mode), without blocking the user', () => {
+  it('starts with all sections accessible and continuous on mobile, without blocking the user', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -92,8 +89,8 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     );
     expect(legendEstructura).toBeDefined();
 
-    // Special cell matrix button is accessible in sticky header
-    const specialHeaderBtn = container.querySelector('button[aria-label="Abrir distribución especial"]');
+    // Special cell matrix button is accessible in compact module bar
+    const specialHeaderBtn = container.querySelector('button[aria-label="Especial"]');
     expect(specialHeaderBtn).not.toBeNull();
 
     // Special cell matrix button is accessible in Vanos section
@@ -102,11 +99,11 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     );
     expect(specialVanosBtn).toBeDefined();
 
-    // "Todo" tab is selected first
-    const todoTab = Array.from(container.querySelectorAll('.expert-sticky-header button')).find((b) =>
-      b.textContent?.includes('Todo'),
+    // First tab (Medidas) is active initially
+    const firstTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
+      b.textContent?.includes('Medidas'),
     );
-    expect(todoTab?.classList.contains('selected')).toBe(true);
+    expect(firstTab?.classList.contains('scroll-fade-tab--active')).toBe(true);
 
     act(() => {
       root.unmount();
@@ -134,7 +131,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     });
 
     // Select "Medidas" tab explicitly to filter
-    const medidasTab = Array.from(container.querySelectorAll('.expert-sticky-header button')).find((b) =>
+    const medidasTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
       b.textContent?.includes('Medidas'),
     ) as HTMLButtonElement | undefined;
     expect(medidasTab).toBeDefined();
@@ -143,11 +140,9 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       medidasTab?.click();
     });
 
-    // When filtered to Medidas, Estructura is hidden
-    const legendEstructuraFiltered = Array.from(container.querySelectorAll('legend')).find((l) =>
-      l.textContent?.includes('Estructura del Casco'),
-    );
-    expect(legendEstructuraFiltered).toBeUndefined();
+    // When filtered to Medidas, Estructura panel is hidden
+    const estructuraPanel = container.querySelector('#accordion-panel-structure');
+    expect(estructuraPanel?.getAttribute('hidden')).not.toBeNull();
 
     // Step 1: Click "Estructura ▶"
     const nextToEstructura = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -159,14 +154,11 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       nextToEstructura?.click();
     });
 
-    // Now in Estructura: Casco legend should be visible
-    const legendEstructura = Array.from(container.querySelectorAll('legend')).find((l) =>
-      l.textContent?.includes('Estructura del Casco'),
-    );
-    expect(legendEstructura).toBeDefined();
+    // Now in Estructura: Casco panel should not be hidden
+    expect(container.querySelector('#accordion-panel-structure')?.getAttribute('hidden')).toBeNull();
 
-    // Dimension inputs should now be hidden
-    expect(container.querySelector('#input-width')).toBeNull();
+    // Dimension panel should now be hidden
+    expect(container.querySelector('#accordion-panel-dimensions')?.getAttribute('hidden')).not.toBeNull();
 
     // Back button to Medidas should be visible
     const backToMedidas = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -190,12 +182,9 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       unfilterBtn?.click();
     });
 
-    // Now all sections are visible again
-    expect(container.querySelector('#input-width')).not.toBeNull();
-    const legendEstructuraRestored = Array.from(container.querySelectorAll('legend')).find((l) =>
-      l.textContent?.includes('Estructura del Casco'),
-    );
-    expect(legendEstructuraRestored).toBeDefined();
+    // Now all sections are visible again (none hidden)
+    expect(container.querySelector('#accordion-panel-dimensions')?.getAttribute('hidden')).toBeNull();
+    expect(container.querySelector('#accordion-panel-structure')?.getAttribute('hidden')).toBeNull();
 
     act(() => {
       root.unmount();
@@ -222,7 +211,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     });
 
     // Click "🚪 Interior" tab
-    const interiorTab = Array.from(container.querySelectorAll('.expert-sticky-header button')).find((b) =>
+    const interiorTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
       b.textContent?.includes('Interior'),
     ) as HTMLButtonElement | undefined;
     expect(interiorTab).toBeDefined();
@@ -231,14 +220,11 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       interiorTab?.click();
     });
 
-    // Interior equipment fieldset should be visible
-    const legendInterior = Array.from(container.querySelectorAll('legend')).find((l) =>
-      l.textContent?.includes('Equipamiento Interior'),
-    );
-    expect(legendInterior).toBeDefined();
+    // Interior equipment panel should be visible
+    expect(container.querySelector('#accordion-panel-interior')?.getAttribute('hidden')).toBeNull();
 
-    // Dimension inputs should be hidden
-    expect(container.querySelector('#input-width')).toBeNull();
+    // Dimension panel should be hidden
+    expect(container.querySelector('#accordion-panel-dimensions')?.getAttribute('hidden')).not.toBeNull();
 
     act(() => {
       root.unmount();
@@ -272,7 +258,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     });
 
     // Switch to Materiales tab
-    const materialsTab = Array.from(container.querySelectorAll('.expert-sticky-header button')).find((b) =>
+    const materialsTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
       b.textContent?.includes('Materiales'),
     ) as HTMLButtonElement | undefined;
     act(() => {
@@ -288,16 +274,6 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       saveModuleBtn?.click();
     });
     expect(handleSave).toHaveBeenCalledTimes(1);
-
-    // Verify CSV and PDF buttons are present in mobile materials section
-    const csvBtn = Array.from(container.querySelectorAll('.expert-mobile-section-footer button')).find((b) =>
-      b.textContent?.includes('CSV'),
-    ) as HTMLButtonElement | undefined;
-    expect(csvBtn).toBeDefined();
-    act(() => {
-      csvBtn?.click();
-    });
-    expect(handleExportCsv).toHaveBeenCalledTimes(1);
 
     act(() => {
       root.unmount();
@@ -317,10 +293,10 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       />,
     );
 
-    // Desktop header should be rendered
-    expect(html).toContain('📐 Medidas y Armado del Módulo');
+    // Desktop sticky header should be rendered
+    expect(html).toContain('panel-sticky-header');
 
-    // Both Dimensions and Estructura should be present simultaneously (activeSection = 'all')
+    // Both Dimensions and Estructura should be present in DOM
     expect(html).toContain('id="input-width"');
     expect(html).toContain('Estructura del Casco y Techo');
     expect(html).toContain('Materiales y Tapacantos');
@@ -329,7 +305,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     expect(html).not.toContain('expert-mobile-section-footer');
   });
 
-  it('applies calibrated margins to expert-sticky-header on mobile to prevent horizontal overflow', () => {
+  it('renders panel sticky header on mobile and desktop', () => {
     const htmlMobile = renderToString(
       <ModuleForm
         isMobile={true}
@@ -341,9 +317,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       />,
     );
 
-    // Mobile sticky header must use calibrated card margin (-0.75rem -0.6rem 0.75rem -0.6rem)
-    expect(htmlMobile).toContain('-0.75rem -0.6rem 0.75rem -0.6rem');
-    expect(htmlMobile).toContain('border-radius:0');
+    expect(htmlMobile).toContain('panel-sticky-header');
 
     const htmlDesktop = renderToString(
       <ModuleForm
@@ -356,8 +330,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       />,
     );
 
-    // Desktop uses original desktop margin
-    expect(htmlDesktop).toContain('-1.5rem -1.5rem 1rem -1.5rem');
+    expect(htmlDesktop).toContain('panel-sticky-header');
   });
 
   it('renders piece inspector and plinth grids with auto-fit minmax layout to avoid narrow text squishing', () => {

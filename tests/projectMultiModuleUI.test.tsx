@@ -180,25 +180,18 @@ describe('Multi-Module UI Components (PieceListView & ModuleForm)', () => {
       />,
     );
 
-    // Project header & totals
-    expect(html).toContain('📦 Proyecto:');
-    expect(html).toContain('Cocina Integral Moderna');
-    expect(html).toContain('unidad(es) en');
-    expect(html).toContain('tipo(s) de módulo');
+    // Compact ModuleBar & Chips
+    expect(html).toContain('Gestor compacto de módulos y proyecto');
+    expect(html).toContain('Bajo Mesada 800');
+    expect(html).toContain('×<!-- -->2');
+    expect(html).toContain('Alacena Superior');
+    expect(html).toContain('×<!-- -->1');
     expect(html).toContain('Nuevo Módulo');
 
-    // Module Chips
-    expect(html).toContain('Bajo Mesada 800');
-    expect(html).toContain('x<!-- -->2');
-    expect(html).toContain('Alacena Superior');
-    expect(html).toContain('x<!-- -->1');
-
-    // Active Module Stepper and Actions
-    expect(html).toContain('value="Bajo Mesada 800"');
+    // Active Module Stepper and Overflow Actions
     expect(html).toContain('Disminuir cantidad del módulo');
     expect(html).toContain('Aumentar cantidad del módulo');
-    expect(html).toContain('Duplicar');
-    expect(html).toContain('Eliminar');
+    expect(html).toContain('Opciones del módulo y proyecto');
 
     // Export Scope Selector
     expect(html).toContain('Alcance para descargas (CSV / PDF):');

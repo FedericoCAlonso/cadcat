@@ -38,6 +38,10 @@ import { InterferencesSection } from './InterferencesSection';
 import { DistributionSection } from './DistributionSection';
 import { InteriorSection } from './InteriorSection';
 import { MaterialsSection } from './MaterialsSection';
+import { PanelStickyHeader } from './PanelStickyHeader';
+import { ModuleBar } from './ModuleBar';
+import { ScrollFadeTabs } from './ScrollFadeTabs';
+import { Accordion } from './Accordion';
 
 export type FormSection = 'dimensions' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences' | 'all';
 
@@ -157,6 +161,10 @@ export interface ModuleFormProps {
   onDrawerTracksChange?: (bayIndex: number, tracks: TrackSize[]) => void;
   onDrawerGapChange?: (bayIndex: number, gapMm: number) => void;
   onDrawerTransomsChange?: (bayIndex: number, hasTransoms: boolean) => void;
+  partitionPassThroughRoof?: boolean;
+  onPartitionPassThroughRoofChange?: (val: boolean) => void;
+  structuralSpanWarnings?: string[];
+  maxDrawerSpanMm?: number;
   onDrawerTypeChange?: (bayIndex: number, type: DrawerType) => void;
   onDrawerBottomMountChange?: (bayIndex: number, mount: DrawerBottomMount) => void;
   onDrawerTopPullGapChange?: (bayIndex: number, gapMm: number) => void;
@@ -167,10 +175,6 @@ export interface ModuleFormProps {
   onFrontsMaterialChange?: (id: string) => void;
   onDrawerBoxesMaterialChange?: (id: string) => void;
   onBackingsMaterialChange?: (id: string) => void;
-  partitionPassThroughRoof?: boolean;
-  onPartitionPassThroughRoofChange?: (val: boolean) => void;
-  structuralSpanWarnings?: string[];
-  maxDrawerSpanMm?: number;
   onJointStrategyChange?: (strategy: JointStrategy) => void;
   onView3dClick?: () => void;
   onSwitchToSiteMode?: () => void;
@@ -543,35 +547,132 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const detectedMobile = useIsMobileDevice();
   const isMobileDevice = isMobileProp ?? detectedMobile;
 
-  const [userSelectedSection, setUserSelectedSection] = useState<FormSection | null>(null);
-  const activeSection: FormSection = userSelectedSection ?? 'all';
+  // Accordion and Anchor State
+  const [openSection, setOpenSection] = useState<FormSection | null>('dimensions');
+  const [isAllExpanded, setIsAllExpanded] = useState<boolean>(false);
 
-  const handleSelectSection = (section: FormSection) => {
-    setUserSelectedSection(section);
-  };
-
-  const sectionsList: Array<{ id: FormSection; label: string; icon: string }> = isWallShelves
-    ? [
-        { id: 'all', label: 'Todo', icon: '👁️' },
-        { id: 'dimensions', label: 'Medidas y Ménsulas', icon: '📏' },
-        { id: 'materials', label: 'Materiales', icon: '🎨' },
-      ]
-    : [
-        { id: 'all', label: 'Todo', icon: '👁️' },
-        { id: 'dimensions', label: 'Medidas', icon: '📏' },
-        { id: 'structure', label: 'Estructura', icon: '🏗️' },
-        { id: 'distribution', label: 'Vanos', icon: '🔲' },
-        { id: 'interior', label: 'Interior', icon: '🚪' },
-        { id: 'materials', label: 'Materiales', icon: '🎨' },
-        ...(enableInterferencesLab ? [{ id: 'interferences' as const, label: 'Interferencias', icon: '📐' }] : []),
+  const sectionsList = useMemo(() => {
+    if (isWallShelves) {
+      return [
+        { id: 'dimensions' as FormSection, label: 'Medidas y Ménsulas', icon: '📏' },
+        { id: 'materials' as FormSection, label: 'Materiales', icon: '🎨' },
       ];
+    }
+    return [
+      { id: 'dimensions' as FormSection, label: 'Medidas y Plantilla', icon: '📏' },
+      { id: 'structure' as FormSection, label: 'Estructura', icon: '🏗️' },
+      { id: 'distribution' as FormSection, label: 'Vanos', icon: '🔲' },
+      { id: 'interior' as FormSection, label: 'Interior', icon: '🚪' },
+      { id: 'materials' as FormSection, label: 'Materiales', icon: '🎨' },
+      ...(enableInterferencesLab ? [{ id: 'interferences' as const, label: 'Interferencias', icon: '📐' }] : []),
+    ];
+  }, [isWallShelves, enableInterferencesLab]);
 
-  const currentStepIndex = sectionsList.findIndex((s) => s.id === activeSection);
+  // Section index for mobile step navigation
+  const currentStepIndex = sectionsList.findIndex((s) => s.id === openSection);
   const prevStep = currentStepIndex > 0 ? sectionsList[currentStepIndex - 1] : null;
   const nextStep =
     currentStepIndex >= 0 && currentStepIndex < sectionsList.length - 1
       ? sectionsList[currentStepIndex + 1]
       : null;
+
+  const currentSectionTitle = useMemo(() => {
+    if (isAllExpanded) return 'Todas las Secciones';
+    if (!openSection) return 'Parámetros CAD';
+    const found = sectionsList.find((s) => s.id === openSection);
+    return found ? found.label : 'Medidas y Armado';
+  }, [isAllExpanded, openSection, sectionsList]);
+
+  const handleToggleSection = (sectionId: FormSection) => {
+    if (isAllExpanded) {
+      setIsAllExpanded(false);
+      setOpenSection(sectionId);
+    } else {
+      setOpenSection((prev) => (prev === sectionId ? null : sectionId));
+    }
+  };
+
+  const handleSelectTab = (sectionId: FormSection) => {
+    setOpenSection(sectionId);
+    setIsAllExpanded(false);
+  };
+
+  const handleToggleAll = () => {
+    if (isAllExpanded) {
+      setIsAllExpanded(false);
+      setOpenSection(null);
+    } else {
+      setIsAllExpanded(true);
+    }
+  };
+
+  // Dynamic Summaries for Accordion Headers
+  const dimensionsSummary = `${width} × ${height} × ${depth} mm`;
+
+  const structureSummary = useMemo(() => {
+    const roofLabel = roofType === 'solid-panel' ? 'Tapa completa' : 'Listones';
+    const backingLabel = hasBacking
+      ? backingType === 'groove'
+        ? 'Fondo ranurado'
+        : 'Fondo aplicado'
+      : 'Sin fondo';
+    return `${roofLabel} · ${backingLabel}`;
+  }, [roofType, hasBacking, backingType]);
+
+  const distributionSummary = useMemo(() => {
+    const count = currentBayCount;
+    const bayText = count === 1 ? '1 vano' : `${count} vanos`;
+    const orientationText = gridType === '2-bays-horizontal' ? 'horiz.' : 'vert.';
+    return count > 1 ? `${bayText} ${orientationText}` : bayText;
+  }, [currentBayCount, gridType]);
+
+  const interiorSummary = useMemo(() => {
+    if (activeBay.type === 'drawer-stack') {
+      const count = activeBay.drawerTracks?.length ?? 1;
+      return `Cajones · ${count}`;
+    }
+    if (activeBay.type === 'shelves') {
+      const count = activeBay.count ?? 1;
+      return `Estantes · ${count}`;
+    }
+    if (activeBay.type === 'doors') {
+      const count = activeBay.count ?? 1;
+      return `Puertas · ${count}`;
+    }
+    if (activeBay.type === 'pull-out-tray') {
+      return 'Bandeja extraíble';
+    }
+    if (activeBay.type === 'bi-fold-closure') {
+      return 'Puerta plegable';
+    }
+    if (activeBay.type === 'subdivided') {
+      return 'Matriz especial';
+    }
+    return 'Vano vacío';
+  }, [activeBay]);
+
+  const materialsSummary = useMemo(() => {
+    const mat = materials.find((m) => m.id === selectedMaterialId);
+    const matName = mat ? mat.name : `${matThickness} mm`;
+    const jointName =
+      jointStrategy === 'confirmat'
+        ? 'Confirmat'
+        : jointStrategy === 'dowel-and-confirmat'
+        ? 'Tarugo + Confirmat'
+        : jointStrategy === 'cam-dowel'
+        ? 'Minifix + Tarugo'
+        : 'Tornillos';
+    return `${matName} · ${jointName}`;
+  }, [materials, selectedMaterialId, matThickness, jointStrategy]);
+
+  const interferencesSummary = useMemo(() => {
+    const isObstacleActive = columnObstacle?.enabled;
+    const isFalseSquareActive = falseSquare?.enabled;
+    if (isObstacleActive && isFalseSquareActive) return 'Columna y Falso Escuadra';
+    if (isObstacleActive) return 'Columna activa';
+    if (isFalseSquareActive) return 'Falsa escuadra';
+    return 'Ninguna';
+  }, [columnObstacle, falseSquare]);
 
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
 
@@ -591,418 +692,50 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const hasBackingBoard =
     Boolean(backingsMaterialId) || (hasBacking && backingType !== 'none');
 
-  const activeModuleItem = projectModules?.find((m) => m.id === activeModuleId) ?? projectModules?.[0];
   const totalProjectUnits = projectModules?.reduce((acc, m) => acc + (m.quantity || 1), 0) ?? 1;
 
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
-      {/* Barra de Navegación Rápida y Control Móvil */}
-      <div
-        className="expert-sticky-header"
-        style={{
-          position: isMobileDevice ? 'sticky' : 'relative',
-          top: 0,
-          zIndex: 25,
-          backgroundColor: 'var(--md-sys-color-surface)',
-          borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-          margin: isMobileDevice ? '-0.75rem -0.6rem 0.75rem -0.6rem' : '-1.5rem -1.5rem 1rem -1.5rem',
-          padding: isMobileDevice ? '0.5rem 0.65rem 0.45rem 0.65rem' : '0.75rem 1rem 0.5rem 1rem',
-          borderRadius: isMobileDevice ? '0' : 'var(--md-sys-shape-corner-lg) var(--md-sys-shape-corner-lg) 0 0',
-          boxShadow: isMobileDevice ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.5rem',
-            marginBottom: '0.5rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '1.15rem' }}>⚙️</span>
-            <div>
-              <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--md-sys-color-primary)', display: 'block', lineHeight: 1.2 }}>
-                Modo Experto
-              </span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-                {activeModuleItem ? `${activeModuleItem.name} (${width}×${height}×${depth} mm)` : 'Parámetros CAD'}
-              </span>
-            </div>
-          </div>
+      {/* 1. Sticky Header with Current Section & Dimensions */}
+      <PanelStickyHeader
+        currentSectionName={currentSectionTitle}
+        width={width}
+        height={height}
+        depth={depth}
+        onWidthChange={onWidthChange}
+        onHeightChange={onHeightChange}
+        onDepthChange={onDepthChange}
+        onSwitchToSiteMode={onSwitchToSiteMode}
+        isMobileDevice={isMobileDevice}
+      />
 
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            {onSwitchToSiteMode && (
-              <button
-                type="button"
-                onClick={onSwitchToSiteMode}
-                className="m3-button m3-button--tonal"
-                style={{
-                  minHeight: '40px',
-                  padding: '0 0.75rem',
-                  fontSize: '0.78rem',
-                  borderRadius: '20px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                }}
-                title="Cambiar a Modo Taller / Obra (gestual para celular)"
-                aria-label="Cambiar a Modo Taller"
-              >
-                <span>🏗️</span>
-                <span>Modo Taller</span>
-              </button>
-            )}
+      {/* 2. Compact Module & Project Bar */}
+      <ModuleBar
+        project={project}
+        projectModules={projectModules}
+        activeModuleId={activeModuleId}
+        onSetActiveModule={onSetActiveModule}
+        onAddProjectModule={onAddProjectModule}
+        onDuplicateProjectModule={onDuplicateProjectModule}
+        onRemoveProjectModule={onRemoveProjectModule}
+        onUpdateProjectModuleQuantity={onUpdateProjectModuleQuantity}
+        onUpdateProjectModuleName={onUpdateProjectModuleName}
+        onSaveModule={onSave}
+        onSaveProject={onSaveProject}
+        onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
+        isSubdividedBay={activeBay.type === 'subdivided'}
+      />
 
-            <button
-              type="button"
-              onClick={() => setIsDistributionModalOpen(true)}
-              className={`m3-button ${activeBay.type === 'subdivided' ? 'm3-button--filled' : 'm3-button--tonal'}`}
-              style={{
-                minHeight: '40px',
-                padding: '0 0.75rem',
-                fontSize: '0.78rem',
-                borderRadius: '20px',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-              title="Abrir editor de distribución especial (matriz de celdas estilo Word)"
-              aria-label="Abrir distribución especial"
-            >
-              <span>🍱</span>
-              <span>Especial</span>
-            </button>
+      {/* 3. Sticky Horizontal Tabs with Scroll Fade */}
+      <ScrollFadeTabs
+        tabs={sectionsList}
+        activeTabId={openSection}
+        onSelectTab={handleSelectTab}
+        isAllExpanded={isAllExpanded}
+        onToggleAll={handleToggleAll}
+      />
 
-            {onView3dClick && (
-              <button
-                type="button"
-                onClick={onView3dClick}
-                className="m3-button m3-button--filled"
-                style={{
-                  minHeight: '40px',
-                  padding: '0 0.85rem',
-                  fontSize: '0.8rem',
-                  borderRadius: '20px',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                }}
-                title="Ver renderizado y cotas en 3D"
-                aria-label="Ver resultado en 3D"
-              >
-                <span>🧊</span>
-                <span>Ver 3D</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Segmented Section Tabs */}
-        <nav
-          aria-label="Secciones del configurador experto"
-          className="builder-segmented-group"
-          style={{
-            margin: 0,
-            overflowX: 'auto',
-            display: 'flex',
-            flexWrap: 'nowrap',
-            gap: '0.35rem',
-            paddingBottom: '0.25rem',
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {sectionsList.map((sec) => (
-            <button
-              key={sec.id}
-              type="button"
-              className={`builder-segmented-btn ${activeSection === sec.id ? 'selected' : ''}`}
-              onClick={() => handleSelectSection(sec.id)}
-              style={{
-                minHeight: '44px',
-                padding: '0 0.75rem',
-                flexShrink: 0,
-                fontSize: '0.82rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span>{`${sec.icon} ${sec.label}`}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Project & Multi-Module Manager */}
-      {(activeSection === 'all' || activeSection === 'dimensions') && projectModules && projectModules.length > 0 && onSetActiveModule && (
-        <section
-          aria-labelledby="project-modules-heading"
-          className="m3-card"
-          style={{
-            marginBottom: '1rem',
-            padding: '1rem',
-            backgroundColor: 'var(--md-sys-color-surface-container)',
-            borderRadius: 'var(--md-sys-shape-corner-md)',
-            border: '1px solid var(--md-sys-color-outline-variant)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <div>
-              <h3 id="project-modules-heading" style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>📦 Proyecto: {project?.name ?? 'CadCat CAD'}</span>
-              </h3>
-              <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-                {totalProjectUnits} unidad(es) en {projectModules.length} tipo(s) de módulo
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {onSaveProject && (
-                <button
-                  type="button"
-                  className="m3-button m3-button--tonal"
-                  style={{
-                    minHeight: '48px',
-                    padding: '0 0.8rem',
-                    fontSize: '0.85rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                  onClick={() => void onSaveProject()}
-                  title="Guardar todos los módulos del proyecto en base de datos"
-                  aria-label="Guardar proyecto completo"
-                >
-                  <span>💾</span>
-                  <span>Guardar Proyecto</span>
-                </button>
-              )}
-              {onAddProjectModule && (
-                <button
-                  type="button"
-                  className="m3-button m3-button--primary"
-                  style={{
-                    minHeight: '48px',
-                    padding: '0 0.9rem',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                  onClick={() => onAddProjectModule()}
-                  aria-label="Agregar nuevo módulo al proyecto"
-                >
-                  <span>➕</span>
-                  <span>Nuevo Módulo</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Module Selector Chips Carousel */}
-          <div
-            className="module-chips-carousel"
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              overflowX: 'auto',
-              paddingBottom: '0.4rem',
-              marginBottom: '0.75rem',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            {projectModules.map((mod) => {
-              const isActive = mod.id === (activeModuleId ?? activeModuleItem?.id);
-              return (
-                <button
-                  key={mod.id}
-                  type="button"
-                  className={`m3-chip ${isActive ? 'm3-chip--selected' : ''}`}
-                  style={{
-                    minHeight: '48px',
-                    padding: '0 1rem',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
-                    flexShrink: 0,
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => onSetActiveModule(mod.id)}
-                  aria-pressed={isActive}
-                >
-                  <span>{isActive ? '📌' : '📦'}</span>
-                  <span>{mod.name}</span>
-                  <span
-                    className="m3-badge m3-badge--neutral"
-                    style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.1rem 0.4rem' }}
-                  >
-                    x{mod.quantity}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Module Editor Card */}
-          {activeModuleItem && (
-            <div
-              style={{
-                backgroundColor: 'var(--md-sys-color-surface)',
-                borderRadius: '8px',
-                padding: '0.75rem',
-                border: '1px solid var(--md-sys-color-outline-variant)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                <div style={{ flex: '1 1 200px' }}>
-                  <label htmlFor="active-module-name" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-                    Nombre del módulo activo:
-                  </label>
-                  <input
-                    id="active-module-name"
-                    type="text"
-                    className="m3-input"
-                    value={activeModuleItem.name}
-                    onChange={(e) => onUpdateProjectModuleName?.(activeModuleItem.id, e.target.value)}
-                    style={{ width: '100%', minHeight: '44px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  {onUpdateProjectModuleQuantity && (
-                    <div>
-                      <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-                        Cantidad:
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <button
-                          type="button"
-                          className="m3-button m3-button--tonal"
-                          style={{
-                            minWidth: '48px',
-                            minHeight: '48px',
-                            fontSize: '1.25rem',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          disabled={activeModuleItem.quantity <= 1}
-                          onClick={() => onUpdateProjectModuleQuantity(activeModuleItem.id, Math.max(1, activeModuleItem.quantity - 1))}
-                          aria-label="Disminuir cantidad del módulo"
-                        >
-                          −
-                        </button>
-                        <span
-                          style={{
-                            minWidth: '42px',
-                            textAlign: 'center',
-                            fontWeight: 700,
-                            fontSize: '1.1rem',
-                            color: 'var(--md-sys-color-primary)',
-                          }}
-                        >
-                          {activeModuleItem.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          className="m3-button m3-button--tonal"
-                          style={{
-                            minWidth: '48px',
-                            minHeight: '48px',
-                            fontSize: '1.25rem',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          onClick={() => onUpdateProjectModuleQuantity(activeModuleItem.id, activeModuleItem.quantity + 1)}
-                          aria-label="Aumentar cantidad del módulo"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    {onDuplicateProjectModule && (
-                      <button
-                        type="button"
-                        className="m3-button m3-button--tonal"
-                        style={{
-                          minHeight: '48px',
-                          padding: '0 0.75rem',
-                          fontSize: '0.82rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                        }}
-                        onClick={() => onDuplicateProjectModule(activeModuleItem.id)}
-                        title="Duplicar este módulo con todas sus dimensiones y vanos"
-                        aria-label="Duplicar módulo activo"
-                      >
-                        <span>📑</span>
-                        <span>Duplicar</span>
-                      </button>
-                    )}
-
-                    {onRemoveProjectModule && projectModules.length > 1 && (
-                      <button
-                        type="button"
-                        className="m3-button m3-button--outlined"
-                        style={{
-                          minHeight: '48px',
-                          padding: '0 0.75rem',
-                          fontSize: '0.82rem',
-                          color: 'var(--md-sys-color-error)',
-                          borderColor: 'var(--md-sys-color-error)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                        }}
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el módulo "${activeModuleItem.name}" del proyecto?`)) {
-                            onRemoveProjectModule(activeModuleItem.id);
-                          }
-                        }}
-                        title="Eliminar este módulo del proyecto"
-                        aria-label="Eliminar módulo activo"
-                      >
-                        <span>🗑️</span>
-                        <span>Eliminar</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {!isMobileDevice && (
-        <div className="m3-card__header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div>
-              <h2 id="form-heading" className="m3-card__title">
-                📐 Medidas y Armado del Módulo
-                <span className="visually-hidden">Module Parameters and Builder</span>
-              </h2>
-              <p className="m3-card__subtitle">
-                Personalizá dimensiones, tapa superior, vanos, cajones y estantes.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Selected Piece Inspector in Sidebar (Unobstructed 3D CAD experience) */}
+      {/* 4. Piece Inspector (Prominent when a piece is clicked) */}
       <PieceInspectorCard
         selectedPiece={selectedPiece}
         pieceMech={pieceMech}
@@ -1024,150 +757,213 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         shelfDeflections={shelfDeflections}
         onSelectPiece={onSelectPiece}
       />
-      {(activeSection === 'all' || activeSection === 'dimensions') && templates && templates.length > 0 && onTemplateChange && (
-        <div className="form-group template-selection-group">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label htmlFor="select-template">
-              Plantilla base o personalizada:
-              <span className="visually-hidden">Module Template:</span>
-            </label>
-            {onSaveUserTemplate && (
-              <button
-                type="button"
-                className="m3-button m3-button--tonal"
-                style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
-                onClick={() => setIsSavingTemplate(!isSavingTemplate)}
-              >
-                💾 {t('userTemplates.saveButton')}
-              </button>
-            )}
-          </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-            <select
-              id="select-template"
-              value={selectedTemplateId}
-              onChange={(e) => onTemplateChange(e.target.value)}
-              className="m3-select"
-              style={{ flex: 1 }}
-            >
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.id.startsWith('user-') ? `⭐ ${t.name}` : translateTemplateName(t.id, t.name)}
-                </option>
-              ))}
-            </select>
-
-            {selectedTemplateId?.startsWith('user-') && onDeleteUserTemplate && (
-              <button
-                type="button"
-                className="m3-button m3-button--outlined"
-                style={{ padding: '0.25rem 0.5rem', color: 'var(--md-sys-color-error)' }}
-                title={t('userTemplates.delete')}
-                onClick={() => {
-                  const currentTpl = templates.find((t) => t.id === selectedTemplateId);
-                  const name = currentTpl?.name ?? selectedTemplateId;
-                  if (window.confirm(t('userTemplates.deleteConfirm', { name }))) {
-                    onDeleteUserTemplate(selectedTemplateId);
-                  }
-                }}
-              >
-                🗑️
-              </button>
-            )}
-          </div>
-
-          {isSavingTemplate && (
-            <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--md-sys-color-surface-container)' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{t('userTemplates.saveTitle')}</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  className="m3-input"
-                  placeholder={t('userTemplates.namePlaceholder')}
-                  value={newTemplateName}
-                  onChange={(e) => setNewTemplateName(e.target.value)}
-                  style={{ width: '100%' }}
-                />
-                <input
-                  type="text"
-                  className="m3-input"
-                  placeholder={t('userTemplates.descPlaceholder')}
-                  value={newTemplateDesc}
-                  onChange={(e) => setNewTemplateDesc(e.target.value)}
-                  style={{ width: '100%' }}
-                />
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    className="m3-button m3-button--outlined"
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-                    onClick={() => {
-                      setIsSavingTemplate(false);
-                      setNewTemplateName('');
-                      setNewTemplateDesc('');
-                    }}
-                  >
-                    {t('userTemplates.cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    className="m3-button m3-button--filled"
-                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-                    disabled={!newTemplateName.trim()}
-                    onClick={async () => {
-                      if (!newTemplateName.trim()) return;
-                      await onSaveUserTemplate?.(newTemplateName, newTemplateDesc);
-                      setIsSavingTemplate(false);
-                      setNewTemplateName('');
-                      setNewTemplateDesc('');
-                    }}
-                  >
-                    {t('userTemplates.save')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* 5. Accordion Sections */}
       {isWallShelves ? (
-        <WallShelvesSection
-          width={width}
-          depth={depth}
-          onWidthChange={onWidthChange}
-          onDepthChange={onDepthChange}
-          wallShelvesShelfCount={wallShelvesShelfCount}
-          onWallShelvesShelfCountChange={onWallShelvesShelfCountChange}
-          wallShelvesVerticalSpacingMm={wallShelvesVerticalSpacingMm}
-          onWallShelvesVerticalSpacingMmChange={onWallShelvesVerticalSpacingMmChange}
-          wallShelvesBaseElevationYMm={wallShelvesBaseElevationYMm}
-          onWallShelvesBaseElevationYMmChange={onWallShelvesBaseElevationYMmChange}
-          wallShelvesBracketType={wallShelvesBracketType}
-          onWallShelvesBracketTypeChange={onWallShelvesBracketTypeChange}
-          wallShelvesWallType={wallShelvesWallType}
-          onWallShelvesWallTypeChange={onWallShelvesWallTypeChange}
-          wallShelvesLoadCategory={wallShelvesLoadCategory}
-          onWallShelvesLoadCategoryChange={onWallShelvesLoadCategoryChange}
-          wallShelvesOverhangMode={wallShelvesOverhangMode}
-          onWallShelvesOverhangModeChange={onWallShelvesOverhangModeChange}
-          wallShelvesBoundaryCondition={wallShelvesBoundaryCondition}
-          onWallShelvesBoundaryConditionChange={onWallShelvesBoundaryConditionChange}
-          materials={materials}
-          standardThicknessesMm={standardThicknessesMm}
-          selectedMaterialId={selectedMaterialId}
-          onMaterialChange={onMaterialChange}
-          edgeBands={edgeBands}
-          selectedEdgeBandId={selectedEdgeBandId}
-          onEdgeBandChange={onEdgeBandChange}
-          wallShelvingOutput={wallShelvingOutput}
-          onViewAssemblyClick={onViewAssemblyClick}
-          activeSection={activeSection}
-        />
+        <>
+          <Accordion
+            id="dimensions"
+            icon="📏"
+            title="Medidas y Ménsulas"
+            summary={dimensionsSummary}
+            isOpen={isAllExpanded || openSection === 'dimensions'}
+            onToggle={() => handleToggleSection('dimensions')}
+          >
+            <WallShelvesSection
+              width={width}
+              depth={depth}
+              onWidthChange={onWidthChange}
+              onDepthChange={onDepthChange}
+              wallShelvesShelfCount={wallShelvesShelfCount}
+              onWallShelvesShelfCountChange={onWallShelvesShelfCountChange}
+              wallShelvesVerticalSpacingMm={wallShelvesVerticalSpacingMm}
+              onWallShelvesVerticalSpacingMmChange={onWallShelvesVerticalSpacingMmChange}
+              wallShelvesBaseElevationYMm={wallShelvesBaseElevationYMm}
+              onWallShelvesBaseElevationYMmChange={onWallShelvesBaseElevationYMmChange}
+              wallShelvesBracketType={wallShelvesBracketType}
+              onWallShelvesBracketTypeChange={onWallShelvesBracketTypeChange}
+              wallShelvesWallType={wallShelvesWallType}
+              onWallShelvesWallTypeChange={onWallShelvesWallTypeChange}
+              wallShelvesLoadCategory={wallShelvesLoadCategory}
+              onWallShelvesLoadCategoryChange={onWallShelvesLoadCategoryChange}
+              wallShelvesOverhangMode={wallShelvesOverhangMode}
+              onWallShelvesOverhangModeChange={onWallShelvesOverhangModeChange}
+              wallShelvesBoundaryCondition={wallShelvesBoundaryCondition}
+              onWallShelvesBoundaryConditionChange={onWallShelvesBoundaryConditionChange}
+              materials={materials}
+              standardThicknessesMm={standardThicknessesMm}
+              selectedMaterialId={selectedMaterialId}
+              onMaterialChange={onMaterialChange}
+              edgeBands={edgeBands}
+              selectedEdgeBandId={selectedEdgeBandId}
+              onEdgeBandChange={onEdgeBandChange}
+              wallShelvingOutput={wallShelvingOutput}
+              onViewAssemblyClick={onViewAssemblyClick}
+              activeSection="dimensions"
+            />
+          </Accordion>
+
+          <Accordion
+            id="materials"
+            icon="🎨"
+            title="Materiales"
+            summary={materialsSummary}
+            isOpen={isAllExpanded || openSection === 'materials'}
+            onToggle={() => handleToggleSection('materials')}
+          >
+            <WallShelvesSection
+              width={width}
+              depth={depth}
+              onWidthChange={onWidthChange}
+              onDepthChange={onDepthChange}
+              wallShelvesShelfCount={wallShelvesShelfCount}
+              onWallShelvesShelfCountChange={onWallShelvesShelfCountChange}
+              wallShelvesVerticalSpacingMm={wallShelvesVerticalSpacingMm}
+              onWallShelvesVerticalSpacingMmChange={onWallShelvesVerticalSpacingMmChange}
+              wallShelvesBaseElevationYMm={wallShelvesBaseElevationYMm}
+              onWallShelvesBaseElevationYMmChange={onWallShelvesBaseElevationYMmChange}
+              wallShelvesBracketType={wallShelvesBracketType}
+              onWallShelvesBracketTypeChange={onWallShelvesBracketTypeChange}
+              wallShelvesWallType={wallShelvesWallType}
+              onWallShelvesWallTypeChange={onWallShelvesWallTypeChange}
+              wallShelvesLoadCategory={wallShelvesLoadCategory}
+              onWallShelvesLoadCategoryChange={onWallShelvesLoadCategoryChange}
+              wallShelvesOverhangMode={wallShelvesOverhangMode}
+              onWallShelvesOverhangModeChange={onWallShelvesOverhangModeChange}
+              wallShelvesBoundaryCondition={wallShelvesBoundaryCondition}
+              onWallShelvesBoundaryConditionChange={onWallShelvesBoundaryConditionChange}
+              materials={materials}
+              standardThicknessesMm={standardThicknessesMm}
+              selectedMaterialId={selectedMaterialId}
+              onMaterialChange={onMaterialChange}
+              edgeBands={edgeBands}
+              selectedEdgeBandId={selectedEdgeBandId}
+              onEdgeBandChange={onEdgeBandChange}
+              wallShelvingOutput={wallShelvingOutput}
+              onViewAssemblyClick={onViewAssemblyClick}
+              activeSection="materials"
+            />
+          </Accordion>
+        </>
       ) : (
         <>
-          {(activeSection === 'all' || activeSection === 'dimensions') && (
+          {/* SECCIÓN 1: Medidas y Plantilla */}
+          <Accordion
+            id="dimensions"
+            icon="📏"
+            title="Medidas y Plantilla"
+            summary={dimensionsSummary}
+            isOpen={isAllExpanded || openSection === 'dimensions'}
+            onToggle={() => handleToggleSection('dimensions')}
+          >
+            {templates && templates.length > 0 && onTemplateChange && (
+              <div className="form-group template-selection-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="select-template">
+                    Plantilla base o personalizada:
+                    <span className="visually-hidden">Module Template:</span>
+                  </label>
+                  {onSaveUserTemplate && (
+                    <button
+                      type="button"
+                      className="m3-button m3-button--tonal"
+                      style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
+                      onClick={() => setIsSavingTemplate(!isSavingTemplate)}
+                    >
+                      💾 {t('userTemplates.saveButton')}
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  <select
+                    id="select-template"
+                    value={selectedTemplateId}
+                    onChange={(e) => onTemplateChange(e.target.value)}
+                    className="m3-select"
+                    style={{ flex: 1 }}
+                  >
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.id.startsWith('user-') ? `⭐ ${tpl.name}` : translateTemplateName(tpl.id, tpl.name)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedTemplateId?.startsWith('user-') && onDeleteUserTemplate && (
+                    <button
+                      type="button"
+                      className="m3-button m3-button--outlined"
+                      style={{ padding: '0.25rem 0.5rem', color: 'var(--md-sys-color-error)' }}
+                      title={t('userTemplates.delete')}
+                      onClick={() => {
+                        const currentTpl = templates.find((tpl) => tpl.id === selectedTemplateId);
+                        const name = currentTpl?.name ?? selectedTemplateId;
+                        if (window.confirm(t('userTemplates.deleteConfirm', { name }))) {
+                          onDeleteUserTemplate(selectedTemplateId);
+                        }
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+
+                {isSavingTemplate && (
+                  <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--md-sys-color-surface-container)' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{t('userTemplates.saveTitle')}</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        className="m3-input"
+                        placeholder={t('userTemplates.namePlaceholder')}
+                        value={newTemplateName}
+                        onChange={(e) => setNewTemplateName(e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                      <input
+                        type="text"
+                        className="m3-input"
+                        placeholder={t('userTemplates.descPlaceholder')}
+                        value={newTemplateDesc}
+                        onChange={(e) => setNewTemplateDesc(e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="m3-button m3-button--outlined"
+                          style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                          onClick={() => {
+                            setIsSavingTemplate(false);
+                            setNewTemplateName('');
+                            setNewTemplateDesc('');
+                          }}
+                        >
+                          {t('userTemplates.cancel')}
+                        </button>
+                        <button
+                          type="button"
+                          className="m3-button m3-button--filled"
+                          style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                          disabled={!newTemplateName.trim()}
+                          onClick={async () => {
+                            if (!newTemplateName.trim()) return;
+                            await onSaveUserTemplate?.(newTemplateName, newTemplateDesc);
+                            setIsSavingTemplate(false);
+                            setNewTemplateName('');
+                            setNewTemplateDesc('');
+                          }}
+                        >
+                          {t('userTemplates.save')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="dimension-row-grid">
               {/* Ancho */}
               <div className="form-group dimension-cell">
@@ -1223,163 +1019,190 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                 />
               </div>
             </div>
+          </Accordion>
+
+          {/* SECCIÓN 2: Estructura del Casco */}
+          <Accordion
+            id="structure"
+            icon="🏗️"
+            title="Estructura"
+            summary={structureSummary}
+            isOpen={isAllExpanded || openSection === 'structure'}
+            onToggle={() => handleToggleSection('structure')}
+          >
+            <StructureSection
+              structuralSpanWarnings={structuralSpanWarnings}
+              roofType={roofType}
+              onRoofTypeChange={onRoofTypeChange}
+              jointPriority={jointPriority}
+              onJointPriorityChange={onJointPriorityChange}
+              isIslandCabinet={isIslandCabinet}
+              hasBacking={hasBacking}
+              backingThicknessMm={backingThicknessMm}
+              backingType={backingType}
+              onIsIslandCabinetChange={onIsIslandCabinetChange}
+              onHasBackingChange={onHasBackingChange}
+              onBackingThicknessChange={onBackingThicknessChange}
+              onBackingTypeChange={onBackingTypeChange}
+              gridType={gridType}
+              partitionPassThroughRoof={partitionPassThroughRoof}
+              onPartitionPassThroughRoofChange={onPartitionPassThroughRoofChange}
+              rearStructuralRails={rearStructuralRails}
+              rearStructuralRailsWidthMm={rearStructuralRailsWidthMm}
+              onRearStructuralRailsChange={onRearStructuralRailsChange}
+              onRearStructuralRailsWidthChange={onRearStructuralRailsWidthChange}
+              railOrientation={railOrientation}
+              onRailOrientationChange={onRailOrientationChange}
+              hasMiddleBrace={hasMiddleBrace}
+              middleBraceWidthMm={middleBraceWidthMm}
+              onHasMiddleBraceChange={onHasMiddleBraceChange}
+              onMiddleBraceWidthChange={onMiddleBraceWidthChange}
+              hasWallHangingRail={hasWallHangingRail}
+              wallHangingRailWidthMm={wallHangingRailWidthMm}
+              onHasWallHangingRailChange={onHasWallHangingRailChange}
+              onWallHangingRailWidthChange={onWallHangingRailWidthChange}
+              hasPlinth={hasPlinth}
+              plinthHeightMm={plinthHeightMm}
+              plinthSetbackMm={plinthSetbackMm}
+              onHasPlinthChange={onHasPlinthChange}
+              onPlinthHeightChange={onPlinthHeightChange}
+              onPlinthSetbackChange={onPlinthSetbackChange}
+              onSaveUserTemplate={onSaveUserTemplate}
+            />
+          </Accordion>
+
+          {/* SECCIÓN 3: Distribución de Vanos */}
+          <Accordion
+            id="distribution"
+            icon="🔲"
+            title="Vanos"
+            summary={distributionSummary}
+            isOpen={isAllExpanded || openSection === 'distribution'}
+            onToggle={() => handleToggleSection('distribution')}
+          >
+            <DistributionSection
+              gridType={gridType}
+              onGridTypeChange={onGridTypeChange}
+              activeBay={activeBay}
+              onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
+              bayTracks={bayTracks}
+              onBayTracksChange={onBayTracksChange}
+              bayBoxes={bayBoxes}
+              currentActiveIndex={currentActiveIndex}
+              onActiveBayIndexChange={onActiveBayIndexChange}
+            />
+          </Accordion>
+
+          {/* SECCIÓN 4: Equipamiento Interior */}
+          <Accordion
+            id="interior"
+            icon="🚪"
+            title="Interior"
+            summary={interiorSummary}
+            isOpen={isAllExpanded || openSection === 'interior'}
+            onToggle={() => handleToggleSection('interior')}
+          >
+            <InteriorSection
+              currentBayCount={currentBayCount}
+              currentActiveIndex={currentActiveIndex}
+              onActiveBayIndexChange={onActiveBayIndexChange}
+              activeBay={activeBay}
+              onBayContentTypeChange={onBayContentTypeChange}
+              onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
+              onRemoveDrawer={onRemoveDrawer}
+              onAddDrawer={onAddDrawer}
+              onDrawerTracksChange={onDrawerTracksChange}
+              resolvedDrawerHeights={resolvedDrawerHeights}
+              estimatedBayCavityHeight={estimatedBayCavityHeight}
+              onDrawerTypeChange={onDrawerTypeChange}
+              onDrawerTopPullGapChange={onDrawerTopPullGapChange}
+              onDrawerBoxSideHeightOffsetChange={onDrawerBoxSideHeightOffsetChange}
+              onDrawerBottomMountChange={onDrawerBottomMountChange}
+              onDrawerFrontMountChange={onDrawerFrontMountChange}
+              onDrawerTransomsChange={onDrawerTransomsChange}
+              width={width}
+              maxDrawerSpanMm={maxDrawerSpanMm}
+              gridType={gridType}
+              onDrawerSlideTypeChange={onDrawerSlideTypeChange}
+              onDrawerSlideClearanceChange={onDrawerSlideClearanceChange}
+              onDrawerGapChange={onDrawerGapChange}
+              onRemoveShelf={onRemoveShelf}
+              onAddShelf={onAddShelf}
+              onShelfTracksChange={onShelfTracksChange}
+              shelfQuickRecipes={shelfQuickRecipes}
+              resolvedShelfHeights={resolvedShelfHeights}
+              onShelfTypeChange={onShelfTypeChange}
+              onShelfAntiSagChange={onShelfAntiSagChange}
+              onShelfHasDoorsChange={onShelfHasDoorsChange}
+              onShelfDoorCountChange={onShelfDoorCountChange}
+              onShelfDoorMountTypeChange={onShelfDoorMountTypeChange}
+              onShelfDoorHingeSideChange={onShelfDoorHingeSideChange}
+              onDoorCountChange={onDoorCountChange}
+              onDoorMountTypeChange={onDoorMountTypeChange}
+              onDoorInteriorShelvesCountChange={onDoorInteriorShelvesCountChange}
+              onDoorShelfTypeChange={onDoorShelfTypeChange}
+              onBifoldDirectionChange={onBifoldDirectionChange}
+            />
+          </Accordion>
+
+          {/* SECCIÓN 5: Materiales por Rol */}
+          <Accordion
+            id="materials"
+            icon="🎨"
+            title="Materiales"
+            summary={materialsSummary}
+            isOpen={isAllExpanded || openSection === 'materials'}
+            onToggle={() => handleToggleSection('materials')}
+          >
+            <MaterialsSection
+              materials={materials}
+              standardThicknessesMm={standardThicknessesMm}
+              selectedMaterialId={selectedMaterialId}
+              onMaterialChange={onMaterialChange}
+              hasDoorsOrFronts={hasDoorsOrFronts}
+              frontsMaterialId={frontsMaterialId}
+              onFrontsMaterialChange={onFrontsMaterialChange}
+              hasDrawers={hasDrawers}
+              drawerBoxesMaterialId={drawerBoxesMaterialId}
+              onDrawerBoxesMaterialChange={onDrawerBoxesMaterialChange}
+              hasBackingBoard={hasBackingBoard}
+              backingsMaterialId={backingsMaterialId}
+              onBackingsMaterialChange={onBackingsMaterialChange}
+              onBackingThicknessChange={onBackingThicknessChange}
+              edgeBands={edgeBands}
+              selectedEdgeBandId={selectedEdgeBandId}
+              onEdgeBandChange={onEdgeBandChange}
+              jointStrategy={jointStrategy}
+              onJointStrategyChange={onJointStrategyChange}
+            />
+          </Accordion>
+
+          {/* SECCIÓN 6: Interferencias Arquitectónicas (opcional) */}
+          {enableInterferencesLab && (
+            <Accordion
+              id="interferences"
+              icon="📐"
+              title="Interferencias"
+              summary={interferencesSummary}
+              isOpen={isAllExpanded || openSection === 'interferences'}
+              onToggle={() => handleToggleSection('interferences')}
+            >
+              <InterferencesSection
+                width={width}
+                height={height}
+                depth={depth}
+                columnObstacle={columnObstacle}
+                falseSquare={falseSquare}
+                onColumnObstacleChange={onColumnObstacleChange}
+                onFalseSquareChange={onFalseSquareChange}
+              />
+            </Accordion>
           )}
-
-      {/* =========================================================================
-          SECCIÓN 1: Casco y Tapa Superior
-          ========================================================================= */}
-      {(activeSection === 'all' || activeSection === 'structure') && (
-        <StructureSection
-          structuralSpanWarnings={structuralSpanWarnings}
-          roofType={roofType}
-          onRoofTypeChange={onRoofTypeChange}
-          jointPriority={jointPriority}
-          onJointPriorityChange={onJointPriorityChange}
-          isIslandCabinet={isIslandCabinet}
-          hasBacking={hasBacking}
-          backingThicknessMm={backingThicknessMm}
-          backingType={backingType}
-          onIsIslandCabinetChange={onIsIslandCabinetChange}
-          onHasBackingChange={onHasBackingChange}
-          onBackingThicknessChange={onBackingThicknessChange}
-          onBackingTypeChange={onBackingTypeChange}
-          gridType={gridType}
-          partitionPassThroughRoof={partitionPassThroughRoof}
-          onPartitionPassThroughRoofChange={onPartitionPassThroughRoofChange}
-          rearStructuralRails={rearStructuralRails}
-          rearStructuralRailsWidthMm={rearStructuralRailsWidthMm}
-          onRearStructuralRailsChange={onRearStructuralRailsChange}
-          onRearStructuralRailsWidthChange={onRearStructuralRailsWidthChange}
-          railOrientation={railOrientation}
-          onRailOrientationChange={onRailOrientationChange}
-          hasMiddleBrace={hasMiddleBrace}
-          middleBraceWidthMm={middleBraceWidthMm}
-          onHasMiddleBraceChange={onHasMiddleBraceChange}
-          onMiddleBraceWidthChange={onMiddleBraceWidthChange}
-          hasWallHangingRail={hasWallHangingRail}
-          wallHangingRailWidthMm={wallHangingRailWidthMm}
-          onHasWallHangingRailChange={onHasWallHangingRailChange}
-          onWallHangingRailWidthChange={onWallHangingRailWidthChange}
-          hasPlinth={hasPlinth}
-          plinthHeightMm={plinthHeightMm}
-          plinthSetbackMm={plinthSetbackMm}
-          onHasPlinthChange={onHasPlinthChange}
-          onPlinthHeightChange={onPlinthHeightChange}
-          onPlinthSetbackChange={onPlinthSetbackChange}
-          onSaveUserTemplate={onSaveUserTemplate}
-        />
+        </>
       )}
-
-      {/* =========================================================================
-          SECCIÓN INTERMEDIA: Laboratorio de Interferencias Arquitectónicas
-          ========================================================================= */}
-      {enableInterferencesLab && (activeSection === 'all' || activeSection === 'interferences') && (
-        <InterferencesSection
-          width={width}
-          height={height}
-          depth={depth}
-          columnObstacle={columnObstacle}
-          falseSquare={falseSquare}
-          onColumnObstacleChange={onColumnObstacleChange}
-          onFalseSquareChange={onFalseSquareChange}
-        />
-      )}
-
-      {/* =========================================================================
-          SECCIÓN 2: Distribución de Vanos
-          ========================================================================= */}
-      {(activeSection === 'all' || activeSection === 'distribution') && (
-        <DistributionSection
-          gridType={gridType}
-          onGridTypeChange={onGridTypeChange}
-          activeBay={activeBay}
-          onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
-          bayTracks={bayTracks}
-          onBayTracksChange={onBayTracksChange}
-          bayBoxes={bayBoxes}
-          currentActiveIndex={currentActiveIndex}
-          onActiveBayIndexChange={onActiveBayIndexChange}
-        />
-      )}
-
-      {/* =========================================================================
-          SECCIÓN 3: Equipamiento Interior (Cajones, Estantes, Puertas, Tapas)
-          ========================================================================= */}
-      {(activeSection === 'all' || activeSection === 'interior') && (
-        <InteriorSection
-          currentBayCount={currentBayCount}
-          currentActiveIndex={currentActiveIndex}
-          onActiveBayIndexChange={onActiveBayIndexChange}
-          activeBay={activeBay}
-          onBayContentTypeChange={onBayContentTypeChange}
-          onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
-          onRemoveDrawer={onRemoveDrawer}
-          onAddDrawer={onAddDrawer}
-          onDrawerTracksChange={onDrawerTracksChange}
-          resolvedDrawerHeights={resolvedDrawerHeights}
-          estimatedBayCavityHeight={estimatedBayCavityHeight}
-          onDrawerTypeChange={onDrawerTypeChange}
-          onDrawerTopPullGapChange={onDrawerTopPullGapChange}
-          onDrawerBoxSideHeightOffsetChange={onDrawerBoxSideHeightOffsetChange}
-          onDrawerBottomMountChange={onDrawerBottomMountChange}
-          onDrawerFrontMountChange={onDrawerFrontMountChange}
-          onDrawerTransomsChange={onDrawerTransomsChange}
-          width={width}
-          maxDrawerSpanMm={maxDrawerSpanMm}
-          gridType={gridType}
-          onDrawerSlideTypeChange={onDrawerSlideTypeChange}
-          onDrawerSlideClearanceChange={onDrawerSlideClearanceChange}
-          onDrawerGapChange={onDrawerGapChange}
-          onRemoveShelf={onRemoveShelf}
-          onAddShelf={onAddShelf}
-          onShelfTracksChange={onShelfTracksChange}
-          shelfQuickRecipes={shelfQuickRecipes}
-          resolvedShelfHeights={resolvedShelfHeights}
-          onShelfTypeChange={onShelfTypeChange}
-          onShelfAntiSagChange={onShelfAntiSagChange}
-          onShelfHasDoorsChange={onShelfHasDoorsChange}
-          onShelfDoorCountChange={onShelfDoorCountChange}
-          onShelfDoorMountTypeChange={onShelfDoorMountTypeChange}
-          onShelfDoorHingeSideChange={onShelfDoorHingeSideChange}
-          onDoorCountChange={onDoorCountChange}
-          onDoorMountTypeChange={onDoorMountTypeChange}
-          onDoorInteriorShelvesCountChange={onDoorInteriorShelvesCountChange}
-          onDoorShelfTypeChange={onDoorShelfTypeChange}
-          onBifoldDirectionChange={onBifoldDirectionChange}
-        />
-      )}
-
-      {/* =========================================================================
-          SECCIÓN 4: Materiales por Rol (Multi-Material)
-          ========================================================================= */}
-      {(activeSection === 'all' || activeSection === 'materials') && (
-        <MaterialsSection
-          materials={materials}
-          standardThicknessesMm={standardThicknessesMm}
-          selectedMaterialId={selectedMaterialId}
-          onMaterialChange={onMaterialChange}
-          hasDoorsOrFronts={hasDoorsOrFronts}
-          frontsMaterialId={frontsMaterialId}
-          onFrontsMaterialChange={onFrontsMaterialChange}
-          hasDrawers={hasDrawers}
-          drawerBoxesMaterialId={drawerBoxesMaterialId}
-          onDrawerBoxesMaterialChange={onDrawerBoxesMaterialChange}
-          hasBackingBoard={hasBackingBoard}
-          backingsMaterialId={backingsMaterialId}
-          onBackingsMaterialChange={onBackingsMaterialChange}
-          onBackingThicknessChange={onBackingThicknessChange}
-          edgeBands={edgeBands}
-          selectedEdgeBandId={selectedEdgeBandId}
-          onEdgeBandChange={onEdgeBandChange}
-          jointStrategy={jointStrategy}
-          onJointStrategyChange={onJointStrategyChange}
-        />
-      )}
-      </>
-    )}
 
       {/* Alcance de Exportación si hay múltiples módulos */}
-      {projectModules && projectModules.length > 1 && onProjectScopeChange && (!isMobileDevice || activeSection === 'all' || activeSection === 'materials' || activeSection === 'interferences') && (
+      {projectModules && projectModules.length > 1 && onProjectScopeChange && (
         <div style={{ marginTop: '1rem', marginBottom: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container)', borderRadius: '8px' }}>
           <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--md-sys-color-on-surface)', marginBottom: '0.4rem' }}>
             Alcance para descargas (CSV / PDF):
@@ -1409,8 +1232,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </div>
       )}
 
-      {/* Navegación por Pasos y Acciones Rápidas en Móvil */}
-      {isMobileDevice && activeSection !== 'all' && (
+      {/* Navegación por Pasos en Móvil cuando hay una sección activa */}
+      {isMobileDevice && openSection && !isAllExpanded && (
         <div
           className="expert-mobile-section-footer"
           style={{
@@ -1438,7 +1261,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               borderRadius: '12px',
             }}
             onClick={() => {
-              handleSelectSection('all');
+              handleToggleAll();
               safeScrollToTop();
             }}
           >
@@ -1446,7 +1269,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             <span>Ver Todo el Formulario Continuo</span>
           </button>
 
-          {/* Fila 1: Paso Anterior / Paso Siguiente */}
+          {/* Fila: Paso Anterior / Paso Siguiente */}
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {prevStep ? (
               <button
@@ -1462,7 +1285,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   gap: '0.3rem',
                 }}
                 onClick={() => {
-                  handleSelectSection(prevStep.id);
+                  handleSelectTab(prevStep.id);
                   safeScrollToTop();
                 }}
               >
@@ -1486,7 +1309,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   gap: '0.3rem',
                 }}
                 onClick={() => {
-                  handleSelectSection(nextStep.id);
+                  handleSelectTab(nextStep.id);
                   safeScrollToTop();
                 }}
               >
@@ -1513,118 +1336,49 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               </button>
             )}
           </div>
-
-          {/* Fila 2: Acciones rápidas (Ver 3D + Guardar) disponibles en cualquier sección */}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {onView3dClick && (
-              <button
-                type="button"
-                className="m3-button m3-button--tonal"
-                style={{
-                  minHeight: '48px',
-                  flex: 1,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.3rem',
-                }}
-                onClick={onView3dClick}
-              >
-                <span>🧊 Ver 3D</span>
-              </button>
-            )}
-            {nextStep && onSave && (
-              <button
-                type="button"
-                className="m3-button m3-button--filled"
-                style={{
-                  minHeight: '48px',
-                  flex: 1,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.3rem',
-                }}
-                onClick={onSave}
-                disabled={isSaving}
-              >
-                <span>{isSaving ? 'Guardando...' : '💾 Guardar'}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Fila 3: Botones de Exportación si está en paso final */}
-          {(activeSection === 'materials' || activeSection === 'interferences') && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-              {onExportCsv && (
-                <button
-                  type="button"
-                  onClick={onExportCsv}
-                  className="m3-button m3-button--tonal"
-                  style={{ minHeight: '48px', flex: 1, fontSize: '0.82rem', justifyContent: 'center' }}
-                >
-                  📄 Lista de Corte (CSV)
-                </button>
-              )}
-              {onExportPdf && (
-                <button
-                  type="button"
-                  onClick={onExportPdf}
-                  className="m3-button m3-button--outlined"
-                  style={{ minHeight: '48px', flex: 1, fontSize: '0.82rem', justifyContent: 'center' }}
-                >
-                  📑 Diagrama (PDF)
-                </button>
-              )}
-            </div>
-          )}
         </div>
       )}
 
-      {/* Botones de acción estándar (Escritorio o cuando activeSection === 'all') */}
-      {(!isMobileDevice || activeSection === 'all') && (
-        <div className="form-actions m3-button-row">
-          {onView3dClick && (
-            <button
-              type="button"
-              onClick={onView3dClick}
-              className="m3-btn m3-btn--filled"
-              style={{ width: '100%', marginBottom: '0.5rem' }}
-            >
-              🧊 Ver Resultado en 3D
-            </button>
-          )}
+      {/* Botones de acción estándar */}
+      <div className="form-actions m3-button-row">
+        {isMobileDevice && onView3dClick && (
           <button
             type="button"
-            onClick={onSave}
-            disabled={isSaving}
+            onClick={onView3dClick}
             className="m3-btn m3-btn--filled"
+            style={{ width: '100%', marginBottom: '0.5rem' }}
           >
-            {isSaving ? 'Guardando...' : '💾 Guardar Módulo'}
-            <span className="visually-hidden">Save Module to Database</span>
+            🧊 Ver Resultado en 3D
           </button>
-          {onExportCsv && (
-            <button
-              type="button"
-              onClick={onExportCsv}
-              className="m3-btn m3-btn--tonal export-btn"
-            >
-              📄 Lista de Corte (CSV)
-            </button>
-          )}
-          {onExportPdf && (
-            <button
-              type="button"
-              onClick={onExportPdf}
-              className="m3-btn m3-btn--outlined export-btn"
-            >
-              📑 Diagrama de Corte (PDF)
-            </button>
-          )}
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSaving}
+          className="m3-btn m3-btn--filled"
+        >
+          {isSaving ? 'Guardando...' : '💾 Guardar Módulo'}
+          <span className="visually-hidden">Save Module to Database</span>
+        </button>
+        {onExportCsv && (
+          <button
+            type="button"
+            onClick={onExportCsv}
+            className="m3-btn m3-btn--tonal export-btn"
+          >
+            📄 Lista de Corte (CSV)
+          </button>
+        )}
+        {onExportPdf && (
+          <button
+            type="button"
+            onClick={onExportPdf}
+            className="m3-btn m3-btn--outlined export-btn"
+          >
+            📑 Diagrama de Corte (PDF)
+          </button>
+        )}
+      </div>
 
       {/* Modal de Distribución Interior Compleja (Matriz estilo Word) */}
       <BayDistributionModal

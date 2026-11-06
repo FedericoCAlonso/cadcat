@@ -94,23 +94,37 @@ export function PieceInspectorCard({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)' }}>
-            🔍 Pieza: <strong>{selectedPiece.id}</strong>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span>🔍</span>
+            <span>{translatePieceRole(selectedPiece.role)}</span>
           </h3>
-          <span className="m3-badge m3-badge--neutral">
-            {translatePieceRole(selectedPiece.role)}
+          <span style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-outline)' }} title={`ID técnico: ${selectedPiece.id}`}>
+            ID: {selectedPiece.id}
           </span>
         </div>
         <button
           type="button"
           className="m3-button m3-button--tonal"
-          style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem', borderRadius: '18px' }}
+          style={{
+            width: '36px',
+            height: '36px',
+            minWidth: '36px',
+            minHeight: '36px',
+            padding: 0,
+            borderRadius: '18px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1rem',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
           onClick={() => onSelectPiece?.(null)}
           title="Cerrar inspector y deseleccionar pieza"
           aria-label="Cerrar inspector y deseleccionar"
         >
-          ✕ Cerrar
+          ✕
         </button>
       </div>
 
