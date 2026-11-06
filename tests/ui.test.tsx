@@ -143,13 +143,11 @@ describe('ModuleForm Component', () => {
     expect(html).toContain('1 Vano único');
     expect(html).toContain('2 Vanos (Parante)');
 
-    // Drawer controls (answers user request: cajones y distribucion)
+    // Drawer controls (Stage 2 Step A: visualizer, groups and diagram options)
     expect(html).toContain('3 Cajones');
-    expect(html).toContain('Medidas de cajones (mm, fr o mixto):');
-    expect(html).toContain('value="140mm 1fr 1fr"');
-    expect(html).toContain('Atajos rápidos:');
-    expect(html).toContain('Alturas reales calculadas');
-    expect(html).toContain('Cajón 1 (Superior):');
+    expect(html).toContain('Distribución a Escala');
+    expect(html).toContain('Atajos:');
+    expect(html).toContain('Ajustar Cajón 1');
     expect(html).toContain('Separación entre frentes (luz):');
     expect(html).toContain('Aplicado (Solapado)');
     expect(html).toContain('Embutido');
@@ -191,13 +189,16 @@ describe('ModuleForm Component', () => {
       />,
     );
 
-    // Custom track controls
-    expect(html).toContain('Medidas de cajones (mm, fr o mixto):');
-    expect(html).toContain('value="120mm 200mm 2fr"');
-    expect(html).toContain('Alturas reales calculadas');
+    // Custom track controls (Stage 2 Step A)
+    expect(html).toContain('Distribución a Escala');
+    expect(html).toContain('Cajón 1');
+    expect(html).toContain('Cajón 2');
+    expect(html).toContain('Cajón 3');
+    expect(html).toContain('2fr');
     expect(html).toContain('Travesaños horizontales entre cajones:');
     expect(html).toContain('Con fajas separadoras');
     expect(html).toContain('3.0 mm');
+    expect(html).toContain('Ocultas (Bajo Fondo)');
   });
 
   it('renders interactive shelf and door controls when equipped', () => {

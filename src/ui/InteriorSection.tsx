@@ -8,8 +8,21 @@ import type {
   DrawerSlideType,
   DoorMountType,
 } from '../resolver';
-import { DEFAULT_UI_CONFIG } from '../config';
 import { DrawerTracksInput } from './DrawerTracksInput';
+import {
+  DrawerTypeStandardDiagram,
+  DrawerTypeSimpleInteriorDiagram,
+  DrawerBottomGroovedDiagram,
+  DrawerBottomScrewedDiagram,
+  DrawerBottomFlushThickDiagram,
+  DrawerFrontAppliedDiagram,
+  DrawerFrontInsetDiagram,
+  DrawerTransomsWithDividerDiagram,
+  DrawerTransomsContinuousDiagram,
+  DrawerSlideTelescopicDiagram,
+  DrawerSlideUndermountDiagram,
+} from './DrawerDiagrams';
+import { DrawerDistributionVisualizer } from './DrawerDistributionVisualizer';
 
 /**
  * Props for the InteriorSection component.
@@ -249,339 +262,337 @@ export function InteriorSection({
         </div>
       </div>
 
-      {/* Controles para Cajones */}
+      {/* Controles para Cajones (Stage 2 Step A: Grupos ergonómicos y diagramas) */}
       {activeBay.type === 'drawer-stack' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div className="form-group">
-            <label>Cantidad de cajones:</label>
-            <div className="m3-stepper-field">
-              <button
-                type="button"
-                className="m3-stepper-btn"
-                aria-label="Quitar un cajón"
-                onClick={() => onRemoveDrawer?.(currentActiveIndex)}
-              >
-                −
-              </button>
-              <div className="builder-stepper-display">
-                {`${activeBay.drawerTracks.length} Cajones`}
-              </div>
-              <button
-                type="button"
-                className="m3-stepper-btn"
-                aria-label="Agregar un cajón"
-                onClick={() => onAddDrawer?.(currentActiveIndex)}
-              >
-                +
-              </button>
-            </div>
-          </div>
+        <div id="drawer-section-after" className="drawer-section-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
 
-          {/* Definición de pistas estilo CSS Grid (Proporciones y Medidas) */}
-          <div className="form-group" style={{ padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-            <label htmlFor="input-grid-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
-              📐 Medidas de cajones (mm, fr o mixto):
-            </label>
-            <DrawerTracksInput
+          {/* GRUPO 1: Distribución de frentes */}
+          <div className="drawer-group">
+            <h3 className="drawer-group-title">Distribución de frentes</h3>
+
+            {/* Fila 2 columnas: Cantidad de cajones y Luz entre frentes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem', marginBottom: '0.35rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="drawer-field-label">Cantidad de cajones:</label>
+                <div className="m3-stepper-field">
+                  <button
+                    type="button"
+                    className="m3-stepper-btn"
+                    aria-label="Quitar un cajón"
+                    onClick={() => onRemoveDrawer?.(currentActiveIndex)}
+                  >
+                    −
+                  </button>
+                  <div className="builder-stepper-display">
+                    {`${activeBay.drawerTracks.length} Cajones`}
+                  </div>
+                  <button
+                    type="button"
+                    className="m3-stepper-btn"
+                    aria-label="Agregar un cajón"
+                    onClick={() => onAddDrawer?.(currentActiveIndex)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="drawer-field-label">Separación entre frentes (luz):</label>
+                <div className="m3-stepper-field">
+                  <button
+                    type="button"
+                    className="m3-stepper-btn"
+                    aria-label="Disminuir separación entre cajones 0.5 mm"
+                    onClick={() => {
+                      const currentGap = activeBay.gapMm ?? 2.5;
+                      onDrawerGapChange?.(currentActiveIndex, Math.max(1.0, Math.round((currentGap - 0.5) * 10) / 10));
+                    }}
+                  >
+                    −
+                  </button>
+                  <div className="builder-stepper-display">
+                    {`${(activeBay.gapMm ?? 2.5).toFixed(1)} mm`}
+                  </div>
+                  <button
+                    type="button"
+                    className="m3-stepper-btn"
+                    aria-label="Aumentar separación entre cajones 0.5 mm"
+                    onClick={() => {
+                      const currentGap = activeBay.gapMm ?? 2.5;
+                      onDrawerGapChange?.(currentActiveIndex, Math.min(8.0, Math.round((currentGap + 0.5) * 10) / 10));
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Visualizador de proporción y alturas a escala (Step A) */}
+            <DrawerDistributionVisualizer
               tracks={activeBay.drawerTracks}
-              onChange={(parsed) => onDrawerTracksChange?.(currentActiveIndex, parsed)}
+              resolvedDrawerHeights={resolvedDrawerHeights}
+              estimatedBayCavityHeight={estimatedBayCavityHeight}
+              onChangeTracks={(tracks) => onDrawerTracksChange?.(currentActiveIndex, tracks)}
             />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
-              <span style={{ font: 'var(--md-sys-typescale-label-small)', color: 'var(--md-sys-color-on-surface-variant)', marginRight: '0.25rem' }}>
-                Atajos rápidos:
-              </span>
-              {DEFAULT_UI_CONFIG.quickTrackRecipes.map((recipe, rIdx) => (
-                <button
-                  key={rIdx}
-                  type="button"
-                  className="m3-chip"
-                  style={{ height: '30px', padding: '0 0.65rem', fontSize: '0.78rem' }}
-                  onClick={() =>
-                    onDrawerTracksChange?.(currentActiveIndex, recipe.tracks as TrackSize[])
-                  }
-                >
-                  {recipe.label}
-                </button>
-              ))}
-            </div>
+            {/* Montaje de frentes (solo si no es simple interior) */}
+            {activeBay.drawerType !== 'simple-interior' && (
+              <div className="form-group" style={{ marginTop: '0.35rem', marginBottom: 0 }}>
+                <label className="drawer-field-label">Montaje de frentes:</label>
+                <div className="drawer-segmented-row" role="radiogroup" aria-label="Montaje de frentes">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={activeBay.frontMount === 'applied' || !activeBay.frontMount}
+                    className={`drawer-option-btn ${activeBay.frontMount === 'applied' || !activeBay.frontMount ? 'drawer-option-btn--selected' : ''}`}
+                    onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'applied')}
+                  >
+                    <DrawerFrontAppliedDiagram />
+                    <span className="drawer-option-label">Aplicado (Solapado)</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={activeBay.frontMount === 'inset'}
+                    className={`drawer-option-btn ${activeBay.frontMount === 'inset' ? 'drawer-option-btn--selected' : ''}`}
+                    onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'inset')}
+                  >
+                    <DrawerFrontInsetDiagram />
+                    <span className="drawer-option-label">Embutido</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Travesaños horizontales separadores para cajones embutidos */}
+            {activeBay.drawerType !== 'simple-interior' && activeBay.frontMount === 'inset' && (
+              <div className="form-group" style={{ marginTop: '0.35rem', marginBottom: 0 }}>
+                <label className="drawer-field-label">Travesaños horizontales entre cajones:</label>
+                <div className="drawer-segmented-row" role="radiogroup" aria-label="Travesaños horizontales entre cajones">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={Boolean(activeBay.hasTransomDividers)}
+                    className={`drawer-option-btn ${activeBay.hasTransomDividers ? 'drawer-option-btn--selected' : ''}`}
+                    onClick={() => onDrawerTransomsChange?.(currentActiveIndex, true)}
+                  >
+                    <DrawerTransomsWithDividerDiagram />
+                    <span className="drawer-option-label">Con fajas separadoras</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!activeBay.hasTransomDividers}
+                    className={`drawer-option-btn ${!activeBay.hasTransomDividers ? 'drawer-option-btn--selected' : ''}`}
+                    onClick={() => onDrawerTransomsChange?.(currentActiveIndex, false)}
+                  >
+                    <DrawerTransomsContinuousDiagram />
+                    <span className="drawer-option-label">Sin fajas (frente corrido)</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Visualizador de proporción y alturas calculadas */}
-          {resolvedDrawerHeights.length > 0 && (
-            <div className="form-group" style={{ padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-              <span style={{ font: 'var(--md-sys-typescale-label-medium)', fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'block', marginBottom: '0.4rem' }}>
-                📊 Alturas reales calculadas ({estimatedBayCavityHeight} mm luz libre):
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', borderRadius: '4px', overflow: 'hidden' }}>
-                {resolvedDrawerHeights.map((h, i) => {
-                  const track = activeBay.drawerTracks[i];
-                  const isFixed = track?.type === 'fixed';
-                  const trackLabel = isFixed ? `${track.valueMm}mm fijo` : `${track?.valueFr ?? 1}fr prop.`;
-                  const pct = Math.max(14, Math.round((h / Math.max(1, estimatedBayCavityHeight)) * 100));
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        minHeight: `${Math.max(28, Math.round(pct * 0.75))}px`,
-                        backgroundColor: isFixed ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-primary-container)',
-                        color: isFixed ? 'var(--md-sys-color-on-tertiary-container)' : 'var(--md-sys-color-on-primary-container)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.2rem 0.6rem',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      <span>{`Cajón ${i + 1}${i === 0 ? ' (Superior)' : i === activeBay.drawerTracks.length - 1 ? ' (Inferior)' : ''}: (${trackLabel})`}</span>
-                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{`${h} mm`}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* GRUPO 2: Caja del cajón */}
+          <div className="drawer-group">
+            <h3 className="drawer-group-title">Caja del cajón</h3>
 
-          <div className="form-group">
-            <label>Tipo de cajón:</label>
-            <div className="builder-segmented-group">
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.drawerType !== 'simple-interior' ? 'selected' : ''}`}
-                onClick={() => onDrawerTypeChange?.(currentActiveIndex, 'standard')}
-              >
-                Estándar (Doble frente)
-              </button>
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.drawerType === 'simple-interior' ? 'selected' : ''}`}
-                onClick={() => onDrawerTypeChange?.(currentActiveIndex, 'simple-interior')}
-              >
-                Simple Interior (Placard / 1 tapa)
-              </button>
-            </div>
-          </div>
-
-          {/* Opciones para cajón simple interior de placard */}
-          {activeBay.drawerType === 'simple-interior' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', padding: '0.65rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-              <div>
-                <label htmlFor="drawer-top-pull" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                  Ranura superior para tirar:
-                </label>
-                <select
-                  id="drawer-top-pull"
-                  className="m3-select"
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                  value={activeBay.topPullGapMm ?? 0}
-                  onChange={(e) => onDrawerTopPullGapChange?.(currentActiveIndex, Number(e.target.value))}
-                >
-                  <option value="0">0 mm (Con tirador)</option>
-                  <option value="25">25 mm (Mano / Uñero)</option>
-                  <option value="30">30 mm (Acceso estándar)</option>
-                  <option value="35">35 mm (Acceso amplio)</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="drawer-side-offset" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                  Laterales más bajos que frente:
-                </label>
-                <select
-                  id="drawer-side-offset"
-                  className="m3-select"
-                  style={{ width: '100%', fontSize: '0.85rem' }}
-                  value={activeBay.boxSideHeightOffsetMm ?? 0}
-                  onChange={(e) => onDrawerBoxSideHeightOffsetChange?.(currentActiveIndex, Number(e.target.value))}
-                >
-                  <option value="0">Misma altura</option>
-                  <option value="30">30 mm más bajos</option>
-                  <option value="40">40 mm más bajos</option>
-                  <option value="50">50 mm más bajos</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Construcción del fondo:</label>
-            <div className="builder-segmented-group">
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.bottomMount === 'grooved' ? 'selected' : ''}`}
-                onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'grooved')}
-              >
-                Ranurado (3-6 mm)
-              </button>
-              <button
-                type="button"
-                className={`builder-segmented-btn ${!activeBay.bottomMount || activeBay.bottomMount === 'bottom-screwed' ? 'selected' : ''}`}
-                onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'bottom-screwed')}
-              >
-                Atornillado/Clavado por debajo
-              </button>
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.bottomMount === 'flush-thick' ? 'selected' : ''}`}
-                onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'flush-thick')}
-              >
-                Grueso embutido (15/18 mm)
-              </button>
-            </div>
-          </div>
-
-          {/* Montaje de frentes (solo si es estándar) */}
-          {activeBay.drawerType !== 'simple-interior' && (
             <div className="form-group">
-              <label>Montaje de frentes:</label>
-              <div className="builder-segmented-group">
+              <label className="drawer-field-label">Tipo de cajón:</label>
+              <div className="drawer-segmented-row" role="radiogroup" aria-label="Tipo de cajón">
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.frontMount === 'applied' ? 'selected' : ''}`}
-                  onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'applied')}
+                  role="radio"
+                  aria-checked={activeBay.drawerType !== 'simple-interior'}
+                  className={`drawer-option-btn ${activeBay.drawerType !== 'simple-interior' ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerTypeChange?.(currentActiveIndex, 'standard')}
                 >
-                  Aplicado (Solapado)
+                  <DrawerTypeStandardDiagram />
+                  <span className="drawer-option-label">Estándar (Doble frente)</span>
                 </button>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.frontMount === 'inset' ? 'selected' : ''}`}
-                  onClick={() => onDrawerFrontMountChange?.(currentActiveIndex, 'inset')}
+                  role="radio"
+                  aria-checked={activeBay.drawerType === 'simple-interior'}
+                  className={`drawer-option-btn ${activeBay.drawerType === 'simple-interior' ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerTypeChange?.(currentActiveIndex, 'simple-interior')}
                 >
-                  Embutido
+                  <DrawerTypeSimpleInteriorDiagram />
+                  <span className="drawer-option-label">Simple Interior (Placard / 1 tapa)</span>
                 </button>
               </div>
             </div>
-          )}
 
-          {/* Travesaños separadores para cajones embutidos */}
-          {activeBay.frontMount === 'inset' && (
+            {/* Opciones dependientes para cajón simple interior de placard */}
+            {activeBay.drawerType === 'simple-interior' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', marginTop: '0.4rem', padding: '0.5rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                <div>
+                  <label htmlFor="drawer-top-pull" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                    Ranura superior para tirar:
+                  </label>
+                  <select
+                    id="drawer-top-pull"
+                    className="m3-select"
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    value={activeBay.topPullGapMm ?? 0}
+                    onChange={(e) => onDrawerTopPullGapChange?.(currentActiveIndex, Number(e.target.value))}
+                  >
+                    <option value="0">0 mm (Con tirador)</option>
+                    <option value="25">25 mm (Mano / Uñero)</option>
+                    <option value="30">30 mm (Acceso estándar)</option>
+                    <option value="35">35 mm (Acceso amplio)</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="drawer-side-offset" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                    Laterales más bajos que frente:
+                  </label>
+                  <select
+                    id="drawer-side-offset"
+                    className="m3-select"
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    value={activeBay.boxSideHeightOffsetMm ?? 0}
+                    onChange={(e) => onDrawerBoxSideHeightOffsetChange?.(currentActiveIndex, Number(e.target.value))}
+                  >
+                    <option value="0">Misma altura</option>
+                    <option value="30">30 mm más bajos</option>
+                    <option value="40">40 mm más bajos</option>
+                    <option value="50">50 mm más bajos</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* GRUPO 3: Fondo */}
+          <div className="drawer-group">
+            <h3 className="drawer-group-title">Fondo</h3>
+
             <div className="form-group">
-              <label>Travesaños horizontales entre cajones:</label>
-              <div className="builder-segmented-group">
+              <label className="drawer-field-label">Construcción del fondo:</label>
+              <div className="drawer-segmented-row drawer-segmented-row--3col" role="radiogroup" aria-label="Construcción del fondo">
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${activeBay.hasTransomDividers ? 'selected' : ''}`}
-                  onClick={() => onDrawerTransomsChange?.(currentActiveIndex, true)}
+                  role="radio"
+                  aria-checked={activeBay.bottomMount === 'grooved'}
+                  className={`drawer-option-btn ${activeBay.bottomMount === 'grooved' ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'grooved')}
                 >
-                  Con fajas separadoras
+                  <DrawerBottomGroovedDiagram />
+                  <span className="drawer-option-label">Ranurado (3-6mm)</span>
                 </button>
                 <button
                   type="button"
-                  className={`builder-segmented-btn ${!activeBay.hasTransomDividers ? 'selected' : ''}`}
-                  onClick={() => onDrawerTransomsChange?.(currentActiveIndex, false)}
+                  role="radio"
+                  aria-checked={!activeBay.bottomMount || activeBay.bottomMount === 'bottom-screwed'}
+                  className={`drawer-option-btn ${!activeBay.bottomMount || activeBay.bottomMount === 'bottom-screwed' ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'bottom-screwed')}
                 >
-                  Sin fajas (frente corrido)
+                  <DrawerBottomScrewedDiagram />
+                  <span className="drawer-option-label">Atornillado</span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={activeBay.bottomMount === 'flush-thick'}
+                  className={`drawer-option-btn ${activeBay.bottomMount === 'flush-thick' ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerBottomMountChange?.(currentActiveIndex, 'flush-thick')}
+                >
+                  <DrawerBottomFlushThickDiagram />
+                  <span className="drawer-option-label">Embutido (18mm)</span>
                 </button>
               </div>
             </div>
-          )}
-
-          {width > maxDrawerSpanMm && (!gridType || gridType === '1-bay') && (
-            <div
-              className="m3-alert-banner warning"
-              style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--md-sys-color-warning-container)',
-                border: '1px solid var(--md-sys-color-warning-border)',
-                color: 'var(--md-sys-color-on-warning-container)',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '10px',
-              }}
-            >
-              <span>⚠️</span>
-              <span>
-                <strong>Cajón muy ancho ({width} mm):</strong> Supera el estándar de {maxDrawerSpanMm} mm. Conviene dividir el mueble en 2 vanos verticales para asegurar el buen funcionamiento de las correderas.
-              </span>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Tipo de correderas:</label>
-            <div className="builder-segmented-group">
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.slideType === 'telescopic' ? 'selected' : ''}`}
-                onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'telescopic')}
-              >
-                Telescópicas (25.4mm)
-              </button>
-              <button
-                type="button"
-                className={`builder-segmented-btn ${activeBay.slideType === 'undermount' ? 'selected' : ''}`}
-                onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'undermount')}
-              >
-                Ocultas (Bajo Fondo)
-              </button>
-            </div>
           </div>
 
-          {/* Holgura lateral de correderas */}
-          <div className="form-group">
-            <label>Holgura lateral total de correderas:</label>
-            <div className="m3-stepper-field">
-              <button
-                type="button"
-                className="m3-stepper-btn"
-                aria-label="Disminuir holgura de correderas 0.5 mm"
-                onClick={() => {
-                  const current = activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4);
-                  onDrawerSlideClearanceChange?.(currentActiveIndex, Math.max(5.0, Math.round((current - 0.5) * 10) / 10));
-                }}
-              >
-                −
-              </button>
-              <div className="builder-stepper-display">
-                {`${(activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4)).toFixed(1)} mm`}
-              </div>
-              <button
-                type="button"
-                className="m3-stepper-btn"
-                aria-label="Aumentar holgura de correderas 0.5 mm"
-                onClick={() => {
-                  const current = activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4);
-                  onDrawerSlideClearanceChange?.(currentActiveIndex, Math.min(50.0, Math.round((current + 0.5) * 10) / 10));
-                }}
-              >
-                +
-              </button>
-            </div>
-          </div>
+          {/* GRUPO 4: Herrajes */}
+          <div className="drawer-group">
+            <h3 className="drawer-group-title">Herrajes</h3>
 
-          {/* Separación entre frentes (luz) */}
-          <div className="form-group">
-            <label>Separación entre frentes (luz):</label>
-            <div className="m3-stepper-field">
-              <button
-                type="button"
-                className="m3-stepper-btn"
-                aria-label="Disminuir separación entre cajones 0.5 mm"
-                onClick={() => {
-                  const currentGap = activeBay.gapMm ?? 2.5;
-                  onDrawerGapChange?.(currentActiveIndex, Math.max(1.0, Math.round((currentGap - 0.5) * 10) / 10));
-                }}
-              >
-                −
-              </button>
-              <div className="builder-stepper-display">
-                {`${(activeBay.gapMm ?? 2.5).toFixed(1)} mm`}
+            <div className="form-group">
+              <label className="drawer-field-label">Tipo de correderas:</label>
+              <div className="drawer-segmented-row" role="radiogroup" aria-label="Tipo de correderas">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={activeBay.slideType === 'telescopic' || !activeBay.slideType}
+                  className={`drawer-option-btn ${activeBay.slideType === 'telescopic' || !activeBay.slideType ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'telescopic')}
+                >
+                  <DrawerSlideTelescopicDiagram />
+                  <span className="drawer-option-label">Telescópicas (25.4mm)</span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={activeBay.slideType === 'undermount'}
+                  className={`drawer-option-btn ${activeBay.slideType === 'undermount' ? 'drawer-option-btn--selected' : ''}`}
+                  onClick={() => onDrawerSlideTypeChange?.(currentActiveIndex, 'undermount')}
+                >
+                  <DrawerSlideUndermountDiagram />
+                  <span className="drawer-option-label">Ocultas (Bajo Fondo)</span>
+                </button>
               </div>
-              <button
-                type="button"
-                className="m3-stepper-btn"
-                aria-label="Aumentar separación entre cajones 0.5 mm"
-                onClick={() => {
-                  const currentGap = activeBay.gapMm ?? 2.5;
-                  onDrawerGapChange?.(currentActiveIndex, Math.min(8.0, Math.round((currentGap + 0.5) * 10) / 10));
+            </div>
+
+            {/* Holgura lateral de correderas */}
+            <div className="form-group" style={{ marginTop: '0.25rem' }}>
+              <label className="drawer-field-label">Holgura lateral total de correderas:</label>
+              <div className="m3-stepper-field">
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Disminuir holgura de correderas 0.5 mm"
+                  onClick={() => {
+                    const current = activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4);
+                    onDrawerSlideClearanceChange?.(currentActiveIndex, Math.max(5.0, Math.round((current - 0.5) * 10) / 10));
+                  }}
+                >
+                  −
+                </button>
+                <div className="builder-stepper-display">
+                  {`${(activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4)).toFixed(1)} mm`}
+                </div>
+                <button
+                  type="button"
+                  className="m3-stepper-btn"
+                  aria-label="Aumentar holgura de correderas 0.5 mm"
+                  onClick={() => {
+                    const current = activeBay.slideClearanceMm ?? (activeBay.slideType === 'undermount' ? 10.0 : 25.4);
+                    onDrawerSlideClearanceChange?.(currentActiveIndex, Math.min(50.0, Math.round((current + 0.5) * 10) / 10));
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Advertencia si supera luz máxima */}
+            {width > maxDrawerSpanMm && (!gridType || gridType === '1-bay') && (
+              <div
+                className="m3-alert-banner warning"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--md-sys-color-warning-container)',
+                  border: '1px solid var(--md-sys-color-warning-border)',
+                  color: 'var(--md-sys-color-on-warning-container)',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: '0.5rem',
                 }}
               >
-                +
-              </button>
-            </div>
+                <span>⚠️</span>
+                <span>
+                  <strong>Cajón muy ancho ({width} mm):</strong> Supera el estándar de {maxDrawerSpanMm} mm. Conviene dividir el mueble en 2 vanos verticales para asegurar el buen funcionamiento de las correderas.
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

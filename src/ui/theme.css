@@ -3900,3 +3900,357 @@ legend.builder-section-title {
 .m3-accordion-body legend.builder-section-title {
   display: none !important;
 }
+
+/* ==========================================================================
+   Stage 2: Drawer Section Ergonomics & Diagram Options
+   ========================================================================== */
+
+.drawer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.drawer-group .form-group {
+  margin-bottom: 0.25rem !important;
+}
+
+.drawer-group-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--md-sys-color-primary);
+  margin: 0.35rem 0 0.15rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  padding-bottom: 0.15rem;
+}
+
+.drawer-field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+  margin-bottom: 0.15rem;
+}
+
+.drawer-segmented-row {
+  display: flex;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.drawer-segmented-row--3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+}
+
+.drawer-option-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.2rem 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  background-color: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+  line-height: 1.15;
+}
+
+.drawer-segmented-row--3col .drawer-option-btn {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 0.15rem;
+  padding: 0.25rem 0.15rem;
+  min-height: 48px;
+}
+
+.drawer-option-btn:hover {
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.drawer-option-btn--selected {
+  border-color: var(--md-sys-color-primary) !important;
+  background-color: var(--md-sys-color-primary-container) !important;
+  color: var(--md-sys-color-on-primary-container) !important;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.drawer-option-svg {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.drawer-segmented-row--3col .drawer-option-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.drawer-option-label {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.drawer-segmented-row--3col .drawer-option-label {
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+/* Drawer Distribution Visualizer (Step A) */
+.drawer-distribution-visualizer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem 0.45rem;
+  background-color: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-sm);
+}
+
+.drawer-distribution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.drawer-distribution-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--md-sys-color-primary);
+}
+
+.drawer-distribution-cavity-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 8px;
+  background-color: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.drawer-distribution-custom-btn {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.35rem;
+  min-height: 26px;
+  color: var(--md-sys-color-primary);
+}
+
+.drawer-distribution-custom-field {
+  padding: 0.35rem;
+  background-color: var(--md-sys-color-surface);
+  border: 1px dashed var(--md-sys-color-outline);
+  border-radius: 6px;
+}
+
+.drawer-distribution-recipes {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.drawer-recipes-caption {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-right: 0.15rem;
+  flex-shrink: 0;
+}
+
+.drawer-recipes-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+  padding: 1px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.drawer-recipes-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.drawer-recipe-chip {
+  min-height: 24px;
+  padding: 0 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.drawer-recipe-chip:hover {
+  background-color: var(--md-sys-color-surface-container-high);
+}
+
+.drawer-recipe-chip--active {
+  border-color: var(--md-sys-color-primary);
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-weight: 700;
+}
+
+.drawer-elevation-and-editor {
+  display: flex;
+  gap: 0.45rem;
+  align-items: stretch;
+  margin-top: 0.1rem;
+}
+
+@media (max-width: 320px) {
+  .drawer-elevation-and-editor {
+    flex-direction: column;
+  }
+}
+
+.drawer-elevation-diagram {
+  flex: 0 0 115px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 90px;
+  background-color: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.drawer-elevation-band {
+  width: 100%;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 4px;
+  padding: 0.1rem 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 22px;
+  text-align: left;
+}
+
+.drawer-elevation-band--frac {
+  background-color: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+}
+
+.drawer-elevation-band--fixed {
+  background-color: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+  border-color: var(--md-sys-color-tertiary);
+}
+
+.drawer-elevation-band--selected {
+  outline: 2px solid var(--md-sys-color-primary) !important;
+  outline-offset: -1px;
+  background-color: var(--md-sys-color-primary-container) !important;
+  color: var(--md-sys-color-on-primary-container) !important;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.drawer-band-content {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.drawer-band-num {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.drawer-band-height {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.drawer-band-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.08rem 0.25rem;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.drawer-selected-editor {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.35rem;
+  background-color: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 6px;
+}
+
+.drawer-selected-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.drawer-selected-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+}
+
+.drawer-unit-toggle {
+  width: 100%;
+}
+
+.drawer-unit-toggle .m3-segmented-button__item {
+  font-size: 0.7rem;
+  min-height: 26px;
+  padding: 0.1rem 0.35rem;
+}
+
+.drawer-selected-field-row {
+  margin-top: 0.1rem;
+}
+
+.drawer-num-field-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.drawer-num-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
+}
