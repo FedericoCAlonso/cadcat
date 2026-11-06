@@ -232,11 +232,23 @@ export function PanelSummaryFooter({
           <button
             type="button"
             onClick={onSave}
-            disabled={isSaving}
+            disabled={isSaving || isCostCalculating}
             className="m3-btn m3-btn--filled panel-footer-save-btn"
-            title="Guardar Módulo en la base de datos local"
+            title={
+              isCostCalculating
+                ? 'Calculando costos y despiece...'
+                : isSaving
+                  ? 'Guardando...'
+                  : 'Guardar Módulo en la base de datos local'
+            }
           >
-            <span>{isSaving ? 'Guardando...' : '💾 Guardar Módulo'}</span>
+            <span>
+              {isCostCalculating
+                ? 'Calculando...'
+                : isSaving
+                  ? 'Guardando...'
+                  : '💾 Guardar Módulo'}
+            </span>
             <span className="visually-hidden">Save Module to Database</span>
           </button>
         )}
@@ -246,8 +258,13 @@ export function PanelSummaryFooter({
             <button
               type="button"
               onClick={onExportCsv}
+              disabled={isCostCalculating}
               className="m3-btn m3-btn--small m3-btn--tonal panel-footer-export-btn"
-              title="Lista de Corte (CSV)"
+              title={
+                isCostCalculating
+                  ? 'Calculando lista de corte...'
+                  : 'Lista de Corte (CSV)'
+              }
               aria-label="Lista de Corte (CSV)"
             >
               <span>📄 CSV</span>
@@ -258,8 +275,13 @@ export function PanelSummaryFooter({
             <button
               type="button"
               onClick={onExportPdf}
+              disabled={isCostCalculating}
               className="m3-btn m3-btn--small m3-btn--outlined panel-footer-export-btn"
-              title="Diagrama de Corte (PDF)"
+              title={
+                isCostCalculating
+                  ? 'Calculando diagrama de corte...'
+                  : 'Diagrama de Corte (PDF)'
+              }
               aria-label="Diagrama de Corte (PDF)"
             >
               <span>📑 PDF</span>

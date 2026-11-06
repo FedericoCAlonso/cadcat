@@ -4,8 +4,19 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import { PanelSummaryFooter, calculateNestingBoardAreaM2 } from '../src/ui/PanelSummaryFooter';
 import type { BillOfMaterials, ModuleCostSummary } from '../src/resolver';
-import type { Material } from '../src/model';
+import type { Material, EdgeBand, Hardware } from '../src/model';
 import { DEFAULT_UI_CONFIG } from '../src/config';
+import { buildBaseCabinetModule } from '../src/resolver/moduleBuilder';
+import { generateBillOfMaterials } from '../src/resolver/bom';
+import { calculateModuleCost } from '../src/resolver/cost';
+import {
+  consolidateProjectBom,
+  consolidateProjectPieces,
+  runProjectNesting,
+  calculateProjectCost,
+  type ModuleToConsolidate,
+} from '../src/resolver/projectConsolidator';
+import { exportCutListCsv } from '../src/resolver/export';
 
 describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
   const mockMaterials: Material[] = [
@@ -317,6 +328,22 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
 
       vi.useRealTimers();
     });
+
+    it('does NOT display "calculando…" on initial load when cost is already provided', () => {
+      const html = renderToString(
+        <PanelSummaryFooter
+          bom={mockModuleBom}
+          consolidatedBom={mockConsolidatedBom}
+          cost={mockModuleCost}
+          consolidatedCost={mockConsolidatedCost}
+          isCostCalculating={false}
+          materials={mockMaterials}
+        />,
+      );
+
+      expect(html).not.toContain('calculando…');
+      expect(html).toContain('$168.000');
+    });
   });
 
   describe('2.5 Footer and Action Buttons', () => {
@@ -372,6 +399,240 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
         root.unmount();
       });
       container.remove();
+    });
+
+    it('disables Save Module, CSV, and PDF buttons when isCostCalculating is true', () => {
+      const handleSave = vi.fn();
+      const handleCsv = vi.fn();
+      const handlePdf = vi.fn();
+
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = createRoot(container);
+
+      act(() => {
+        root.render(
+          <PanelSummaryFooter
+            bom={mockModuleBom}
+            consolidatedBom={mockConsolidatedBom}
+            cost={mockModuleCost}
+            consolidatedCost={mockConsolidatedCost}
+            materials={mockMaterials}
+            isCostCalculating={true}
+            onSave={handleSave}
+            onExportCsv={handleCsv}
+            onExportPdf={handlePdf}
+          />,
+        );
+      });
+
+      const saveBtn = container.querySelector('.panel-footer-save-btn') as HTMLButtonElement | null;
+      expect(saveBtn?.disabled).toBe(true);
+      act(() => {
+        saveBtn?.click();
+      });
+      expect(handleSave).not.toHaveBeenCalled();
+
+      const csvBtn = container.querySelector('.panel-footer-export-btn[aria-label="Lista de Corte (CSV)"]') as HTMLButtonElement | null;
+      expect(csvBtn?.disabled).toBe(true);
+      act(() => {
+        csvBtn?.click();
+      });
+      expect(handleCsv).not.toHaveBeenCalled();
+
+      const pdfBtn = container.querySelector('.panel-footer-export-btn[aria-label="Diagrama de Corte (PDF)"]') as HTMLButtonElement | null;
+      expect(pdfBtn?.disabled).toBe(true);
+      act(() => {
+        pdfBtn?.click();
+      });
+      expect(handlePdf).not.toHaveBeenCalled();
+
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    });
+  });
+
+  describe('2.6 Multi-module Project Coherence (Real Cost Engine and CSV comparison)', () => {
+    const edgeBand2: EdgeBand = {
+      id: 'eb-pvc-2',
+      kind: 'adhesive',
+      thicknessMm: 2,
+      pricePerMeter: 300,
+    };
+
+    const hardwareScrew: Hardware = {
+      id: 'hw-confirmat-7x50',
+      name: 'Tornillo Confirmat 7x50',
+      jointKind: 'confirmat',
+      pricePerUnit: 50,
+    };
+
+    const costConfig = {
+      wasteFactorPercent: 10,
+      hourlyLaborRate: 0,
+      pricePerCutPass: 50,
+      cutPricingMode: 'per-pass' as const,
+    };
+
+    it('renders identical metrics to real cost engine and matches project CSV cut list', () => {
+      // 1. Module A: 800x720x580 mm, quantity 1 (5 pieces)
+      const modAData = buildBaseCabinetModule(
+        {
+          widthMm: 800,
+          heightMm: 720,
+          depthMm: 580,
+          materialId: mockMaterials[0]!.id,
+          materialThicknessMm: 18,
+          edgeBandId: edgeBand2.id,
+        },
+        [edgeBand2],
+      );
+      const piecesA = modAData.resolvedPieces;
+      const bomA = generateBillOfMaterials(
+        {
+          moduleId: 'mod-A',
+          pieces: piecesA,
+          joints: modAData.module.joints,
+          parameters: {},
+          placementTree: null as never,
+          jointGraph: null as never,
+        },
+        [edgeBand2],
+      );
+      const nestingA = runProjectNesting(
+        [{ moduleId: 'mod-A', moduleName: 'Bajo Mesada 800', quantity: 1, pieces: piecesA }],
+        { materials: mockMaterials },
+      );
+      const costA = calculateModuleCost({
+        bom: bomA,
+        nestingResult: nestingA,
+        materials: mockMaterials,
+        edgeBands: [edgeBand2],
+        hardware: [hardwareScrew],
+        costConfig,
+      });
+      expect(costA.grandTotal).toBe(46930);
+
+      // 2. Module B: 400x600x320 mm, quantity 2 (5 pieces each)
+      const modBData = buildBaseCabinetModule(
+        {
+          widthMm: 400,
+          heightMm: 600,
+          depthMm: 320,
+          materialId: mockMaterials[0]!.id,
+          materialThicknessMm: 18,
+          edgeBandId: edgeBand2.id,
+        },
+        [edgeBand2],
+      );
+      const piecesB = modBData.resolvedPieces;
+      const bomB = generateBillOfMaterials(
+        {
+          moduleId: 'mod-B',
+          pieces: piecesB,
+          joints: modBData.module.joints,
+          parameters: {},
+          placementTree: null as never,
+          jointGraph: null as never,
+        },
+        [edgeBand2],
+      );
+      const nestingB = runProjectNesting(
+        [{ moduleId: 'mod-B', moduleName: 'Alacena 400', quantity: 1, pieces: piecesB }],
+        { materials: mockMaterials },
+      );
+      const costB = calculateModuleCost({
+        bom: bomB,
+        nestingResult: nestingB,
+        materials: mockMaterials,
+        edgeBands: [edgeBand2],
+        hardware: [hardwareScrew],
+        costConfig,
+      });
+      expect(costB.grandTotal).toBe(46702);
+
+      // 3. Consolidated project: Mod A (qty 1) + Mod B (qty 2)
+      const modulesToConsolidate: ModuleToConsolidate[] = [
+        {
+          moduleId: 'mod-A',
+          moduleName: 'Bajo Mesada 800',
+          quantity: 1,
+          pieces: piecesA,
+          bom: bomA,
+        },
+        {
+          moduleId: 'mod-B',
+          moduleName: 'Alacena 400',
+          quantity: 2,
+          pieces: piecesB,
+          bom: bomB,
+        },
+      ];
+
+      const consolidatedPieces = consolidateProjectPieces(modulesToConsolidate);
+      const consolidatedBom = consolidateProjectBom(modulesToConsolidate);
+      const consolidatedNesting = runProjectNesting(modulesToConsolidate, { materials: mockMaterials });
+      const consolidatedCost = calculateProjectCost({
+        bom: consolidatedBom,
+        nestingResult: consolidatedNesting,
+        materials: mockMaterials,
+        edgeBands: [edgeBand2],
+        hardware: [hardwareScrew],
+        costConfig,
+      });
+
+      // Verify Project CSV cut list has exactly 15 pieces
+      const projectCsv = exportCutListCsv(consolidatedPieces);
+      const csvRows = projectCsv.trim().split('\r\n');
+      expect(csvRows.length).toBe(16); // 1 header + 15 piece rows
+      expect(consolidatedPieces.length).toBe(15);
+      expect(consolidatedBom.totalPieceCount).toBe(15);
+
+      // Verify Footer in "Proyecto" scope
+      const projectHtml = renderToString(
+        <PanelSummaryFooter
+          bom={bomB}
+          consolidatedBom={consolidatedBom}
+          cost={costB}
+          consolidatedCost={consolidatedCost}
+          materials={mockMaterials}
+          scope="project"
+          activeModuleQuantity={2}
+        />,
+      );
+
+      // Pieces count = 15
+      expect(projectHtml).toContain('Piezas:</span><strong class="panel-summary-metric__value">15</strong>');
+      // Board area = 5,80 m² (1 sheet nesting of 2800x2070mm = 5.796 m²)
+      expect(projectHtml).toContain('Placas:</span><strong class="panel-summary-metric__value">5,80<!-- --> m²</strong>');
+      // Net cut area tooltip = 3,09 m²
+      expect(projectHtml).toContain('Área neta de piezas: 3,09 m²');
+      // Cost = $49.884
+      expect(projectHtml).toContain('$49.884');
+
+      // Verify Footer in "Módulo" scope for active Module B (quantity = 2)
+      const moduleHtml = renderToString(
+        <PanelSummaryFooter
+          bom={bomB}
+          consolidatedBom={consolidatedBom}
+          cost={costB}
+          consolidatedCost={consolidatedCost}
+          materials={mockMaterials}
+          scope="module"
+          activeModuleQuantity={2}
+        />,
+      );
+
+      // Mod B pieces: 5 * 2 = 10
+      expect(moduleHtml).toContain('Piezas:</span><strong class="panel-summary-metric__value">10</strong>');
+      // Mod B board area: 5.796 * 2 = 11,59 m²
+      expect(moduleHtml).toContain('Placas:</span><strong class="panel-summary-metric__value">11,59<!-- --> m²</strong>');
+      // Mod B net cut area tooltip: 0.6496 * 2 = 1,30 m²
+      expect(moduleHtml).toContain('Área neta de piezas: 1,30 m²');
+      // Mod B cost: 46702 * 2 = $93.404
+      expect(moduleHtml).toContain('$93.404');
     });
   });
 });

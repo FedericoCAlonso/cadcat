@@ -4539,58 +4539,67 @@ legend.builder-section-title {
   z-index: 25;
   background-color: var(--md-sys-color-surface-container-high);
   border-top: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 12px 12px 0 0;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
-  padding: 0.5rem 0.75rem;
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.08);
+  padding: 0.35rem 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.35rem;
   box-sizing: border-box;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .panel-summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .panel-summary-row--metrics {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.panel-summary-row--metrics::-webkit-scrollbar {
+  display: none;
 }
 
 .panel-summary-scope-selector {
   display: inline-flex;
-  min-height: 28px;
-  max-width: 160px;
+  min-height: 24px;
+  max-width: 140px;
+  flex-shrink: 0;
 }
 
 .panel-summary-scope-selector .m3-segmented-button__item {
-  padding: 0.2rem 0.5rem;
-  font-size: 0.75rem;
-  min-height: 28px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.72rem;
+  min-height: 24px;
+  line-height: 1.2;
 }
 
 .panel-summary-metrics {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
   flex: 1;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .panel-summary-metric {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.25rem;
-  font-size: 0.78rem;
+  gap: 0.2rem;
+  font-size: 0.74rem;
   color: var(--md-sys-color-on-surface-variant);
   background-color: var(--md-sys-color-surface-container);
-  padding: 0.2rem 0.45rem;
-  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .panel-summary-metric__label {
@@ -4620,26 +4629,29 @@ legend.builder-section-title {
 .panel-summary-row--actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .panel-footer-save-btn {
   flex: 1;
-  min-height: 36px;
+  min-height: 30px;
   font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  line-height: 1.2;
 }
 
 .panel-footer-export-group {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .panel-footer-export-btn {
-  min-height: 32px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  min-height: 28px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.72rem;
   white-space: nowrap;
+  line-height: 1.2;
 }
