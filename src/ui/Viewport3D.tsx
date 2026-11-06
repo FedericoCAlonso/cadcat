@@ -53,10 +53,32 @@ export interface Viewport3DProps {
   interferences?: InterferenceConfig;
 }
 
+/**
+ * Guard validator to check whether spatial bounds are valid, positive, and finite.
+ */
+function isValidSpatialBounds(b: ModuleSpatialBounds | undefined | null): boolean {
+  if (!b || !b.size || !b.center || !b.min || !b.max) return false;
+  const isPos = (v: number) => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  const isFiniteNum = (v: number) => typeof v === 'number' && Number.isFinite(v);
+  return (
+    isPos(b.size.x) && isPos(b.size.y) && isPos(b.size.z) &&
+    isFiniteNum(b.center.x) && isFiniteNum(b.center.y) && isFiniteNum(b.center.z) &&
+    isFiniteNum(b.min.x) && isFiniteNum(b.min.y) && isFiniteNum(b.min.z) &&
+    isFiniteNum(b.max.x) && isFiniteNum(b.max.y) && isFiniteNum(b.max.z)
+  );
+}
+
+const DEFAULT_FALLBACK_BOUNDS: ModuleSpatialBounds = {
+  min: { x: 0, y: 0, z: 0 },
+  max: { x: 600, y: 800, z: 560 },
+  center: { x: 300, y: 400, z: 280 },
+  size: { x: 600, y: 800, z: 560 },
+};
+
 export function Viewport3D(props: Viewport3DProps): ReactElement {
   const {
     boxes,
-    bounds,
+    bounds: rawBounds,
     pieces,
     explodedRatio,
     onExplodedRatioChange,
@@ -70,6 +92,17 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     countertopCalculation,
     interferences,
   } = props;
+
+  const lastValidBoundsRef = useRef<ModuleSpatialBounds>(
+    isValidSpatialBounds(rawBounds) ? rawBounds : DEFAULT_FALLBACK_BOUNDS,
+  );
+
+  if (isValidSpatialBounds(rawBounds)) {
+    lastValidBoundsRef.current = rawBounds;
+  }
+
+  // Guard: viewer keeps the last valid bounds if incoming bounds are invalid, empty, NaN, zero or negative
+  const bounds = isValidSpatialBounds(rawBounds) ? rawBounds : lastValidBoundsRef.current;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);

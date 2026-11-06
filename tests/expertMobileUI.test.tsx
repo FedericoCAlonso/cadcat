@@ -232,7 +232,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     container.remove();
   });
 
-  it('shows export buttons and Save Module on final section (Materiales) on mobile', () => {
+  it('shows export buttons and Save Module on final section (Interferencias) on mobile', () => {
     const handleSave = vi.fn();
     const handleExportCsv = vi.fn();
     const handleExportPdf = vi.fn();
@@ -257,12 +257,12 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
       );
     });
 
-    // Switch to Materiales tab
-    const materialsTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
-      b.textContent?.includes('Materiales'),
+    // Switch to final section tab (Interferencias)
+    const interferencesTab = Array.from(container.querySelectorAll('.scroll-fade-tab')).find((b) =>
+      b.textContent?.includes('Interferencias'),
     ) as HTMLButtonElement | undefined;
     act(() => {
-      materialsTab?.click();
+      interferencesTab?.click();
     });
 
     // Verify Save Module button in footer

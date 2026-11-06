@@ -3288,6 +3288,26 @@ legend.builder-section-title {
   gap: 0.35rem;
 }
 
+.panel-sticky-header__warning-badge {
+  min-height: 34px;
+  padding: 0 0.65rem;
+  border-radius: 17px;
+  border: 1px solid var(--md-sys-color-error, #b3261e);
+  background-color: var(--md-sys-color-error-container, #f9dedc);
+  color: var(--md-sys-color-on-error-container, #410e0b);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.panel-sticky-header__warning-badge:hover {
+  filter: brightness(0.95);
+}
+
 .panel-header-btn {
   min-height: 38px;
   padding: 0 0.75rem;
@@ -3301,59 +3321,70 @@ legend.builder-section-title {
 
 .panel-sticky-header__dimensions-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
   background-color: var(--md-sys-color-surface-container);
   border-radius: var(--md-sys-shape-corner-sm);
   border: 1px solid var(--md-sys-color-outline-variant);
 }
 
-.dimensions-bar-label {
-  font-size: 0.78rem;
+.dimensions-bar-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.dimensions-bar-title {
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--md-sys-color-primary);
-  white-space: nowrap;
 }
 
-.dimensions-bar-inputs {
+.dimensions-bar-unit {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.panel-sticky-header__dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.header-dim-col {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
 }
 
-.header-dim-field {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  background-color: var(--md-sys-color-surface);
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 6px;
-  padding: 0.15rem 0.35rem;
-  cursor: text;
-}
-
-.dim-field-caption {
-  font-size: 0.65rem;
+.header-dim-label {
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--md-sys-color-on-surface-variant);
   text-transform: uppercase;
+  letter-spacing: 0.02em;
   user-select: none;
 }
 
 .header-dim-input {
-  width: 52px;
-  border: none;
-  background: transparent;
+  width: 100%;
+  min-height: 34px;
+  box-sizing: border-box;
+  background-color: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 6px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-surface);
   text-align: right;
-  padding: 2px 0;
   font-variant-numeric: tabular-nums;
   -moz-appearance: textfield;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .header-dim-input::-webkit-outer-spin-button,
@@ -3363,20 +3394,25 @@ legend.builder-section-title {
 }
 
 .header-dim-input:focus {
-  outline: 1px solid var(--md-sys-color-primary);
-  border-radius: 4px;
+  outline: none;
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 2px var(--md-sys-color-primary-container);
 }
 
-.dim-field-sep {
-  color: var(--md-sys-color-outline);
-  font-weight: 800;
-  font-size: 0.85rem;
+/* Numeric input validation styles */
+.numeric-input-field--invalid {
+  border-color: var(--md-sys-color-error, #ba1a1a) !important;
+  color: var(--md-sys-color-error, #ba1a1a) !important;
+  background-color: var(--md-sys-color-error-container, #ffdad6) !important;
 }
 
-.dim-field-unit {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--md-sys-color-on-surface-variant);
+.numeric-input-validation-msg {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--md-sys-color-error, #ba1a1a);
+  margin-top: 0.15rem;
+  line-height: 1.1;
 }
 
 /* ModuleBar */
@@ -3722,6 +3758,45 @@ legend.builder-section-title {
 
 .scroll-fade-toggle-all-btn:hover {
   background-color: var(--md-sys-color-surface-container-highest);
+}
+
+/* Change 4: Hide tab row on desktop (>= 1024px) where accordion headers are all visible, keep on mobile (< 1024px) */
+@media (min-width: 1024px) {
+  .scroll-fade-tabs-container {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .panel-accordion-desktop-toolbar {
+    display: none !important;
+  }
+}
+
+.panel-accordion-desktop-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.25rem 0 0.5rem 0;
+}
+
+.panel-accordion-desktop-toolbar__btn {
+  min-height: 32px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 16px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background-color: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background-color 0.15s ease;
+}
+
+.panel-accordion-desktop-toolbar__btn:hover {
+  background-color: var(--md-sys-color-surface-container-high);
 }
 
 /* Accordions */

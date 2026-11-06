@@ -1,4 +1,6 @@
 import type { ReactElement } from 'react';
+import { DEFAULT_UI_CONFIG } from '../config';
+import { NumericInput } from './NumericInput';
 
 /**
  * Props for the PanelStickyHeader component.
@@ -22,11 +24,16 @@ export interface PanelStickyHeaderProps {
   onSwitchToSiteMode?: () => void;
   /** Whether the current environment is detected as a mobile device. */
   isMobileDevice?: boolean;
+  /** Count of active architectural interferences in the module. */
+  activeInterferenceCount?: number;
+  /** Callback fired when clicking the interference warning badge to navigate to the section. */
+  onOpenInterferences?: () => void;
 }
 
 /**
  * Sticky header for the configuration sidebar.
- * Displays the current section title and allows direct editing of module dimensions (W × H × D).
+ * Displays the current section title, active interference warnings, and allows direct editing
+ * of module dimensions (W × H × D) arranged in three equal columns with draft buffer protection.
  */
 export function PanelStickyHeader({
   currentSectionName,
@@ -38,6 +45,8 @@ export function PanelStickyHeader({
   onDepthChange,
   onSwitchToSiteMode,
   isMobileDevice: _isMobileDevice = false,
+  activeInterferenceCount = 0,
+  onOpenInterferences,
 }: PanelStickyHeaderProps): ReactElement {
   return (
     <header className="panel-sticky-header">
@@ -50,6 +59,19 @@ export function PanelStickyHeader({
         </div>
 
         <div className="panel-sticky-header__actions">
+          {activeInterferenceCount > 0 && onOpenInterferences && (
+            <button
+              type="button"
+              onClick={onOpenInterferences}
+              className="panel-sticky-header__warning-badge"
+              title="Interferencias arquitectónicas activas en el módulo. Clic para ver o ajustar."
+              aria-label={`${activeInterferenceCount} interferencias activas`}
+            >
+              <span aria-hidden="true">⚠️</span>
+              <span>{`${activeInterferenceCount} ${activeInterferenceCount === 1 ? 'interferencia' : 'interferencias'}`}</span>
+            </button>
+          )}
+
           {onSwitchToSiteMode && (
             <button
               type="button"
@@ -66,61 +88,62 @@ export function PanelStickyHeader({
       </div>
 
       <div className="panel-sticky-header__dimensions-bar">
-        <span className="dimensions-bar-label" title="Dimensiones exteriores del módulo">
-          📐 Cotas:
-        </span>
-        <div className="dimensions-bar-inputs">
-          <label className="header-dim-field" title="Ancho del módulo en mm">
-            <span className="dim-field-caption">Ancho</span>
-            <input
-              type="number"
-              min={100}
-              max={3000}
-              step={10}
+        <div className="dimensions-bar-header">
+          <span className="dimensions-bar-title">📐 Cotas</span>
+          <span className="dimensions-bar-unit">(mm)</span>
+        </div>
+
+        <div className="panel-sticky-header__dimensions-grid">
+          <div className="header-dim-col">
+            <label htmlFor="header-dim-width" className="header-dim-label">
+              Ancho
+            </label>
+            <NumericInput
+              id="header-dim-width"
               value={width}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                if (!isNaN(val) && val > 0) onWidthChange(val);
-              }}
+              min={DEFAULT_UI_CONFIG.dimensions.width.min}
+              max={DEFAULT_UI_CONFIG.dimensions.width.max}
+              step={DEFAULT_UI_CONFIG.dimensions.width.step}
+              onChange={onWidthChange}
+              restoreOnInvalid={true}
+              ariaLabel="Ancho del módulo en mm"
               className="header-dim-input"
-              aria-label="Ancho del módulo en mm"
             />
-          </label>
-          <span className="dim-field-sep" aria-hidden="true">×</span>
-          <label className="header-dim-field" title="Alto del módulo en mm">
-            <span className="dim-field-caption">Alto</span>
-            <input
-              type="number"
-              min={100}
-              max={3000}
-              step={10}
+          </div>
+
+          <div className="header-dim-col">
+            <label htmlFor="header-dim-height" className="header-dim-label">
+              Alto
+            </label>
+            <NumericInput
+              id="header-dim-height"
               value={height}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                if (!isNaN(val) && val > 0) onHeightChange(val);
-              }}
+              min={DEFAULT_UI_CONFIG.dimensions.height.min}
+              max={DEFAULT_UI_CONFIG.dimensions.height.max}
+              step={DEFAULT_UI_CONFIG.dimensions.height.step}
+              onChange={onHeightChange}
+              restoreOnInvalid={true}
+              ariaLabel="Alto del módulo en mm"
               className="header-dim-input"
-              aria-label="Alto del módulo en mm"
             />
-          </label>
-          <span className="dim-field-sep" aria-hidden="true">×</span>
-          <label className="header-dim-field" title="Profundidad del módulo en mm">
-            <span className="dim-field-caption">Prof.</span>
-            <input
-              type="number"
-              min={100}
-              max={3000}
-              step={10}
+          </div>
+
+          <div className="header-dim-col">
+            <label htmlFor="header-dim-depth" className="header-dim-label">
+              Prof.
+            </label>
+            <NumericInput
+              id="header-dim-depth"
               value={depth}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                if (!isNaN(val) && val > 0) onDepthChange(val);
-              }}
+              min={DEFAULT_UI_CONFIG.dimensions.depth.min}
+              max={DEFAULT_UI_CONFIG.dimensions.depth.max}
+              step={DEFAULT_UI_CONFIG.dimensions.depth.step}
+              onChange={onDepthChange}
+              restoreOnInvalid={true}
+              ariaLabel="Profundidad del módulo en mm"
               className="header-dim-input"
-              aria-label="Profundidad del módulo en mm"
             />
-          </label>
-          <span className="dim-field-unit">mm</span>
+          </div>
         </div>
       </div>
     </header>

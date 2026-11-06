@@ -384,7 +384,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onIsIslandCabinetChange,
     onRearStructuralRailsChange,
     onRearStructuralRailsWidthChange,
-    enableInterferencesLab = false,
+    enableInterferencesLab: _enableInterferencesLab = false,
     columnObstacle,
     falseSquare,
     onColumnObstacleChange,
@@ -564,9 +564,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       { id: 'distribution' as FormSection, label: 'Vanos', icon: '🔲' },
       { id: 'interior' as FormSection, label: 'Interior', icon: '🚪' },
       { id: 'materials' as FormSection, label: 'Materiales', icon: '🎨' },
-      ...(enableInterferencesLab ? [{ id: 'interferences' as const, label: 'Interferencias', icon: '📐' }] : []),
+      { id: 'interferences' as FormSection, label: 'Interferencias', icon: '📐' },
     ];
-  }, [isWallShelves, enableInterferencesLab]);
+  }, [isWallShelves]);
 
   // Section index for mobile step navigation
   const currentStepIndex = sectionsList.findIndex((s) => s.id === openSection);
@@ -606,8 +606,13 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     }
   };
 
-  // Dynamic Summaries for Accordion Headers
-  const dimensionsSummary = `${width} × ${height} × ${depth} mm`;
+  // Dynamic Summaries for Accordion Headers (Minor Item 1: Template name instead of dimensions repetition)
+  const currentTemplate = templates?.find((tpl) => tpl.id === selectedTemplateId);
+  const templateSummary = currentTemplate
+    ? currentTemplate.id.startsWith('user-')
+      ? currentTemplate.name
+      : translateTemplateName(currentTemplate.id, currentTemplate.name)
+    : '';
 
   const structureSummary = useMemo(() => {
     const roofLabel = roofType === 'solid-panel' ? 'Tapa completa' : 'Listones';
@@ -692,6 +697,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const hasBackingBoard =
     Boolean(backingsMaterialId) || (hasBacking && backingType !== 'none');
 
+  const activeInterferenceCount =
+    (columnObstacle?.enabled ? 1 : 0) + (falseSquare?.enabled ? 1 : 0);
+
   const totalProjectUnits = projectModules?.reduce((acc, m) => acc + (m.quantity || 1), 0) ?? 1;
 
   return (
@@ -707,6 +715,19 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         onDepthChange={onDepthChange}
         onSwitchToSiteMode={onSwitchToSiteMode}
         isMobileDevice={isMobileDevice}
+        activeInterferenceCount={activeInterferenceCount}
+        onOpenInterferences={() => {
+          setOpenSection('interferences');
+          setIsAllExpanded(false);
+          if (typeof document !== 'undefined') {
+            const el = document.getElementById('accordion-section-interferences');
+            if (el && typeof el.scrollIntoView === 'function') {
+              try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              } catch {}
+            }
+          }
+        }}
       />
 
       {/* 2. Compact Module & Project Bar */}
@@ -726,7 +747,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         isSubdividedBay={activeBay.type === 'subdivided'}
       />
 
-      {/* 3. Sticky Horizontal Tabs with Scroll Fade */}
+      {/* 3. Sticky Horizontal Tabs with Scroll Fade (< 1024px) */}
       <ScrollFadeTabs
         tabs={sectionsList}
         activeTabId={openSection}
@@ -734,6 +755,20 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         isAllExpanded={isAllExpanded}
         onToggleAll={handleToggleAll}
       />
+
+      {/* Desktop Toolbar (>= 1024px) for Contraer / Abrir todo */}
+      <div className="panel-accordion-desktop-toolbar">
+        <button
+          type="button"
+          onClick={handleToggleAll}
+          className="panel-accordion-desktop-toolbar__btn"
+          title={isAllExpanded ? 'Contraer todas las secciones' : 'Abrir todas las secciones'}
+          aria-label={isAllExpanded ? 'Contraer todo' : 'Abrir todo'}
+        >
+          <span aria-hidden="true">{isAllExpanded ? '▲' : '▼'}</span>
+          <span>{isAllExpanded ? 'Contraer todo' : 'Abrir todo'}</span>
+        </button>
+      </div>
 
       {/* 4. Piece Inspector (Prominent when a piece is clicked) */}
       <PieceInspectorCard
@@ -765,7 +800,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             id="dimensions"
             icon="📏"
             title="Medidas y Ménsulas"
-            summary={dimensionsSummary}
+            summary={templateSummary}
             isOpen={isAllExpanded || openSection === 'dimensions'}
             onToggle={() => handleToggleSection('dimensions')}
           >
@@ -852,7 +887,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             id="dimensions"
             icon="📏"
             title="Medidas y Plantilla"
-            summary={dimensionsSummary}
+            summary={templateSummary}
             isOpen={isAllExpanded || openSection === 'dimensions'}
             onToggle={() => handleToggleSection('dimensions')}
           >
@@ -978,6 +1013,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   step={DEFAULT_UI_CONFIG.dimensions.width.step}
                   value={width}
                   showStepper={true}
+                  restoreOnInvalid={true}
                   unit="mm"
                   onChange={onWidthChange}
                 />
@@ -996,6 +1032,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   step={DEFAULT_UI_CONFIG.dimensions.height.step}
                   value={height}
                   showStepper={true}
+                  restoreOnInvalid={true}
                   unit="mm"
                   onChange={onHeightChange}
                 />
@@ -1014,6 +1051,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
                   step={DEFAULT_UI_CONFIG.dimensions.depth.step}
                   value={depth}
                   showStepper={true}
+                  restoreOnInvalid={true}
                   unit="mm"
                   onChange={onDepthChange}
                 />
@@ -1177,27 +1215,25 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             />
           </Accordion>
 
-          {/* SECCIÓN 6: Interferencias Arquitectónicas (opcional) */}
-          {enableInterferencesLab && (
-            <Accordion
-              id="interferences"
-              icon="📐"
-              title="Interferencias"
-              summary={interferencesSummary}
-              isOpen={isAllExpanded || openSection === 'interferences'}
-              onToggle={() => handleToggleSection('interferences')}
-            >
-              <InterferencesSection
-                width={width}
-                height={height}
-                depth={depth}
-                columnObstacle={columnObstacle}
-                falseSquare={falseSquare}
-                onColumnObstacleChange={onColumnObstacleChange}
-                onFalseSquareChange={onFalseSquareChange}
-              />
-            </Accordion>
-          )}
+          {/* SECCIÓN 6: Interferencias Arquitectónicas */}
+          <Accordion
+            id="interferences"
+            icon="📐"
+            title="Interferencias"
+            summary={interferencesSummary}
+            isOpen={isAllExpanded || openSection === 'interferences'}
+            onToggle={() => handleToggleSection('interferences')}
+          >
+            <InterferencesSection
+              width={width}
+              height={height}
+              depth={depth}
+              columnObstacle={columnObstacle}
+              falseSquare={falseSquare}
+              onColumnObstacleChange={onColumnObstacleChange}
+              onFalseSquareChange={onFalseSquareChange}
+            />
+          </Accordion>
         </>
       )}
 
