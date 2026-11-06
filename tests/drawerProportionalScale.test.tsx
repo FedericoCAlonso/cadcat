@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
+import { createRoot } from 'react-dom/client';
+import { act } from 'react';
 import {
   calculateProportionalBandHeights,
   MIN_DRAWER_BAND_HEIGHT_PX,
@@ -8,24 +10,72 @@ import { DrawerDistributionVisualizer } from '../src/ui/DrawerDistributionVisual
 import type { TrackSize } from '../src/resolver';
 
 describe('Drawer Proportion Scale and Ergonomics (Stage 2 Step A Fix)', () => {
-  describe('calculateProportionalBandHeights algorithm', () => {
-    it('calculates heights strictly proportional to real mm heights with at least two different heights', () => {
-      const heightsMm = [140, 214];
-      const totalContainerPx = 160;
-      const resultPx = calculateProportionalBandHeights(heightsMm, totalContainerPx);
+  describe('Proportional band rendering and offsetHeight scaling', () => {
+    it('renders the bar and measures the real offsetHeight of the bands: 140 mm is visibly shorter than 187 mm with >= 8 px difference', () => {
+      // In JSDOM, offsetHeight is 0 by default because layout is not computed.
+      // We configure an offsetHeight getter to return the computed/styled height for elements with explicit pixel styles.
+      const originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+        configurable: true,
+        get() {
+          const styleH = this.style?.height;
+          if (styleH && styleH.endsWith('px')) {
+            return parseFloat(styleH);
+          }
+          return 0;
+        },
+      });
 
-      expect(resultPx).toHaveLength(2);
-      // Cajón 2 (214 mm) must be strictly taller than Cajón 1 (140 mm)
-      expect(resultPx[1]).toBeGreaterThan(resultPx[0]!);
+      try {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = createRoot(container);
 
-      // The ratio of pixel heights should match the ratio of mm heights
-      const ratioMm = 214 / 140;
-      const ratioPx = resultPx[1]! / resultPx[0]!;
-      expect(Math.abs(ratioPx - ratioMm)).toBeLessThan(0.05);
+        const fourTracks: TrackSize[] = [
+          { type: 'fixed', valueMm: 140 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+          { type: 'fractional', valueFr: 1 },
+        ];
+        const fourResolvedHeights = [140, 187, 187, 187];
 
-      // The sum of heights should equal total container height
-      const sum = resultPx[0]! + resultPx[1]!;
-      expect(Math.round(sum)).toBe(totalContainerPx);
+        act(() => {
+          root.render(
+            <DrawerDistributionVisualizer
+              tracks={fourTracks}
+              resolvedDrawerHeights={fourResolvedHeights}
+              estimatedBayCavityHeight={701}
+            />,
+          );
+        });
+
+        const band0 = container.querySelector('[data-testid="drawer-band-0"]') as HTMLElement;
+        const band1 = container.querySelector('[data-testid="drawer-band-1"]') as HTMLElement;
+
+        expect(band0).not.toBeNull();
+        expect(band1).not.toBeNull();
+
+        const h0 = band0.offsetHeight;
+        const h1 = band1.offsetHeight;
+
+        expect(h0).toBeGreaterThan(0);
+        expect(h1).toBeGreaterThan(0);
+        // Cajón 1 (140 mm) is visibly shorter than Cajón 2 (187 mm)
+        expect(h1).toBeGreaterThan(h0);
+        // Difference must be at least 8 px
+        expect(h1 - h0).toBeGreaterThanOrEqual(8);
+
+        act(() => {
+          root.unmount();
+        });
+        container.remove();
+      } finally {
+        if (originalOffsetHeight) {
+          Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalOffsetHeight);
+        } else {
+          delete (HTMLElement.prototype as unknown as Record<string, unknown>).offsetHeight;
+        }
+      }
     });
 
     it('handles multiple drawers with mixed heights to scale', () => {
@@ -135,6 +185,16 @@ describe('Drawer Proportion Scale and Ergonomics (Stage 2 Step A Fix)', () => {
         expect(html).toContain('Proporc. (fr)');
         expect(html).toContain('Fijo (mm)');
       });
+    });
+
+    it('verifies bottom padding CSS variable is configured for panel scroll container', () => {
+      // Read theme.css to verify shared CSS variable declaration
+      const fs = require('fs');
+      const path = require('path');
+      const themeCss = fs.readFileSync(path.resolve(__dirname, '../src/ui/theme.css'), 'utf-8');
+
+      expect(themeCss).toContain('--m3-bottom-nav-total-height');
+      expect(themeCss).toContain('padding-bottom: var(--m3-bottom-nav-total-height)');
     });
   });
 });

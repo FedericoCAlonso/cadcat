@@ -58,6 +58,11 @@ export const dimensionBoundsSchema = z.object({
 export const uiDefaultsSchema = z.object({
   showInterferences: z.boolean().default(false),
   drawerTwoColumnThresholdPx: z.number().positive().default(520),
+  drawerScaleFactorPxPerMm: z.number().positive().default(0.25),
+  drawerDiagramMinHeightPx: z.number().positive().default(120),
+  drawerDiagramMaxHeightPx: z.number().positive().default(240),
+  drawerBandMinHeightPx: z.number().positive().default(18),
+  inspectorWidthPx: z.number().positive().default(320),
   dimensions: z.object({
     width: dimensionBoundsSchema,
     height: dimensionBoundsSchema,

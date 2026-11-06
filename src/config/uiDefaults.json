@@ -1,6 +1,11 @@
 {
   "showInterferences": false,
   "drawerTwoColumnThresholdPx": 520,
+  "drawerScaleFactorPxPerMm": 0.25,
+  "drawerDiagramMinHeightPx": 120,
+  "drawerDiagramMaxHeightPx": 240,
+  "drawerBandMinHeightPx": 18,
+  "inspectorWidthPx": 320,
   "dimensions": {
     "width": {
       "default": 600,

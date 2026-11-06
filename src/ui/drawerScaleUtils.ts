@@ -4,7 +4,7 @@
  * Specified in Stage 2 requirements:
  * 'Set a minimum visible height for very small drawers, and mark it in the code with a comment.'
  */
-export const MIN_DRAWER_BAND_HEIGHT_PX = 24;
+export const MIN_DRAWER_BAND_HEIGHT_PX = 18;
 
 /**
  * Calculates proportional heights in pixels for drawer elevation bands.

@@ -62,8 +62,18 @@ export function DrawerDistributionVisualizer({
     return Math.round(estimatedBayCavityHeight / Math.max(1, tracks.length));
   });
 
+  // Calculate total diagram height from scale factor (px/mm) clamped between min and max
+  const scaleFactor = DEFAULT_UI_CONFIG.drawerScaleFactorPxPerMm ?? 0.25;
+  const minDiagramH = DEFAULT_UI_CONFIG.drawerDiagramMinHeightPx ?? 120;
+  const maxDiagramH = DEFAULT_UI_CONFIG.drawerDiagramMaxHeightPx ?? 240;
+  const minBandH = DEFAULT_UI_CONFIG.drawerBandMinHeightPx ?? 18;
+
+  const totalMm = effectiveHeightsMm.reduce((acc, h) => acc + Math.max(0, h), 0);
+  const rawTotalHeightPx = totalMm > 0 ? totalMm * scaleFactor : minDiagramH;
+  const totalContainerHeightPx = Math.min(maxDiagramH, Math.max(minDiagramH, Math.round(rawTotalHeightPx)));
+
   // Calculate pixel heights to scale, respecting minimum visible height
-  const bandHeightsPx = calculateProportionalBandHeights(effectiveHeightsMm, 100);
+  const bandHeightsPx = calculateProportionalBandHeights(effectiveHeightsMm, totalContainerHeightPx, minBandH);
 
   // Handlers for updating the currently selected track size
   const handleToggleTrackType = (newType: 'fixed' | 'fractional') => {
