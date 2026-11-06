@@ -1,5 +1,8 @@
 {
   "showInterferences": false,
+  "costDebounceMs": 250,
+  "summaryScopeDefault": "project",
+  "currencySymbol": "$",
   "drawerTwoColumnThresholdPx": 520,
   "drawerScaleFactorPxPerMm": 0.25,
   "drawerDiagramMinHeightPx": 120,

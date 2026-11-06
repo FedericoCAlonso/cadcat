@@ -443,7 +443,7 @@ body {
   }
 
   .layout-aside {
-    padding-bottom: var(--m3-bottom-nav-total-height);
+    padding-bottom: calc(var(--m3-bottom-nav-total-height) + 125px);
     box-sizing: border-box;
   }
 
@@ -555,7 +555,7 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 0.5rem;
-    padding-bottom: 2rem;
+    padding-bottom: calc(2rem + 125px);
     overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: var(--md-sys-color-outline-variant) transparent;
@@ -4525,4 +4525,121 @@ legend.builder-section-title {
   .viewer-floating-inspector {
     display: none !important;
   }
+}
+
+/* ==========================================================================
+   Panel Summary Footer & Debounced Production Metrics (Stage 4)
+   ========================================================================== */
+
+.panel-summary-footer {
+  position: sticky;
+  bottom: var(--m3-bottom-nav-total-height, 0px);
+  left: 0;
+  right: 0;
+  z-index: 25;
+  background-color: var(--md-sys-color-surface-container-high);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  box-sizing: border-box;
+  margin-top: 1rem;
+}
+
+.panel-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.panel-summary-row--metrics {
+  flex-wrap: wrap;
+}
+
+.panel-summary-scope-selector {
+  display: inline-flex;
+  min-height: 28px;
+  max-width: 160px;
+}
+
+.panel-summary-scope-selector .m3-segmented-button__item {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  min-height: 28px;
+}
+
+.panel-summary-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.panel-summary-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--md-sys-color-on-surface-variant);
+  background-color: var(--md-sys-color-surface-container);
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.panel-summary-metric__label {
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.panel-summary-metric__value {
+  font-weight: 700;
+  color: var(--md-sys-color-on-surface);
+}
+
+.panel-summary-metric--cost .panel-summary-metric__value {
+  color: var(--md-sys-color-primary);
+}
+
+.panel-summary-metric--cost.is-calculating .panel-summary-metric__value {
+  color: var(--md-sys-color-outline);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.panel-summary-metric--cost.is-partial .panel-summary-metric__value {
+  color: var(--md-sys-color-tertiary, #b25e00);
+}
+
+.panel-summary-row--actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.panel-footer-save-btn {
+  flex: 1;
+  min-height: 36px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.panel-footer-export-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.panel-footer-export-btn {
+  min-height: 32px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }

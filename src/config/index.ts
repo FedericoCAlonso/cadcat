@@ -57,6 +57,9 @@ export const dimensionBoundsSchema = z.object({
 
 export const uiDefaultsSchema = z.object({
   showInterferences: z.boolean().default(false),
+  costDebounceMs: z.number().nonnegative().default(250),
+  summaryScopeDefault: z.enum(['project', 'module']).default('project'),
+  currencySymbol: z.string().default('$'),
   drawerTwoColumnThresholdPx: z.number().positive().default(520),
   drawerScaleFactorPxPerMm: z.number().positive().default(0.25),
   drawerDiagramMinHeightPx: z.number().positive().default(120),

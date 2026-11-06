@@ -24,6 +24,8 @@ import type {
   ResolvedPieceWithCutSize,
   KinematicMechanism,
   ShelfDeflectionResult,
+  BillOfMaterials,
+  ModuleCostSummary,
 } from '../resolver';
 import { resolveTracks } from '../resolver';
 import { translateTemplateName, t } from './localization';
@@ -42,6 +44,7 @@ import { PanelStickyHeader } from './PanelStickyHeader';
 import { ModuleBar } from './ModuleBar';
 import { ScrollFadeTabs } from './ScrollFadeTabs';
 import { Accordion } from './Accordion';
+import { PanelSummaryFooter } from './PanelSummaryFooter';
 
 export type FormSection = 'dimensions' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences' | 'all';
 
@@ -114,6 +117,12 @@ export interface ModuleFormProps {
   onSave?: () => void;
   onExportCsv?: () => void;
   onExportPdf?: () => void;
+  // Production summary and debounced costing (Stage 4)
+  bom?: BillOfMaterials | null;
+  consolidatedBom?: BillOfMaterials | null;
+  cost?: ModuleCostSummary | null;
+  consolidatedCost?: ModuleCostSummary | null;
+  isCostCalculating?: boolean;
   // Modular builder state & actions
   isCustomModular?: boolean;
   roofType?: RoofType;
@@ -297,6 +306,11 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onSave = () => {},
     onExportCsv,
     onExportPdf,
+    bom,
+    consolidatedBom,
+    cost,
+    consolidatedCost,
+    isCostCalculating = false,
     onSaveUserTemplate,
     onDeleteUserTemplate,
     roofType = 'front-back-rails',
@@ -1384,46 +1398,39 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         </div>
       )}
 
-      {/* Botones de acción estándar */}
-      <div className="form-actions m3-button-row">
-        {isMobileDevice && onView3dClick && (
+      {/* Botones de acción estándar (en móvil si aplica botón 3D) */}
+      {isMobileDevice && onView3dClick && (
+        <div className="form-actions m3-button-row" style={{ marginBottom: '0.5rem' }}>
           <button
             type="button"
             onClick={onView3dClick}
             className="m3-btn m3-btn--filled"
-            style={{ width: '100%', marginBottom: '0.5rem' }}
+            style={{ width: '100%' }}
           >
             🧊 Ver Resultado en 3D
           </button>
-        )}
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving}
-          className="m3-btn m3-btn--filled"
-        >
-          {isSaving ? 'Guardando...' : '💾 Guardar Módulo'}
-          <span className="visually-hidden">Save Module to Database</span>
-        </button>
-        {onExportCsv && (
-          <button
-            type="button"
-            onClick={onExportCsv}
-            className="m3-btn m3-btn--tonal export-btn"
-          >
-            📄 Lista de Corte (CSV)
-          </button>
-        )}
-        {onExportPdf && (
-          <button
-            type="button"
-            onClick={onExportPdf}
-            className="m3-btn m3-btn--outlined export-btn"
-          >
-            📑 Diagrama de Corte (PDF)
-          </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Pie Fijo con Resumen de Producción y Costos (Etapa 4) */}
+      <PanelSummaryFooter
+        bom={bom ?? null}
+        consolidatedBom={consolidatedBom ?? null}
+        cost={cost ?? null}
+        consolidatedCost={consolidatedCost ?? null}
+        isCostCalculating={isCostCalculating}
+        materials={materials}
+        activeMaterialId={selectedMaterialId}
+        activeModuleQuantity={projectModules?.find((m) => m.id === activeModuleId)?.quantity ?? 1}
+        scope={projectScope === 'all-modules' ? 'project' : 'module'}
+        onScopeChange={(newScope) => {
+          onProjectScopeChange?.(newScope === 'project' ? 'all-modules' : 'current-module');
+        }}
+        isSaving={isSaving}
+        onSave={onSave}
+        onExportCsv={onExportCsv}
+        onExportPdf={onExportPdf}
+      />
 
       {/* Modal de Distribución Interior Compleja (Matriz estilo Word) */}
       <BayDistributionModal

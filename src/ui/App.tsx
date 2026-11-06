@@ -495,6 +495,11 @@ export function App(): ReactElement {
                 onSave={() => void vm.saveModule()}
                 onExportCsv={vm.exportCsv}
                 onExportPdf={vm.exportPdf}
+                bom={vm.bom}
+                consolidatedBom={vm.consolidatedBom}
+                cost={vm.cost}
+                consolidatedCost={vm.consolidatedCost}
+                isCostCalculating={vm.isCostCalculating}
                 onSaveUserTemplate={vm.saveCurrentUserTemplate}
                 onDeleteUserTemplate={vm.deleteUserTemplate}
                 isCustomModular={vm.isCustomModular}

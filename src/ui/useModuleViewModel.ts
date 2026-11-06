@@ -158,6 +158,7 @@ export interface ModuleViewModelState {
   resolvedPieces: ResolvedPieceWithCutSize[];
   bom: BillOfMaterials | null;
   cost: ModuleCostSummary | null;
+  isCostCalculating: boolean;
   activeTab: 'form' | 'pieces' | '3d' | 'machining' | 'settings' | 'assembly' | 'catalogs' | 'countertop';
   uiMode: 'site' | 'expert';
   isOneHandDevice: boolean;
@@ -690,7 +691,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     },
   ]);
   const [activeModuleId, setActiveModuleId] = useState<string>('mod-1');
-  const [projectScope, setProjectScope] = useState<'current-module' | 'all-modules'>('current-module');
+  const [projectScope, setProjectScope] = useState<'current-module' | 'all-modules'>(
+    DEFAULT_UI_CONFIG.summaryScopeDefault === 'project' ? 'all-modules' : 'current-module',
+  );
 
   // Modular Builder Interactive State (default: Estructura Hueco Libre)
   const [isCustomModular, setIsCustomModular] = useState<boolean>(false);
@@ -2642,77 +2645,17 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [currentModule, resolvedPieces, projectConfig, machiningSheets]);
 
-  // Generates Costs
-  const cost = useMemo(() => {
-    if (!bom || !activeMaterial) return null;
-    try {
-      const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
-      const gaugePieces = includeGauges
-        ? (assemblySheet?.gauges ?? []).flatMap((g) => {
-            const count = Math.min(2, Math.max(1, g.occurrences.length));
-            const items = [];
-            for (let i = 0; i < count; i++) {
-              items.push({
-                id: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
-                pieceId: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
-                materialId: activeMaterial.id,
-                cutWidthMm: g.clearSpanMm,
-                cutHeightMm: g.widthMm,
-                canRotate: true,
-                isAuxiliary: true,
-              });
-            }
-            return items;
-          })
-        : [];
-
-      const grainMode = projectConfig?.nesting?.grainDirectionMode ?? (projectConfig?.nesting?.respectGrain === false ? 'free' : 'auto');
-      const nestingItems = [
-        ...resolvedPieces.map((p) => {
-          const pieceMat = materials.find((m) => m.id === p.materialId);
-          const hasGrain = Boolean(pieceMat ? pieceMat.hasGrain : activeMaterial.hasGrain);
-          return {
-            id: p.id,
-            pieceId: p.id,
-            materialId: p.materialId,
-            cutWidthMm: p.cutDimensionsMm.width,
-            cutHeightMm: p.cutDimensionsMm.height,
-            canRotate: canPieceRotate(p, hasGrain, grainMode),
-            isAuxiliary: p.isAuxiliary,
-          };
-        }),
-        ...gaugePieces,
-      ];
-
-      const nesting = runMultiMaterialGuillotineNesting({
-        items: nestingItems,
-        sheetLookup: (matId) => {
-          const mat = materials.find((m) => m.id === matId) ?? activeMaterial;
-          const sLen = typeof mat.sheetSizeMm.length === 'number' ? mat.sheetSizeMm.length : 2800;
-          const sWid = typeof mat.sheetSizeMm.width === 'number' ? mat.sheetSizeMm.width : 2070;
-          return {
-            materialId: mat.id,
-            lengthMm: sLen,
-            widthMm: sWid,
-            sawKerfMm: projectConfig?.nesting.sawKerfMm,
-            trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
-          };
-        },
-        optimizationGoal: projectConfig?.nesting.optimizationGoal,
-      });
-
-      return calculateModuleCost({
-        bom,
-        nestingResult: nesting,
-        materials,
-        edgeBands,
-        hardware,
-        costConfig: projectConfig?.cost,
-      });
-    } catch {
-      return null;
-    }
-  }, [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig, assemblySheet]);
+  // Raw inputs for the module cost calculation
+  const rawModuleCostInput = useMemo(() => ({
+    bom,
+    activeMaterial,
+    resolvedPieces,
+    materials,
+    edgeBands,
+    hardware,
+    projectConfig,
+    assemblySheet,
+  }), [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig, assemblySheet]);
 
   const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
   const setJointStrategy = useCallback((strategy: JointStrategy) => {
@@ -3024,30 +2967,181 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     return consolidateProjectBom(modulesToConsolidate);
   }, [modulesToConsolidate]);
 
-  const consolidatedCost = useMemo(() => {
-    if (consolidatedPieces.length === 0 || !activeMaterial) return null;
+  // Raw inputs for the project consolidated cost calculation
+  const rawConsolidatedCostInput = useMemo(() => ({
+    consolidatedPieces,
+    activeMaterial,
+    modulesToConsolidate,
+    materials,
+    edgeBands,
+    hardware,
+    projectConfig,
+    consolidatedBom,
+  }), [consolidatedPieces, activeMaterial, modulesToConsolidate, materials, edgeBands, hardware, projectConfig, consolidatedBom]);
+
+  /**
+   * Debounce delay (in ms) for recalculating costs during interactive user input.
+   * Derived non-arbitrarily from central UI configuration (Stage 4).
+   */
+  const costDebounceMs = DEFAULT_UI_CONFIG.costDebounceMs;
+
+  const [debouncedModuleCostInput, setDebouncedModuleCostInput] = useState(rawModuleCostInput);
+  const [debouncedConsolidatedCostInput, setDebouncedConsolidatedCostInput] = useState(rawConsolidatedCostInput);
+  const [isCostCalculating, setIsCostCalculating] = useState<boolean>(false);
+
+  // Debounce the inputs of the cost useMemo without altering cost or nesting algorithms
+  useEffect(() => {
+    if (debouncedModuleCostInput === rawModuleCostInput && debouncedConsolidatedCostInput === rawConsolidatedCostInput) {
+      return;
+    }
+
+    if (costDebounceMs <= 0) {
+      setDebouncedModuleCostInput(rawModuleCostInput);
+      setDebouncedConsolidatedCostInput(rawConsolidatedCostInput);
+      setIsCostCalculating(false);
+      return;
+    }
+
+    setIsCostCalculating(true);
+
+    const timer = setTimeout(() => {
+      setDebouncedModuleCostInput(rawModuleCostInput);
+      setDebouncedConsolidatedCostInput(rawConsolidatedCostInput);
+      setIsCostCalculating(false);
+    }, costDebounceMs);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [rawModuleCostInput, rawConsolidatedCostInput, costDebounceMs]);
+
+  /**
+   * Generates bill of materials and nesting costs for the active module.
+   * Input is debounced; returns null while calculation is pending so obsolete values are never displayed.
+   */
+  const cost = useMemo(() => {
+    if (isCostCalculating) return null;
+    const {
+      bom: inputBom,
+      activeMaterial: inputActiveMat,
+      resolvedPieces: inputPieces,
+      materials: inputMaterials,
+      edgeBands: inputEdgeBands,
+      hardware: inputHardware,
+      projectConfig: inputConfig,
+      assemblySheet: inputAssembly,
+    } = debouncedModuleCostInput;
+
+    if (!inputBom || !inputActiveMat) return null;
     try {
-      const nesting = runProjectNesting(modulesToConsolidate, {
-        materials,
-        sawKerfMm: projectConfig?.nesting?.sawKerfMm,
-        trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
-        grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
-        respectGrain: projectConfig?.nesting?.respectGrain,
-        optimizationGoal: projectConfig?.nesting?.optimizationGoal,
-        includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
+      const includeGauges = Boolean(inputConfig?.nesting?.includeAssemblyGaugesInCutPlan);
+      const gaugePieces = includeGauges
+        ? (inputAssembly?.gauges ?? []).flatMap((g) => {
+            const count = Math.min(2, Math.max(1, g.occurrences.length));
+            const items = [];
+            for (let i = 0; i < count; i++) {
+              items.push({
+                id: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
+                pieceId: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
+                materialId: inputActiveMat.id,
+                cutWidthMm: g.clearSpanMm,
+                cutHeightMm: g.widthMm,
+                canRotate: true,
+                isAuxiliary: true,
+              });
+            }
+            return items;
+          })
+        : [];
+
+      const grainMode = inputConfig?.nesting?.grainDirectionMode ?? (inputConfig?.nesting?.respectGrain === false ? 'free' : 'auto');
+      const nestingItems = [
+        ...inputPieces.map((p) => {
+          const pieceMat = inputMaterials.find((m) => m.id === p.materialId);
+          const hasGrain = Boolean(pieceMat ? pieceMat.hasGrain : inputActiveMat.hasGrain);
+          return {
+            id: p.id,
+            pieceId: p.id,
+            materialId: p.materialId,
+            cutWidthMm: p.cutDimensionsMm.width,
+            cutHeightMm: p.cutDimensionsMm.height,
+            canRotate: canPieceRotate(p, hasGrain, grainMode),
+            isAuxiliary: p.isAuxiliary,
+          };
+        }),
+        ...gaugePieces,
+      ];
+
+      const nesting = runMultiMaterialGuillotineNesting({
+        items: nestingItems,
+        sheetLookup: (matId) => {
+          const mat = inputMaterials.find((m) => m.id === matId) ?? inputActiveMat;
+          const sLen = typeof mat.sheetSizeMm.length === 'number' ? mat.sheetSizeMm.length : 2800;
+          const sWid = typeof mat.sheetSizeMm.width === 'number' ? mat.sheetSizeMm.width : 2070;
+          return {
+            materialId: mat.id,
+            lengthMm: sLen,
+            widthMm: sWid,
+            sawKerfMm: inputConfig?.nesting.sawKerfMm,
+            trimMarginMm: inputConfig?.nesting.sheetTrimMarginMm,
+          };
+        },
+        optimizationGoal: inputConfig?.nesting.optimizationGoal,
       });
-      return calculateProjectCost({
-        bom: consolidatedBom,
+
+      return calculateModuleCost({
+        bom: inputBom,
         nestingResult: nesting,
-        materials,
-        edgeBands,
-        hardware,
-        costConfig: projectConfig?.cost,
+        materials: inputMaterials,
+        edgeBands: inputEdgeBands,
+        hardware: inputHardware,
+        costConfig: inputConfig?.cost,
       });
     } catch {
       return null;
     }
-  }, [consolidatedPieces, activeMaterial, modulesToConsolidate, materials, edgeBands, hardware, projectConfig, consolidatedBom]);
+  }, [debouncedModuleCostInput, isCostCalculating]);
+
+  /**
+   * Generates consolidated multi-module nesting costs for the entire project.
+   * Input is debounced; returns null while calculation is pending.
+   */
+  const consolidatedCost = useMemo(() => {
+    if (isCostCalculating) return null;
+    const {
+      consolidatedPieces: inputPieces,
+      activeMaterial: inputActiveMat,
+      modulesToConsolidate: inputModules,
+      materials: inputMaterials,
+      edgeBands: inputEdgeBands,
+      hardware: inputHardware,
+      projectConfig: inputConfig,
+      consolidatedBom: inputBom,
+    } = debouncedConsolidatedCostInput;
+
+    if (inputPieces.length === 0 || !inputActiveMat) return null;
+    try {
+      const nesting = runProjectNesting(inputModules, {
+        materials: inputMaterials,
+        sawKerfMm: inputConfig?.nesting?.sawKerfMm,
+        trimMarginMm: inputConfig?.nesting?.sheetTrimMarginMm,
+        grainDirectionMode: inputConfig?.nesting?.grainDirectionMode,
+        respectGrain: inputConfig?.nesting?.respectGrain,
+        optimizationGoal: inputConfig?.nesting?.optimizationGoal,
+        includeAssemblyGauges: inputConfig?.nesting?.includeAssemblyGaugesInCutPlan,
+      });
+      return calculateProjectCost({
+        bom: inputBom,
+        nestingResult: nesting,
+        materials: inputMaterials,
+        edgeBands: inputEdgeBands,
+        hardware: inputHardware,
+        costConfig: inputConfig?.cost,
+      });
+    } catch {
+      return null;
+    }
+  }, [debouncedConsolidatedCostInput, isCostCalculating]);
 
   // Save module to IndexedDB
   const saveModule = useCallback(async () => {
@@ -3390,6 +3484,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     resolvedPieces,
     bom,
     cost,
+    isCostCalculating,
     activeTab,
     uiMode: isOneHandDevice ? uiMode : 'expert',
     isOneHandDevice,
