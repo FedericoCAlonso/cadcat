@@ -142,19 +142,52 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
       expect(html).toContain('$168.000');
     });
 
-    it('switches to "Módulo" scope and multiplies active module metrics by its quantity', () => {
+    it('switches to "Módulo" scope and takes metrics directly from joint calculation with unit cost in tooltip', () => {
       const container = document.createElement('div');
       document.body.appendChild(container);
       const root = createRoot(container);
 
       const handleScopeChange = vi.fn();
 
+      const mockQty2Bom: BillOfMaterials = {
+        moduleId: 'mod-1',
+        totalPieceCount: 16,
+        totalCutAreaM2: 4.90,
+        totalEdgeBandMeters: 28.4,
+        totalHardwareCount: 48,
+        pieces: [],
+        hardware: [],
+        edgeBands: [],
+      };
+
+      const mockQty2Cost: ModuleCostSummary = {
+        moduleId: 'mod-1',
+        items: [
+          {
+            id: 'mat-white-18',
+            name: 'Egger White 18mm',
+            category: 'material',
+            quantity: 1, // 1 sheet for both units
+            unit: 'sheet',
+            unitPrice: 45000,
+            subtotal: 45000,
+          },
+        ],
+        materialTotal: 45000,
+        edgeBandTotal: 6000,
+        hardwareTotal: 13000,
+        cutPassCost: 3000,
+        grandTotal: 67000,
+        confirmedSubtotal: 67000,
+        isFullyConfirmed: true,
+      };
+
       act(() => {
         root.render(
           <PanelSummaryFooter
-            bom={mockModuleBom}
+            bom={mockQty2Bom}
             consolidatedBom={mockConsolidatedBom}
-            cost={mockModuleCost}
+            cost={mockQty2Cost}
             consolidatedCost={mockConsolidatedCost}
             materials={mockMaterials}
             activeMaterialId="mat-white-18"
@@ -176,18 +209,22 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
 
       expect(handleScopeChange).toHaveBeenCalledWith('module');
 
-      // In Módulo scope with activeModuleQuantity = 2:
-      // Pieces = 8 * 2 = 16
+      // In Módulo scope with activeModuleQuantity = 2 (derived from joint calculation):
+      // Pieces = 16
       const piecesVal = container.querySelector('.panel-summary-metrics .panel-summary-metric:nth-child(1) strong')?.textContent;
       expect(piecesVal).toBe('16');
 
-      // Placas = 5.796 * 2 = 11.59 m²
+      // Placas = 5.80 m² (1 sheet consumed by joint nesting, NOT 11.59 m²)
       const boardVal = container.querySelector('.panel-summary-metrics .panel-summary-metric:nth-child(2) strong')?.textContent;
-      expect(boardVal).toBe('11,59 m²');
+      expect(boardVal).toBe('5,80 m²');
 
-      // Cost = 56000 * 2 = $112.000
+      // Total Cost = $67.000
       const costVal = container.querySelector('.panel-summary-metric--cost strong')?.textContent;
-      expect(costVal).toBe('$112.000');
+      expect(costVal).toBe('$67.000');
+
+      // Tooltip contains unit cost: 67000 / 2 = $33.500
+      const costMetric = container.querySelector('.panel-summary-metric--cost') as HTMLElement | null;
+      expect(costMetric?.getAttribute('title')).toContain('Costo unitario: $33.500');
 
       act(() => {
         root.unmount();
@@ -227,16 +264,16 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
       expect(html).toContain('is-partial');
     });
 
-    it('scales partial amount by activeModuleQuantity in module scope', () => {
+    it('displays partial amount and shows unit partial in tooltip for multiple units', () => {
       const costWithPendingPrice: ModuleCostSummary = {
         moduleId: 'mod-1',
         items: [],
         materialTotal: 'TO_CONFIRM',
-        edgeBandTotal: 3000,
-        hardwareTotal: 4500,
-        cutPassCost: 1000,
+        edgeBandTotal: 9000,
+        hardwareTotal: 13500,
+        cutPassCost: 3000,
         grandTotal: 'TO_CONFIRM',
-        confirmedSubtotal: 8500,
+        confirmedSubtotal: 25500,
         isFullyConfirmed: false,
       };
 
@@ -252,8 +289,10 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
         />,
       );
 
-      // 8500 * 3 = 25500
+      // Displays calculated confirmed subtotal
       expect(html).toContain('Parcial $25.500 · a confirmar');
+      // Tooltip includes unit partial cost: 25500 / 3 = 8500
+      expect(html).toContain('Costo unitario: Parcial $8.500 · a confirmar');
     });
   });
 
@@ -612,12 +651,36 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
       // Cost = $49.884
       expect(projectHtml).toContain('$49.884');
 
+      // For active Module B with quantity = 2, calculate using joint nesting of [modBConsolidate]
+      const modBConsolidate: ModuleToConsolidate[] = [
+        {
+          moduleId: 'mod-B',
+          moduleName: 'Alacena 400',
+          quantity: 2,
+          pieces: piecesB,
+          bom: bomB,
+        },
+      ];
+      const consolidatedBomB = consolidateProjectBom(modBConsolidate);
+      const nestingB2 = runProjectNesting(modBConsolidate, { materials: mockMaterials });
+      const costB2 = calculateProjectCost({
+        bom: consolidatedBomB,
+        nestingResult: nestingB2,
+        materials: mockMaterials,
+        edgeBands: [edgeBand2],
+        hardware: [hardwareScrew],
+        costConfig,
+      });
+
+      // Verify that for Module B with quantity = 2, both units fit on 1 single sheet!
+      expect(nestingB2.sheets.length).toBe(1);
+
       // Verify Footer in "Módulo" scope for active Module B (quantity = 2)
       const moduleHtml = renderToString(
         <PanelSummaryFooter
-          bom={bomB}
+          bom={consolidatedBomB}
           consolidatedBom={consolidatedBom}
-          cost={costB}
+          cost={costB2}
           consolidatedCost={consolidatedCost}
           materials={mockMaterials}
           scope="module"
@@ -627,12 +690,14 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
 
       // Mod B pieces: 5 * 2 = 10
       expect(moduleHtml).toContain('Piezas:</span><strong class="panel-summary-metric__value">10</strong>');
-      // Mod B board area: 5.796 * 2 = 11,59 m²
-      expect(moduleHtml).toContain('Placas:</span><strong class="panel-summary-metric__value">11,59<!-- --> m²</strong>');
+      // Mod B board area: 1 sheet = 5,80 m² (NOT twice the board area of 1 unit!)
+      expect(moduleHtml).toContain('Placas:</span><strong class="panel-summary-metric__value">5,80<!-- --> m²</strong>');
       // Mod B net cut area tooltip: 0.6496 * 2 = 1,30 m²
       expect(moduleHtml).toContain('Área neta de piezas: 1,30 m²');
-      // Mod B cost: 46702 * 2 = $93.404
-      expect(moduleHtml).toContain('$93.404');
+      // Mod B cost: $48.154 (calculated directly via joint nesting, NOT $93.404)
+      expect(moduleHtml).toContain('$48.154');
+      // Mod B unit cost in tooltip: 48154 / 2 = $24.077
+      expect(moduleHtml).toContain('Costo unitario: $24.077');
     });
   });
 });

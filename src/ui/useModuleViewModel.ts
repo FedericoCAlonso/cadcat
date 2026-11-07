@@ -59,7 +59,6 @@ import { useOneHandDevice } from './useOneHandDevice';
 import { getSeedMaterials, getSeedEdgeBands, getSeedHardware } from '../catalog';
 import {
   generateBillOfMaterials,
-  calculateModuleCost,
   PlacementTree,
   JointGraph,
   exportCutListCsv,
@@ -2645,18 +2644,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [currentModule, resolvedPieces, projectConfig, machiningSheets]);
 
-  // Raw inputs for the module cost calculation
-  const rawModuleCostInput = useMemo(() => ({
-    bom,
-    activeMaterial,
-    resolvedPieces,
-    materials,
-    edgeBands,
-    hardware,
-    projectConfig,
-    assemblySheet,
-  }), [bom, activeMaterial, resolvedPieces, materials, edgeBands, hardware, projectConfig, assemblySheet]);
-
   const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
   const setJointStrategy = useCallback((strategy: JointStrategy) => {
     setProjectConfig((prev) => {
@@ -2967,6 +2954,38 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     return consolidateProjectBom(modulesToConsolidate);
   }, [modulesToConsolidate]);
 
+  // Consolidate single active module taking its configured quantity into account for joint nesting
+  const activeModuleItem = projectModules.find((m) => m.id === activeModuleId);
+  const activeModuleQuantity = activeModuleItem?.quantity ?? 1;
+
+  const activeModuleToConsolidate: ModuleToConsolidate[] = useMemo(() => {
+    return [
+      {
+        moduleId: activeModuleId,
+        moduleName: activeModuleItem?.name ?? currentModule?.id ?? 'Módulo Principal',
+        quantity: activeModuleQuantity,
+        pieces: resolvedPieces,
+        bom,
+        gauges: assemblySheet?.gauges,
+      },
+    ];
+  }, [activeModuleId, activeModuleItem?.name, currentModule?.id, activeModuleQuantity, resolvedPieces, bom, assemblySheet]);
+
+  const activeModuleBom = useMemo(() => {
+    return consolidateProjectBom(activeModuleToConsolidate);
+  }, [activeModuleToConsolidate]);
+
+  // Raw inputs for the active module cost calculation (joint nesting across all units of this module)
+  const rawModuleCostInput = useMemo(() => ({
+    activeModuleToConsolidate,
+    activeModuleBom,
+    activeMaterial,
+    materials,
+    edgeBands,
+    hardware,
+    projectConfig,
+  }), [activeModuleToConsolidate, activeModuleBom, activeMaterial, materials, edgeBands, hardware, projectConfig]);
+
   // Raw inputs for the project consolidated cost calculation
   const rawConsolidatedCostInput = useMemo(() => ({
     consolidatedPieces,
@@ -3016,80 +3035,35 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   }, [rawModuleCostInput, rawConsolidatedCostInput, costDebounceMs]);
 
   /**
-   * Generates bill of materials and nesting costs for the active module.
+   * Generates bill of materials and nesting costs for the active module (considering all units of this module).
+   * Uses joint multi-material guillotine nesting (runProjectNesting) across all units of the active module.
    * Input is debounced; returns null while calculation is pending so obsolete values are never displayed.
    */
   const cost = useMemo(() => {
     if (isCostCalculating) return null;
     const {
-      bom: inputBom,
+      activeModuleToConsolidate: inputModules,
+      activeModuleBom: inputBom,
       activeMaterial: inputActiveMat,
-      resolvedPieces: inputPieces,
       materials: inputMaterials,
       edgeBands: inputEdgeBands,
       hardware: inputHardware,
       projectConfig: inputConfig,
-      assemblySheet: inputAssembly,
     } = debouncedModuleCostInput;
 
-    if (!inputBom || !inputActiveMat) return null;
+    if (!inputBom || !inputActiveMat || !inputModules || inputModules.length === 0) return null;
     try {
-      const includeGauges = Boolean(inputConfig?.nesting?.includeAssemblyGaugesInCutPlan);
-      const gaugePieces = includeGauges
-        ? (inputAssembly?.gauges ?? []).flatMap((g) => {
-            const count = Math.min(2, Math.max(1, g.occurrences.length));
-            const items = [];
-            for (let i = 0; i < count; i++) {
-              items.push({
-                id: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
-                pieceId: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
-                materialId: inputActiveMat.id,
-                cutWidthMm: g.clearSpanMm,
-                cutHeightMm: g.widthMm,
-                canRotate: true,
-                isAuxiliary: true,
-              });
-            }
-            return items;
-          })
-        : [];
-
-      const grainMode = inputConfig?.nesting?.grainDirectionMode ?? (inputConfig?.nesting?.respectGrain === false ? 'free' : 'auto');
-      const nestingItems = [
-        ...inputPieces.map((p) => {
-          const pieceMat = inputMaterials.find((m) => m.id === p.materialId);
-          const hasGrain = Boolean(pieceMat ? pieceMat.hasGrain : inputActiveMat.hasGrain);
-          return {
-            id: p.id,
-            pieceId: p.id,
-            materialId: p.materialId,
-            cutWidthMm: p.cutDimensionsMm.width,
-            cutHeightMm: p.cutDimensionsMm.height,
-            canRotate: canPieceRotate(p, hasGrain, grainMode),
-            isAuxiliary: p.isAuxiliary,
-          };
-        }),
-        ...gaugePieces,
-      ];
-
-      const nesting = runMultiMaterialGuillotineNesting({
-        items: nestingItems,
-        sheetLookup: (matId) => {
-          const mat = inputMaterials.find((m) => m.id === matId) ?? inputActiveMat;
-          const sLen = typeof mat.sheetSizeMm.length === 'number' ? mat.sheetSizeMm.length : 2800;
-          const sWid = typeof mat.sheetSizeMm.width === 'number' ? mat.sheetSizeMm.width : 2070;
-          return {
-            materialId: mat.id,
-            lengthMm: sLen,
-            widthMm: sWid,
-            sawKerfMm: inputConfig?.nesting.sawKerfMm,
-            trimMarginMm: inputConfig?.nesting.sheetTrimMarginMm,
-          };
-        },
-        optimizationGoal: inputConfig?.nesting.optimizationGoal,
+      const nesting = runProjectNesting(inputModules, {
+        materials: inputMaterials,
+        sawKerfMm: inputConfig?.nesting?.sawKerfMm,
+        trimMarginMm: inputConfig?.nesting?.sheetTrimMarginMm,
+        grainDirectionMode: inputConfig?.nesting?.grainDirectionMode,
+        respectGrain: inputConfig?.nesting?.respectGrain,
+        optimizationGoal: inputConfig?.nesting?.optimizationGoal,
+        includeAssemblyGauges: inputConfig?.nesting?.includeAssemblyGaugesInCutPlan,
       });
 
-      return calculateModuleCost({
+      return calculateProjectCost({
         bom: inputBom,
         nestingResult: nesting,
         materials: inputMaterials,
@@ -3482,7 +3456,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     error,
     currentModule,
     resolvedPieces,
-    bom,
+    bom: activeModuleBom,
     cost,
     isCostCalculating,
     activeTab,

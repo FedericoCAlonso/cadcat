@@ -1,8 +1,8 @@
 # CadCat — Informe de Cierre: Etapa 4
 
-**Versión:** `v0.26.1`  
+**Versión:** `v0.26.2`  
 **Fecha:** 6 de noviembre de 2026  
-**Módulo:** Resumen de Producción y Costos en Pie Fijo, Selector de Alcance, Debounce y Coherencia Multi-Módulo  
+**Módulo:** Resumen de Producción y Costos en Pie Fijo, Selector de Alcance, Debounce y Coherencia Multi-Módulo (Nesting Conjunto)  
 
 ---
 
@@ -19,33 +19,35 @@ Para verificar la consistencia matemática y de producción se analizó un proye
 - **Módulo B ("Alacena 400"):** 400 × 600 × 320 mm, Melamina 18 mm, Cantidad = **2** (5 piezas c/u = 10 piezas, área neta de corte = 0,6496 m² c/u = 1,2992 m²).
 - **Placa de catálogo:** 2800 × 2070 mm (5,796 m² por placa, $45.000 / placa, tornillos confirmat $50 c/u, pasada de corte $50).
 
-### 2.1 Tabla de Valores
+### 2.1 Tabla de Valores Corregida (Cálculo Conjunto de Cantidades)
 
 | Métrica | Alcance "Proyecto" (Pie) | Alcance "Módulo" (Pie, Módulo B activo, Cant = 2) | Lista de Corte Exportada (CSV Proyecto) |
 | :--- | :--- | :--- | :--- |
 | **Piezas (unidades)** | **15** | **10** | **15** (1 encabezado + 15 filas) |
-| **Área de Placas / Nesting (m²)** | **5,80 m²** (1 placa entera) | **11,59 m²** (2 placas = $1 \text{ placa} \times 2$) | N/A (el CSV exporta piezas de corte, no sobrantes) |
+| **Área de Placas / Nesting (m²)** | **5,80 m²** (1 placa entera) | **5,80 m²** (1 placa entera conjunta) | N/A (el CSV exporta piezas de corte, no sobrantes) |
 | **Área Neta de Piezas (m²)** | **3,09 m²** (en tooltip) | **1,30 m²** (en tooltip) | **3,09 m²** (suma exacta de $W_\text{cut} \times H_\text{cut}$) |
-| **Costo Total Estimado ($)** | **$49.884** | **$93.404** ($46.702 \times 2$) | N/A |
+| **Costo Total Estimado ($)** | **$49.884** | **$48.154** (Tooltip: Unitario **$24.077**) | N/A |
 
 ### 2.2 Explicación de las Diferencias y Coherencia
 
 1. **Conteo de Piezas:**
    - En **"Proyecto"**, el pie suma las 5 piezas del Módulo A ($5 \times 1$) y las 10 piezas del Módulo B ($5 \times 2$), totalizando **15 piezas**, lo que coincide de forma idéntica con las 15 filas de piezas del archivo CSV exportado del proyecto (`mod-A__...` y `mod-B__...__i1` / `mod-B__...__i2`).
-   - En **"Módulo"**, al estar activo el Módulo B con cantidad 2, el pie computa las piezas correspondientes a todas las unidades de dicho módulo: $5 \times 2 = 10$ piezas.
+   - En **"Módulo"**, al estar activo el Módulo B con cantidad 2, el pie computa las 10 piezas derivadas del consolidado de dicho módulo ($5 \times 2 = 10$ piezas).
 2. **Área de Placas (Nesting) y Costo:**
-   - En **"Módulo"**, el cálculo evalúa 1 unidad del módulo en forma aislada (la cual demanda 1 placa entera de 5,80 m² por $45.000) y multiplica escalarmente el resultado por la cantidad de unidades ($2 \times 5,796 = 11,59$ m², $2 \times $46.702 = $93.404).
-   - En **"Proyecto"**, el motor ejecuta un **nesting guillotina global conjunto** (`runProjectNesting` en `src/resolver/projectConsolidator.ts`). Al consolidar todas las piezas de ambos módulos, las piezas del Módulo B aprovechan los retazos del Módulo A dentro de la misma placa, requiriendo en conjunto **una única placa** (5,80 m²). El costo consolidado resultante es **$49.884**, reflejando con exactitud el ahorro real de material por optimización conjunta.
+   - En **"Módulo"**, el cálculo ahora evalúa las 2 unidades del módulo en conjunto mediante `runProjectNesting([activeModuleToConsolidate])`. Como las 10 piezas del Módulo B entran holgadamente dentro de una sola placa de 2800 × 2070 mm, el nesting reporta **1 placa** (5,80 m²), y un costo total de **$48.154** (evitando la duplicación artificial a 2 placas y $93.404). El tooltip exhibe el costo unitario real: **$24.077** ($48.154 / 2).
+   - En **"Proyecto"**, el motor ejecuta el **nesting guillotina global conjunto** (`runProjectNesting` sobre todos los módulos del proyecto). Al combinar todas las piezas de ambos módulos (15 piezas en total), las piezas del Módulo B aprovechan los retazos del Módulo A dentro de la misma placa, requiriendo en conjunto **una única placa** (5,80 m²). El costo consolidado resultante es **$49.884**.
 3. **Área Neta de Corte:**
    - El área neta en el tooltip del alcance "Proyecto" (3,09 m²) coincide exactamente con la suma del área de corte de las 15 filas del CSV exportado ($1,7928 + 2 \times 0,6496 = 3,092$ m²).
+   - En el alcance "Módulo", el tooltip exhibe 1,30 m² ($0,6496 \times 2 = 1,2992$ m²).
 
 ---
 
 ## 3. Respuestas Técnicas a las Preguntas de la Revisión
 
 ### 3.1 Método en el alcance "Módulo"
-- El cálculo real de costos del módulo individual (`calculateModuleCost`, invocado en `vm.cost`) procesa **1 unidad** del módulo activo; no ejecuta un nesting multi-unidad individual.
-- El pie fijo (`PanelSummaryFooter`) utiliza **exactamente el mismo método**: toma el resultado unitario del motor de costos y lo multiplica por la cantidad configurada del módulo activo (`activeModuleQuantity`).
+- El cálculo en el alcance "Módulo" procesa el módulo activo con su **cantidad real configurada** utilizando el algoritmo de nesting conjunto existente (`runProjectNesting` sobre una consolidación que contiene únicamente este módulo y su cantidad).
+- No multiplica escalarmente el costo unitario de 1 módulo. Toma piezas, área de placas y costo directamente de este único cálculo conjunto.
+- En el tooltip de costo, se expone el costo unitario (`totalCost / activeModuleQuantity`).
 
 ### 3.2 Método en el alcance "Proyecto"
 - El alcance "Proyecto" utiliza `consolidatedCost`, el cual ejecuta un **nesting conjunto** (`runProjectNesting` en `src/resolver/projectConsolidator.ts`) combinando todas las piezas de todos los módulos y sus instancias en un único empaquetamiento global de guillotina. **No** suma nestings individuales.
@@ -76,12 +78,12 @@ Cumple estrictamente el objetivo de **$\le 80$ px** (reduciendo el peso vertical
 
 - **`npx tsc --noEmit`:** 0 errores.
 - **`vitest`:** **88/88 archivos de prueba pasados, 595/595 tests en verde** (incluyendo 11/11 tests en `tests/stage4SummaryFooterAndDebounce.test.tsx`).
-- **`npm run build`:** Compilación de producción exitosa en 6.80s con Service Worker PWA generado sin fallas.
+- **`npm run build`:** Compilación de producción exitosa en 6.78s con Service Worker PWA generado sin fallas.
 
 ---
 
 ## 6. Commits y Despliegue
 
-- **Commit de revisión:** `e6c0f3e` — `fix(ui): optimize summary footer height to <=80px, disable export buttons during debounce, and verify multi-module coherence` (versión `v0.26.1`).
+- **Commit de corrección:** `fix(cost): calculate module scope with joint nesting for multi-unit modules and show unit cost in tooltip (v0.26.2)`
 - **Repositorio GitHub:** Sincronizado en rama `main`.
 - **GitHub Pages:** Desplegado en `https://federicocalonso.github.io/cadcat/`.

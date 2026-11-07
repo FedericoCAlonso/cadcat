@@ -118,28 +118,21 @@ export function PanelSummaryFooter({
   };
 
   const isProjectScope = activeScope === 'project';
-  const qtyMultiplier = isProjectScope ? 1 : Math.max(1, activeModuleQuantity);
+  const targetBom = isProjectScope ? consolidatedBom : bom;
+  const targetCost = isProjectScope ? consolidatedCost : cost;
 
-  // 1. Piece count
-  const totalPieces = isProjectScope
-    ? (consolidatedBom?.totalPieceCount ?? 0)
-    : (bom?.totalPieceCount ?? 0) * qtyMultiplier;
+  // 1. Piece count (directly from calculated target BOM without multiplying unit result)
+  const totalPieces = targetBom?.totalPieceCount ?? 0;
 
-  // 2. Board area consumed by nesting & net piece cut area
+  // 2. Board area consumed by nesting & net piece cut area (directly from calculated target cost/BOM)
   const boardAreaM2 = useMemo(() => {
-    if (isProjectScope) {
-      return calculateNestingBoardAreaM2(consolidatedCost, materials, activeMaterialId);
-    }
-    return calculateNestingBoardAreaM2(cost, materials, activeMaterialId) * qtyMultiplier;
-  }, [isProjectScope, consolidatedCost, cost, materials, activeMaterialId, qtyMultiplier]);
+    return calculateNestingBoardAreaM2(targetCost, materials, activeMaterialId);
+  }, [targetCost, materials, activeMaterialId]);
 
-  const netPieceAreaM2 = isProjectScope
-    ? (consolidatedBom?.totalCutAreaM2 ?? 0)
-    : (bom?.totalCutAreaM2 ?? 0) * qtyMultiplier;
+  const netPieceAreaM2 = targetBom?.totalCutAreaM2 ?? 0;
 
   // 3. Estimated Cost
   const currencySymbol = DEFAULT_UI_CONFIG.currencySymbol;
-  const targetCost = isProjectScope ? consolidatedCost : cost;
 
   let costDisplay: string;
   let isCostPartial = false;
@@ -150,11 +143,29 @@ export function PanelSummaryFooter({
     costDisplay = '—';
   } else if (targetCost.grandTotal === 'TO_CONFIRM') {
     isCostPartial = true;
-    const partialAmount = targetCost.confirmedSubtotal * qtyMultiplier;
-    costDisplay = `Parcial ${currencySymbol}${numberFormatter.format(partialAmount)} · a confirmar`;
+    costDisplay = `Parcial ${currencySymbol}${numberFormatter.format(targetCost.confirmedSubtotal)} · a confirmar`;
   } else {
-    const finalAmount = targetCost.grandTotal * qtyMultiplier;
-    costDisplay = `${currencySymbol}${numberFormatter.format(finalAmount)}`;
+    costDisplay = `${currencySymbol}${numberFormatter.format(targetCost.grandTotal)}`;
+  }
+
+  // Cost tooltip: includes cost per unit (total cost divided by quantity) in module scope
+  let costTooltip = isCostPartial
+    ? 'Costo parcial a confirmar con precios pendientes'
+    : 'Costo estimado total';
+
+  if (!isProjectScope && targetCost) {
+    const qty = Math.max(1, activeModuleQuantity);
+    if (targetCost.grandTotal === 'TO_CONFIRM') {
+      const unitPartial = targetCost.confirmedSubtotal / qty;
+      costTooltip = qty > 1
+        ? `Costo unitario: Parcial ${currencySymbol}${numberFormatter.format(unitPartial)} · a confirmar (Total: ${costDisplay} para ${qty} unidades)`
+        : 'Costo parcial a confirmar con precios pendientes';
+    } else {
+      const unitCost = targetCost.grandTotal / qty;
+      costTooltip = qty > 1
+        ? `Costo unitario: ${currencySymbol}${numberFormatter.format(unitCost)} (Total: ${costDisplay} para ${qty} unidades)`
+        : `Costo unitario: ${currencySymbol}${numberFormatter.format(unitCost)}`;
+    }
   }
 
   const boardAreaTooltip = `Área de placa consumida (nesting): ${areaFormatter.format(boardAreaM2)} m² · Área neta de piezas: ${areaFormatter.format(netPieceAreaM2)} m²`;
@@ -218,7 +229,7 @@ export function PanelSummaryFooter({
           {/* Costo estimado */}
           <div
             className={`panel-summary-metric panel-summary-metric--cost ${isCostCalculating ? 'is-calculating' : ''} ${isCostPartial ? 'is-partial' : ''}`}
-            title={isCostPartial ? 'Costo parcial a confirmar con precios pendientes' : 'Costo estimado total'}
+            title={costTooltip}
           >
             <span className="panel-summary-metric__label">Costo:</span>
             <strong className="panel-summary-metric__value">{costDisplay}</strong>

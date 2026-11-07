@@ -74,6 +74,10 @@ Este documento establece las directivas de calidad, diseño y arquitectura **est
 - Prohibido asumir divisiones simétricas fijas (mitad y mitad) en resolutores o interfaces de grillas/matrices de vanos. El usuario debe poder definir posiciones relativas y absolutas con total libertad.
 - Soportar placas secundarias o divisorias delgadas (ej. 6 mm para cajoncitos de organización) sin imponerles la misma lógica de herrajes o mecanizados pesados (confirmat/tornillos) que a las placas estructurales de 18 mm.
 
+### 8. Despliegue Continuo a GitHub Pages
+- **Flujo de pruebas en dispositivos móviles:** Tras cada commit, es mandatorio sincronizar la rama canónica `main` y desplegar a GitHub Pages (`npm run deploy`).
+- En cada informe de entrega o revisión, es obligatorio reportar la URL pública desplegada, el número de versión y la indicación de recarga doble del PWA (para actualizar el caché del Service Worker).
+
 ---
 
 ## 🤖 Agentes Especializados de Calidad
@@ -94,3 +98,4 @@ Antes de dar por completada cualquier modificación en el repositorio, es mandat
 2. **Suite de pruebas unitarias y de integración:** `npm test` debe completar el 100% de los tests en verde.
 3. **Compilación de producción:** `npm run build` debe generar el bundle de producción y el Service Worker PWA sin fallas.
 4. **Sincronización de versión:** Verificar que `src/version.ts` y `package.json` tengan la versión actualizada e idéntica.
+5. **Despliegue a GitHub Pages:** Sincronizar la rama `main` y ejecutar `npm run deploy`.
