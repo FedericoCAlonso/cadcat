@@ -23,8 +23,10 @@ export interface MachiningVisibilityParams {
   selectedPieceId?: string | null;
   /** Distance from the camera eye to the piece or module center in millimeters. */
   cameraDistanceMm?: number;
-  /** Distance threshold below which marks appear in auto mode (defaults to config). */
-  distanceThresholdMm?: number;
+  /** Auto-fit camera distance for the active module in millimeters. */
+  fitDistanceMm?: number;
+  /** Distance ratio threshold below which marks appear in auto mode (defaults to config machiningCameraDistanceRatio). */
+  distanceRatioThreshold?: number;
   /** Current exploded view expansion ratio [0..1]. */
   explodedRatio?: number;
   /** Exploded view threshold above which marks appear in auto mode (defaults to config). */
@@ -38,7 +40,8 @@ export interface MachiningVisibilityParams {
  * Adheres strictly to the Stage 5 Step B specification:
  * - 'no': Always false.
  * - 'always': Always true.
- * - 'auto': True only if camera is close, exploded view is active, piece is hovered, or piece is selected.
+ * - 'auto': True only if camera distance ratio is below threshold (< 0.6 of fit distance),
+ *   exploded view is active (> 0.08), piece is hovered, or piece is selected.
  *
  * @param params Contextual parameters for the piece and viewer state.
  * @returns True if machining marks should be rendered, false otherwise.
@@ -48,9 +51,14 @@ export function shouldShowPieceMachining(params: MachiningVisibilityParams): boo
   if (params.mode === 'always') return true;
 
   // Auto mode evaluations:
-  // 1. Camera is close to the module (distance < threshold)
-  const distThresh = params.distanceThresholdMm ?? DEFAULT_UI_CONFIG.machiningCameraDistanceThresholdMm ?? 1200;
-  if (params.cameraDistanceMm !== undefined && params.cameraDistanceMm < distThresh) {
+  // 1. Camera is close to the module (camera distance < distanceRatio * fitDistance)
+  const ratioThresh = params.distanceRatioThreshold ?? DEFAULT_UI_CONFIG.machiningCameraDistanceRatio ?? 0.6;
+  if (
+    params.cameraDistanceMm !== undefined &&
+    params.fitDistanceMm !== undefined &&
+    params.fitDistanceMm > 0 &&
+    params.cameraDistanceMm < ratioThresh * params.fitDistanceMm
+  ) {
     return true;
   }
 

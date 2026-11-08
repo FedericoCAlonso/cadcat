@@ -8,8 +8,18 @@
   "colorByRoleByDefault": false,
   "showLinesByDefault": true,
   "machiningDisplayModeDefault": "auto",
-  "machiningCameraDistanceThresholdMm": 1200,
+  "machiningCameraDistanceRatio": 0.6,
   "machiningExplodedThreshold": 0.08,
+  "selectedPieceColor": {
+    "light": "#7E57C2",
+    "dark": "#9575CD"
+  },
+  "viewerLighting": {
+    "ambientStandard": 0.85,
+    "ambientColorByRole": 1.25,
+    "hemiStandard": 0.35,
+    "hemiColorByRole": 0.65
+  },
   "dimensionUnit": "mm",
   "dimensionNumberFormat": "es-AR",
   "dimensionOffsetMm": 80,

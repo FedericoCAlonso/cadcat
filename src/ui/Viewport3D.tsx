@@ -224,6 +224,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   // References for dynamic overlays and grids
   const fadingGridRef = useRef<THREE.LineSegments | null>(null);
   const dimensionLinesGroupRef = useRef<THREE.Group | null>(null);
+  const fitDistanceRef = useRef<number>(1500);
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const hemiLightRef = useRef<THREE.HemisphereLight | null>(null);
 
   // Direct DOM label element refs for high-performance updates without React re-render churn
   const widthLabelRef = useRef<HTMLDivElement>(null);
@@ -296,6 +299,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       fov: 45,
       fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
     });
+    fitDistanceRef.current = initialFit.distance;
     camera.position.set(initialFit.position.x, initialFit.position.y, initialFit.position.z);
     camera.lookAt(initialFit.target.x, initialFit.target.y, initialFit.target.z);
     prevTargetRef.current = { ...initialFit.target };
@@ -317,16 +321,36 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const maxDim = Math.max(boundsRef.current.size.x, boundsRef.current.size.y, boundsRef.current.size.z, 600);
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambientLight = new THREE.AmbientLight(
+      0xffffff,
+      colorByRole
+        ? (DEFAULT_UI_CONFIG.viewerLighting?.ambientColorByRole ?? 1.25)
+        : (DEFAULT_UI_CONFIG.viewerLighting?.ambientStandard ?? 0.85),
+    );
     scene.add(ambientLight);
+    ambientLightRef.current = ambientLight;
+
+    const hemiLight = new THREE.HemisphereLight(
+      0xffffff,
+      0x8899a6,
+      colorByRole
+        ? (DEFAULT_UI_CONFIG.viewerLighting?.hemiColorByRole ?? 0.65)
+        : (DEFAULT_UI_CONFIG.viewerLighting?.hemiStandard ?? 0.35),
+    );
+    scene.add(hemiLight);
+    hemiLightRef.current = hemiLight;
 
     const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.75);
     dirLight1.position.set(maxDim * 2, maxDim * 3, maxDim * 2);
     scene.add(dirLight1);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.35);
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.45);
     dirLight2.position.set(-maxDim * 2, maxDim, -maxDim);
     scene.add(dirLight2);
+
+    const dirLight3 = new THREE.DirectionalLight(0xffffff, 0.35);
+    dirLight3.position.set(maxDim * 2, -maxDim, -maxDim * 2);
+    scene.add(dirLight3);
 
     // Subtle fading floor grid (Step A: fades radially toward edges, scales with module)
     const isLightInitial = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
@@ -574,7 +598,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             hoveredPieceId: hoveredId,
             selectedPieceId: selectedId,
             cameraDistanceMm: camDistMm,
-            distanceThresholdMm: DEFAULT_UI_CONFIG.machiningCameraDistanceThresholdMm,
+            fitDistanceMm: fitDistanceRef.current,
+            distanceRatioThreshold: DEFAULT_UI_CONFIG.machiningCameraDistanceRatio,
             explodedRatio: expRatio,
             explodedThreshold: DEFAULT_UI_CONFIG.machiningExplodedThreshold,
           });
@@ -675,6 +700,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         fov: camera.fov,
         fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
       });
+      fitDistanceRef.current = fit.distance;
       camera.up.set(0, 1, 0);
       camera.position.set(fit.position.x, fit.position.y, fit.position.z);
       camera.lookAt(fit.target.x, fit.target.y, fit.target.z);
@@ -1004,7 +1030,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             hoveredPieceId: hoveredPieceIdRef.current,
             selectedPieceId,
             cameraDistanceMm: camDistMm,
-            distanceThresholdMm: DEFAULT_UI_CONFIG.machiningCameraDistanceThresholdMm,
+            fitDistanceMm: fitDistanceRef.current,
+            distanceRatioThreshold: DEFAULT_UI_CONFIG.machiningCameraDistanceRatio,
             explodedRatio,
             explodedThreshold: DEFAULT_UI_CONFIG.machiningExplodedThreshold,
           });
@@ -1092,6 +1119,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         fov: cameraRef.current.fov,
         fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
       });
+      fitDistanceRef.current = fit.distance;
       cameraRef.current.position.set(fit.position.x, fit.position.y, fit.position.z);
       cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
       prevTargetRef.current = { ...fit.target };
@@ -1111,12 +1139,28 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       fov: camera.fov,
       fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
     });
+    fitDistanceRef.current = fit.distance;
     camera.up.set(0, 1, 0);
     camera.position.set(fit.position.x, fit.position.y, fit.position.z);
     camera.lookAt(fit.target.x, fit.target.y, fit.target.z);
     prevTargetRef.current = { ...fit.target };
     userHasMovedCameraRef.current = false;
   }, [bounds]);
+
+  // Dynamically calibrate ambient and hemisphere lighting when colorByRole is toggled
+  useEffect(() => {
+    const cfg = DEFAULT_UI_CONFIG.viewerLighting;
+    if (ambientLightRef.current) {
+      ambientLightRef.current.intensity = colorByRole
+        ? (cfg?.ambientColorByRole ?? 1.25)
+        : (cfg?.ambientStandard ?? 0.85);
+    }
+    if (hemiLightRef.current) {
+      hemiLightRef.current.intensity = colorByRole
+        ? (cfg?.hemiColorByRole ?? 0.65)
+        : (cfg?.hemiStandard ?? 0.35);
+    }
+  }, [colorByRole]);
 
   // Camera presets
   const setCameraView = (type: CameraPresetView) => {

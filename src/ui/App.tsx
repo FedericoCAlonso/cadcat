@@ -323,6 +323,8 @@ export function App(): ReactElement {
                 onSetPieceMaterial={vm.setPieceMaterial}
                 onSetPieceThickness={vm.setPieceThickness}
                 onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                machiningSheets={vm.machiningSheets}
                 countertopCalculation={vm.countertopCalculation}
                 interferences={vm.interferences}
                 moduleId={vm.activeModuleId}

@@ -7,7 +7,6 @@ import {
 import {
   classifyPieceRoleCategory,
   resolvePiecePbrStyle,
-  M3_SELECTED_PIECE_STYLE,
   ROLE_CATEGORY_PBR_STYLES,
 } from '../src/ui/materialStyles';
 import type { PieceMachiningSheet } from '../src/resolver';
@@ -67,9 +66,16 @@ describe('Stage 5 Step B: Machining Visibility & Role Colors', () => {
       expect(baseLight.color).not.toBe(frontLight.color);
     });
 
-    it('preserves M3_SELECTED_PIECE_STYLE when piece is selected even with colorByRole active', () => {
-      const selectedStyle = resolvePiecePbrStyle('side-left', undefined, true, true, 'light');
-      expect(selectedStyle).toBe(M3_SELECTED_PIECE_STYLE);
+    it('uses a selection highlight color distinct from all roles in light and dark themes with white wireframe', () => {
+      const selectedLight = resolvePiecePbrStyle('bottom', undefined, true, true, 'light');
+      const baseLight = resolvePiecePbrStyle('bottom', undefined, false, true, 'light');
+      expect(selectedLight.color).not.toBe(baseLight.color);
+      expect(selectedLight.wireframeColor).toBe(0xffffff);
+
+      const selectedDark = resolvePiecePbrStyle('bottom', undefined, true, true, 'dark');
+      const baseDark = resolvePiecePbrStyle('bottom', undefined, false, true, 'dark');
+      expect(selectedDark.color).not.toBe(baseDark.color);
+      expect(selectedDark.wireframeColor).toBe(0xffffff);
     });
   });
 
@@ -81,7 +87,8 @@ describe('Stage 5 Step B: Machining Visibility & Role Colors', () => {
           pieceId: 'piece-1',
           hoveredPieceId: 'piece-1',
           selectedPieceId: 'piece-1',
-          cameraDistanceMm: 500, // Very close
+          cameraDistanceMm: 400, // Very close
+          fitDistanceMm: 1500,
           explodedRatio: 0.5, // Highly exploded
         }),
       ).toBe(false);
@@ -93,6 +100,7 @@ describe('Stage 5 Step B: Machining Visibility & Role Colors', () => {
           mode: 'always',
           pieceId: 'piece-1',
           cameraDistanceMm: 3000, // Far away
+          fitDistanceMm: 1500,
           explodedRatio: 0,
         }),
       ).toBe(true);
@@ -106,24 +114,71 @@ describe('Stage 5 Step B: Machining Visibility & Role Colors', () => {
             pieceId: 'piece-1',
             hoveredPieceId: null,
             selectedPieceId: null,
-            cameraDistanceMm: 1750, // Default camera fit distance
-            distanceThresholdMm: 1200,
+            cameraDistanceMm: 1500, // Default camera fit distance (ratio 1.0 >= 0.6)
+            fitDistanceMm: 1500,
+            distanceRatioThreshold: 0.6,
             explodedRatio: 0,
             explodedThreshold: 0.08,
           }),
         ).toBe(false);
       });
 
-      it('shows marks when camera distance is closer than threshold (zoomed in)', () => {
+      it('shows marks when camera distance ratio is below threshold (zoomed in)', () => {
         expect(
           shouldShowPieceMachining({
             mode: 'auto',
             pieceId: 'piece-1',
-            cameraDistanceMm: 1100, // Closer than 1200
-            distanceThresholdMm: 1200,
+            cameraDistanceMm: 800, // Ratio 800 / 1500 = 0.53 < 0.6
+            fitDistanceMm: 1500,
+            distanceRatioThreshold: 0.6,
             explodedRatio: 0,
           }),
         ).toBe(true);
+      });
+
+      it('evaluates small and large modules identically based on camera-to-fit distance ratio', () => {
+        // Small module: fit distance 800 mm
+        const smallFitDistance = 800;
+        // Large module: fit distance 3000 mm
+        const largeFitDistance = 3000;
+
+        // Ratio 0.5 (< 0.6 threshold) -> both small and large must show marks
+        const smallClose = shouldShowPieceMachining({
+          mode: 'auto',
+          pieceId: 'piece-1',
+          cameraDistanceMm: 0.5 * smallFitDistance, // 400 mm
+          fitDistanceMm: smallFitDistance,
+          distanceRatioThreshold: 0.6,
+        });
+        const largeClose = shouldShowPieceMachining({
+          mode: 'auto',
+          pieceId: 'piece-1',
+          cameraDistanceMm: 0.5 * largeFitDistance, // 1500 mm
+          fitDistanceMm: largeFitDistance,
+          distanceRatioThreshold: 0.6,
+        });
+        expect(smallClose).toBe(true);
+        expect(largeClose).toBe(true);
+        expect(smallClose).toBe(largeClose);
+
+        // Ratio 0.75 (> 0.6 threshold) -> both small and large must hide marks
+        const smallFar = shouldShowPieceMachining({
+          mode: 'auto',
+          pieceId: 'piece-1',
+          cameraDistanceMm: 0.75 * smallFitDistance, // 600 mm
+          fitDistanceMm: smallFitDistance,
+          distanceRatioThreshold: 0.6,
+        });
+        const largeFar = shouldShowPieceMachining({
+          mode: 'auto',
+          pieceId: 'piece-1',
+          cameraDistanceMm: 0.75 * largeFitDistance, // 2250 mm
+          fitDistanceMm: largeFitDistance,
+          distanceRatioThreshold: 0.6,
+        });
+        expect(smallFar).toBe(false);
+        expect(largeFar).toBe(false);
+        expect(smallFar).toBe(largeFar);
       });
 
       it('shows marks when explodedRatio exceeds explodedThreshold', () => {

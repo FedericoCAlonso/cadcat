@@ -1,3 +1,5 @@
+import { DEFAULT_UI_CONFIG } from '../config';
+
 /**
  * Centralized PBR material styling for 3D Viewport.
  * Adheres strictly to zero-hardcoding and Material Design 3 guidelines.
@@ -10,12 +12,28 @@ export interface PiecePbrStyle {
   wireframeColor: number;
 }
 
-export const M3_SELECTED_PIECE_STYLE: PiecePbrStyle = {
-  color: 0x56705f, // M3 sys primary (salvia #56705F)
-  roughness: 0.45,
-  metalness: 0.1,
-  wireframeColor: 0xffffff,
-};
+/**
+ * Resolves the selection PBR style for a selected piece in light or dark theme.
+ * Uses a vibrant violet/purple color from config that is distinct from all role palette colors,
+ * preserving a clean white technical outline.
+ *
+ * @param theme Active UI theme ('light' or 'dark').
+ * @returns PiecePbrStyle with distinct selection color and white outline.
+ */
+export function resolveSelectedPieceStyle(theme: 'light' | 'dark' = 'light'): PiecePbrStyle {
+  const hex = theme === 'dark'
+    ? (DEFAULT_UI_CONFIG.selectedPieceColor?.dark ?? '#9575CD')
+    : (DEFAULT_UI_CONFIG.selectedPieceColor?.light ?? '#7E57C2');
+  const colorNum = parseInt(hex.replace('#', ''), 16);
+  return {
+    color: colorNum,
+    roughness: 0.35,
+    metalness: 0.15,
+    wireframeColor: 0xffffff,
+  };
+}
+
+export const M3_SELECTED_PIECE_STYLE: PiecePbrStyle = resolveSelectedPieceStyle('light');
 
 export const COUNTERTOP_PBR_STYLES: Record<string, PiecePbrStyle> = {
   'ct-granite-gris-mara-20': {
@@ -261,7 +279,7 @@ export function resolvePiecePbrStyle(
   theme: 'light' | 'dark' = 'light',
 ): PiecePbrStyle {
   if (isSelected) {
-    return M3_SELECTED_PIECE_STYLE;
+    return resolveSelectedPieceStyle(theme);
   }
 
   const isCountertopRole = role === 'countertop' || role.startsWith('countertop-');

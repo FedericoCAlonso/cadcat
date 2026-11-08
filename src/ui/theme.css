@@ -1018,7 +1018,7 @@ body {
 
 @media (max-width: 1023px) {
   .viewport-touch-hint {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 16px) + 0.75rem);
+    padding-bottom: calc(var(--m3-bottom-nav-total-height, 76px) + 56px + 1.25rem);
     box-sizing: border-box;
   }
 }
@@ -2067,7 +2067,7 @@ legend.builder-section-title {
     align-items: center;
     gap: 0.5rem;
     position: fixed;
-    bottom: calc(76px + env(safe-area-inset-bottom, 16px) + 0.75rem);
+    bottom: calc(var(--m3-bottom-nav-total-height, 76px) + 0.75rem);
     right: 1rem;
     z-index: 90;
     padding: 0.75rem 1.25rem;
