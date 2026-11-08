@@ -17,6 +17,8 @@ import { useTheme } from './useTheme';
 import { ThemeToggle } from './ThemeToggle';
 import { triggerHaptic } from '../resolver/thumbArc';
 
+export type TabletSheetSnap = 'collapsed' | 'middle' | 'full';
+
 /**
  * Main application View component.
  * Implements Google Material Design 3 (M3) layout and MVVM pattern.
@@ -27,6 +29,38 @@ export function App(): ReactElement {
   const [machiningPieceId, setMachiningPieceId] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [tabletSheetSnap, setTabletSheetSnap] = useState<TabletSheetSnap>('middle');
+  const dragStartYRef = useRef<number | null>(null);
+  const dragStartSnapRef = useRef<TabletSheetSnap>('middle');
+
+  const handleHandlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragStartYRef.current = e.clientY;
+    dragStartSnapRef.current = tabletSheetSnap;
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // In tests or non-supporting environments
+    }
+  };
+
+  const handleHandlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStartYRef.current === null) return;
+    const deltaY = e.clientY - dragStartYRef.current;
+    const startSnap = dragStartSnapRef.current;
+    dragStartYRef.current = null;
+
+    const threshold = 40;
+    if (deltaY < -threshold) {
+      // Dragging upward -> expand
+      if (startSnap === 'collapsed') setTabletSheetSnap('middle');
+      else if (startSnap === 'middle') setTabletSheetSnap('full');
+    } else if (deltaY > threshold) {
+      // Dragging downward -> collapse
+      if (startSnap === 'full') setTabletSheetSnap('middle');
+      else if (startSnap === 'middle') setTabletSheetSnap('collapsed');
+    }
+  };
+
   const isDesignTab = vm.activeTab === '3d' || vm.activeTab === 'form';
 
   useEffect(() => {
@@ -379,7 +413,61 @@ export function App(): ReactElement {
             data-mobile-view={vm.activeTab === 'form' ? 'form' : 'workspace'}
           >
             {isDesignTab && !isSidebarCollapsed && (
-              <aside aria-label="Module Parameters" className="layout-aside">
+              <aside
+                aria-label="Module Parameters"
+                className={`layout-aside tablet-bottom-sheet tablet-bottom-sheet--${tabletSheetSnap}`}
+              >
+                {/* Tablet bottom sheet drag handle and snap toggles (600px - 1023px) */}
+                <div
+                  className="tablet-bottom-sheet-handle-bar"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label="Manija de arrastre del panel: Colapsado, Medio o Completo"
+                  aria-valuetext={tabletSheetSnap}
+                  onPointerDown={handleHandlePointerDown}
+                  onPointerUp={handleHandlePointerUp}
+                >
+                  <div className="tablet-bottom-sheet-pill" />
+                  <div className="tablet-bottom-sheet-snap-controls">
+                    <button
+                      type="button"
+                      className={`m3-btn m3-btn--small ${tabletSheetSnap === 'collapsed' ? 'm3-btn--primary is-active' : 'm3-btn--tonal'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTabletSheetSnap('collapsed');
+                      }}
+                      title="Plegar panel (mostrar resumen y cabecera)"
+                      aria-label="Plegar panel a resumen"
+                    >
+                      Plegar
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-btn m3-btn--small ${tabletSheetSnap === 'middle' ? 'm3-btn--primary is-active' : 'm3-btn--tonal'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTabletSheetSnap('middle');
+                      }}
+                      title="Panel a media altura (visor y controles simultáneos)"
+                      aria-label="Panel a media pantalla"
+                    >
+                      Medio
+                    </button>
+                    <button
+                      type="button"
+                      className={`m3-btn m3-btn--small ${tabletSheetSnap === 'full' ? 'm3-btn--primary is-active' : 'm3-btn--tonal'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTabletSheetSnap('full');
+                      }}
+                      title="Expandir panel a pantalla completa"
+                      aria-label="Expandir panel completo"
+                    >
+                      Completo
+                    </button>
+                  </div>
+                </div>
+
                 <div className="layout-aside__collapse-bar">
                   <button
                     type="button"

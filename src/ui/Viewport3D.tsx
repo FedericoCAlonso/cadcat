@@ -214,6 +214,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   machiningModeRef.current = machiningMode;
 
   const [activeMechId, setActiveMechId] = useState<string>('all');
+  const [isKinematicsCollapsed, setIsKinematicsCollapsed] = useState<boolean>(false);
   const [isInspectorCollapsed, setIsInspectorCollapsed] = useState<boolean>(false);
   const [showDimensions, setShowDimensions] = useState<boolean>(
     props.initialShowDimensions ?? DEFAULT_UI_CONFIG.showDimensionsByDefault ?? true,
@@ -1345,12 +1346,26 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         const isOpen = Math.abs(currentRatio - 1) < 0.05;
 
         return (
-          <div className="m3-kinematics-bar" role="region" aria-label="Controles de cinemática y apertura">
+          <div
+            className={`m3-kinematics-bar ${isKinematicsCollapsed ? 'is-collapsed' : ''}`}
+            role="region"
+            aria-label="Controles de cinemática y apertura"
+          >
             <div className="m3-kinematics-header">
               <div className="m3-kinematics-title-wrap">
                 <span className="m3-kinematics-title">
                   🎮 Cinemática / Apertura:
                 </span>
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--text m3-kinematics-collapse-btn"
+                  onClick={() => setIsKinematicsCollapsed((prev) => !prev)}
+                  aria-expanded={!isKinematicsCollapsed}
+                  aria-label={isKinematicsCollapsed ? 'Desplegar controles de cinemática' : 'Plegar controles de cinemática'}
+                  title={isKinematicsCollapsed ? 'Desplegar controles' : 'Plegar controles'}
+                >
+                  {isKinematicsCollapsed ? '▼ Expandir' : '▲ Plegar'}
+                </button>
               </div>
 
               <div className="m3-kinematics-selector-wrap">
