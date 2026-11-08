@@ -42,6 +42,10 @@ export interface ViewerToolbarProps {
   showDimensions?: boolean;
   /** Callback fired to toggle dimension lines and labels visibility. */
   onToggleDimensions?: () => void;
+  /** Whether edge band highlights are visible on pieces (Stage 5 Step C). */
+  showEdgeBands?: boolean;
+  /** Callback fired to toggle edge band highlights. */
+  onToggleShowEdgeBands?: () => void;
 }
 
 /**
@@ -68,6 +72,8 @@ export function ViewerToolbar({
   onFitCamera,
   showDimensions,
   onToggleDimensions,
+  showEdgeBands,
+  onToggleShowEdgeBands,
 }: ViewerToolbarProps): ReactElement {
   // Handler for cycling through machining modes ('auto' -> 'always' -> 'no' -> 'auto')
   const handleMachiningClick = () => {
@@ -200,6 +206,17 @@ export function ViewerToolbar({
               aria-label="Alternar cotas de dimensión"
             >
               {`📏 Cotas ${showDimensions ? 'ON' : 'OFF'}`}
+            </button>
+          )}
+          {onToggleShowEdgeBands && (
+            <button
+              type="button"
+              className={`m3-btn m3-btn--small ${showEdgeBands ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
+              onClick={onToggleShowEdgeBands}
+              title={showEdgeBands ? 'Ocultar resaltado de tapacantos (cantos)' : 'Mostrar resaltado de tapacantos (cantos) en 3D'}
+              aria-label="Alternar tapacantos"
+            >
+              {`🏷️ Cantos ${showEdgeBands ? 'ON' : 'OFF'}`}
             </button>
           )}
         </div>

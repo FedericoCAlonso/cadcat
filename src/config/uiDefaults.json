@@ -5,6 +5,11 @@
   "currencySymbol": "$",
   "viewerFillRatio": 0.85,
   "showDimensionsByDefault": true,
+  "showEdgeBandsByDefault": true,
+  "edgeBandHighlightColor": {
+    "light": "#FF8F00",
+    "dark": "#FFB300"
+  },
   "colorByRoleByDefault": false,
   "showLinesByDefault": true,
   "machiningDisplayModeDefault": "auto",

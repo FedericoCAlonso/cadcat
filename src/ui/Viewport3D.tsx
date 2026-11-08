@@ -35,6 +35,11 @@ import {
   projectDimensionLabels,
   type ProjectedDimensionLabel,
 } from './viewer/dimensionLabels';
+import {
+  resolvePieceBandedEdges,
+  resolveEdgeBandHighlightColor,
+  buildPieceEdgeBandHighlightGroup,
+} from './viewer/edgeBandHighlight';
 
 export interface Viewport3DProps {
   boxes: SpatialPieceBox[];
@@ -79,6 +84,8 @@ export interface Viewport3DProps {
   initialShowLines?: boolean;
   /** Initial machining display mode (defaults to config machiningDisplayModeDefault). */
   initialMachiningMode?: MachiningDisplayMode;
+  /** Initial edge band highlights state (defaults to config showEdgeBandsByDefault). */
+  initialShowEdgeBands?: boolean;
 }
 
 /**
@@ -171,6 +178,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     machiningSheets,
     countertopCalculation,
     interferences,
+    pieceEdgeBandOverrides,
   } = props;
 
   const lastValidBoundsRef = useRef<ModuleSpatialBounds>(
@@ -211,6 +219,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   );
   const showDimensionsRef = useRef(showDimensions);
   showDimensionsRef.current = showDimensions;
+
+  const [showEdgeBands, setShowEdgeBands] = useState<boolean>(
+    props.initialShowEdgeBands ?? DEFAULT_UI_CONFIG.showEdgeBandsByDefault ?? true,
+  );
 
   const hoveredPieceIdRef = useRef<string | null>(null);
   const explodedRatioRef = useRef(explodedRatio);
@@ -1041,6 +1053,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         }
       }
 
+      // Edge band highlight ribbons (Stage 5 Step C)
+      if (matchedPiece) {
+        const pieceOverride = pieceEdgeBandOverrides?.[matchedPiece.id] ?? null;
+        const bandedEdges = resolvePieceBandedEdges(matchedPiece, pieceOverride);
+        if (bandedEdges.top || bandedEdges.bottom || bandedEdges.left || bandedEdges.right) {
+          const edgeColor = resolveEdgeBandHighlightColor(currentTheme);
+          const edgeGroup = buildPieceEdgeBandHighlightGroup(item, bandedEdges, edgeColor);
+          edgeGroup.visible = showEdgeBands;
+          mesh.add(edgeGroup);
+        }
+      }
+
       group.add(mesh);
     }
 
@@ -1124,7 +1148,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
       prevTargetRef.current = { ...fit.target };
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, interferences, pieces, showDimensions]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, interferences, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides]);
 
   // Handle auto-fit / zoom to fit module
   const handleFitCamera = useCallback(() => {
@@ -1433,6 +1457,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         onFitCamera={handleFitCamera}
         showDimensions={showDimensions}
         onToggleDimensions={() => setShowDimensions(!showDimensions)}
+        showEdgeBands={showEdgeBands}
+        onToggleShowEdgeBands={() => setShowEdgeBands(!showEdgeBands)}
       />
 
       <p className="viewport-touch-hint">

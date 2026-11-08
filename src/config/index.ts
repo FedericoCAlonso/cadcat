@@ -62,6 +62,11 @@ export const uiDefaultsSchema = z.object({
   currencySymbol: z.string().default('$'),
   viewerFillRatio: z.number().positive().max(1).default(0.85),
   showDimensionsByDefault: z.boolean().default(true),
+  showEdgeBandsByDefault: z.boolean().default(true),
+  edgeBandHighlightColor: z.object({
+    light: z.string().default('#FF8F00'),
+    dark: z.string().default('#FFB300'),
+  }).default({ light: '#FF8F00', dark: '#FFB300' }),
   colorByRoleByDefault: z.boolean().default(false),
   showLinesByDefault: z.boolean().default(true),
   machiningDisplayModeDefault: z.enum(['no', 'auto', 'always']).default('auto'),
