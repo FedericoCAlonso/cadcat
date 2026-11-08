@@ -26,6 +26,7 @@ import type {
   ShelfDeflectionResult,
   BillOfMaterials,
   ModuleCostSummary,
+  PieceMachiningSheet,
 } from '../resolver';
 import { resolveTracks } from '../resolver';
 import { translateTemplateName, t } from './localization';
@@ -264,6 +265,7 @@ export interface ModuleFormProps {
   kinematicsState?: Record<string, number>;
   onMechanismOpenRatioChange?: (mechanismId: string, ratio: number) => void;
   shelfDeflections?: Map<string, ShelfDeflectionResult>;
+  machiningSheets?: PieceMachiningSheet[];
   isMobile?: boolean;
 }
 
@@ -794,6 +796,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       {/* 4. Piece Inspector (Prominent when a piece is clicked) */}
       <PieceInspectorCard
         selectedPiece={selectedPiece}
+        machiningSheets={props.machiningSheets}
         pieceMech={pieceMech}
         kinematicsState={kinematicsState}
         onMechanismOpenRatioChange={onMechanismOpenRatioChange}

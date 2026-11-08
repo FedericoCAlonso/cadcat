@@ -23,6 +23,12 @@ import { PieceInspectorCard } from './PieceInspectorCard';
 import { calculateCameraFit, calculatePreservedCameraTarget, calculateExplodedSpatialBounds } from './viewer/fitCamera';
 import { createFadingGrid, disposeFadingGrid } from './viewer/fadingGrid';
 import {
+  shouldShowPieceMachining,
+  countPieceMachiningOperations,
+  formatHolesCountText,
+  type MachiningDisplayMode,
+} from './viewer/machiningVisibility';
+import {
   createDimensionLinesGroup,
   disposeDimensionLinesGroup,
   buildDimensionAnchors,
@@ -67,6 +73,12 @@ export interface Viewport3DProps {
   moduleId?: string;
   /** Whether 3D dimension lines and labels are shown by default. */
   initialShowDimensions?: boolean;
+  /** Initial functional color by role state (defaults to config colorByRoleByDefault). */
+  initialColorByRole?: boolean;
+  /** Initial wireframe/lines state (defaults to config showLinesByDefault). */
+  initialShowLines?: boolean;
+  /** Initial machining display mode (defaults to config machiningDisplayModeDefault). */
+  initialMachiningMode?: MachiningDisplayMode;
 }
 
 /**
@@ -180,7 +192,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
   const [webGlSupported, setWebGlSupported] = useState<boolean>(true);
   const [wireframe, setWireframe] = useState<boolean>(false);
-  const [showMachining3D, setShowMachining3D] = useState<boolean>(true);
+  const [showLines, setShowLines] = useState<boolean>(
+    props.initialShowLines ?? DEFAULT_UI_CONFIG.showLinesByDefault ?? true,
+  );
+  const [colorByRole, setColorByRole] = useState<boolean>(
+    props.initialColorByRole ?? DEFAULT_UI_CONFIG.colorByRoleByDefault ?? false,
+  );
+  const [machiningMode, setMachiningMode] = useState<MachiningDisplayMode>(
+    props.initialMachiningMode ?? DEFAULT_UI_CONFIG.machiningDisplayModeDefault ?? 'auto',
+  );
+  const machiningModeRef = useRef(machiningMode);
+  machiningModeRef.current = machiningMode;
+
   const [activeMechId, setActiveMechId] = useState<string>('all');
   const [isInspectorCollapsed, setIsInspectorCollapsed] = useState<boolean>(false);
   const [showDimensions, setShowDimensions] = useState<boolean>(
@@ -188,6 +211,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   );
   const showDimensionsRef = useRef(showDimensions);
   showDimensionsRef.current = showDimensions;
+
+  const hoveredPieceIdRef = useRef<string | null>(null);
+  const explodedRatioRef = useRef(explodedRatio);
+  explodedRatioRef.current = explodedRatio;
 
   // Track whether the user has moved or zoomed the camera manually
   const userHasMovedCameraRef = useRef<boolean>(false);
@@ -381,6 +408,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       );
 
       if (hitResult && hitResult.pieceId !== selectedPieceIdRef.current) {
+        hoveredPieceIdRef.current = hitResult.pieceId;
         const mesh = hitResult.mesh;
         mesh.updateWorldMatrix(true, false);
         hoverOutline.geometry.dispose();
@@ -395,6 +423,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         rendererRef.current.domElement.style.cursor = 'pointer';
         return;
       }
+      hoveredPieceIdRef.current = null;
       hoverOutline.visible = false;
       if (rendererRef.current) {
         rendererRef.current.domElement.style.cursor = 'default';
@@ -402,6 +431,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     };
 
     const onMouseLeave = () => {
+      hoveredPieceIdRef.current = null;
       hoverOutline.visible = false;
       if (rendererRef.current) {
         rendererRef.current.domElement.style.cursor = 'default';
@@ -522,6 +552,38 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const animate = () => {
       animId = requestAnimationFrame(animate);
       renderer.render(scene, camera);
+
+      // Real-time on-demand 3D machining marks evaluation (Stage 5 Step B)
+      const currentMachiningMode = machiningModeRef.current;
+      const hoveredId = hoveredPieceIdRef.current;
+      const selectedId = selectedPieceIdRef.current;
+      const expRatio = explodedRatioRef.current;
+
+      pieceGroup.traverse((child) => {
+        if (child.name === 'machining-group' && child.parent) {
+          const parentMesh = child.parent as THREE.Mesh;
+          const pieceId = parentMesh.userData?.pieceId as string | undefined;
+
+          const pieceCenterWorld = new THREE.Vector3();
+          parentMesh.getWorldPosition(pieceCenterWorld);
+          const camDistMm = camera.position.distanceTo(pieceCenterWorld);
+
+          const isVisible = shouldShowPieceMachining({
+            mode: currentMachiningMode,
+            pieceId,
+            hoveredPieceId: hoveredId,
+            selectedPieceId: selectedId,
+            cameraDistanceMm: camDistMm,
+            distanceThresholdMm: DEFAULT_UI_CONFIG.machiningCameraDistanceThresholdMm,
+            explodedRatio: expRatio,
+            explodedThreshold: DEFAULT_UI_CONFIG.machiningExplodedThreshold,
+          });
+
+          if (child.visible !== isVisible) {
+            child.visible = isVisible;
+          }
+        }
+      });
 
       // Real-time projection of 3D dimension lines to vector DOM labels
       if (showDimensionsRef.current && pieceGroupRef.current && cameraRef.current && containerRef.current) {
@@ -861,7 +923,17 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         : buildCustomPieceGeometry(item, matchedPiece);
 
       const isSelected = item.pieceId === selectedPieceId;
-      const pbrStyle = resolvePiecePbrStyle(item.role, item.materialId, isSelected);
+      const currentTheme: 'light' | 'dark' =
+        typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+          ? 'dark'
+          : 'light';
+      const pbrStyle = resolvePiecePbrStyle(
+        item.role,
+        item.materialId,
+        isSelected,
+        colorByRole,
+        currentTheme,
+      );
       const emissiveColor = isSelected ? 0x56705f : 0x000000;
 
       const mat = new THREE.MeshStandardMaterial({
@@ -911,13 +983,33 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         linewidth: 1,
       });
       const wire = new THREE.LineSegments(edges, lineMat);
+      wire.visible = showLines;
       mesh.add(wire);
 
       // Visual 3D Machining features (holes, hinge cups, grooves, cutouts)
-      if (showMachining3D && machiningSheets) {
+      if (machiningSheets) {
         const sheet = machiningSheets.find((s) => s.pieceId === item.pieceId);
         if (sheet && (sheet.totalOperations > 0 || (sheet.customOperations && sheet.customOperations.length > 0))) {
           const mGroup = buildPieceMachining3DGroup(sheet, item.sizeMm);
+          mGroup.name = 'machining-group';
+
+          const cam = cameraRef.current;
+          const pieceCenterWorld = new THREE.Vector3(mesh.position.x, mesh.position.y, mesh.position.z);
+          pieceCenterWorld.applyMatrix4(group.matrixWorld);
+          const camDistMm = cam ? cam.position.distanceTo(pieceCenterWorld) : 1500;
+
+          const isVisible = shouldShowPieceMachining({
+            mode: machiningMode,
+            pieceId: item.pieceId,
+            hoveredPieceId: hoveredPieceIdRef.current,
+            selectedPieceId,
+            cameraDistanceMm: camDistMm,
+            distanceThresholdMm: DEFAULT_UI_CONFIG.machiningCameraDistanceThresholdMm,
+            explodedRatio,
+            explodedThreshold: DEFAULT_UI_CONFIG.machiningExplodedThreshold,
+          });
+
+          mGroup.visible = isVisible;
           mesh.add(mGroup);
         }
       }
@@ -1004,7 +1096,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
       prevTargetRef.current = { ...fit.target };
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation, interferences, pieces, showDimensions]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, interferences, pieces, showDimensions]);
 
   // Handle auto-fit / zoom to fit module
   const handleFitCamera = useCallback(() => {
@@ -1143,6 +1235,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
               </div>
               <PieceInspectorCard
                 selectedPiece={selectedPiece}
+                machiningSheets={machiningSheets}
                 pieceMech={pieceMech}
                 kinematicsState={kinematicsState}
                 onMechanismOpenRatioChange={onMechanismOpenRatioChange}
@@ -1283,8 +1376,14 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         onSetCameraView={setCameraView}
         wireframe={wireframe}
         onToggleWireframe={() => setWireframe(!wireframe)}
-        showMachining3D={showMachining3D}
-        onToggleMachining3D={() => setShowMachining3D(!showMachining3D)}
+        showLines={showLines}
+        onToggleShowLines={() => setShowLines(!showLines)}
+        colorByRole={colorByRole}
+        onToggleColorByRole={() => setColorByRole(!colorByRole)}
+        machiningMode={machiningMode}
+        onChangeMachiningMode={setMachiningMode}
+        showMachining3D={machiningMode !== 'no'}
+        onToggleMachining3D={() => setMachiningMode(machiningMode === 'no' ? 'auto' : 'no')}
         explodedRatio={explodedRatio}
         onExplodedRatioChange={onExplodedRatioChange}
         onFitCamera={handleFitCamera}
@@ -1295,7 +1394,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       <p className="viewport-touch-hint">
         {selectedPiece ? (
           <>
-            🔍 <em>Pieza seleccionada: <strong>{translatePieceRole(selectedPiece.role)}</strong> <span className="viewport-piece-id-tag">({selectedPiece.id})</span> — Podés editarla en el panel lateral</em>
+            🔍 <em>
+              Pieza seleccionada: <strong>{translatePieceRole(selectedPiece.role)}</strong>{' '}
+              <span className="viewport-piece-id-tag">({selectedPiece.id})</span>
+              {(() => {
+                const sheet = machiningSheets?.find((s) => s.pieceId === selectedPiece.id);
+                const count = countPieceMachiningOperations(sheet);
+                return count > 0 ? (
+                  <span className="viewport-piece-machining-tag"> · {formatHolesCountText(count)}</span>
+                ) : null;
+              })()}
+              {' '}— Podés editarla en el panel lateral
+            </em>
           </>
         ) : (
           <>

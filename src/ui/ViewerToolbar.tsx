@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import type { MachiningDisplayMode } from './viewer/machiningVisibility';
 
 /**
  * Camera preset view directions supported by the 3D viewport.
@@ -12,13 +13,25 @@ export interface ViewerToolbarProps {
   /** Callback invoked when a preset camera orientation button is clicked. */
   onSetCameraView: (view: CameraPresetView) => void;
   /** Current wireframe / line render mode state. */
-  wireframe: boolean;
+  wireframe?: boolean;
   /** Callback fired to toggle wireframe rendering. */
-  onToggleWireframe: () => void;
-  /** Whether 3D machining features (holes, grooves, hinge cups) are visible. */
-  showMachining3D: boolean;
-  /** Callback fired to toggle 3D machining feature visibility. */
-  onToggleMachining3D: () => void;
+  onToggleWireframe?: () => void;
+  /** Whether piece edge outlines ("Líneas") are rendered. */
+  showLines?: boolean;
+  /** Callback fired to toggle piece edge outlines. */
+  onToggleShowLines?: () => void;
+  /** Whether 3D machining features (holes, grooves, hinge cups) are visible (legacy boolean). */
+  showMachining3D?: boolean;
+  /** Callback fired to toggle 3D machining feature visibility (legacy toggle). */
+  onToggleMachining3D?: () => void;
+  /** Three-state machining visibility mode ('no' | 'auto' | 'always') (Stage 5 Step B). */
+  machiningMode?: MachiningDisplayMode;
+  /** Callback fired when cycling or switching machining display mode. */
+  onChangeMachiningMode?: (mode: MachiningDisplayMode) => void;
+  /** Whether functional color-coding by piece role is active (Stage 5 Step B). */
+  colorByRole?: boolean;
+  /** Callback fired to toggle color by piece role. */
+  onToggleColorByRole?: () => void;
   /** Current exploded view expansion ratio [0..1]. */
   explodedRatio: number;
   /** Callback fired when the exploded view slider ratio is changed. */
@@ -35,21 +48,56 @@ export interface ViewerToolbarProps {
  * Combined floating toolbar for the 3D viewport.
  * Consolidates controls into three distinct ergonomic groups:
  * 1. Views (Isometric, Front, Top, Side, Fit)
- * 2. Render modes (Wireframe / Lines, 3D Machining, Dimension Lines)
+ * 2. Render modes (Lines, Color by role, Machining 3-state, Dimensions)
  * 3. Exploded view slider
  */
 export function ViewerToolbar({
   onSetCameraView,
-  wireframe,
+  wireframe = false,
   onToggleWireframe,
+  showLines,
+  onToggleShowLines,
   showMachining3D,
   onToggleMachining3D,
+  machiningMode,
+  onChangeMachiningMode,
+  colorByRole,
+  onToggleColorByRole,
   explodedRatio,
   onExplodedRatioChange,
   onFitCamera,
   showDimensions,
   onToggleDimensions,
 }: ViewerToolbarProps): ReactElement {
+  // Handler for cycling through machining modes ('auto' -> 'always' -> 'no' -> 'auto')
+  const handleMachiningClick = () => {
+    if (onChangeMachiningMode) {
+      const current = machiningMode ?? 'auto';
+      const nextMap: Record<MachiningDisplayMode, MachiningDisplayMode> = {
+        auto: 'always',
+        always: 'no',
+        no: 'auto',
+      };
+      onChangeMachiningMode(nextMap[current]);
+    } else if (onToggleMachining3D) {
+      onToggleMachining3D();
+    }
+  };
+
+  const machiningLabel = (() => {
+    if (machiningMode !== undefined) {
+      if (machiningMode === 'auto') return 'Auto';
+      if (machiningMode === 'always') return 'Siempre';
+      return 'No';
+    }
+    return showMachining3D ? 'ON' : 'OFF';
+  })();
+
+  const isMachiningActive = machiningMode !== undefined ? machiningMode !== 'no' : Boolean(showMachining3D);
+
+  const linesActive = showLines !== undefined ? showLines : wireframe;
+  const linesLabel = showLines !== undefined ? `Líneas ${showLines ? 'ON' : 'OFF'}` : (wireframe ? 'Sólido' : 'Líneas');
+
   return (
     <div
       className="viewer-toolbar"
@@ -116,19 +164,32 @@ export function ViewerToolbar({
         <div className="viewer-toolbar-buttons">
           <button
             type="button"
-            className={`m3-btn m3-btn--small ${wireframe ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
-            onClick={onToggleWireframe}
-            title={wireframe ? 'Cambiar a sombreado sólido' : 'Cambiar a visualización alámbrica / líneas'}
+            className={`m3-btn m3-btn--small ${linesActive ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
+            onClick={onToggleShowLines ?? onToggleWireframe}
+            title={linesActive ? 'Ocultar aristas y líneas de contorno' : 'Mostrar aristas y líneas de contorno'}
+            aria-label="Alternar líneas"
           >
-            {wireframe ? 'Sólido' : 'Líneas'}
+            {linesLabel}
           </button>
+          {onToggleColorByRole && (
+            <button
+              type="button"
+              className={`m3-btn m3-btn--small ${colorByRole ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
+              onClick={onToggleColorByRole}
+              title={colorByRole ? 'Desactivar colores por rol y mostrar materiales' : 'Activar color por rol (laterales, base, fondo, etc.)'}
+              aria-label="Alternar color por rol"
+            >
+              {`🎨 Rol ${colorByRole ? 'ON' : 'OFF'}`}
+            </button>
+          )}
           <button
             type="button"
-            className={`m3-btn m3-btn--small ${showMachining3D ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
-            onClick={onToggleMachining3D}
-            title="Activar u ocultar mecanizados 3D (agujeros, ranuras, cazoletas)"
+            className={`m3-btn m3-btn--small ${isMachiningActive ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
+            onClick={handleMachiningClick}
+            title="Mecanizados 3D: Auto (según zoom/selección) · Siempre (visibles) · No (ocultos)"
+            aria-label={`Modo de mecanizados: ${machiningLabel}`}
           >
-            {`⚙️ Mecanizados ${showMachining3D ? 'ON' : 'OFF'}`}
+            {`⚙️ Mecanizados ${machiningLabel}`}
           </button>
           {onToggleDimensions && (
             <button

@@ -5,9 +5,11 @@ import type {
   KinematicMechanism,
   ShelfDeflectionResult,
   PieceEdgeBandOverride,
+  PieceMachiningSheet,
 } from '../resolver';
 import { translatePieceRole } from './localization';
 import { ThicknessMaterialPicker } from './ThicknessMaterialPicker';
+import { countPieceMachiningOperations, formatHolesCountText } from './viewer/machiningVisibility';
 
 /**
  * Props for the Selected Piece Inspector card component.
@@ -15,6 +17,8 @@ import { ThicknessMaterialPicker } from './ThicknessMaterialPicker';
 export interface PieceInspectorCardProps {
   /** The currently selected piece, or null if none selected. */
   selectedPiece: ResolvedPieceWithCutSize | null;
+  /** Machining sheets containing hole and CNC operations for pieces. */
+  machiningSheets?: PieceMachiningSheet[];
   /** Kinematic mechanism associated with the selected piece (e.g. drawer or door). */
   pieceMech?: KinematicMechanism | null;
   /** Map of mechanism IDs to their current open ratio [0..1]. */
@@ -59,6 +63,7 @@ export interface PieceInspectorCardProps {
  */
 export function PieceInspectorCard({
   selectedPiece,
+  machiningSheets,
   pieceMech,
   kinematicsState,
   onMechanismOpenRatioChange,
@@ -79,6 +84,10 @@ export function PieceInspectorCard({
   onSelectPiece,
 }: PieceInspectorCardProps): ReactElement | null {
   if (!selectedPiece) return null;
+
+  const sheet = machiningSheets?.find((s) => s.pieceId === selectedPiece.id);
+  const totalHoles = countPieceMachiningOperations(sheet);
+  const holesText = formatHolesCountText(totalHoles);
 
   return (
     <aside
@@ -132,6 +141,12 @@ export function PieceInspectorCard({
         <div><strong>Espesor:</strong> {`${selectedPiece.thicknessMm} mm`}</div>
         <div><strong>Terminada:</strong> {`${selectedPiece.dimensionsMm.width} × ${selectedPiece.dimensionsMm.height} mm`}</div>
         <div><strong>Corte sierra:</strong> {`${selectedPiece.cutDimensionsMm.width} × ${selectedPiece.cutDimensionsMm.height} mm`}</div>
+        <div data-testid="inspector-machining-count">
+          <strong>Mecanizados:</strong>{' '}
+          <span className="m3-badge m3-badge--tonal" style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+            🔩 {holesText}
+          </span>
+        </div>
       </div>
 
       {/* Kinematic mechanism action for selected piece */}

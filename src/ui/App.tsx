@@ -628,6 +628,7 @@ export function App(): ReactElement {
                 kinematicsState={vm.kinematicsState}
                 onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
                 shelfDeflections={vm.shelfDeflections}
+                machiningSheets={vm.machiningSheets}
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
                 onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}
