@@ -222,9 +222,9 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
       const costVal = container.querySelector('.panel-summary-metric--cost strong')?.textContent;
       expect(costVal).toBe('$67.000');
 
-      // Tooltip contains unit cost: 67000 / 2 = $33.500
+      // Tooltip contains unit cost prorated in batch of 2: 67000 / 2 = $33.500
       const costMetric = container.querySelector('.panel-summary-metric--cost') as HTMLElement | null;
-      expect(costMetric?.getAttribute('title')).toContain('Costo unitario: $33.500');
+      expect(costMetric?.getAttribute('title')).toContain('Costo unitario prorrateado en lote de 2: $33.500');
 
       act(() => {
         root.unmount();
@@ -291,8 +291,8 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
 
       // Displays calculated confirmed subtotal
       expect(html).toContain('Parcial $25.500 · a confirmar');
-      // Tooltip includes unit partial cost: 25500 / 3 = 8500
-      expect(html).toContain('Costo unitario: Parcial $8.500 · a confirmar');
+      // Tooltip includes unit partial cost prorated in batch of 3: 25500 / 3 = 8500
+      expect(html).toContain('Costo unitario prorrateado en lote de 3: Parcial $8.500 · a confirmar');
     });
   });
 
@@ -696,8 +696,8 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
       expect(moduleHtml).toContain('Área neta de piezas: 1,30 m²');
       // Mod B cost: $48.154 (calculated directly via joint nesting, NOT $93.404)
       expect(moduleHtml).toContain('$48.154');
-      // Mod B unit cost in tooltip: 48154 / 2 = $24.077
-      expect(moduleHtml).toContain('Costo unitario: $24.077');
+      // Mod B unit cost in tooltip prorated in batch of 2: 48154 / 2 = $24.077
+      expect(moduleHtml).toContain('Costo unitario prorrateado en lote de 2: $24.077');
     });
   });
 });

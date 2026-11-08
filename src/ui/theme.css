@@ -889,6 +889,41 @@ body {
   cursor: grabbing;
 }
 
+/* 3D Viewport Projected Dimension Labels */
+.viewer-dimension-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  font-family: var(--md-sys-typescale-label-small-font-family-name, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: var(--md-sys-shape-corner-xs, 4px);
+  background-color: var(--surface-card, rgba(30, 41, 59, 0.90));
+  color: var(--text-main, #ffffff);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.25));
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.25));
+  white-space: nowrap;
+  user-select: none;
+  z-index: 5;
+  transition: opacity 0.15s ease-out;
+}
+
+:root[data-theme="light"] .viewer-dimension-label {
+  background-color: rgba(255, 255, 255, 0.92);
+  color: #1e293b;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+:root[data-theme="dark"] .viewer-dimension-label {
+  background-color: rgba(20, 24, 21, 0.90);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
 .viewport-3d-toolbar {
   display: flex;
   flex-direction: column;

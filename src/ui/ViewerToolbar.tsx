@@ -23,13 +23,19 @@ export interface ViewerToolbarProps {
   explodedRatio: number;
   /** Callback fired when the exploded view slider ratio is changed. */
   onExplodedRatioChange: (val: number) => void;
+  /** Callback fired to auto-fit / zoom the module into view. */
+  onFitCamera?: () => void;
+  /** Whether 3D dimension lines and projected DOM labels are visible. */
+  showDimensions?: boolean;
+  /** Callback fired to toggle dimension lines and labels visibility. */
+  onToggleDimensions?: () => void;
 }
 
 /**
  * Combined floating toolbar for the 3D viewport.
  * Consolidates controls into three distinct ergonomic groups:
- * 1. Views (Isometric, Front, Top, Side)
- * 2. Render modes (Wireframe / Lines, 3D Machining)
+ * 1. Views (Isometric, Front, Top, Side, Fit)
+ * 2. Render modes (Wireframe / Lines, 3D Machining, Dimension Lines)
  * 3. Exploded view slider
  */
 export function ViewerToolbar({
@@ -40,6 +46,9 @@ export function ViewerToolbar({
   onToggleMachining3D,
   explodedRatio,
   onExplodedRatioChange,
+  onFitCamera,
+  showDimensions,
+  onToggleDimensions,
 }: ViewerToolbarProps): ReactElement {
   return (
     <div
@@ -87,6 +96,17 @@ export function ViewerToolbar({
             Lateral
             <span className="visually-hidden">Side</span>
           </button>
+          {onFitCamera && (
+            <button
+              type="button"
+              className="m3-btn m3-btn--small m3-btn--tonal viewer-toolbar-btn"
+              onClick={onFitCamera}
+              title="Encuadrar módulo en pantalla (zoom óptimo)"
+              aria-label="Encuadrar módulo"
+            >
+              ⛶ Encuadrar
+            </button>
+          )}
         </div>
       </div>
 
@@ -110,6 +130,17 @@ export function ViewerToolbar({
           >
             {`⚙️ Mecanizados ${showMachining3D ? 'ON' : 'OFF'}`}
           </button>
+          {onToggleDimensions && (
+            <button
+              type="button"
+              className={`m3-btn m3-btn--small ${showDimensions ? 'm3-btn--primary is-active' : 'm3-btn--outlined'} viewer-toolbar-btn`}
+              onClick={onToggleDimensions}
+              title={showDimensions ? 'Ocultar cotas de dimensión' : 'Mostrar cotas de dimensión'}
+              aria-label="Alternar cotas de dimensión"
+            >
+              {`📏 Cotas ${showDimensions ? 'ON' : 'OFF'}`}
+            </button>
+          )}
         </div>
       </div>
 

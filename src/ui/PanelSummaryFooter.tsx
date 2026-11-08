@@ -158,12 +158,12 @@ export function PanelSummaryFooter({
     if (targetCost.grandTotal === 'TO_CONFIRM') {
       const unitPartial = targetCost.confirmedSubtotal / qty;
       costTooltip = qty > 1
-        ? `Costo unitario: Parcial ${currencySymbol}${numberFormatter.format(unitPartial)} · a confirmar (Total: ${costDisplay} para ${qty} unidades)`
+        ? `Costo unitario prorrateado en lote de ${qty}: Parcial ${currencySymbol}${numberFormatter.format(unitPartial)} · a confirmar (Total: ${costDisplay})`
         : 'Costo parcial a confirmar con precios pendientes';
     } else {
       const unitCost = targetCost.grandTotal / qty;
       costTooltip = qty > 1
-        ? `Costo unitario: ${currencySymbol}${numberFormatter.format(unitCost)} (Total: ${costDisplay} para ${qty} unidades)`
+        ? `Costo unitario prorrateado en lote de ${qty}: ${currencySymbol}${numberFormatter.format(unitCost)} (Total: ${costDisplay})`
         : `Costo unitario: ${currencySymbol}${numberFormatter.format(unitCost)}`;
     }
   }

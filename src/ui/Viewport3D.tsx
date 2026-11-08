@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactElement } from 'react';
 import * as THREE from 'three';
 import {
   type SpatialPieceBox,
@@ -20,6 +20,15 @@ import { translatePieceRole } from './localization';
 import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
 import { ViewerToolbar, type CameraPresetView } from './ViewerToolbar';
 import { PieceInspectorCard } from './PieceInspectorCard';
+import { calculateCameraFit, calculatePreservedCameraTarget } from './viewer/fitCamera';
+import { createFadingGrid, disposeFadingGrid } from './viewer/fadingGrid';
+import {
+  createDimensionLinesGroup,
+  disposeDimensionLinesGroup,
+  buildDimensionAnchors,
+  projectDimensionLabels,
+  type ProjectedDimensionLabel,
+} from './viewer/dimensionLabels';
 
 export interface Viewport3DProps {
   boxes: SpatialPieceBox[];
@@ -54,6 +63,10 @@ export interface Viewport3DProps {
   countertopCalculation?: CountertopCalculationResult | null;
   // Architectural Interferences Lab
   interferences?: InterferenceConfig;
+  /** Active module identifier to trigger auto-fit when changing modules. */
+  moduleId?: string;
+  /** Whether 3D dimension lines and labels are shown by default. */
+  initialShowDimensions?: boolean;
 }
 
 /**
@@ -170,6 +183,28 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   const [showMachining3D, setShowMachining3D] = useState<boolean>(true);
   const [activeMechId, setActiveMechId] = useState<string>('all');
   const [isInspectorCollapsed, setIsInspectorCollapsed] = useState<boolean>(false);
+  const [showDimensions, setShowDimensions] = useState<boolean>(
+    props.initialShowDimensions ?? DEFAULT_UI_CONFIG.showDimensionsByDefault ?? true,
+  );
+  const showDimensionsRef = useRef(showDimensions);
+  showDimensionsRef.current = showDimensions;
+
+  // Track whether the user has moved or zoomed the camera manually
+  const userHasMovedCameraRef = useRef<boolean>(false);
+  const prevTargetRef = useRef<{ x: number; y: number; z: number }>({ ...bounds.center });
+  const prevModuleIdRef = useRef<string | undefined>(props.moduleId);
+
+  // References for dynamic overlays and grids
+  const fadingGridRef = useRef<THREE.LineSegments | null>(null);
+  const dimensionLinesGroupRef = useRef<THREE.Group | null>(null);
+
+  // Direct DOM label element refs for high-performance updates without React re-render churn
+  const widthLabelRef = useRef<HTMLDivElement>(null);
+  const heightLabelRef = useRef<HTMLDivElement>(null);
+  const depthLabelRef = useRef<HTMLDivElement>(null);
+
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
 
   // Mutable refs to access fresh state in Three.js event listeners without re-initializing WebGL scene
   const selectedPieceIdRef = useRef(selectedPieceId);
@@ -201,7 +236,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Initialize Three.js scene
+  // Initialize Three.js scene (runs once on mount)
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -226,14 +261,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const camera = new THREE.PerspectiveCamera(45, width / height, 10, 10000);
     cameraRef.current = camera;
 
-    // Set initial camera position looking at center
-    const maxDim = Math.max(bounds.size.x, bounds.size.y, bounds.size.z, 600);
-    camera.position.set(
-      bounds.center.x + maxDim * 1.5,
-      bounds.center.y + maxDim * 1.2,
-      bounds.center.z - maxDim * 2.0,
-    );
-    camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+    // Set initial auto-fit camera position looking at center of module
+    const initialAspect = width / height;
+    const initialFit = calculateCameraFit({
+      bounds: boundsRef.current,
+      aspect: initialAspect,
+      fov: 45,
+      fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
+    });
+    camera.position.set(initialFit.position.x, initialFit.position.y, initialFit.position.z);
+    camera.lookAt(initialFit.target.x, initialFit.target.y, initialFit.target.z);
+    prevTargetRef.current = { ...initialFit.target };
+    userHasMovedCameraRef.current = false;
 
     // Renderer
     let renderer: THREE.WebGLRenderer;
@@ -248,6 +287,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       return;
     }
 
+    const maxDim = Math.max(boundsRef.current.size.x, boundsRef.current.size.y, boundsRef.current.size.z, 600);
+
     // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambientLight);
@@ -260,10 +301,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     dirLight2.position.set(-maxDim * 2, maxDim, -maxDim);
     scene.add(dirLight2);
 
-    // Grid Floor
-    const gridHelper = new THREE.GridHelper(maxDim * 2.5, 20, 0x56705f, 0xd9d2c3);
-    gridHelper.position.set(bounds.center.x, bounds.min.y, bounds.center.z);
-    scene.add(gridHelper);
+    // Subtle fading floor grid (Step A: fades radially toward edges, scales with module)
+    const isLightInitial = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
+    const grid = createFadingGrid(boundsRef.current, { theme: isLightInitial ? 'light' : 'dark' });
+    scene.add(grid);
+    fadingGridRef.current = grid;
 
     // Group for piece meshes
     const pieceGroup = new THREE.Group();
@@ -292,16 +334,20 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       const deltaX = (clientX - prevX) * 0.005;
       const deltaY = (clientY - prevY) * 0.005;
 
-      const offset = new THREE.Vector3().subVectors(camera.position, bounds.center);
+      const currentBounds = boundsRef.current;
+      const offset = new THREE.Vector3().subVectors(camera.position, currentBounds.center);
       const radius = offset.length();
       let theta = Math.atan2(offset.x, offset.z) + deltaX;
       let phi = Math.acos(Math.max(-0.99, Math.min(0.99, offset.y / radius))) + deltaY;
       phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
 
-      camera.position.x = bounds.center.x + radius * Math.sin(phi) * Math.sin(theta);
-      camera.position.y = bounds.center.y + radius * Math.cos(phi);
-      camera.position.z = bounds.center.z + radius * Math.sin(phi) * Math.cos(theta);
-      camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+      camera.position.x = currentBounds.center.x + radius * Math.sin(phi) * Math.sin(theta);
+      camera.position.y = currentBounds.center.y + radius * Math.cos(phi);
+      camera.position.z = currentBounds.center.z + radius * Math.sin(phi) * Math.cos(theta);
+      camera.lookAt(currentBounds.center.x, currentBounds.center.y, currentBounds.center.z);
+
+      prevTargetRef.current = { ...currentBounds.center };
+      userHasMovedCameraRef.current = true;
 
       prevX = clientX;
       prevY = clientY;
@@ -391,10 +437,13 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         if (initialPinchDist > 0) {
           const ratio = initialPinchDist / dist;
           const factor = ratio > 1 ? 1.03 : 0.97;
-          const offset = new THREE.Vector3().subVectors(camera.position, bounds.center);
+          const currentBounds = boundsRef.current;
+          const offset = new THREE.Vector3().subVectors(camera.position, currentBounds.center);
           offset.multiplyScalar(factor);
-          camera.position.addVectors(bounds.center, offset);
-          camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+          camera.position.addVectors(currentBounds.center, offset);
+          camera.lookAt(currentBounds.center.x, currentBounds.center.y, currentBounds.center.z);
+          prevTargetRef.current = { ...currentBounds.center };
+          userHasMovedCameraRef.current = true;
         }
         initialPinchDist = dist;
       }
@@ -408,10 +457,13 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 1.08 : 0.92;
-      const offset = new THREE.Vector3().subVectors(camera.position, bounds.center);
+      const currentBounds = boundsRef.current;
+      const offset = new THREE.Vector3().subVectors(camera.position, currentBounds.center);
       offset.multiplyScalar(zoomFactor);
-      camera.position.addVectors(bounds.center, offset);
-      camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+      camera.position.addVectors(currentBounds.center, offset);
+      camera.lookAt(currentBounds.center.x, currentBounds.center.y, currentBounds.center.z);
+      prevTargetRef.current = { ...currentBounds.center };
+      userHasMovedCameraRef.current = true;
     };
 
     const onClick = (e: MouseEvent) => {
@@ -470,6 +522,47 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     const animate = () => {
       animId = requestAnimationFrame(animate);
       renderer.render(scene, camera);
+
+      // Real-time projection of 3D dimension lines to vector DOM labels
+      if (showDimensionsRef.current && pieceGroupRef.current && cameraRef.current && containerRef.current) {
+        const cw = containerRef.current.clientWidth || 360;
+        const ch = containerRef.current.clientHeight || 520;
+        const anchors = buildDimensionAnchors(boundsRef.current);
+        const projected = projectDimensionLabels(
+          anchors,
+          cameraRef.current,
+          pieceGroupRef.current.matrixWorld,
+          cw,
+          ch,
+          { bounds: boundsRef.current },
+        );
+
+        const wItem = projected.find((p) => p.id === 'width');
+        const hItem = projected.find((p) => p.id === 'height');
+        const dItem = projected.find((p) => p.id === 'depth');
+
+        const updateEl = (el: HTMLDivElement | null, item?: ProjectedDimensionLabel) => {
+          if (!el) return;
+          if (item && item.visible) {
+            el.style.display = 'block';
+            el.style.left = `${item.screenX}px`;
+            el.style.top = `${item.screenY}px`;
+            if (el.textContent !== item.formattedText) {
+              el.textContent = item.formattedText;
+            }
+          } else {
+            el.style.display = 'none';
+          }
+        };
+
+        updateEl(widthLabelRef.current, wItem);
+        updateEl(heightLabelRef.current, hItem);
+        updateEl(depthLabelRef.current, dItem);
+      } else {
+        if (widthLabelRef.current) widthLabelRef.current.style.display = 'none';
+        if (heightLabelRef.current) heightLabelRef.current.style.display = 'none';
+        if (depthLabelRef.current) depthLabelRef.current.style.display = 'none';
+      }
     };
     animate();
 
@@ -490,12 +583,60 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       hoverOutlineGeom.dispose();
       hoverOutlineMat.dispose();
 
+      disposeFadingGrid(fadingGridRef.current);
+      disposeDimensionLinesGroup(dimensionLinesGroupRef.current);
+
       if (containerRef.current && renderer.domElement) {
         containerRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, [bounds]);
+  }, []);
+
+  // Reactive updates to camera and fading grid when bounds or active module changes
+  useEffect(() => {
+    const camera = cameraRef.current;
+    const container = containerRef.current;
+    const scene = sceneRef.current;
+    if (!camera || !container || !scene) return;
+
+    const moduleChanged = prevModuleIdRef.current !== props.moduleId;
+    prevModuleIdRef.current = props.moduleId;
+
+    if (moduleChanged || !userHasMovedCameraRef.current) {
+      // Apply auto-fit when active module changes or when user has not moved camera manually
+      const cw = container.clientWidth || 360;
+      const ch = container.clientHeight || 520;
+      const fit = calculateCameraFit({
+        bounds,
+        aspect: cw / ch,
+        fov: camera.fov,
+        fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
+      });
+      camera.up.set(0, 1, 0);
+      camera.position.set(fit.position.x, fit.position.y, fit.position.z);
+      camera.lookAt(fit.target.x, fit.target.y, fit.target.z);
+      prevTargetRef.current = { ...fit.target };
+      userHasMovedCameraRef.current = false;
+    } else {
+      // User moved camera manually: keep camera orientation, relative vector and distance; keep target on module center
+      const newPos = calculatePreservedCameraTarget(bounds.center, prevTargetRef.current, camera.position);
+      camera.position.set(newPos.x, newPos.y, newPos.z);
+      camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+      prevTargetRef.current = { ...bounds.center };
+    }
+
+    // Update fading grid for new bounds
+    if (fadingGridRef.current) {
+      scene.remove(fadingGridRef.current);
+      disposeFadingGrid(fadingGridRef.current);
+      fadingGridRef.current = null;
+    }
+    const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
+    const newGrid = createFadingGrid(bounds, { theme: isLight ? 'light' : 'dark' });
+    scene.add(newGrid);
+    fadingGridRef.current = newGrid;
+  }, [bounds, props.moduleId]);
 
   // Helper: Extrude countertop slab geometry with cutouts and faucet holes
   function buildCountertopSlabGeometry(
@@ -828,7 +969,40 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       colMesh.position.set(colX, colY, colZ);
       group.add(colMesh);
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation, interferences, pieces]);
+
+    // Dimension lines overlay attached as child of pieceGroup (Rule 3.0.1 & Rule 3.0.2)
+    if (dimensionLinesGroupRef.current) {
+      group.remove(dimensionLinesGroupRef.current);
+      disposeDimensionLinesGroup(dimensionLinesGroupRef.current);
+      dimensionLinesGroupRef.current = null;
+    }
+    if (showDimensions) {
+      const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
+      const dimGroup = createDimensionLinesGroup(bounds, { theme: isLight ? 'light' : 'dark' });
+      group.add(dimGroup);
+      dimensionLinesGroupRef.current = dimGroup;
+    }
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation, interferences, pieces, showDimensions]);
+
+  // Handle auto-fit / zoom to fit module
+  const handleFitCamera = useCallback(() => {
+    const camera = cameraRef.current;
+    const container = containerRef.current;
+    if (!camera || !container) return;
+    const cw = container.clientWidth || 360;
+    const ch = container.clientHeight || 520;
+    const fit = calculateCameraFit({
+      bounds,
+      aspect: cw / ch,
+      fov: camera.fov,
+      fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
+    });
+    camera.up.set(0, 1, 0);
+    camera.position.set(fit.position.x, fit.position.y, fit.position.z);
+    camera.lookAt(fit.target.x, fit.target.y, fit.target.z);
+    prevTargetRef.current = { ...fit.target };
+    userHasMovedCameraRef.current = false;
+  }, [bounds]);
 
   // Camera presets
   const setCameraView = (type: CameraPresetView) => {
@@ -862,6 +1036,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     }
 
     camera.lookAt(bounds.center.x, bounds.center.y, bounds.center.z);
+    prevTargetRef.current = { ...bounds.center };
+    userHasMovedCameraRef.current = true;
   };
 
   return (
@@ -886,7 +1062,30 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         ref={containerRef}
         className="viewport-3d-canvas-wrapper"
         data-testid="viewport-3d-canvas-wrapper"
-      />
+      >
+        {showDimensions && (
+          <div className="viewer-dimension-labels-layer" aria-hidden="true">
+            <div
+              ref={widthLabelRef}
+              className="viewer-dimension-label viewer-dimension-label--width"
+              data-testid="dimension-label-width"
+              style={{ display: 'none' }}
+            />
+            <div
+              ref={heightLabelRef}
+              className="viewer-dimension-label viewer-dimension-label--height"
+              data-testid="dimension-label-height"
+              style={{ display: 'none' }}
+            />
+            <div
+              ref={depthLabelRef}
+              className="viewer-dimension-label viewer-dimension-label--depth"
+              data-testid="dimension-label-depth"
+              style={{ display: 'none' }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Floating Piece Inspector on right side of viewport */}
       {selectedPiece && (
@@ -1066,6 +1265,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         onToggleMachining3D={() => setShowMachining3D(!showMachining3D)}
         explodedRatio={explodedRatio}
         onExplodedRatioChange={onExplodedRatioChange}
+        onFitCamera={handleFitCamera}
+        showDimensions={showDimensions}
+        onToggleDimensions={() => setShowDimensions(!showDimensions)}
       />
 
       <p className="viewport-touch-hint">

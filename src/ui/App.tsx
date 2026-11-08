@@ -325,6 +325,7 @@ export function App(): ReactElement {
                 onSetPieceEdgeBands={vm.setPieceEdgeBands}
                 countertopCalculation={vm.countertopCalculation}
                 interferences={vm.interferences}
+                moduleId={vm.activeModuleId}
               />
 
               {/* Botón Flotante Ergonómico (FAB) para volver al editor */}
@@ -678,6 +679,7 @@ export function App(): ReactElement {
                   machiningSheets={vm.machiningSheets}
                   countertopCalculation={vm.countertopCalculation}
                   interferences={vm.interferences}
+                  moduleId={vm.activeModuleId}
                 />
                 <button
                   type="button"
