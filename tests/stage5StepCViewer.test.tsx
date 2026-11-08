@@ -5,6 +5,7 @@ import {
   resolvePieceBandedEdges,
   resolveEdgeBandHighlightColor,
   buildPieceEdgeBandHighlightGroup,
+  calculateEffectiveEdgeBandThicknessMm,
 } from '../src/ui/viewer/edgeBandHighlight';
 import { ViewerToolbar } from '../src/ui/ViewerToolbar';
 import type { SpatialPieceBox, ResolvedPieceWithCutSize } from '../src/resolver';
@@ -231,6 +232,71 @@ describe('Stage 5 Step C: 3D Edge Banding Highlighting & Toolbar Controls', () =
 
       expect(html).toContain('Cantos OFF');
       expect(html).toContain('m3-btn--outlined');
+    });
+
+    it('renders the toolbar with all 5 render toggles without error at narrow widths 320, 360, and 390 px', () => {
+      const widths = [320, 360, 390];
+      for (const w of widths) {
+        const html = renderToString(
+          <div style={{ width: `${w}px` }}>
+            <ViewerToolbar
+              onSetCameraView={vi.fn()}
+              wireframe={false}
+              showLines={true}
+              onToggleShowLines={vi.fn()}
+              colorByRole={false}
+              onToggleColorByRole={vi.fn()}
+              machiningMode="auto"
+              onChangeMachiningMode={vi.fn()}
+              showDimensions={true}
+              onToggleDimensions={vi.fn()}
+              showEdgeBands={true}
+              onToggleShowEdgeBands={vi.fn()}
+              explodedRatio={0}
+              onExplodedRatioChange={vi.fn()}
+              onFitCamera={vi.fn()}
+            />
+          </div>,
+        );
+
+        // Verify all 5 toggle buttons exist in output
+        expect(html).toContain('Líneas ON');
+        expect(html).toContain('Rol OFF');
+        expect(html).toContain('Mecanizados Auto');
+        expect(html).toContain('Cotas ON');
+        expect(html).toContain('Cantos ON');
+      }
+    });
+  });
+
+  describe('calculateEffectiveEdgeBandThicknessMm (minimum screen space width)', () => {
+    it('uses physical thickness when camera is close', () => {
+      // Close inspection at 400mm distance, viewport 844px height
+      const thickness = calculateEffectiveEdgeBandThicknessMm({
+        physicalThicknessMm: 1.2,
+        cameraDistanceMm: 400,
+        viewportHeightPx: 844,
+        fovDegrees: 45,
+        minScreenPx: 2.5,
+      });
+
+      // At 400mm: frustum height = 331.37mm -> 0.39mm/px -> 2.5px * 0.39 = 0.98mm < 1.2mm
+      expect(thickness).toBe(1.2);
+    });
+
+    it('scales up ribbon thickness at auto-fit distance to guarantee minimum screen pixels', () => {
+      // Auto-fit distance at 2720mm, viewport 844px height
+      const thickness = calculateEffectiveEdgeBandThicknessMm({
+        physicalThicknessMm: 1.2,
+        cameraDistanceMm: 2720,
+        viewportHeightPx: 844,
+        fovDegrees: 45,
+        minScreenPx: 2.5,
+      });
+
+      // At 2720mm: frustum height = 2253.3mm -> 2.67mm/px -> 2.5px * 2.67 = ~6.67mm > 1.2mm
+      expect(thickness).toBeGreaterThan(6.0);
+      expect(thickness).toBeLessThan(7.5);
     });
   });
 });

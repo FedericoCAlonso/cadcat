@@ -7,8 +7,16 @@
   "showDimensionsByDefault": true,
   "showEdgeBandsByDefault": true,
   "edgeBandHighlightColor": {
-    "light": "#FF8F00",
-    "dark": "#FFB300"
+    "light": "#E91E63",
+    "dark": "#FF4081"
+  },
+  "minPerceptualColorDistance": 25.0,
+  "minEdgeBandScreenPx": 2.5,
+  "edgeBandPhysicalThicknessMm": 1.2,
+  "tabletBottomSheetHeights": {
+    "collapsed": "120px",
+    "middle": "50vh",
+    "full": "92vh"
   },
   "colorByRoleByDefault": false,
   "showLinesByDefault": true,

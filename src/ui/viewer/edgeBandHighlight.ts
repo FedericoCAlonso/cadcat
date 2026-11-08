@@ -77,9 +77,46 @@ export function resolvePieceBandedEdges(
  */
 export function resolveEdgeBandHighlightColor(theme: 'light' | 'dark' = 'light'): number {
   const hex = theme === 'dark'
-    ? (DEFAULT_UI_CONFIG.edgeBandHighlightColor?.dark ?? '#FFB300')
-    : (DEFAULT_UI_CONFIG.edgeBandHighlightColor?.light ?? '#FF8F00');
+    ? (DEFAULT_UI_CONFIG.edgeBandHighlightColor?.dark ?? '#FF4081')
+    : (DEFAULT_UI_CONFIG.edgeBandHighlightColor?.light ?? '#E91E63');
   return parseInt(hex.replace('#', ''), 16);
+}
+
+export interface EffectiveEdgeBandThicknessParams {
+  physicalThicknessMm?: number;
+  cameraDistanceMm?: number;
+  viewportHeightPx?: number;
+  fovDegrees?: number;
+  minScreenPx?: number;
+}
+
+/**
+ * Calculates the visual world thickness for edge band ribbons, ensuring a minimum width
+ * in screen space (pixels) when viewed at a distance, while preserving the real physical
+ * tape thickness when the camera is close.
+ *
+ * @param params Calculation parameters.
+ * @returns Thickness in millimeters for ribbon box geometry.
+ */
+export function calculateEffectiveEdgeBandThicknessMm(
+  params: EffectiveEdgeBandThicknessParams = {},
+): number {
+  const physical = params.physicalThicknessMm ?? DEFAULT_UI_CONFIG.edgeBandPhysicalThicknessMm ?? 1.2;
+  const minPx = params.minScreenPx ?? DEFAULT_UI_CONFIG.minEdgeBandScreenPx ?? 2.5;
+  const dist = params.cameraDistanceMm;
+  const vh = params.viewportHeightPx;
+  const fov = params.fovDegrees ?? 45;
+
+  if (!dist || !vh || vh <= 0 || dist <= 0) {
+    return physical;
+  }
+
+  const fovRad = (fov * Math.PI) / 180;
+  const frustumHeightMm = 2 * dist * Math.tan(fovRad / 2);
+  const mmPerPx = frustumHeightMm / vh;
+  const minRequiredMm = minPx * mmPerPx;
+
+  return Math.max(physical, minRequiredMm);
 }
 
 /**
@@ -95,12 +132,14 @@ export function resolveEdgeBandHighlightColor(theme: 'light' | 'dark' = 'light')
  * @param item Spatial piece box defining dimensions (x, y, z) and semantic role.
  * @param bandedEdges Flags indicating which of the 4 edges are banded.
  * @param color Highlight color for the edge band ribbons.
+ * @param ribbonThicknessMm Visual thickness in mm (enforces minimum screen pixels when distant).
  * @returns Three.js Group named 'edgeband-group'.
  */
 export function buildPieceEdgeBandHighlightGroup(
   item: SpatialPieceBox,
   bandedEdges: ResolvedBandedEdges,
   color: number,
+  ribbonThicknessMm: number = DEFAULT_UI_CONFIG.edgeBandPhysicalThicknessMm ?? 1.2,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'edgeband-group';
@@ -121,7 +160,6 @@ export function buildPieceEdgeBandHighlightGroup(
     polygonOffsetUnits: -1,
   });
 
-  const ribbonThicknessMm = 1.2; // Visual tape thickness in mm
   const marginMm = 0.2; // Slight offset to prevent coplanar z-fighting
 
   const addEdgeBox = (

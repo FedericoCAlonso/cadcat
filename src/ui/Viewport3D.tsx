@@ -39,6 +39,7 @@ import {
   resolvePieceBandedEdges,
   resolveEdgeBandHighlightColor,
   buildPieceEdgeBandHighlightGroup,
+  calculateEffectiveEdgeBandThicknessMm,
 } from './viewer/edgeBandHighlight';
 
 export interface Viewport3DProps {
@@ -1059,7 +1060,14 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         const bandedEdges = resolvePieceBandedEdges(matchedPiece, pieceOverride);
         if (bandedEdges.top || bandedEdges.bottom || bandedEdges.left || bandedEdges.right) {
           const edgeColor = resolveEdgeBandHighlightColor(currentTheme);
-          const edgeGroup = buildPieceEdgeBandHighlightGroup(item, bandedEdges, edgeColor);
+          const effectiveRibbonThickness = calculateEffectiveEdgeBandThicknessMm({
+            physicalThicknessMm: DEFAULT_UI_CONFIG.edgeBandPhysicalThicknessMm,
+            cameraDistanceMm: fitDistanceRef.current,
+            viewportHeightPx: containerRef.current?.clientHeight ?? 600,
+            fovDegrees: 45,
+            minScreenPx: DEFAULT_UI_CONFIG.minEdgeBandScreenPx,
+          });
+          const edgeGroup = buildPieceEdgeBandHighlightGroup(item, bandedEdges, edgeColor, effectiveRibbonThickness);
           edgeGroup.visible = showEdgeBands;
           mesh.add(edgeGroup);
         }
