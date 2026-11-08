@@ -195,3 +195,56 @@ export function calculatePreservedCameraTarget(
     z: newTarget.z + (currentPosition.z - previousTarget.z),
   };
 }
+
+/**
+ * Pure function that calculates the expanded spatial bounding box enclosing all pieces
+ * in their exploded positions.
+ *
+ * Used by the 3D viewer when exploded view changes so that auto-fit keeps the entire
+ * exploded model inside the viewport without clipping any outer piece.
+ *
+ * @param activeBoxes Array of piece boxes containing exploded positions and dimensions.
+ * @param fallbackBounds Fallback bounds if activeBoxes is empty.
+ * @returns Spatial bounding box covering the entire exploded furniture model.
+ */
+export function calculateExplodedSpatialBounds(
+  activeBoxes: Array<{ explodedPositionMm?: Vector3Like; positionMm?: Vector3Like; sizeMm: Vector3Like }>,
+  fallbackBounds: ModuleSpatialBounds,
+): ModuleSpatialBounds {
+  if (!activeBoxes || activeBoxes.length === 0) return fallbackBounds;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
+
+  for (const box of activeBoxes) {
+    const pos = box.explodedPositionMm ?? box.positionMm ?? { x: 0, y: 0, z: 0 };
+    const size = box.sizeMm;
+    minX = Math.min(minX, pos.x);
+    minY = Math.min(minY, pos.y);
+    minZ = Math.min(minZ, pos.z);
+    maxX = Math.max(maxX, pos.x + size.x);
+    maxY = Math.max(maxY, pos.y + size.y);
+    maxZ = Math.max(maxZ, pos.z + size.z);
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return fallbackBounds;
+
+  return {
+    min: { x: minX, y: minY, z: minZ },
+    max: { x: maxX, y: maxY, z: maxZ },
+    center: {
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+      z: (minZ + maxZ) / 2,
+    },
+    size: {
+      x: maxX - minX,
+      y: maxY - minY,
+      z: maxZ - minZ,
+    },
+  };
+}

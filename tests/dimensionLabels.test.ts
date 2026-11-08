@@ -6,6 +6,7 @@ import {
   createDimensionLinesGroup,
   disposeDimensionLinesGroup,
   projectDimensionLabels,
+  isPointOccludedByBox,
 } from '../src/ui/viewer/dimensionLabels';
 import type { ModuleSpatialBounds } from '../src/resolver';
 
@@ -17,10 +18,11 @@ describe('Stage 5 Step A: dimensionLabels Overlay & Transform Integrity', () => 
     size: { x: 600, y: 800, z: 560 },
   };
 
-  it('formats dimension numbers into localized text with unit', () => {
-    expect(formatDimensionText(600, 'es-AR', 'mm')).toBe('600 mm');
-    expect(formatDimensionText(1200, 'es-AR', 'mm')).toBe('1.200 mm');
-    expect(formatDimensionText(2400.4, 'es-AR', 'mm')).toBe('2.400 mm');
+  it('formats dimension numbers into localized text with unit and optional prefix', () => {
+    expect(formatDimensionText(600, undefined, 'es-AR', 'mm')).toBe('600 mm');
+    expect(formatDimensionText(600, 'An', 'es-AR', 'mm')).toBe('An 600 mm');
+    expect(formatDimensionText(1200, 'Al', 'es-AR', 'mm')).toBe('Al 1.200 mm');
+    expect(formatDimensionText(2400.4, 'Pr', 'es-AR', 'mm')).toBe('Pr 2.400 mm');
   });
 
   it('builds width, height, and depth anchors with localized formatted text', () => {
@@ -31,17 +33,17 @@ describe('Stage 5 Step A: dimensionLabels Overlay & Transform Integrity', () => 
     const [w, h, d] = anchors;
     expect(w?.id).toBe('width');
     expect(w?.valueMm).toBe(600);
-    expect(w?.formattedText).toBe('600 mm');
+    expect(w?.formattedText).toBe('An 600 mm');
     expect(w?.localMid.x).toBe(300);
 
     expect(h?.id).toBe('height');
     expect(h?.valueMm).toBe(800);
-    expect(h?.formattedText).toBe('800 mm');
+    expect(h?.formattedText).toBe('Al 800 mm');
     expect(h?.localMid.y).toBe(400);
 
     expect(d?.id).toBe('depth');
     expect(d?.valueMm).toBe(560);
-    expect(d?.formattedText).toBe('560 mm');
+    expect(d?.formattedText).toBe('Pr 560 mm');
     expect(d?.localMid.z).toBe(280);
   });
 
@@ -124,7 +126,7 @@ describe('Stage 5 Step A: dimensionLabels Overlay & Transform Integrity', () => 
     const widthLabel = projected.find((p) => p.id === 'width');
     expect(widthLabel).toBeDefined();
     expect(widthLabel?.visible).toBe(true);
-    expect(widthLabel?.formattedText).toBe('600 mm');
+    expect(widthLabel?.formattedText).toBe('An 600 mm');
     expect(widthLabel?.screenX).toBeGreaterThan(0);
     expect(widthLabel?.screenX).toBeLessThan(1366);
     expect(widthLabel?.screenY).toBeGreaterThan(0);
@@ -202,5 +204,46 @@ describe('Stage 5 Step A: dimensionLabels Overlay & Transform Integrity', () => 
     const l1 = projected[0]!;
     const l2 = projected[1]!;
     expect(Math.abs(l1.screenY - l2.screenY)).toBeGreaterThanOrEqual(15);
+  });
+
+  describe('isPointOccludedByBox: Pure Slab Ray-AABB Occlusion Checker', () => {
+    const box = {
+      min: { x: 0, y: 0, z: 0 },
+      max: { x: 600, y: 800, z: 560 },
+    };
+
+    it('returns true when a target point is positioned directly behind the box relative to camera', () => {
+      // Camera looking from the front (-Z)
+      const cameraEye = { x: 300, y: 400, z: -1000 };
+      // Target point positioned behind the module (+Z)
+      const occludedTarget = { x: 300, y: 400, z: 800 };
+
+      expect(isPointOccludedByBox(cameraEye, occludedTarget, box)).toBe(true);
+    });
+
+    it('returns false when target is in front of the box (unobstructed line of sight)', () => {
+      const cameraEye = { x: 300, y: 400, z: -1000 };
+      // Target point between camera and box front face
+      const visibleFrontTarget = { x: 300, y: 400, z: -80 };
+
+      expect(isPointOccludedByBox(cameraEye, visibleFrontTarget, box)).toBe(false);
+    });
+
+    it('returns false when target is to the side of the box and ray does not intersect volume', () => {
+      const cameraEye = { x: 300, y: 400, z: -1000 };
+      // Target point off to the right (+X) well clear of box
+      const lateralTarget = { x: 1200, y: 400, z: 280 };
+
+      expect(isPointOccludedByBox(cameraEye, lateralTarget, box)).toBe(false);
+    });
+
+    it('detects depth line occlusion when camera is in front and depth line is behind drawer front', () => {
+      // Camera viewing front-isometric slightly offset
+      const cameraEye = { x: 300, y: 400, z: -800 };
+      // Depth line endpoint near back of cabinet
+      const backDepthPoint = { x: 680, y: 400, z: 450 };
+      // Ray from (300, 400, -800) to (680, 400, 450) crosses X in [300, 680] and Z in [-800, 450], passing through [0,600]x[0,800]x[0,560]
+      expect(isPointOccludedByBox(cameraEye, backDepthPoint, box)).toBe(true);
+    });
   });
 });

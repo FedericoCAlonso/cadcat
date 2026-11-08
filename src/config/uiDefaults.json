@@ -10,6 +10,12 @@
   "dimensionOffsetMm": 80,
   "dimensionExtensionMm": 25,
   "dimensionMinScreenSpanPx": 30,
+  "explodedDimensionThreshold": 0.05,
+  "dimensionPrefixes": {
+    "width": "An",
+    "height": "Al",
+    "depth": "Pr"
+  },
   "gridIntensity": 0.18,
   "gridFadeFalloff": 0.85,
   "gridDivisions": 20,

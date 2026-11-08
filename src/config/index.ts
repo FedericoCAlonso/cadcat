@@ -67,6 +67,12 @@ export const uiDefaultsSchema = z.object({
   dimensionOffsetMm: z.number().positive().default(80),
   dimensionExtensionMm: z.number().positive().default(25),
   dimensionMinScreenSpanPx: z.number().positive().default(30),
+  explodedDimensionThreshold: z.number().nonnegative().default(0.05),
+  dimensionPrefixes: z.object({
+    width: z.string().default('An'),
+    height: z.string().default('Al'),
+    depth: z.string().default('Pr'),
+  }).default({ width: 'An', height: 'Al', depth: 'Pr' }),
   gridIntensity: z.number().positive().max(1).default(0.18),
   gridFadeFalloff: z.number().positive().default(0.85),
   gridDivisions: z.number().positive().int().default(20),

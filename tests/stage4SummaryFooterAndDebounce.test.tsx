@@ -199,7 +199,7 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
 
       // Find "Módulo" button in segmented selector and click it
       const moduleBtn = Array.from(container.querySelectorAll('.panel-summary-scope-selector button')).find(
-        (b) => b.textContent?.trim() === 'Módulo',
+        (b) => b.textContent?.includes('Módulo'),
       ) as HTMLButtonElement | undefined;
       expect(moduleBtn).toBeDefined();
 
@@ -293,6 +293,85 @@ describe('Stage 4: Summary Footer, Scope Selector, and Debounce', () => {
       expect(html).toContain('Parcial $25.500 · a confirmar');
       // Tooltip includes unit partial cost prorated in batch of 3: 25500 / 3 = 8500
       expect(html).toContain('Costo unitario prorrateado en lote de 3: Parcial $8.500 · a confirmar');
+    });
+
+    it('displays "A confirmar" when grandTotal is TO_CONFIRM and confirmedSubtotal is zero (no deceptive $0)', () => {
+      const costWithZeroConfirmed: ModuleCostSummary = {
+        moduleId: 'mod-1',
+        items: [],
+        materialTotal: 'TO_CONFIRM',
+        edgeBandTotal: 0,
+        hardwareTotal: 0,
+        cutPassCost: 0,
+        grandTotal: 'TO_CONFIRM',
+        confirmedSubtotal: 0,
+        isFullyConfirmed: false,
+      };
+
+      const html = renderToString(
+        <PanelSummaryFooter
+          bom={mockModuleBom}
+          consolidatedBom={null}
+          cost={costWithZeroConfirmed}
+          consolidatedCost={null}
+          materials={mockMaterials}
+          scope="module"
+          activeModuleQuantity={1}
+        />,
+      );
+
+      // Must show "A confirmar" and strictly NOT show "Parcial $0 · a confirmar"
+      expect(html).toContain('A confirmar');
+      expect(html).not.toContain('Parcial $0');
+      expect(html).toContain('is-partial');
+    });
+
+    it('renders the summary footer cleanly across narrow phone widths (320px, 360px, 390px) without structure clipping', () => {
+      const phoneWidths = [320, 360, 390];
+      for (const width of phoneWidths) {
+        const container = document.createElement('div');
+        container.style.width = `${width}px`;
+        container.style.maxWidth = `${width}px`;
+        document.body.appendChild(container);
+        const root = createRoot(container);
+
+        act(() => {
+          root.render(
+            <PanelSummaryFooter
+              bom={mockModuleBom}
+              consolidatedBom={mockConsolidatedBom}
+              cost={mockModuleCost}
+              consolidatedCost={mockConsolidatedCost}
+              materials={mockMaterials}
+              scope="module"
+              activeModuleQuantity={1}
+            />,
+          );
+        });
+
+        const footer = container.querySelector('.panel-summary-footer');
+        expect(footer).not.toBeNull();
+
+        // Scope selector buttons present with full and short labels
+        const buttons = container.querySelectorAll('.panel-summary-scope-selector button');
+        expect(buttons.length).toBe(2);
+
+        const projectBtn = buttons[0];
+        const moduleBtn = buttons[1];
+        expect(projectBtn?.querySelector('.scope-label-full')?.textContent).toBe('Proyecto');
+        expect(projectBtn?.querySelector('.scope-label-short')?.textContent).toBe('Proy.');
+        expect(moduleBtn?.querySelector('.scope-label-full')?.textContent).toBe('Módulo');
+        expect(moduleBtn?.querySelector('.scope-label-short')?.textContent).toBe('Mód.');
+
+        // Metrics container present with all 3 chips: Piezas, Placas, Costo
+        const metricChips = container.querySelectorAll('.panel-summary-metric');
+        expect(metricChips.length).toBe(3);
+
+        act(() => {
+          root.unmount();
+        });
+        container.remove();
+      }
     });
   });
 

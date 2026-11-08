@@ -278,5 +278,68 @@ describe('Stage 5 Step A: Viewer Integration (Camera Auto-Fit, Fading Grid, and 
       });
       container.remove();
     });
+
+    it('hides dimensions when explodedRatio exceeds explodedDimensionThreshold (0.05)', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = createRoot(container);
+
+      act(() => {
+        root.render(
+          <Viewport3D
+            boxes={mockBoxes}
+            bounds={mockBounds}
+            pieces={mockPieces}
+            explodedRatio={0.25} // Above threshold
+            onExplodedRatioChange={vi.fn()}
+            selectedPieceId={null}
+            onSelectPiece={vi.fn()}
+            initialShowDimensions={true}
+          />,
+        );
+      });
+
+      // Overlay container or labels should not be present when exploded view is active
+      const labels = container.querySelectorAll('.viewport-dimension-label');
+      expect(labels.length).toBe(0);
+
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    });
+
+    it('formats selected piece hint with readable name first and technical id in gray tag', () => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = createRoot(container);
+
+      act(() => {
+        root.render(
+          <Viewport3D
+            boxes={mockBoxes}
+            bounds={mockBounds}
+            pieces={mockPieces}
+            explodedRatio={0}
+            onExplodedRatioChange={vi.fn()}
+            selectedPieceId="piece-side-1"
+            onSelectPiece={vi.fn()}
+            initialShowDimensions={false}
+          />,
+        );
+      });
+
+      const hint = container.querySelector('.viewport-touch-hint');
+      expect(hint).not.toBeNull();
+      // Readable role name in strong tag
+      expect(hint?.querySelector('strong')?.textContent).toBe('Lateral izquierdo');
+      // Technical ID in tag span
+      expect(hint?.querySelector('.viewport-piece-id-tag')?.textContent).toBe('(piece-side-1)');
+
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    });
   });
 });

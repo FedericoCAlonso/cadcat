@@ -143,23 +143,29 @@ export function PanelSummaryFooter({
     costDisplay = '—';
   } else if (targetCost.grandTotal === 'TO_CONFIRM') {
     isCostPartial = true;
-    costDisplay = `Parcial ${currencySymbol}${numberFormatter.format(targetCost.confirmedSubtotal)} · a confirmar`;
+    costDisplay = targetCost.confirmedSubtotal > 0
+      ? `Parcial ${currencySymbol}${numberFormatter.format(targetCost.confirmedSubtotal)} · a confirmar`
+      : 'A confirmar';
   } else {
     costDisplay = `${currencySymbol}${numberFormatter.format(targetCost.grandTotal)}`;
   }
 
   // Cost tooltip: includes cost per unit (total cost divided by quantity) in module scope
   let costTooltip = isCostPartial
-    ? 'Costo parcial a confirmar con precios pendientes'
+    ? (targetCost?.grandTotal === 'TO_CONFIRM' && targetCost.confirmedSubtotal === 0
+        ? 'A confirmar con precios pendientes de carga'
+        : 'Costo parcial a confirmar con precios pendientes')
     : 'Costo estimado total';
 
   if (!isProjectScope && targetCost) {
     const qty = Math.max(1, activeModuleQuantity);
     if (targetCost.grandTotal === 'TO_CONFIRM') {
       const unitPartial = targetCost.confirmedSubtotal / qty;
-      costTooltip = qty > 1
-        ? `Costo unitario prorrateado en lote de ${qty}: Parcial ${currencySymbol}${numberFormatter.format(unitPartial)} · a confirmar (Total: ${costDisplay})`
-        : 'Costo parcial a confirmar con precios pendientes';
+      costTooltip = unitPartial > 0
+        ? (qty > 1
+            ? `Costo unitario prorrateado en lote de ${qty}: Parcial ${currencySymbol}${numberFormatter.format(unitPartial)} · a confirmar (Total: ${costDisplay})`
+            : `Costo parcial a confirmar con precios pendientes (${costDisplay})`)
+        : 'A confirmar con precios pendientes de carga';
     } else {
       const unitCost = targetCost.grandTotal / qty;
       costTooltip = qty > 1
@@ -192,7 +198,8 @@ export function PanelSummaryFooter({
             onClick={() => handleScopeChange('project')}
             title="Ver métricas consolidadas de todo el proyecto"
           >
-            Proyecto
+            <span className="scope-label-full">Proyecto</span>
+            <span className="scope-label-short" aria-hidden="true">Proy.</span>
           </button>
           <button
             type="button"
@@ -202,7 +209,8 @@ export function PanelSummaryFooter({
             onClick={() => handleScopeChange('module')}
             title="Ver métricas del módulo activo (multiplicado por su cantidad)"
           >
-            Módulo
+            <span className="scope-label-full">Módulo</span>
+            <span className="scope-label-short" aria-hidden="true">Mód.</span>
           </button>
         </div>
 

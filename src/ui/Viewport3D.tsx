@@ -20,7 +20,7 @@ import { translatePieceRole } from './localization';
 import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
 import { ViewerToolbar, type CameraPresetView } from './ViewerToolbar';
 import { PieceInspectorCard } from './PieceInspectorCard';
-import { calculateCameraFit, calculatePreservedCameraTarget } from './viewer/fitCamera';
+import { calculateCameraFit, calculatePreservedCameraTarget, calculateExplodedSpatialBounds } from './viewer/fitCamera';
 import { createFadingGrid, disposeFadingGrid } from './viewer/fadingGrid';
 import {
   createDimensionLinesGroup,
@@ -970,17 +970,39 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       group.add(colMesh);
     }
 
+    // Exploded view threshold: hide dimensions when exploded above threshold
+    const isExplodedAboveThreshold = explodedRatio > (DEFAULT_UI_CONFIG.explodedDimensionThreshold ?? 0.05);
+    const effectiveShowDimensions = showDimensions && !isExplodedAboveThreshold;
+    showDimensionsRef.current = effectiveShowDimensions;
+
     // Dimension lines overlay attached as child of pieceGroup (Rule 3.0.1 & Rule 3.0.2)
     if (dimensionLinesGroupRef.current) {
       group.remove(dimensionLinesGroupRef.current);
       disposeDimensionLinesGroup(dimensionLinesGroupRef.current);
       dimensionLinesGroupRef.current = null;
     }
-    if (showDimensions) {
+    if (effectiveShowDimensions) {
       const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
       const dimGroup = createDimensionLinesGroup(bounds, { theme: isLight ? 'light' : 'dark' });
       group.add(dimGroup);
       dimensionLinesGroupRef.current = dimGroup;
+    }
+
+    // When exploded view changes, keep the whole exploded model inside the viewer:
+    // Apply auto-fit to exploded bounds only if user did not move camera by hand
+    if (!userHasMovedCameraRef.current && cameraRef.current && containerRef.current) {
+      const cw = containerRef.current.clientWidth || 360;
+      const ch = containerRef.current.clientHeight || 520;
+      const explodedBounds = calculateExplodedSpatialBounds(activeBoxes, bounds);
+      const fit = calculateCameraFit({
+        bounds: explodedBounds,
+        aspect: cw / ch,
+        fov: cameraRef.current.fov,
+        fillRatio: DEFAULT_UI_CONFIG.viewerFillRatio ?? 0.85,
+      });
+      cameraRef.current.position.set(fit.position.x, fit.position.y, fit.position.z);
+      cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
+      prevTargetRef.current = { ...fit.target };
     }
   }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, kinematicBoxes, showMachining3D, machiningSheets, countertopCalculation, interferences, pieces, showDimensions]);
 
@@ -1063,7 +1085,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         className="viewport-3d-canvas-wrapper"
         data-testid="viewport-3d-canvas-wrapper"
       >
-        {showDimensions && (
+        {showDimensions && explodedRatio <= (DEFAULT_UI_CONFIG.explodedDimensionThreshold ?? 0.05) && (
           <div className="viewer-dimension-labels-layer" aria-hidden="true">
             <div
               ref={widthLabelRef}
@@ -1273,7 +1295,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       <p className="viewport-touch-hint">
         {selectedPiece ? (
           <>
-            🔍 <em>Pieza seleccionada: <strong>{selectedPiece.id}</strong> ({translatePieceRole(selectedPiece.role)}) — Podés editarla en el panel lateral</em>
+            🔍 <em>Pieza seleccionada: <strong>{translatePieceRole(selectedPiece.role)}</strong> <span className="viewport-piece-id-tag">({selectedPiece.id})</span> — Podés editarla en el panel lateral</em>
           </>
         ) : (
           <>

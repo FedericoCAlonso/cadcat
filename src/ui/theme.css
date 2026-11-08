@@ -443,8 +443,17 @@ body {
   }
 
   .layout-aside {
-    padding-bottom: calc(var(--m3-bottom-nav-total-height) + 125px);
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: calc(100dvh - 3.5rem - var(--m3-bottom-nav-total-height, 56px));
+    padding-bottom: calc(var(--m3-bottom-nav-total-height, 56px) + 20px);
     box-sizing: border-box;
+  }
+
+  .module-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
   }
 
   .layout-grid {
@@ -453,7 +462,8 @@ body {
 
   /* Responsive screen switching on mobile devices */
   .layout-grid[data-mobile-view="form"] > .layout-aside {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
     width: 100% !important;
     min-width: 0 !important;
   }
@@ -997,6 +1007,20 @@ body {
   text-align: center;
   margin-top: -0.25rem;
   overflow-wrap: break-word;
+}
+
+.viewport-piece-id-tag {
+  color: var(--md-sys-color-outline, #777);
+  font-size: 0.75rem;
+  font-weight: normal;
+  margin-left: 0.2rem;
+}
+
+@media (max-width: 1023px) {
+  .viewport-touch-hint {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 16px) + 0.75rem);
+    box-sizing: border-box;
+  }
 }
 
 .viewport-3d-inspector {
@@ -4424,6 +4448,7 @@ legend.builder-section-title {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
 .viewer-toolbar-group-label {
@@ -4439,7 +4464,7 @@ legend.builder-section-title {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .viewer-toolbar-btn {
@@ -4592,12 +4617,16 @@ legend.builder-section-title {
 }
 
 .panel-summary-row--metrics {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
-.panel-summary-row--metrics::-webkit-scrollbar {
+
+.scope-label-short {
   display: none;
+}
+
+.scope-label-full {
+  display: inline;
 }
 
 .panel-summary-scope-selector {
@@ -4618,10 +4647,29 @@ legend.builder-section-title {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   flex: 1;
   justify-content: flex-end;
   min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .scope-label-short {
+    display: inline;
+  }
+  .scope-label-full {
+    display: none;
+  }
+  .panel-summary-scope-selector {
+    max-width: 105px;
+  }
+  .panel-summary-metrics {
+    gap: 0.25rem;
+  }
+  .panel-summary-metric {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.25rem;
+  }
 }
 
 .panel-summary-metric {

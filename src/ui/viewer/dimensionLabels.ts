@@ -77,21 +77,81 @@ export const DIMENSION_THEME_COLORS = {
 } as const;
 
 /**
- * Formats a millimeter dimension value using locale-aware formatting from configuration.
+ * Formats a millimeter dimension value using locale-aware formatting from configuration
+ * with an optional dimension axis prefix (e.g. "An 600 mm", "Al 800 mm", "Pr 500 mm").
  *
  * @param valueMm Value in millimeters.
+ * @param prefix Optional axis prefix (e.g. "An", "Al", "Pr").
  * @param locale Locale code (defaults to config dimensionNumberFormat, e.g. "es-AR").
  * @param unit Unit label (defaults to config dimensionUnit, e.g. "mm").
- * @returns Formatted localized string (e.g. "600 mm" or "1.200 mm").
+ * @returns Formatted localized string (e.g. "An 600 mm" or "Pr 500 mm").
  */
 export function formatDimensionText(
   valueMm: number,
+  prefix?: string,
   locale = DEFAULT_UI_CONFIG.dimensionNumberFormat ?? 'es-AR',
   unit = DEFAULT_UI_CONFIG.dimensionUnit ?? 'mm',
 ): string {
   const rounded = Math.round(valueMm);
   const formatted = new Intl.NumberFormat(locale).format(rounded);
-  return `${formatted} ${unit}`;
+  const prefixStr = prefix ? `${prefix} ` : '';
+  return `${prefixStr}${formatted} ${unit}`;
+}
+
+/**
+ * Pure function that determines whether a target 3D point is occluded by an axis-aligned bounding box
+ * when viewed from a given camera eye position.
+ *
+ * Uses the slab intersection method on the 3D ray segment connecting origin to target.
+ *
+ * @param origin Camera eye position in world space.
+ * @param target Target point in world space (e.g. dimension anchor or midpoint).
+ * @param box Axis-aligned bounding box of the furniture module.
+ * @param insetMm Inset tolerance in mm to avoid false positives for points on the box boundaries.
+ * @returns True if the box is positioned between origin and target, occluding the target.
+ */
+export function isPointOccludedByBox(
+  origin: Point3D,
+  target: Point3D,
+  box: { min: Point3D; max: Point3D },
+  insetMm = 5,
+): boolean {
+  const dx = target.x - origin.x;
+  const dy = target.y - origin.y;
+  const dz = target.z - origin.z;
+  const dist = Math.hypot(dx, dy, dz);
+  if (dist < 1e-4) return false;
+
+  const invDx = dx !== 0 ? 1 / dx : (dx >= 0 ? 1e9 : -1e9);
+  const invDy = dy !== 0 ? 1 / dy : (dy >= 0 ? 1e9 : -1e9);
+  const invDz = dz !== 0 ? 1 / dz : (dz >= 0 ? 1e9 : -1e9);
+
+  const bMinX = box.min.x + insetMm;
+  const bMaxX = box.max.x - insetMm;
+  const bMinY = box.min.y + insetMm;
+  const bMaxY = box.max.y - insetMm;
+  const bMinZ = box.min.z + insetMm;
+  const bMaxZ = box.max.z - insetMm;
+
+  if (bMinX >= bMaxX || bMinY >= bMaxY || bMinZ >= bMaxZ) return false;
+
+  let t1 = (bMinX - origin.x) * invDx;
+  let t2 = (bMaxX - origin.x) * invDx;
+  let tmin = Math.min(t1, t2);
+  let tmax = Math.max(t1, t2);
+
+  t1 = (bMinY - origin.y) * invDy;
+  t2 = (bMaxY - origin.y) * invDy;
+  tmin = Math.max(tmin, Math.min(t1, t2));
+  tmax = Math.min(tmax, Math.max(t1, t2));
+
+  t1 = (bMinZ - origin.z) * invDz;
+  t2 = (bMaxZ - origin.z) * invDz;
+  tmin = Math.max(tmin, Math.min(t1, t2));
+  tmax = Math.min(tmax, Math.max(t1, t2));
+
+  // The ray segment intersects the box between camera (t=0) and target (t=1)
+  return tmax >= tmin && tmax > 0.02 && tmin < 0.98;
 }
 
 /**
@@ -108,6 +168,7 @@ export function buildDimensionAnchors(
   const offsetMm = options?.offsetMm ?? DEFAULT_UI_CONFIG.dimensionOffsetMm ?? 80;
   const locale = options?.dimensionNumberFormat ?? DEFAULT_UI_CONFIG.dimensionNumberFormat ?? 'es-AR';
   const unit = options?.dimensionUnit ?? DEFAULT_UI_CONFIG.dimensionUnit ?? 'mm';
+  const prefixes = DEFAULT_UI_CONFIG.dimensionPrefixes ?? { width: 'An', height: 'Al', depth: 'Pr' };
 
   // 1. Width (along X): placed along the bottom front edge
   const widthVal = bounds.size.x;
@@ -115,7 +176,7 @@ export function buildDimensionAnchors(
     id: 'width',
     axis: 'x',
     valueMm: widthVal,
-    formattedText: formatDimensionText(widthVal, locale, unit),
+    formattedText: formatDimensionText(widthVal, prefixes.width, locale, unit),
     localStart: { x: bounds.min.x, y: bounds.min.y, z: bounds.min.z - offsetMm },
     localEnd: { x: bounds.max.x, y: bounds.min.y, z: bounds.min.z - offsetMm },
     localMid: { x: bounds.center.x, y: bounds.min.y, z: bounds.min.z - offsetMm },
@@ -127,7 +188,7 @@ export function buildDimensionAnchors(
     id: 'height',
     axis: 'y',
     valueMm: heightVal,
-    formattedText: formatDimensionText(heightVal, locale, unit),
+    formattedText: formatDimensionText(heightVal, prefixes.height, locale, unit),
     localStart: { x: bounds.min.x - offsetMm, y: bounds.min.y, z: bounds.min.z },
     localEnd: { x: bounds.min.x - offsetMm, y: bounds.max.y, z: bounds.min.z },
     localMid: { x: bounds.min.x - offsetMm, y: bounds.center.y, z: bounds.min.z },
@@ -139,7 +200,7 @@ export function buildDimensionAnchors(
     id: 'depth',
     axis: 'z',
     valueMm: depthVal,
-    formattedText: formatDimensionText(depthVal, locale, unit),
+    formattedText: formatDimensionText(depthVal, prefixes.depth, locale, unit),
     localStart: { x: bounds.max.x + offsetMm, y: bounds.min.y, z: bounds.min.z },
     localEnd: { x: bounds.max.x + offsetMm, y: bounds.min.y, z: bounds.max.z },
     localMid: { x: bounds.max.x + offsetMm, y: bounds.min.y, z: bounds.center.z },
@@ -326,24 +387,13 @@ export function projectDimensionLabels(
       visible = false;
     }
 
-    // Occlusion check against module bounds:
-    // If anchor is on the opposite side of the module center relative to camera
-    // and camera is looking through the module volume:
+    // Occlusion check against module bounds (slab Ray-AABB intersection)
+    // Hides label when its line or midpoint is occluded by the module volume
     if (bounds && visible) {
-      // For width (front dimension): if camera is located far behind (+Z) and anchor is in front (-Z)
-      if (anchor.id === 'width' && camPos.z > bounds.max.z && midWorld.z < bounds.center.z) {
-        // Occluded when looking directly from the rear
-        const rayAngle = Math.abs(camPos.x - bounds.center.x);
-        if (rayAngle < bounds.size.x * 0.6) {
-          visible = false;
-        }
-      }
-      // For depth: if camera is on the opposite side of the module (left vs right)
-      if (anchor.id === 'depth' && camPos.x < bounds.min.x && midWorld.x > bounds.center.x) {
-        const rayAngle = Math.abs(camPos.z - bounds.center.z);
-        if (rayAngle < bounds.size.z * 0.6) {
-          visible = false;
-        }
+      const midOccluded = isPointOccludedByBox(camPos, midWorld, bounds);
+      const endsOccluded = isPointOccludedByBox(camPos, startWorld, bounds) && isPointOccludedByBox(camPos, endWorld, bounds);
+      if (midOccluded || endsOccluded) {
+        visible = false;
       }
     }
 
