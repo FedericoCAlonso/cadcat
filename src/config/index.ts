@@ -115,6 +115,10 @@ export const uiDefaultsSchema = z.object({
   drawerDiagramMinHeightPx: z.number().positive().default(120),
   drawerDiagramMaxHeightPx: z.number().positive().default(240),
   drawerBandMinHeightPx: z.number().positive().default(18),
+  assemblyGuidePreMachiningColumnThresholdPx: z.number().positive().default(640),
+  assemblyGuidePartsCardThresholdPx: z.number().positive().default(560),
+  assemblyGuideModalMaxZoom: z.number().positive().default(5.0),
+  assemblyGuideModalMinZoom: z.number().positive().default(0.5),
   inspectorWidthPx: z.number().positive().default(320),
   dimensions: z.object({
     width: dimensionBoundsSchema,

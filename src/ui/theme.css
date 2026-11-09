@@ -4886,3 +4886,286 @@ legend.builder-section-title {
   white-space: nowrap;
   line-height: 1.2;
 }
+
+/* =====================================================================
+   Assembly Guide Responsive Layout & Container Queries (Stage 6B Step A)
+   ===================================================================== */
+.assembly-sheet-card {
+  container-type: inline-size;
+  container-name: assembly-guide;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 1. Broken text fixes: Horizontal scrolling tab row with fade */
+.assembly-view-switcher {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+}
+
+.assembly-view-switcher .m3-btn {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+}
+
+/* 2. Exploded view slider with tick labels below the ends */
+.assembly-slider-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.assembly-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.assembly-slider-tick-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary, #56705f);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.assembly-slider-tick-btn:hover {
+  background-color: var(--surface-container-high, rgba(0, 0, 0, 0.05));
+}
+
+/* 3. Selector "Fase de Montaje": scroll with fade, no text breaks or clipping */
+.assembly-phase-filter-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  width: 100%;
+  padding-bottom: 4px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+}
+
+.assembly-phase-filter-scroll .m3-chip {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+}
+
+/* 4. Pre-machining views: 2-column on desktop, 1-column on phone (<=640px) */
+.assembly-panel-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.4fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+}
+
+@container assembly-guide (max-width: 640px) {
+  .assembly-panel-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 5. Parts table vs cards container queries (<=560px) */
+.assembly-parts-table-wrapper {
+  margin-top: 12px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.assembly-parts-cards-wrapper {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+@container assembly-guide (max-width: 560px) {
+  .assembly-parts-table-wrapper {
+    display: none !important;
+  }
+  .assembly-parts-cards-wrapper {
+    display: flex !important;
+  }
+}
+
+@container assembly-guide (min-width: 561px) {
+  .assembly-parts-table-wrapper {
+    display: block !important;
+  }
+  .assembly-parts-cards-wrapper {
+    display: none !important;
+  }
+}
+
+/* Individual piece card on mobile */
+.assembly-piece-card {
+  padding: 12px 14px;
+  background-color: var(--surface-2, #ede8dc);
+  border: 1px solid var(--border, #d9d2c3);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.assembly-piece-card--selected {
+  background-color: var(--primary-container, #d8e4dc);
+  border-color: var(--primary, #56705f);
+}
+
+.assembly-piece-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.assembly-piece-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--primary, #56705f);
+  color: var(--on-primary, #ffffff);
+  font-weight: 800;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.assembly-piece-card__title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text, #1f2622);
+}
+
+.assembly-piece-card__tech-id {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted, #5c655f);
+  margin-left: 4px;
+}
+
+.assembly-piece-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text, #1f2622);
+}
+
+/* 6. Diagram interactive tap wrapper & Hint */
+.assembly-diagram-wrapper {
+  position: relative;
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.assembly-diagram-tap-hint {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+  z-index: 5;
+}
+
+/* 7. Diagram Fullscreen Modal */
+.assembly-diagram-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background-color: rgba(0, 0, 0, 0.82);
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.assembly-diagram-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background-color: var(--surface, #ffffff);
+  border-bottom: 1px solid var(--border, #d9d2c3);
+  color: var(--text, #1f2622);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.assembly-diagram-modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assembly-diagram-modal-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.assembly-diagram-modal-viewport {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2, #181d1a);
+}
+
+.assembly-diagram-modal-canvas {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  will-change: transform;
+}

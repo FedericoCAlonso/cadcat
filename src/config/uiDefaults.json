@@ -53,6 +53,10 @@
   "drawerDiagramMinHeightPx": 120,
   "drawerDiagramMaxHeightPx": 240,
   "drawerBandMinHeightPx": 18,
+  "assemblyGuidePreMachiningColumnThresholdPx": 640,
+  "assemblyGuidePartsCardThresholdPx": 560,
+  "assemblyGuideModalMaxZoom": 5.0,
+  "assemblyGuideModalMinZoom": 0.5,
   "inspectorWidthPx": 320,
   "dimensions": {
     "width": {

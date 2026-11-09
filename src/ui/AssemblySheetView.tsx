@@ -14,6 +14,7 @@ import {
   type WallShelvingOutput,
 } from '../resolver';
 import { Viewport3D } from './Viewport3D';
+import { AssemblyDiagramModal } from './AssemblyDiagramModal';
 
 export interface AssemblySheetViewProps {
   assemblySheet: AssemblySheet | null;
@@ -1012,6 +1013,7 @@ export function AssemblySheetView({
   const [activeStepFilter, setActiveStepFilter] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [explodedViewMode, setExplodedViewMode] = useState<'2.5d' | '3d'>('2.5d');
+  const [modalDiagram, setModalDiagram] = useState<{ title: string; content: ReactElement } | null>(null);
 
   useEffect(() => {
     if (typeof explodedRatio === 'number') {
@@ -1109,6 +1111,25 @@ export function AssemblySheetView({
         </div>
 
         <div
+          className="assembly-diagram-wrapper"
+          onClick={() =>
+            setModalDiagram({
+              title: '📐 Plano de Replanteo y Perforaciones en Pared',
+              content: <div dangerouslySetInnerHTML={{ __html: svgHtml }} />,
+            })
+          }
+          title="Toca para ampliar en pantalla completa"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setModalDiagram({
+                title: '📐 Plano de Replanteo y Perforaciones en Pared',
+                content: <div dangerouslySetInnerHTML={{ __html: svgHtml }} />,
+              });
+            }
+          }}
           style={{
             marginTop: '16px',
             overflowX: 'auto',
@@ -1118,6 +1139,9 @@ export function AssemblySheetView({
             border: '1px solid var(--border, #e2e8f0)',
           }}
         >
+          <div className="assembly-diagram-tap-hint">
+            <span>🔍 Tocar para ampliar</span>
+          </div>
           <div dangerouslySetInnerHTML={{ __html: svgHtml }} />
         </div>
 
@@ -1166,6 +1190,15 @@ export function AssemblySheetView({
             </p>
           </div>
         </div>
+
+        {modalDiagram && (
+          <AssemblyDiagramModal
+            title={modalDiagram.title}
+            onClose={() => setModalDiagram(null)}
+          >
+            {modalDiagram.content}
+          </AssemblyDiagramModal>
+        )}
       </section>
     );
   }
@@ -1258,21 +1291,12 @@ export function AssemblySheetView({
       </div>
 
       {/* Navigation Sub-view Filter Chips */}
-      <div
-        className="assembly-view-switcher"
-        style={{
-          display: 'flex',
-          gap: '8px',
-          marginTop: '16px',
-          overflowX: 'auto',
-          paddingBottom: '4px',
-        }}
-      >
+      <div className="assembly-view-switcher">
         <button
           type="button"
           onClick={() => setActiveTab('all')}
           className={`m3-btn m3-btn--small ${activeTab === 'all' ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
-          style={{ minHeight: '44px' }}
+          style={{ minHeight: '44px', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           👁️ Vista Completa
         </button>
@@ -1280,7 +1304,7 @@ export function AssemblySheetView({
           type="button"
           onClick={() => setActiveTab('exploded')}
           className={`m3-btn m3-btn--small ${activeTab === 'exploded' ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
-          style={{ minHeight: '44px' }}
+          style={{ minHeight: '44px', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           🗺️ Vista Explotada (#1, #2...)
         </button>
@@ -1288,7 +1312,7 @@ export function AssemblySheetView({
           type="button"
           onClick={() => setActiveTab('panels')}
           className={`m3-btn m3-btn--small ${activeTab === 'panels' ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
-          style={{ minHeight: '44px' }}
+          style={{ minHeight: '44px', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           🔍 Detalle de Paneles (Datum X, Y)
         </button>
@@ -1296,7 +1320,7 @@ export function AssemblySheetView({
           type="button"
           onClick={() => setActiveTab('gauges')}
           className={`m3-btn m3-btn--small ${activeTab === 'gauges' ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
-          style={{ minHeight: '44px' }}
+          style={{ minHeight: '44px', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           📏 Calibres y Vanos ({assemblySheet.gauges.length})
         </button>
@@ -1304,7 +1328,7 @@ export function AssemblySheetView({
           type="button"
           onClick={() => setActiveTab('steps')}
           className={`m3-btn m3-btn--small ${activeTab === 'steps' ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
-          style={{ minHeight: '44px' }}
+          style={{ minHeight: '44px', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           📋 Pasos de Armado ({completedSteps.size}/{assemblySheet.steps.length})
         </button>
@@ -1405,11 +1429,16 @@ export function AssemblySheetView({
             </div>
 
             {/* Row 2: Explosion Slider & Quick Presets & Feature Toggles */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', padding: '6px 12px', backgroundColor: 'var(--surface-2, #ede8dc)', borderRadius: '10px', border: '1px solid var(--border, #d9d2c3)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 300px' }}>
-                <label htmlFor="exploded-ratio-slider" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text, #1f2622)', whiteSpace: 'nowrap' }}>
-                  💥 Despiece:
-                </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '8px 12px', backgroundColor: 'var(--surface-2, #ede8dc)', borderRadius: '10px', border: '1px solid var(--border, #d9d2c3)' }}>
+              <div className="assembly-slider-box">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="exploded-ratio-slider" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text, #1f2622)', whiteSpace: 'nowrap' }}>
+                    💥 Despiece:
+                  </label>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, minWidth: '40px', textAlign: 'right', color: 'var(--primary, #56705f)' }}>
+                    {Math.round(explosionRatio * 100)}%
+                  </span>
+                </div>
                 <input
                   id="exploded-ratio-slider"
                   type="range"
@@ -1422,44 +1451,41 @@ export function AssemblySheetView({
                     setExplosionRatio(val);
                     onExplodedRatioChange?.(val);
                   }}
-                  style={{ flex: 1, accentColor: 'var(--primary, #56705f)', cursor: 'pointer', height: '6px' }}
+                  style={{ width: '100%', accentColor: 'var(--primary, #56705f)', cursor: 'pointer', height: '6px', margin: '4px 0' }}
                 />
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, minWidth: '40px', color: 'var(--primary, #56705f)' }}>
-                  {Math.round(explosionRatio * 100)}%
-                </span>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div className="assembly-slider-ticks">
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    className="assembly-slider-tick-btn"
                     onClick={() => {
                       setExplosionRatio(0);
                       onExplodedRatioChange?.(0);
                     }}
-                    style={{ minHeight: '28px', padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                    title="0% Armado"
                   >
-                    0% Armado
+                    Armado (0%)
                   </button>
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    className="assembly-slider-tick-btn"
                     onClick={() => {
                       setExplosionRatio(0.5);
                       onExplodedRatioChange?.(0.5);
                     }}
-                    style={{ minHeight: '28px', padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                    title="50% Despiece"
                   >
                     50%
                   </button>
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    className="assembly-slider-tick-btn"
                     onClick={() => {
                       setExplosionRatio(1.0);
                       onExplodedRatioChange?.(1.0);
                     }}
-                    style={{ minHeight: '28px', padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                    title="100% Máximo Despiece"
                   >
-                    100% Máx
+                    Máx. (100%)
                   </button>
                 </div>
               </div>
@@ -1496,15 +1522,15 @@ export function AssemblySheetView({
 
             {/* Row 3: Step-by-Step Sequence Filter */}
             {assemblySheet.steps && assemblySheet.steps.length > 0 && explodedViewMode === '2.5d' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted, #5c655f)', whiteSpace: 'nowrap' }}>
+              <div className="assembly-phase-filter-scroll">
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted, #5c655f)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   Fase de Montaje:
                 </span>
                 <button
                   type="button"
                   className={`m3-chip ${activeStepFilter === null ? 'm3-chip--selected' : ''}`}
                   onClick={() => setActiveStepFilter(null)}
-                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '28px' }}
+                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '32px', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   👁️ Todas ({assemblySheet.explodedMap.length} pzas)
                 </button>
@@ -1514,7 +1540,7 @@ export function AssemblySheetView({
                     type="button"
                     className={`m3-chip ${activeStepFilter === st.stepNumber ? 'm3-chip--selected' : ''}`}
                     onClick={() => setActiveStepFilter(activeStepFilter === st.stepNumber ? null : st.stepNumber)}
-                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '28px', whiteSpace: 'nowrap' }}
+                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '32px', whiteSpace: 'nowrap', flexShrink: 0 }}
                     title={st.instruction}
                   >
                     Paso {st.stepNumber}: {st.title.replace(/^[0-9.]+\s*/, '')}
@@ -1550,18 +1576,65 @@ export function AssemblySheetView({
               />
             </div>
           ) : (
-            renderExplodedSvg(
-              assemblySheet,
-              pieces,
-              selectedPieceId,
-              onSelectPiece,
-              explosionRatio,
-              viewAngle,
-              showTrajectories,
-              showBalloons,
-              showEdgeBanding,
-              activeStepFilter,
-            )
+            <div
+              className="assembly-diagram-wrapper"
+              onClick={() =>
+                setModalDiagram({
+                  title: '🗺️ Vista Explotada y Mapa de Piezas (#1, #2...)',
+                  content: renderExplodedSvg(
+                    assemblySheet,
+                    pieces,
+                    selectedPieceId,
+                    onSelectPiece,
+                    explosionRatio,
+                    viewAngle,
+                    showTrajectories,
+                    showBalloons,
+                    showEdgeBanding,
+                    activeStepFilter,
+                  ),
+                })
+              }
+              title="Toca para ampliar en pantalla completa"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setModalDiagram({
+                    title: '🗺️ Vista Explotada y Mapa de Piezas (#1, #2...)',
+                    content: renderExplodedSvg(
+                      assemblySheet,
+                      pieces,
+                      selectedPieceId,
+                      onSelectPiece,
+                      explosionRatio,
+                      viewAngle,
+                      showTrajectories,
+                      showBalloons,
+                      showEdgeBanding,
+                      activeStepFilter,
+                    ),
+                  });
+                }
+              }}
+            >
+              <div className="assembly-diagram-tap-hint">
+                <span>🔍 Tocar para ampliar</span>
+              </div>
+              {renderExplodedSvg(
+                assemblySheet,
+                pieces,
+                selectedPieceId,
+                onSelectPiece,
+                explosionRatio,
+                viewAngle,
+                showTrajectories,
+                showBalloons,
+                showEdgeBanding,
+                activeStepFilter,
+              )}
+            </div>
           )}
 
           {/* Selected Piece Inspection Card */}
@@ -1648,9 +1721,58 @@ export function AssemblySheetView({
             );
           })()}
 
-          {/* Parts reference summary table */}
-          <div style={{ marginTop: '12px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+          {/* Parts reference cards for mobile / narrow viewports (<= 560px) */}
+          <div className="assembly-parts-cards-wrapper">
+            {assemblySheet.explodedMap.map((p) => {
+              const isSel = selectedPieceId === p.pieceId;
+              return (
+                <div
+                  key={p.pieceId}
+                  className={`assembly-piece-card ${isSel ? 'assembly-piece-card--selected' : ''}`}
+                  onClick={() => onSelectPiece && onSelectPiece(isSel ? null : p.pieceId)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectPiece && onSelectPiece(isSel ? null : p.pieceId);
+                    }
+                  }}
+                >
+                  <div className="assembly-piece-card__header">
+                    <span className="assembly-piece-card__badge">
+                      #{p.referenceNumber}
+                    </span>
+                    <span className="assembly-piece-card__title">
+                      {p.name}
+                      <span className="assembly-piece-card__tech-id">({p.pieceId})</span>
+                    </span>
+                  </div>
+                  <div className="assembly-piece-card__details">
+                    <div>
+                      <strong>Corte:</strong> {p.dimensionsMm.width} × {p.dimensionsMm.height} × {p.dimensionsMm.thickness} mm
+                    </div>
+                    <div>
+                      <strong>Cantos:</strong> {p.bandedEdgesSummary}
+                    </div>
+                    <div
+                      style={{
+                        color: p.hardwarePreparedCount > 0 ? 'var(--primary, #56705f)' : 'var(--text-muted, #5c655f)',
+                        fontWeight: p.hardwarePreparedCount > 0 ? 600 : 400,
+                      }}
+                    >
+                      <strong>Pre-armado:</strong>{' '}
+                      {p.hardwarePreparedCount > 0 ? `✓ ${p.hardwarePreparedCount} mecanizados` : 'Ensamble directo'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Parts reference summary table for wider viewports (> 560px) */}
+          <div className="assembly-parts-table-wrapper">
+            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'var(--surface-2, #ede8dc)', borderBottom: '1px solid var(--border, #d9d2c3)' }}>
                   <th style={{ padding: '8px 10px' }}>#Ref</th>
@@ -1678,7 +1800,9 @@ export function AssemblySheetView({
                           {p.referenceNumber}
                         </span>
                       </td>
-                      <td style={{ padding: '8px 10px' }}><strong>{p.name}</strong> ({p.pieceId})</td>
+                      <td style={{ padding: '8px 10px' }}>
+                        <strong>{p.name}</strong> <span style={{ opacity: 0.7, fontSize: '0.8rem' }}>({p.pieceId})</span>
+                      </td>
                       <td style={{ padding: '8px 10px' }}>{p.dimensionsMm.width} × {p.dimensionsMm.height} × {p.dimensionsMm.thickness} mm</td>
                       <td style={{ padding: '8px 10px' }}>{p.bandedEdgesSummary}</td>
                       <td style={{ padding: '8px 10px', color: p.hardwarePreparedCount > 0 ? 'var(--primary, #56705f)' : 'var(--text-muted, #5c655f)', fontWeight: p.hardwarePreparedCount > 0 ? 'bold' : 'normal' }}>
@@ -1723,8 +1847,31 @@ export function AssemblySheetView({
           </div>
 
           {selectedPanel && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1.4fr) minmax(280px, 1fr)', gap: '16px', alignItems: 'start' }}>
-              <div>
+            <div className="assembly-panel-detail-grid">
+              <div
+                className="assembly-diagram-wrapper"
+                onClick={() =>
+                  setModalDiagram({
+                    title: `🔍 #${selectedPanel.referenceNumber} ${selectedPanel.name} — Datum (0,0)`,
+                    content: renderPanelDetailSvg(selectedPanel),
+                  })
+                }
+                title="Toca para ampliar en pantalla completa"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setModalDiagram({
+                      title: `🔍 #${selectedPanel.referenceNumber} ${selectedPanel.name} — Datum (0,0)`,
+                      content: renderPanelDetailSvg(selectedPanel),
+                    });
+                  }
+                }}
+              >
+                <div className="assembly-diagram-tap-hint">
+                  <span>🔍 Tocar para ampliar</span>
+                </div>
                 {renderPanelDetailSvg(selectedPanel)}
               </div>
 
@@ -1869,7 +2016,32 @@ export function AssemblySheetView({
                 Cotas Generales (mm)
               </span>
             </div>
-            {renderAssemblySvg(assemblySheet, pieces)}
+            <div
+              className="assembly-diagram-wrapper"
+              onClick={() =>
+                setModalDiagram({
+                  title: '📏 Esquema de Posicionamiento de Calibres y Vanos',
+                  content: renderAssemblySvg(assemblySheet, pieces),
+                })
+              }
+              title="Toca para ampliar en pantalla completa"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setModalDiagram({
+                    title: '📏 Esquema de Posicionamiento de Calibres y Vanos',
+                    content: renderAssemblySvg(assemblySheet, pieces),
+                  });
+                }
+              }}
+            >
+              <div className="assembly-diagram-tap-hint">
+                <span>🔍 Tocar para ampliar</span>
+              </div>
+              {renderAssemblySvg(assemblySheet, pieces)}
+            </div>
           </div>
         </div>
       )}
@@ -2068,6 +2240,15 @@ export function AssemblySheetView({
             })}
           </div>
         </div>
+      )}
+
+      {modalDiagram && (
+        <AssemblyDiagramModal
+          title={modalDiagram.title}
+          onClose={() => setModalDiagram(null)}
+        >
+          {modalDiagram.content}
+        </AssemblyDiagramModal>
       )}
     </section>
   );
