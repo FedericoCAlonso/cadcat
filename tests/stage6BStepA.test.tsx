@@ -175,7 +175,7 @@ describe('Stage 6B Step A: Assembly Guide Layout on the Phone', () => {
       expect(html).toContain('assembly-piece-card');
       expect(html).toContain('#1');
       expect(html).toContain('(side-left)');
-      expect(html).toContain('Corte:');
+      expect(html).toContain('Corte (An × Al × Esp):');
       expect(html).toContain('Cantos:');
       expect(html).toContain('Pre-armado:');
     });

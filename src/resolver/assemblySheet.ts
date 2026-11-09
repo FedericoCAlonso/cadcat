@@ -106,6 +106,49 @@ function getFriendlyPieceName(role: string): string {
 }
 
 /**
+ * Resolves the 2D planar cut dimensions for a piece.
+ * Consumes the exact cut dimensions (Cut Width x Cut Height x Thickness) identical to the Cut List CSV.
+ * Prioritizes cutDimensionsMm from ResolvedPieceWithCutSize; otherwise falls back to finished dimensionsMm
+ * or 2D contour width/height.
+ */
+export function getPieceCutDimensions(
+  piece: ResolvedPiece | { dimensionsMm?: { width: number; height: number }; cutDimensionsMm?: { width: number; height: number }; thicknessMm?: number; contour: { points: { x: number; y: number }[] } },
+): {
+  width: number;
+  height: number;
+  thickness: number;
+} {
+  const thickness = piece.thicknessMm ?? 18;
+
+  if ('cutDimensionsMm' in piece && piece.cutDimensionsMm) {
+    return {
+      width: Math.round(piece.cutDimensionsMm.width),
+      height: Math.round(piece.cutDimensionsMm.height),
+      thickness,
+    };
+  }
+
+  if ('dimensionsMm' in piece && piece.dimensionsMm) {
+    return {
+      width: Math.round(piece.dimensionsMm.width),
+      height: Math.round(piece.dimensionsMm.height),
+      thickness,
+    };
+  }
+
+  const polyMinX = Math.min(...piece.contour.points.map((pt) => pt.x));
+  const polyMaxX = Math.max(...piece.contour.points.map((pt) => pt.x));
+  const polyMinY = Math.min(...piece.contour.points.map((pt) => pt.y));
+  const polyMaxY = Math.max(...piece.contour.points.map((pt) => pt.y));
+
+  return {
+    width: Math.round(Math.max(1, polyMaxX - polyMinX)),
+    height: Math.round(Math.max(1, polyMaxY - polyMinY)),
+    thickness,
+  };
+}
+
+/**
  * Generate sequential assembly steps for the manual workshop.
  * Computes exact squaring diagonals, exploded mapping, panel pre-assembly details,
  * and uses assembly gauges (e.g., G1, G2) for precise shelf and divider placement without measuring.
@@ -194,8 +237,7 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   sortedPiecesForExplosion.forEach((p, idx) => {
     const refNum = idx + 1;
     pieceRefMap.set(p.id, refNum);
-    const size = determinePieceSpatialSize(p);
-    const thickness = p.thicknessMm ?? (size.z <= 6 ? size.z : 18);
+    const cutDims = getPieceCutDimensions(p);
 
     // Compute exploded visual displacement offset
     let dx = 0;
@@ -240,11 +282,7 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       pieceId: p.id,
       role: p.role,
       name: getFriendlyPieceName(p.role),
-      dimensionsMm: {
-        width: Math.round(size.x),
-        height: Math.round(size.y),
-        thickness,
-      },
+      dimensionsMm: cutDims,
       materialId: p.materialId,
       bandedEdgesSummary: bandedSummary,
       hardwarePreparedCount: preparedCount,
@@ -268,7 +306,7 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
   for (const panel of panelsRequiringDetail) {
     const refNum = pieceRefMap.get(panel.id) ?? 1;
-    const size = determinePieceSpatialSize(panel);
+    const cutDims = getPieceCutDimensions(panel);
     const panelSheet = machiningSheets.find((s) => s.pieceId === panel.id);
     const panelOps: PanelDetailItem['operations'] = [];
     const panelHardware: AssemblyHardwareRequirement[] = [];
@@ -291,8 +329,8 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       }
     } else {
       // Fallback: derive operations from module geometry and joints
-      const panelHeight = Math.max(size.x, size.y);
-      const panelDepth = Math.min(size.x, size.y) > 0 ? Math.min(size.x, size.y) : modDepth;
+      const panelHeight = cutDims.height;
+      const panelDepth = cutDims.width > 0 ? cutDims.width : modDepth;
 
       // Bottom joint
       if (panel.role.includes('side')) {
@@ -384,11 +422,7 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       referenceNumber: refNum,
       role: panel.role,
       name: getFriendlyPieceName(panel.role),
-      dimensionsMm: {
-        width: Math.round(size.x),
-        height: Math.round(size.y),
-        thickness: panel.thicknessMm ?? 18,
-      },
+      dimensionsMm: cutDims,
       bandedEdges: {
         top: true,
         bottom: false,
@@ -908,7 +942,7 @@ export function exportAssemblyGuidePdf(
   doc.setFont('helvetica', 'bold');
   doc.text('#Ref', margin + 3, y + 4.2);
   doc.text('Nombre / Rol', margin + 18, y + 4.2);
-  doc.text('Medidas Corte (W x H x Esp)', margin + 70, y + 4.2);
+  doc.text('Medidas Corte (Ancho x Alto x Esp)', margin + 70, y + 4.2);
   doc.text('Especificación de Cantos', margin + 125, y + 4.2);
   y += 7;
 

@@ -202,6 +202,7 @@ export {
   type PanelDetailItem,
   type AssemblySheet,
   type GenerateAssemblySheetInput,
+  getPieceCutDimensions,
   generateAssemblySheet,
   exportAssemblyGuidePdf,
 } from './assemblySheet';

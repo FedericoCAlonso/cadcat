@@ -1281,8 +1281,8 @@ export function AssemblySheetView({
           <strong>Dimensiones:</strong> {assemblySheet.moduleDimensionsMm.width} × {assemblySheet.moduleDimensionsMm.height} × {assemblySheet.moduleDimensionsMm.depth} mm
         </span>
         <span style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
-        <span style={{ fontSize: '0.85rem', color: 'var(--danger, #b3412f)', fontWeight: 'bold' }}>
-          📐 Diagonal de Escuadra: {assemblySheet.squaringDiagonalMm} mm (±1 mm)
+        <span style={{ fontSize: '0.85rem', color: 'var(--text, #1f2622)' }}>
+          <strong>📐 Diagonal de Escuadra:</strong> {assemblySheet.squaringDiagonalMm} mm (±1 mm)
         </span>
         <span style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
         <span style={{ fontSize: '0.85rem', color: 'var(--primary, #56705f)', fontWeight: 'bold' }}>
@@ -1682,7 +1682,7 @@ export function AssemblySheetView({
                       {selectedItem.name} <span style={{ opacity: 0.8, fontSize: '0.85rem' }}>({selectedItem.pieceId})</span>
                     </h4>
                     <div style={{ fontSize: '0.82rem', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      <span><strong>Corte:</strong> {selectedItem.dimensionsMm.width} × {selectedItem.dimensionsMm.height} × {selectedItem.dimensionsMm.thickness} mm</span>
+                      <span><strong>Corte (An × Al × Esp):</strong> {selectedItem.dimensionsMm.width} × {selectedItem.dimensionsMm.height} × {selectedItem.dimensionsMm.thickness} mm</span>
                       <span>•</span>
                       <span><strong>Cantos:</strong> {selectedItem.bandedEdgesSummary}</span>
                       <span>•</span>
@@ -1750,7 +1750,7 @@ export function AssemblySheetView({
                   </div>
                   <div className="assembly-piece-card__details">
                     <div>
-                      <strong>Corte:</strong> {p.dimensionsMm.width} × {p.dimensionsMm.height} × {p.dimensionsMm.thickness} mm
+                      <strong>Corte (An × Al × Esp):</strong> {p.dimensionsMm.width} × {p.dimensionsMm.height} × {p.dimensionsMm.thickness} mm
                     </div>
                     <div>
                       <strong>Cantos:</strong> {p.bandedEdgesSummary}
@@ -1777,7 +1777,7 @@ export function AssemblySheetView({
                 <tr style={{ background: 'var(--surface-2, #ede8dc)', borderBottom: '1px solid var(--border, #d9d2c3)' }}>
                   <th style={{ padding: '8px 10px' }}>#Ref</th>
                   <th style={{ padding: '8px 10px' }}>Pieza / Rol</th>
-                  <th style={{ padding: '8px 10px' }}>Corte (W × H × Esp)</th>
+                  <th style={{ padding: '8px 10px' }}>Corte (Ancho × Alto × Esp)</th>
                   <th style={{ padding: '8px 10px' }}>Cantos Requeridos</th>
                   <th style={{ padding: '8px 10px' }}>Pre-armado</th>
                 </tr>
@@ -1887,7 +1887,7 @@ export function AssemblySheetView({
                   #{selectedPanel.referenceNumber} {selectedPanel.name}
                 </h4>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted, #5c655f)' }}>
-                  {selectedPanel.dimensionsMm.width} × {selectedPanel.dimensionsMm.height} × {selectedPanel.dimensionsMm.thickness} mm
+                  <strong>Corte (An × Al × Esp):</strong> {selectedPanel.dimensionsMm.width} × {selectedPanel.dimensionsMm.height} × {selectedPanel.dimensionsMm.thickness} mm
                 </p>
 
                 <div style={{ fontSize: '0.8rem', color: 'var(--danger, #b3412f)', fontWeight: 'bold', marginBottom: '10px' }}>
