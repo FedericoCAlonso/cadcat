@@ -6,6 +6,8 @@
   "viewerFillRatio": 0.85,
   "showDimensionsByDefault": true,
   "showEdgeBandsByDefault": true,
+  "edgeBandHighlightStyle": "line",
+  "edgeBandLineWidthPx": 2,
   "edgeBandHighlightColor": {
     "light": "#E91E63",
     "dark": "#FF4081"

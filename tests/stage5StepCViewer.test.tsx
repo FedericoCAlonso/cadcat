@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { renderToString } from 'react-dom/server';
 import {
   resolvePieceBandedEdges,
@@ -297,6 +299,123 @@ describe('Stage 5 Step C: 3D Edge Banding Highlighting & Toolbar Controls', () =
       // At 2720mm: frustum height = 2253.3mm -> 2.67mm/px -> 2.5px * 2.67 = ~6.67mm > 1.2mm
       expect(thickness).toBeGreaterThan(6.0);
       expect(thickness).toBeLessThan(7.5);
+    });
+  });
+
+  describe('Fix Commit A: Edge Band Highlight Line Style', () => {
+    it('ensures projected width is 3 px or less at 390x844 and 1366x768 viewports', () => {
+      const box: SpatialPieceBox = {
+        pieceId: 'drawer-front-1',
+        role: 'drawer-front',
+        materialId: 'mat-front',
+        thicknessMm: 18,
+        positionMm: { x: 250, y: 100, z: 10 },
+        centerMm: { x: 250, y: 100, z: 10 },
+        sizeMm: { x: 495, y: 140, z: 18 },
+      };
+
+      for (const [w, h] of [[390, 844], [1366, 768]] as const) {
+        const group = buildPieceEdgeBandHighlightGroup(
+          box,
+          { top: true, bottom: true, left: true, right: true },
+          0xe91e63,
+          {
+            style: 'line',
+            lineWidthPx: DEFAULT_UI_CONFIG.edgeBandLineWidthPx,
+            viewportResolution: { width: w, height: h },
+          },
+        );
+
+        expect(group.children.length).toBe(4);
+        for (const child of group.children) {
+          expect(child).toBeInstanceOf(LineSegments2);
+          const mat = (child as LineSegments2).material as LineMaterial;
+          expect(mat).toBeInstanceOf(LineMaterial);
+          // Projected width must be 3 px or less
+          expect(mat.linewidth).toBeLessThanOrEqual(3);
+          expect(mat.linewidth).toBe(DEFAULT_UI_CONFIG.edgeBandLineWidthPx);
+          // Resolution matches viewport
+          expect(mat.resolution.x).toBe(w);
+          expect(mat.resolution.y).toBe(h);
+        }
+      }
+    });
+
+    it('verifies world position with an off-center piece does not stick out of the piece', () => {
+      const boundsCenter = { x: 300, y: 400, z: 280 };
+
+      // Off-center drawer front in right bay
+      const offCenterBox: SpatialPieceBox = {
+        pieceId: 'bay-2-drawer-front-1',
+        role: 'drawer-front',
+        materialId: 'mat-front',
+        thicknessMm: 18,
+        positionMm: { x: 450, y: 150, z: 20 },
+        centerMm: { x: 450, y: 150, z: 20 },
+        sizeMm: { x: 280, y: 140, z: 18 },
+      };
+
+      const pieceGroup = new THREE.Group();
+      pieceGroup.scale.x = -1;
+      pieceGroup.position.x = 2 * boundsCenter.x;
+
+      const pieceGeom = new THREE.BoxGeometry(offCenterBox.sizeMm.x, offCenterBox.sizeMm.y, offCenterBox.sizeMm.z);
+      const pieceMesh = new THREE.Mesh(pieceGeom, new THREE.MeshBasicMaterial());
+      pieceMesh.position.set(offCenterBox.positionMm.x, offCenterBox.positionMm.y, offCenterBox.positionMm.z);
+
+      const edgeGroup = buildPieceEdgeBandHighlightGroup(
+        offCenterBox,
+        { top: true, bottom: true, left: true, right: true },
+        0xe91e63,
+        {
+          style: 'line',
+          lineWidthPx: 2,
+          viewportResolution: { width: 390, height: 844 },
+        },
+      );
+      pieceMesh.add(edgeGroup);
+      pieceGroup.add(pieceMesh);
+
+      pieceGroup.updateMatrixWorld(true);
+
+      const pieceBBox = new THREE.Box3().setFromObject(pieceMesh);
+      const edgeBBox = new THREE.Box3().setFromObject(edgeGroup);
+
+      // The highlight lines must tightly hug the piece without sticking out
+      expect(edgeBBox.min.x).toBeGreaterThanOrEqual(pieceBBox.min.x - 0.5);
+      expect(edgeBBox.max.x).toBeLessThanOrEqual(pieceBBox.max.x + 0.5);
+      expect(edgeBBox.min.y).toBeGreaterThanOrEqual(pieceBBox.min.y - 0.5);
+      expect(edgeBBox.max.y).toBeLessThanOrEqual(pieceBBox.max.y + 0.5);
+      expect(edgeBBox.min.z).toBeGreaterThanOrEqual(pieceBBox.min.z - 0.5);
+      expect(edgeBBox.max.z).toBeLessThanOrEqual(pieceBBox.max.z + 0.5);
+    });
+
+    it('preserves full face style in code for Stage 8 realistic materials', () => {
+      const box: SpatialPieceBox = {
+        pieceId: 'drawer-front-1',
+        role: 'drawer-front',
+        materialId: 'mat-front',
+        thicknessMm: 18,
+        positionMm: { x: 250, y: 100, z: 10 },
+        centerMm: { x: 250, y: 100, z: 10 },
+        sizeMm: { x: 495, y: 140, z: 18 },
+      };
+
+      const group = buildPieceEdgeBandHighlightGroup(
+        box,
+        { top: true, bottom: false, left: false, right: false },
+        0xe91e63,
+        {
+          style: 'face',
+          ribbonThicknessMm: 1.2,
+        },
+      );
+
+      expect(group.children.length).toBe(1);
+      expect(group.children[0]).toBeInstanceOf(THREE.Mesh);
+      const mesh = group.children[0] as THREE.Mesh;
+      expect(mesh.geometry).toBeInstanceOf(THREE.BoxGeometry);
+      expect(mesh.material).toBeInstanceOf(THREE.MeshStandardMaterial);
     });
   });
 });

@@ -63,6 +63,8 @@ export const uiDefaultsSchema = z.object({
   viewerFillRatio: z.number().positive().max(1).default(0.85),
   showDimensionsByDefault: z.boolean().default(true),
   showEdgeBandsByDefault: z.boolean().default(true),
+  edgeBandHighlightStyle: z.enum(['line', 'face']).default('line'),
+  edgeBandLineWidthPx: z.number().positive().max(3).default(2),
   edgeBandHighlightColor: z.object({
     light: z.string().default('#E91E63'),
     dark: z.string().default('#FF4081'),

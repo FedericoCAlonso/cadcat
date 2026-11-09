@@ -576,6 +576,13 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h, false);
+
+      // Update resolution for any LineMaterial in the scene (edge band highlights)
+      sceneRef.current?.traverse((obj) => {
+        if ('material' in obj && obj.material && (obj.material as { isLineMaterial?: boolean; resolution?: THREE.Vector2 }).isLineMaterial) {
+          (obj.material as { resolution: THREE.Vector2 }).resolution.set(w, h);
+        }
+      });
     };
 
     let observer: ResizeObserver | null = null;
@@ -1068,7 +1075,19 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             fovDegrees: 45,
             minScreenPx: DEFAULT_UI_CONFIG.minEdgeBandScreenPx,
           });
-          const edgeGroup = buildPieceEdgeBandHighlightGroup(item, bandedEdges, edgeColor, effectiveRibbonThickness);
+          const containerW = containerRef.current?.clientWidth || 600;
+          const containerH = containerRef.current?.clientHeight || 600;
+          const edgeGroup = buildPieceEdgeBandHighlightGroup(
+            item,
+            bandedEdges,
+            edgeColor,
+            effectiveRibbonThickness,
+            {
+              style: DEFAULT_UI_CONFIG.edgeBandHighlightStyle,
+              lineWidthPx: DEFAULT_UI_CONFIG.edgeBandLineWidthPx,
+              viewportResolution: { width: containerW, height: containerH },
+            },
+          );
           edgeGroup.visible = showEdgeBands;
           mesh.add(edgeGroup);
         }
