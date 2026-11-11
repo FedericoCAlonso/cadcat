@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactElement } from 'react';
+import { useState, useEffect, useCallback, type ReactElement } from 'react';
 import {
   type AssemblySheet,
   type AssemblyGauge,
@@ -14,6 +14,7 @@ import {
   type WallShelvingOutput,
 } from '../resolver';
 import { Viewport3D } from './Viewport3D';
+import type { CameraPresetView } from './ViewerToolbar';
 import { AssemblyDiagramModal } from './AssemblyDiagramModal';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { resolveNonOverlappingLabels, type RawOperationLabel, type PositionedOperationLabel } from './viewer/labelLayout';
@@ -1085,10 +1086,64 @@ export function AssemblySheetView({
   const [showTrajectories, setShowTrajectories] = useState<boolean>(true);
   const [showBalloons, setShowBalloons] = useState<boolean>(true);
   const [showEdgeBanding, setShowEdgeBanding] = useState<boolean>(true);
-  const [activeStepFilter, setActiveStepFilter] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
-  const [explodedViewMode, setExplodedViewMode] = useState<'2.5d' | '3d'>('2.5d');
+  const [explodedViewMode, setExplodedViewMode] = useState<'2.5d' | '3d'>('3d');
+  const [cameraPresetTrigger, setCameraPresetTrigger] = useState<{ view: CameraPresetView; id: number } | null>(null);
   const [modalDiagram, setModalDiagram] = useState<{ title: string; content: ReactElement } | null>(null);
+
+  const is3dCapable = Boolean(spatialBoxes && spatialBounds);
+  const effectiveViewMode = is3dCapable ? explodedViewMode : '2.5d';
+
+  // Step-aware piece isolation and guided assembly logic
+  const currentStep =
+    activeStepNumber !== null
+      ? assemblySheet?.steps?.find((s) => s.stepNumber === activeStepNumber) ?? null
+      : null;
+
+  const currentStepPieceIds = currentStep ? currentStep.piecesInvolved : null;
+
+  const priorAssembledPieceIds =
+    currentStep && assemblySheet?.steps
+      ? Array.from(
+          new Set(
+            assemblySheet.steps
+              .filter((s) => s.stepNumber < currentStep.stepNumber)
+              .flatMap((s) => s.piecesInvolved),
+          ),
+        )
+      : null;
+
+  const handleSelectStep = useCallback((stepNumber: number | null) => {
+    setActiveStepNumber((prev) => (prev === stepNumber ? null : stepNumber));
+  }, []);
+
+  const handlePrevStep = useCallback(() => {
+    if (!assemblySheet?.steps || assemblySheet.steps.length === 0) return;
+    if (activeStepNumber === null) {
+      setActiveStepNumber(assemblySheet.steps[assemblySheet.steps.length - 1]!.stepNumber);
+    } else {
+      const idx = assemblySheet.steps.findIndex((s) => s.stepNumber === activeStepNumber);
+      if (idx > 0) {
+        setActiveStepNumber(assemblySheet.steps[idx - 1]!.stepNumber);
+      } else {
+        setActiveStepNumber(null);
+      }
+    }
+  }, [activeStepNumber, assemblySheet?.steps]);
+
+  const handleNextStep = useCallback(() => {
+    if (!assemblySheet?.steps || assemblySheet.steps.length === 0) return;
+    if (activeStepNumber === null) {
+      setActiveStepNumber(assemblySheet.steps[0]!.stepNumber);
+    } else {
+      const idx = assemblySheet.steps.findIndex((s) => s.stepNumber === activeStepNumber);
+      if (idx >= 0 && idx < assemblySheet.steps.length - 1) {
+        setActiveStepNumber(assemblySheet.steps[idx + 1]!.stepNumber);
+      } else {
+        setActiveStepNumber(null);
+      }
+    }
+  }, [activeStepNumber, assemblySheet?.steps]);
 
   useEffect(() => {
     if (typeof explodedRatio === 'number') {
@@ -1428,13 +1483,13 @@ export function AssemblySheetView({
             {/* Row 1: Mode Switcher (2.5D vs 3D) & Angle Presets & Animation */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                {spatialBoxes && spatialBounds && (
+                {is3dCapable && (
                   <div className="m3-segmented-button" role="radiogroup" aria-label="Modo de vista explotada">
                     <button
                       type="button"
                       className={`m3-segmented-button__item ${explodedViewMode === '2.5d' ? 'selected' : ''}`}
                       onClick={() => setExplodedViewMode('2.5d')}
-                      style={{ minHeight: '34px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                      style={{ minHeight: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
                     >
                       📐 Axonométrica 2.5D
                     </button>
@@ -1442,21 +1497,62 @@ export function AssemblySheetView({
                       type="button"
                       className={`m3-segmented-button__item ${explodedViewMode === '3d' ? 'selected' : ''}`}
                       onClick={() => setExplodedViewMode('3d')}
-                      style={{ minHeight: '34px', padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                      style={{ minHeight: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
                     >
                       🧊 3D Interactivo
                     </button>
                   </div>
                 )}
 
-                {explodedViewMode === '2.5d' && (
+                {effectiveViewMode === '3d' && (
+                  <div className="m3-segmented-button" role="radiogroup" aria-label="Ángulo de cámara 3D">
+                    <button
+                      type="button"
+                      className="m3-segmented-button__item"
+                      onClick={() => setCameraPresetTrigger({ view: 'iso', id: Date.now() })}
+                      title="Vista Isométrica Tridimensional (CAD)"
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
+                    >
+                      📐 Iso
+                    </button>
+                    <button
+                      type="button"
+                      className="m3-segmented-button__item"
+                      onClick={() => setCameraPresetTrigger({ view: 'front', id: Date.now() })}
+                      title="Elevación Frontal Recta"
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
+                    >
+                      🔲 Frente
+                    </button>
+                    <button
+                      type="button"
+                      className="m3-segmented-button__item"
+                      onClick={() => setCameraPresetTrigger({ view: 'side', id: Date.now() })}
+                      title="Vista Lateral / Perfil"
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
+                    >
+                      📐 Lateral
+                    </button>
+                    <button
+                      type="button"
+                      className="m3-segmented-button__item"
+                      onClick={() => setCameraPresetTrigger({ view: 'top', id: Date.now() })}
+                      title="Vista en Planta / Cenital"
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
+                    >
+                      ⬇️ Planta
+                    </button>
+                  </div>
+                )}
+
+                {effectiveViewMode === '2.5d' && (
                   <div className="m3-segmented-button" role="radiogroup" aria-label="Ángulo de visualización">
                     <button
                       type="button"
                       className={`m3-segmented-button__item ${viewAngle === 'iso-right' ? 'selected' : ''}`}
                       onClick={() => setViewAngle('iso-right')}
                       title="Isométrica Frente-Derecha (30°/30°)"
-                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
                     >
                       ↗️ Iso Der.
                     </button>
@@ -1465,7 +1561,7 @@ export function AssemblySheetView({
                       className={`m3-segmented-button__item ${viewAngle === 'iso-left' ? 'selected' : ''}`}
                       onClick={() => setViewAngle('iso-left')}
                       title="Isométrica Frente-Izquierda"
-                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
                     >
                       ↖️ Iso Izq.
                     </button>
@@ -1474,7 +1570,7 @@ export function AssemblySheetView({
                       className={`m3-segmented-button__item ${viewAngle === 'top' ? 'selected' : ''}`}
                       onClick={() => setViewAngle('top')}
                       title="Vista Cenital Superior"
-                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
                     >
                       ⬇️ Cenital
                     </button>
@@ -1483,7 +1579,7 @@ export function AssemblySheetView({
                       className={`m3-segmented-button__item ${viewAngle === 'front' ? 'selected' : ''}`}
                       onClick={() => setViewAngle('front')}
                       title="Elevación Frontal"
-                      style={{ minHeight: '34px', padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
                     >
                       ➡️ Frontal
                     </button>
@@ -1496,7 +1592,7 @@ export function AssemblySheetView({
                 type="button"
                 className={`m3-btn m3-btn--small ${isAnimating ? 'm3-btn--filled' : 'm3-btn--tonal'}`}
                 onClick={() => setIsAnimating(!isAnimating)}
-                style={{ minHeight: '34px', padding: '0.25rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                style={{ minHeight: '44px', padding: '0.35rem 0.85rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                 title="Animar o simular el ensamble y despiece continuo del mueble"
               >
                 <span>{isAnimating ? '⏸ Pausar' : '▶ Animar Ensamble'}</span>
@@ -1565,7 +1661,7 @@ export function AssemblySheetView({
                 </div>
               </div>
 
-              {explodedViewMode === '2.5d' && (
+              {effectiveViewMode === '2.5d' && (
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
                     <input
@@ -1595,38 +1691,186 @@ export function AssemblySheetView({
               )}
             </div>
 
-            {/* Row 3: Step-by-Step Sequence Filter */}
-            {assemblySheet.steps && assemblySheet.steps.length > 0 && explodedViewMode === '2.5d' && (
-              <div className="assembly-phase-filter-scroll">
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted, #5c655f)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  Fase de Montaje:
-                </span>
-                <button
-                  type="button"
-                  className={`m3-chip ${activeStepFilter === null ? 'm3-chip--selected' : ''}`}
-                  onClick={() => setActiveStepFilter(null)}
-                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '32px', whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  👁️ Todas ({assemblySheet.explodedMap.length} pzas)
-                </button>
-                {assemblySheet.steps.map((st) => (
+            {/* Row 3: Step-by-Step Guided Navigation */}
+            {assemblySheet.steps && assemblySheet.steps.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--surface-variant, #f1ede4)',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border, #d9d2c3)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text, #1f2622)', whiteSpace: 'nowrap' }}>
+                    🛠️ Armado Guiado:
+                  </span>
                   <button
-                    key={st.stepNumber}
                     type="button"
-                    className={`m3-chip ${activeStepFilter === st.stepNumber ? 'm3-chip--selected' : ''}`}
-                    onClick={() => setActiveStepFilter(activeStepFilter === st.stepNumber ? null : st.stepNumber)}
-                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', minHeight: '32px', whiteSpace: 'nowrap', flexShrink: 0 }}
-                    title={st.instruction}
+                    className="m3-btn m3-btn--tonal"
+                    onClick={handlePrevStep}
+                    disabled={activeStepNumber === null || activeStepNumber === assemblySheet.steps[0]?.stepNumber}
+                    style={{ minHeight: '44px', minWidth: '44px', padding: '0.35rem 0.75rem', fontSize: '0.82rem' }}
+                    title="Paso anterior de armado"
                   >
-                    Paso {st.stepNumber}: {st.title.replace(/^[0-9.]+\s*/, '')}
+                    ◀ Anterior
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    className={`m3-chip ${activeStepNumber === null ? 'm3-chip--selected' : ''}`}
+                    onClick={() => handleSelectStep(null)}
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', minHeight: '44px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >
+                    👁️ Todo ({assemblySheet.explodedMap.length} pzas)
+                  </button>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--filled"
+                    onClick={handleNextStep}
+                    style={{ minHeight: '44px', padding: '0.35rem 0.85rem', fontSize: '0.82rem' }}
+                    title="Avanzar al siguiente paso de montaje"
+                  >
+                    {activeStepNumber === null
+                      ? 'Iniciar Paso 1 ▶'
+                      : activeStepNumber === assemblySheet.steps[assemblySheet.steps.length - 1]?.stepNumber
+                      ? 'Finalizar / Ver Todo 👁️'
+                      : 'Paso Siguiente ▶'}
+                  </button>
+                </div>
+
+                <div
+                  className="assembly-phase-filter-scroll"
+                  style={{ display: 'flex', gap: '6px', overflowX: 'auto', maxWidth: '100%', padding: '2px 0' }}
+                >
+                  {assemblySheet.steps.map((st) => {
+                    const isDone = completedSteps.has(st.stepNumber);
+                    const isCurrent = activeStepNumber === st.stepNumber;
+                    return (
+                      <button
+                        key={st.stepNumber}
+                        type="button"
+                        className={`m3-chip ${isCurrent ? 'm3-chip--selected' : ''}`}
+                        onClick={() => handleSelectStep(st.stepNumber)}
+                        style={{
+                          fontSize: '0.78rem',
+                          padding: '0.35rem 0.75rem',
+                          minHeight: '44px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                          border: isDone ? '1px solid var(--success, #10b981)' : undefined,
+                          fontWeight: isCurrent ? 700 : 500,
+                        }}
+                        title={st.instruction}
+                      >
+                        {isDone ? '✓ ' : ''}Paso {st.stepNumber}: {st.title.replace(/^[0-9.]+\s*/, '')}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
 
+          {/* Active Step Context Card */}
+          {currentStep && (
+            <div
+              className="m3-card"
+              style={{
+                marginBottom: '12px',
+                padding: '12px 16px',
+                backgroundColor: 'var(--primary-container, #d8e4dc)',
+                color: 'var(--on-primary-container, #15251c)',
+                border: '1px solid var(--primary, #56705f)',
+                borderRadius: '12px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                boxShadow: 'var(--md-sys-elevation-1)',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: '240px' }}>
+                <span
+                  style={{
+                    fontSize: '0.74rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    fontWeight: 800,
+                    color: 'var(--on-primary-container, #15251c)',
+                    opacity: 0.85,
+                    display: 'block',
+                    marginBottom: '2px',
+                  }}
+                >
+                  Fase: {translateAssemblyPhase(currentStep.phase)}
+                </span>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-primary-container, #15251c)' }}>
+                  Paso {currentStep.stepNumber}: {currentStep.title}
+                </div>
+                <div style={{ fontSize: '0.84rem', marginTop: '4px', opacity: 0.95, lineHeight: 1.4 }}>
+                  {currentStep.instruction}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {currentStep.criticalDimensionMm && (
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--surface, #ffffff)',
+                      color: 'var(--text, #1f2622)',
+                      fontWeight: 600,
+                      border: '1px solid var(--border, #d9d2c3)',
+                    }}
+                  >
+                    📐 {currentStep.criticalDimensionMm.label}: {currentStep.criticalDimensionMm.valueMm} mm (±{currentStep.criticalDimensionMm.toleranceMm} mm)
+                  </span>
+                )}
+                {currentStep.hardwareSummary && (
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--surface, #ffffff)',
+                      color: 'var(--text, #1f2622)',
+                      fontWeight: 600,
+                      border: '1px solid var(--border, #d9d2c3)',
+                    }}
+                  >
+                    🔩 {currentStep.hardwareSummary}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="m3-btn m3-btn--small"
+                  onClick={() => toggleStep(currentStep.stepNumber)}
+                  style={{
+                    minHeight: '44px',
+                    padding: '0.35rem 0.85rem',
+                    fontSize: '0.82rem',
+                    backgroundColor: completedSteps.has(currentStep.stepNumber) ? 'var(--primary, #56705f)' : 'var(--surface, #ffffff)',
+                    color: completedSteps.has(currentStep.stepNumber) ? 'var(--on-primary, #ffffff)' : 'var(--text, #1f2622)',
+                    border: '1px solid var(--border, #d9d2c3)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {completedSteps.has(currentStep.stepNumber) ? '✓ Completado' : 'Marcar Completado'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Viewer: 3D Viewport or 2.5D SVG */}
-          {explodedViewMode === '3d' && spatialBoxes && spatialBounds ? (
+          {effectiveViewMode === '3d' && spatialBoxes && spatialBounds ? (
             <div
               style={{
                 width: '100%',
@@ -1648,6 +1892,9 @@ export function AssemblySheetView({
                 }}
                 selectedPieceId={selectedPieceId ?? null}
                 onSelectPiece={onSelectPiece ?? (() => {})}
+                activeStepPieceIds={currentStepPieceIds}
+                assembledPieceIds={priorAssembledPieceIds}
+                cameraPresetTrigger={cameraPresetTrigger}
               />
             </div>
           ) : (
@@ -1666,7 +1913,7 @@ export function AssemblySheetView({
                     showTrajectories,
                     showBalloons,
                     showEdgeBanding,
-                    activeStepFilter,
+                    activeStepNumber,
                   ),
                 })
               }
@@ -1688,7 +1935,7 @@ export function AssemblySheetView({
                       showTrajectories,
                       showBalloons,
                       showEdgeBanding,
-                      activeStepFilter,
+                      activeStepNumber,
                     ),
                   });
                 }
@@ -1707,7 +1954,7 @@ export function AssemblySheetView({
                 showTrajectories,
                 showBalloons,
                 showEdgeBanding,
-                activeStepFilter,
+                activeStepNumber,
               )}
             </div>
           )}

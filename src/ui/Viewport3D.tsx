@@ -87,6 +87,12 @@ export interface Viewport3DProps {
   initialMachiningMode?: MachiningDisplayMode;
   /** Initial edge band highlights state (defaults to config showEdgeBandsByDefault). */
   initialShowEdgeBands?: boolean;
+  /** Active step piece IDs to highlight during guided assembly. */
+  activeStepPieceIds?: string[] | null;
+  /** Pieces assembled in prior steps to show as solid in guided assembly. */
+  assembledPieceIds?: string[] | null;
+  /** Programmatic camera view preset trigger. */
+  cameraPresetTrigger?: { view: CameraPresetView; id: number } | null;
 }
 
 /**
@@ -180,6 +186,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     countertopCalculation,
     interferences,
     pieceEdgeBandOverrides,
+    activeStepPieceIds,
+    assembledPieceIds,
+    cameraPresetTrigger,
   } = props;
 
   const lastValidBoundsRef = useRef<ModuleSpatialBounds>(
@@ -972,6 +981,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         : buildCustomPieceGeometry(item, matchedPiece);
 
       const isSelected = item.pieceId === selectedPieceId;
+      const isStepModeActive = Boolean(activeStepPieceIds && activeStepPieceIds.length > 0);
+      const isStepActive = isStepModeActive ? (activeStepPieceIds?.includes(item.pieceId) ?? false) : true;
+      const isPriorAssembled = isStepModeActive && assembledPieceIds ? assembledPieceIds.includes(item.pieceId) : false;
+      const isFuturePiece = isStepModeActive && !isStepActive && !isPriorAssembled;
+
       const currentTheme: 'light' | 'dark' =
         typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
           ? 'dark'
@@ -983,15 +997,29 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         colorByRole,
         currentTheme,
       );
-      const emissiveColor = isSelected ? 0x56705f : 0x000000;
+
+      let emissiveColor = 0x000000;
+      let emissiveIntensity = 0.0;
+      if (isSelected) {
+        emissiveColor = 0x56705f;
+        emissiveIntensity = 0.45;
+      } else if (isStepModeActive && isStepActive) {
+        emissiveColor = 0x2e6b4d;
+        emissiveIntensity = 0.40;
+      }
 
       const mat = new THREE.MeshStandardMaterial({
-        color: pbrStyle.color,
-        roughness: pbrStyle.roughness,
-        metalness: pbrStyle.metalness,
+        color: isFuturePiece
+          ? (currentTheme === 'dark' ? 0x2a352e : 0xdad5c8)
+          : pbrStyle.color,
+        roughness: isFuturePiece ? 0.9 : pbrStyle.roughness,
+        metalness: isFuturePiece ? 0.05 : pbrStyle.metalness,
         wireframe,
-        emissive: emissiveColor,
-        emissiveIntensity: isSelected ? 0.35 : 0.0,
+        emissive: isFuturePiece ? 0x000000 : emissiveColor,
+        emissiveIntensity: isFuturePiece ? 0.0 : emissiveIntensity,
+        transparent: isFuturePiece,
+        opacity: isFuturePiece ? 0.16 : 0.95,
+        depthWrite: !isFuturePiece,
       });
 
       const mesh = new THREE.Mesh(geom, mat);
@@ -1028,15 +1056,19 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       // Edges helper for clear outline
       const edges = new THREE.EdgesGeometry(geom);
       const lineMat = new THREE.LineBasicMaterial({
-        color: isSelected ? 0xffffff : pbrStyle.wireframeColor,
+        color: isFuturePiece
+          ? (currentTheme === 'dark' ? 0x4a554e : 0xb5afa3)
+          : (isSelected ? 0xffffff : pbrStyle.wireframeColor),
         linewidth: 1,
+        transparent: isFuturePiece,
+        opacity: isFuturePiece ? 0.4 : 0.85,
       });
       const wire = new THREE.LineSegments(edges, lineMat);
       wire.visible = showLines;
       mesh.add(wire);
 
       // Visual 3D Machining features (holes, hinge cups, grooves, cutouts)
-      if (machiningSheets) {
+      if (machiningSheets && !isFuturePiece) {
         const sheet = machiningSheets.find((s) => s.pieceId === item.pieceId);
         if (sheet && (sheet.totalOperations > 0 || (sheet.customOperations && sheet.customOperations.length > 0))) {
           const mGroup = buildPieceMachining3DGroup(sheet, item.sizeMm);
@@ -1065,7 +1097,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       }
 
       // Edge band highlight ribbons (Stage 5 Step C)
-      if (matchedPiece) {
+      if (matchedPiece && !isFuturePiece) {
         const pieceOverride = pieceEdgeBandOverrides?.[matchedPiece.id] ?? null;
         const bandedEdges = resolvePieceBandedEdges(matchedPiece, pieceOverride);
         if (bandedEdges.top || bandedEdges.bottom || bandedEdges.left || bandedEdges.right) {
@@ -1183,7 +1215,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
       prevTargetRef.current = { ...fit.target };
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, interferences, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, interferences, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides, activeStepPieceIds, assembledPieceIds]);
 
   // Handle auto-fit / zoom to fit module
   const handleFitCamera = useCallback(() => {
@@ -1256,6 +1288,13 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     prevTargetRef.current = { ...bounds.center };
     userHasMovedCameraRef.current = true;
   };
+
+  // React to programmatic camera preset view triggers (e.g. from Assembly Guide)
+  useEffect(() => {
+    if (cameraPresetTrigger) {
+      setCameraView(cameraPresetTrigger.view);
+    }
+  }, [cameraPresetTrigger]);
 
   return (
     <section aria-labelledby="viewport-heading" className="m3-card viewport-3d-card">

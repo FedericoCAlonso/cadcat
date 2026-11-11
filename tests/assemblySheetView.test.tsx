@@ -10,6 +10,8 @@ import {
   type ResolvedPiece,
   type AssemblySheet,
   type WallShelvingDefinition,
+  type SpatialPieceBox,
+  type ModuleSpatialBounds,
 } from '../src/resolver';
 
 describe('AssemblySheetView Component', () => {
@@ -211,5 +213,61 @@ describe('AssemblySheetView Component', () => {
     // Selected piece inspection card
     expect(html).toContain('Lateral Izquierdo');
     expect(html).toContain('Ver Plano con Cotas Datum (0,0)');
+  });
+
+  it('renders 3D interactive mode by default when spatial boxes are provided, with CAD angle presets and guided assembly navigation', () => {
+    const sheet: AssemblySheet = generateAssemblySheet({
+      module: {
+        moduleId: 'cab-3d-guided',
+        pieces: samplePieces,
+        joints: [],
+      },
+    });
+
+    const mockSpatialBoxes: SpatialPieceBox[] = samplePieces.map((p) => ({
+      pieceId: p.id,
+      role: p.role,
+      materialId: p.materialId,
+      thicknessMm: p.thicknessMm ?? 18,
+      positionMm: { x: p.positionMm?.x ?? 0, y: p.positionMm?.y ?? 0, z: p.positionMm?.z ?? 0 },
+      sizeMm: { x: p.dimensionsMm?.width ?? 500, y: p.dimensionsMm?.height ?? 500, z: p.thicknessMm ?? 18 },
+      centerMm: { x: (p.positionMm?.x ?? 0) + 250, y: (p.positionMm?.y ?? 0) + 250, z: (p.positionMm?.z ?? 0) + 9 },
+    }));
+
+    const mockSpatialBounds: ModuleSpatialBounds = {
+      min: { x: 0, y: 0, z: 0 },
+      max: { x: 600, y: 800, z: 560 },
+      size: { x: 600, y: 800, z: 560 },
+      center: { x: 300, y: 400, z: 280 },
+    };
+
+    const html = renderToString(
+      <AssemblySheetView
+        assemblySheet={sheet}
+        pieces={samplePieces}
+        spatialBoxes={mockSpatialBoxes}
+        spatialBounds={mockSpatialBounds}
+        onSelectPiece={vi.fn()}
+      />
+    );
+
+    // Mode segmented buttons
+    expect(html).toContain('3D Interactivo');
+    expect(html).toContain('Axonométrica 2.5D');
+
+    // CAD Camera Presets in 3D Mode
+    expect(html).toContain('Iso');
+    expect(html).toContain('Frente');
+    expect(html).toContain('Lateral');
+    expect(html).toContain('Planta');
+
+    // Step-by-Step Guided Navigation
+    expect(html).toContain('Armado Guiado:');
+    expect(html).toContain('◀ Anterior');
+    expect(html).toContain('Iniciar Paso 1 ▶');
+    expect(html).toContain('Todo');
+
+    // 3D Viewport rendered
+    expect(html).toContain('viewport-3d-card');
   });
 });

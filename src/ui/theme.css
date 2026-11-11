@@ -4953,6 +4953,7 @@ legend.builder-section-title {
   container-name: assembly-guide;
   width: 100%;
   box-sizing: border-box;
+  padding-bottom: 96px; /* Prevents overlap with mobile fixed bottom navigation bar */
 }
 
 /* 1. Broken text fixes: Horizontal scrolling tab row with fade */
@@ -4993,10 +4994,14 @@ legend.builder-section-title {
 .assembly-slider-tick-btn {
   background: none;
   border: none;
-  padding: 2px 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--primary, #56705f);
+  padding: 4px 6px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text, #1f2622);
   cursor: pointer;
   white-space: nowrap;
   border-radius: 4px;
