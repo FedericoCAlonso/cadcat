@@ -60,6 +60,7 @@
   "assemblyGuidePartsCardThresholdPx": 560,
   "assemblyGuideModalMaxZoom": 5.0,
   "assemblyGuideModalMinZoom": 0.5,
+  "panelDetailMinFontSizePx": 11,
   "inspectorWidthPx": 320,
   "dimensions": {
     "width": {

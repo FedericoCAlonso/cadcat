@@ -15,6 +15,8 @@ import {
 } from '../resolver';
 import { Viewport3D } from './Viewport3D';
 import { AssemblyDiagramModal } from './AssemblyDiagramModal';
+import { DEFAULT_UI_CONFIG } from '../config';
+import { resolveNonOverlappingLabels, type RawOperationLabel } from './viewer/labelLayout';
 
 export interface AssemblySheetViewProps {
   assemblySheet: AssemblySheet | null;
@@ -264,8 +266,8 @@ function renderExplodedSvg(
 
   const spanX = Math.max(1, maxIsoX - minIsoX);
   const spanY = Math.max(1, maxIsoY - minIsoY);
-  const marginX = 75;
-  const marginY = 65;
+  const marginX = 95;
+  const marginY = 75;
   const drawW = width - 2 * marginX;
   const drawH = height - 2 * marginY;
   const scale = Math.min(drawW / spanX, drawH / spanY);
@@ -388,8 +390,8 @@ function renderExplodedSvg(
         const dx = fcX - width / 2;
         const dy = fcY - height / 2;
         const len = Math.hypot(dx, dy) || 1;
-        const bX = Math.max(30, Math.min(width - 30, fcX + (dx / len) * 52));
-        const bY = Math.max(30, Math.min(height - 30, fcY + (dy / len) * 40));
+        const bX = Math.max(38, Math.min(width - 38, fcX + (dx / len) * 52));
+        const bY = Math.max(38, Math.min(height - 38, fcY + (dy / len) * 40));
 
         return (
           <g
@@ -469,42 +471,82 @@ function renderExplodedSvg(
 
 /**
  * Render technical 2D shop drawing for a specific panel pre-machining detail.
+ * Dynamically sizes the SVG viewBox around the panel and its CAD annotations, eliminating
+ * dead margins to center and maximize drawing size in mobile cards. Prevents operation
+ * label collisions via non-overlapping label layout and guarantees minimum font sizes.
  */
 function renderPanelDetailSvg(
   panel: AssemblySheet['panelDetails'][0],
 ): ReactElement {
-  const width = 680;
-  const height = 340;
-  const marginL = 70;
-  const marginR = 50;
-  const marginT = 40;
-  const marginB = 55;
-
-  const drawW = width - marginL - marginR;
-  const drawH = height - marginT - marginB;
-
   const pW = panel.dimensionsMm.width;
   const pH = panel.dimensionsMm.height;
-  const scale = Math.min(drawW / Math.max(1, pW), drawH / Math.max(1, pH));
+
+  // Target bounding size for the panel itself inside the SVG coordinate space
+  const targetDrawW = 500;
+  const targetDrawH = 250;
+  const scale = Math.min(targetDrawW / Math.max(1, pW), targetDrawH / Math.max(1, pH));
 
   const actualW = pW * scale;
   const actualH = pH * scale;
 
-  const originX = marginL + (drawW - actualW) / 2;
-  const originY = marginT + actualH + (drawH - actualH) / 2; // Bottom origin Y
+  // Clearances for CAD annotations:
+  // Left: Height dimension line (-26) and rotated label (-32 to -54)
+  const marginL = 56;
+  // Right: Clearance for operation labels extending past panel border
+  const marginR = 48;
+  // Top: Clearance above panel top
+  const marginT = 24;
+  // Bottom: Width dimension line (+26), text (+38), and Datum mark note (+18)
+  const marginB = 46;
+
+  const contentW = Math.ceil(marginL + actualW + marginR);
+  const contentH = Math.ceil(marginT + actualH + marginB);
+
+  const originX = marginL;
+  const originY = marginT + actualH; // Bottom origin Y
 
   // Coordinate conversion from Datum (0,0): X from front (left), Y from bottom (upwards)
   const toSvgX = (xMm: number) => originX + xMm * scale;
   const toSvgY = (yMm: number) => originY - yMm * scale;
 
+  // Compute font size guaranteed to meet panelDetailMinFontSizePx on screen (mobile card ~350px)
+  const minFontPx = DEFAULT_UI_CONFIG.panelDetailMinFontSizePx ?? 11;
+  const baseFontSize = Math.max(minFontPx, Math.round(minFontPx * Math.max(1, contentW / 350)));
+  const labelFontSize = Math.max(10, Math.round(baseFontSize * 0.9));
+
+  // Prepare raw operation labels for collision-free layout
+  const rawLabels: RawOperationLabel[] = panel.operations.map((op, idx) => {
+    const ox = toSvgX(op.xFromFrontMm);
+    const oy = toSvgY(op.yFromBottomMm);
+    const isSlide = op.hardwareType.includes('slide') || op.description.toLowerCase().includes('corredera');
+    return {
+      id: `op-${idx}`,
+      x: isSlide ? originX + 12 : ox + 8,
+      y: isSlide ? oy - 4 : oy + 3,
+      text: isSlide
+        ? `Guía corredera Y = ${op.yFromBottomMm} mm`
+        : `Y=${op.yFromBottomMm} (X=${op.xFromFrontMm})`,
+      isSlide,
+    };
+  });
+
+  const positionedLabels = resolveNonOverlappingLabels(
+    rawLabels,
+    labelFontSize + 4,
+    Math.max(65, Math.round(contentW * 0.2)),
+  );
+
   return (
     <svg
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${contentW} ${contentH}`}
       className="assembly-svg panel-detail-svg"
       style={{
         width: '100%',
         height: 'auto',
         maxHeight: '340px',
+        maxWidth: `${contentW}px`,
+        display: 'block',
+        margin: '0 auto',
         background: 'var(--surface, #ffffff)',
         borderRadius: '12px',
         border: '1px solid var(--border, #d9d2c3)',
@@ -546,7 +588,7 @@ function renderPanelDetailSvg(
       <circle cx={originX} cy={originY} r="5" fill="var(--danger, #b3412f)" />
       <line x1={originX - 12} y1={originY} x2={originX + 24} y2={originY} stroke="var(--danger, #b3412f)" strokeWidth="1.5" />
       <line x1={originX} y1={originY + 12} x2={originX} y2={originY - 24} stroke="var(--danger, #b3412f)" strokeWidth="1.5" />
-      <text x={originX + 8} y={originY + 18} fontSize="9" fontWeight="bold" fill="var(--danger, #b3412f)">
+      <text x={originX + 8} y={originY + 18} fontSize={labelFontSize} fontWeight="bold" fill="var(--danger, #b3412f)">
         Datum (0,0) Frente-Base
       </text>
 
@@ -554,23 +596,23 @@ function renderPanelDetailSvg(
       {/* Width dimension (Bottom) */}
       <line
         x1={originX}
-        y1={originY + 28}
+        y1={originY + 26}
         x2={originX + actualW}
-        y2={originY + 28}
+        y2={originY + 26}
         stroke="var(--text-muted, #5c655f)"
         strokeWidth="1"
         markerStart="url(#arrow-dim-panel)"
         markerEnd="url(#arrow-dim-panel)"
       />
-      <text x={originX + actualW / 2} y={originY + 40} textAnchor="middle" fontSize="10" fontWeight="bold" fill="var(--text, #1f2622)">
+      <text x={originX + actualW / 2} y={originY + 38} textAnchor="middle" fontSize={baseFontSize} fontWeight="bold" fill="var(--text, #1f2622)">
         Ancho: {pW} mm
       </text>
 
       {/* Height dimension (Left) */}
       <line
-        x1={originX - 28}
+        x1={originX - 26}
         y1={originY}
-        x2={originX - 28}
+        x2={originX - 26}
         y2={originY - actualH}
         stroke="var(--text-muted, #5c655f)"
         strokeWidth="1"
@@ -578,13 +620,13 @@ function renderPanelDetailSvg(
         markerEnd="url(#arrow-dim-panel)"
       />
       <text
-        x={originX - 34}
+        x={originX - 32}
         y={originY - actualH / 2}
         textAnchor="middle"
-        fontSize="10"
+        fontSize={baseFontSize}
         fontWeight="bold"
         fill="var(--text, #1f2622)"
-        transform={`rotate(-90 ${originX - 34} ${originY - actualH / 2})`}
+        transform={`rotate(-90 ${originX - 32} ${originY - actualH / 2})`}
       >
         Alto: {pH} mm
       </text>
@@ -594,6 +636,9 @@ function renderPanelDetailSvg(
         const ox = toSvgX(op.xFromFrontMm);
         const oy = toSvgY(op.yFromBottomMm);
         const isSlide = op.hardwareType.includes('slide') || op.description.toLowerCase().includes('corredera');
+        const posLabel = positionedLabels[idx];
+        const labelX = posLabel ? posLabel.renderedX : (isSlide ? originX + 12 : ox + 8);
+        const labelY = posLabel ? posLabel.renderedY : (isSlide ? oy - 4 : oy + 3);
 
         if (isSlide) {
           return (
@@ -608,7 +653,7 @@ function renderPanelDetailSvg(
                 strokeDasharray="4 3"
               />
               <circle cx={ox} cy={oy} r="3.5" fill="var(--primary, #56705f)" />
-              <text x={originX + 10} y={oy - 4} fontSize="9" fontWeight="bold" fill="var(--primary, #56705f)">
+              <text x={labelX} y={labelY} fontSize={labelFontSize} fontWeight="bold" fill="var(--primary, #56705f)">
                 Guía corredera Y = {op.yFromBottomMm} mm
               </text>
             </g>
@@ -627,7 +672,18 @@ function renderPanelDetailSvg(
             />
             <line x1={ox - 5} y1={oy} x2={ox + 5} y2={oy} stroke="var(--text, #1f2622)" strokeWidth="0.8" />
             <line x1={ox} y1={oy - 5} x2={ox} y2={oy + 5} stroke="var(--text, #1f2622)" strokeWidth="0.8" />
-            <text x={ox + 6} y={oy + 3} fontSize="8" fill="var(--text, #1f2622)">
+            {posLabel && posLabel.staggerLevel !== 0 && (
+              <line
+                x1={ox + 4}
+                y1={oy}
+                x2={labelX - 2}
+                y2={labelY - 2}
+                stroke="var(--text-muted, #5c655f)"
+                strokeWidth="0.8"
+                strokeDasharray="2 2"
+              />
+            )}
+            <text x={labelX} y={labelY} fontSize={labelFontSize} fill="var(--text, #1f2622)">
               Y={op.yFromBottomMm} (X={op.xFromFrontMm})
             </text>
           </g>
@@ -1832,47 +1888,72 @@ export function AssemblySheetView({
           </div>
 
           {/* Panel selection chips */}
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px' }}>
-            {assemblySheet.panelDetails.map((p, idx) => (
-              <button
-                key={p.pieceId}
-                type="button"
-                onClick={() => setSelectedPanelIndex(idx)}
-                className={`m3-btn m3-btn--small ${selectedPanelIndex === idx ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
-                style={{ minHeight: '40px' }}
-              >
-                #{p.referenceNumber} {p.name}
-              </button>
-            ))}
+          <div className="assembly-panel-chips-scroll" role="tablist" aria-label="Lista de paneles pre-mecanizados">
+            {assemblySheet.panelDetails.map((p, idx) => {
+              const isSelected = selectedPanelIndex === idx;
+              const label = `#${p.referenceNumber} ${p.name}`;
+              return (
+                <button
+                  key={p.pieceId}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => setSelectedPanelIndex(idx)}
+                  className={`m3-btn m3-btn--small assembly-panel-chip ${isSelected ? 'm3-btn--filled' : 'm3-btn--outlined'}`}
+                  title={label}
+                >
+                  <span className="assembly-panel-chip-text">{label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {selectedPanel && (
             <div className="assembly-panel-detail-grid">
-              <div
-                className="assembly-diagram-wrapper"
-                onClick={() =>
-                  setModalDiagram({
-                    title: `🔍 #${selectedPanel.referenceNumber} ${selectedPanel.name} — Datum (0,0)`,
-                    content: renderPanelDetailSvg(selectedPanel),
-                  })
-                }
-                title="Toca para ampliar en pantalla completa"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
+              <div>
+                <div className="assembly-diagram-header-bar">
+                  <span className="assembly-diagram-header-title">
+                    #{selectedPanel.referenceNumber} {selectedPanel.name}
+                  </span>
+                  <button
+                    type="button"
+                    className="m3-btn m3-btn--tonal m3-btn--small assembly-diagram-zoom-btn"
+                    onClick={() =>
+                      setModalDiagram({
+                        title: `🔍 #${selectedPanel.referenceNumber} ${selectedPanel.name} — Datum (0,0)`,
+                        content: renderPanelDetailSvg(selectedPanel),
+                      })
+                    }
+                    aria-label={`Ampliar plano técnico de #${selectedPanel.referenceNumber} ${selectedPanel.name} a pantalla completa`}
+                    title="Toca para ampliar a pantalla completa"
+                  >
+                    <span>🔍</span> Ampliar
+                  </button>
+                </div>
+
+                <div
+                  className="assembly-diagram-wrapper"
+                  onClick={() =>
                     setModalDiagram({
                       title: `🔍 #${selectedPanel.referenceNumber} ${selectedPanel.name} — Datum (0,0)`,
                       content: renderPanelDetailSvg(selectedPanel),
-                    });
+                    })
                   }
-                }}
-              >
-                <div className="assembly-diagram-tap-hint">
-                  <span>🔍 Tocar para ampliar</span>
+                  title="Toca para ampliar en pantalla completa"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setModalDiagram({
+                        title: `🔍 #${selectedPanel.referenceNumber} ${selectedPanel.name} — Datum (0,0)`,
+                        content: renderPanelDetailSvg(selectedPanel),
+                      });
+                    }
+                  }}
+                >
+                  {renderPanelDetailSvg(selectedPanel)}
                 </div>
-                {renderPanelDetailSvg(selectedPanel)}
               </div>
 
               <div

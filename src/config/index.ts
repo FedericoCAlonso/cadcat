@@ -122,6 +122,7 @@ export const uiDefaultsSchema = z.object({
   assemblyGuidePartsCardThresholdPx: z.number().positive().default(560),
   assemblyGuideModalMaxZoom: z.number().positive().default(5.0),
   assemblyGuideModalMinZoom: z.number().positive().default(0.5),
+  panelDetailMinFontSizePx: z.number().positive().default(11),
   inspectorWidthPx: z.number().positive().default(320),
   dimensions: z.object({
     width: dimensionBoundsSchema,

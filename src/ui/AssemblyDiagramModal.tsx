@@ -110,6 +110,17 @@ export function AssemblyDiagramModal({
         <h3 className="assembly-diagram-modal-title">{title}</h3>
 
         <div className="assembly-diagram-modal-controls">
+          <button
+            type="button"
+            className="m3-btn m3-btn--tonal"
+            onClick={panZoom.zoomOut}
+            aria-label="Reducir zoom"
+            title="Reducir zoom (-)"
+            style={{ minWidth: '40px', minHeight: '40px', padding: '0 8px', fontSize: '1.1rem' }}
+          >
+            −
+          </button>
+
           <span
             style={{
               fontSize: '0.82rem',
@@ -126,28 +137,6 @@ export function AssemblyDiagramModal({
           <button
             type="button"
             className="m3-btn m3-btn--tonal"
-            onClick={panZoom.zoomOut}
-            aria-label="Reducir zoom"
-            title="Reducir zoom (-)"
-            style={{ minWidth: '40px', minHeight: '40px', padding: '0 8px', fontSize: '1.1rem' }}
-          >
-            −
-          </button>
-
-          <button
-            type="button"
-            className="m3-btn m3-btn--tonal"
-            onClick={panZoom.resetView}
-            aria-label="Restablecer tamaño original 1:1"
-            title="Restablecer vista 1:1"
-            style={{ minHeight: '40px', padding: '0 10px', fontSize: '0.8rem' }}
-          >
-            ↺ 1:1
-          </button>
-
-          <button
-            type="button"
-            className="m3-btn m3-btn--tonal"
             onClick={panZoom.zoomIn}
             aria-label="Aumentar zoom"
             title="Aumentar zoom (+)"
@@ -158,14 +147,25 @@ export function AssemblyDiagramModal({
 
           <button
             type="button"
-            className="m3-btn m3-btn--filled"
-            onClick={onClose}
-            aria-label="Cerrar vista de pantalla completa"
-            style={{ minWidth: '48px', minHeight: '48px', padding: '0 16px', fontWeight: 700 }}
+            className="m3-btn m3-btn--tonal"
+            onClick={panZoom.resetView}
+            aria-label="Restablecer tamaño original 1:1"
+            title="Restablecer vista 1:1"
+            style={{ minHeight: '40px', padding: '0 12px', fontSize: '0.82rem', fontWeight: 600 }}
           >
-            ✕ Cerrar
+            ↺ 1:1
           </button>
         </div>
+
+        <button
+          type="button"
+          className="m3-btn m3-btn--filled assembly-diagram-modal-close-btn"
+          onClick={onClose}
+          aria-label="Cerrar vista de pantalla completa"
+          style={{ minWidth: '48px', minHeight: '44px', padding: '0 14px', fontWeight: 700 }}
+        >
+          ✕ Cerrar
+        </button>
       </header>
 
       {/* Interactive Pan-Zoom Viewport */}
