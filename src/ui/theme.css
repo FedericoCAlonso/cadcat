@@ -456,6 +456,10 @@ body {
     flex: 1 1 auto;
   }
 
+  .module-form__content {
+    display: contents;
+  }
+
   .layout-grid {
     gap: 1rem;
   }
@@ -576,7 +580,8 @@ body {
     max-height: 120px !important;
   }
 
-  .layout-aside.tablet-bottom-sheet--collapsed .module-form > *:not(.module-form__header):not(.module-form__summary-footer):not(.tablet-bottom-sheet-handle-bar) {
+  .layout-aside.tablet-bottom-sheet--collapsed .module-form > *:not(.module-form__header):not(.module-form__summary-footer):not(.tablet-bottom-sheet-handle-bar):not(.panel-summary-footer),
+  .layout-aside.tablet-bottom-sheet--collapsed .module-form__content {
     display: none !important;
   }
 
@@ -617,6 +622,12 @@ body {
 }
 
 @media (min-width: 1024px) {
+  :root {
+    --m3-bottom-nav-height: 0px;
+    --m3-bottom-nav-safe-inset: 0px;
+    --m3-bottom-nav-total-height: 0px;
+  }
+
   .m3-container {
     max-width: 100%;
     width: 100%;
@@ -675,16 +686,53 @@ body {
   }
 
   .layout-grid--two-col > .layout-aside {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
     height: 100%;
     max-height: 100%;
+    overflow: hidden;
+    padding-right: 0.5rem;
+    padding-bottom: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .layout-grid--two-col .module-form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.5rem 0.6rem !important;
+    box-sizing: border-box;
+  }
+
+  .layout-grid--two-col .panel-sticky-header {
+    flex-shrink: 0;
+    position: static !important;
+    top: auto !important;
+  }
+
+  .layout-grid--two-col .module-form__content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 0.5rem;
-    padding-bottom: calc(2rem + 125px);
+    padding-right: 0.25rem;
     overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: var(--md-sys-color-outline-variant) transparent;
+  }
+
+  .layout-grid--two-col .panel-summary-footer {
+    flex-shrink: 0;
+    position: static !important;
+    bottom: auto !important;
+    left: auto;
+    right: auto;
+    margin-top: 0.4rem;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
   }
 
   .layout-grid--two-col > .layout-main {
@@ -698,7 +746,8 @@ body {
   .layout-aside__collapse-bar {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
   }
 
   .layout-expand-sidebar-btn {
@@ -718,7 +767,8 @@ body {
   }
 
   .layout-grid > .layout-aside {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .layout-grid > .layout-main {

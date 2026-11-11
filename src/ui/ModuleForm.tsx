@@ -753,7 +753,9 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         }
       />
 
-      {/* 2. Compact Module & Project Bar */}
+      {/* Main scrollable body for accordion sections and builder controls */}
+      <div className="module-form__content">
+        {/* 2. Compact Module & Project Bar */}
       <ModuleBar
         project={project}
         projectModules={projectModules}
@@ -1414,6 +1416,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
           </button>
         </div>
       )}
+      </div>
 
       {/* Pie Fijo con Resumen de Producción y Costos (Etapa 4) */}
       <PanelSummaryFooter

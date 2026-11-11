@@ -285,4 +285,55 @@ describe('Desktop and Tablet Layout Enhancements', () => {
 
     runner.unmount();
   });
+
+  it('renders module-form with distinct module-form__content scroll container and docked footer', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <ModuleForm
+          width={800}
+          height={720}
+          depth={580}
+          materials={mockMaterials}
+          edgeBands={mockEdgeBands}
+          selectedMaterialId="mat-1"
+          selectedEdgeBandId="eb-1"
+          isSaving={false}
+          onWidthChange={vi.fn()}
+          onHeightChange={vi.fn()}
+          onDepthChange={vi.fn()}
+          onMaterialChange={vi.fn()}
+          onEdgeBandChange={vi.fn()}
+          onSave={vi.fn()}
+          bays={[defaultBay]}
+          activeBayIndex={0}
+        />,
+      );
+    });
+
+    const form = container.querySelector('.module-form');
+    expect(form).not.toBeNull();
+
+    const header = form?.querySelector('.panel-sticky-header');
+    expect(header).not.toBeNull();
+
+    const content = form?.querySelector('.module-form__content');
+    expect(content).not.toBeNull();
+
+    const footer = form?.querySelector('.panel-summary-footer');
+    expect(footer).not.toBeNull();
+
+    // Verify footer is sibling of content and not nested inside it, preventing sticky overlap
+    expect(content?.contains(footer!)).toBe(false);
+    expect(form?.contains(content!)).toBe(true);
+    expect(form?.contains(footer!)).toBe(true);
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });
