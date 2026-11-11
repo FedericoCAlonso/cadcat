@@ -188,8 +188,11 @@ export function buildPieceEdgeBandHighlightGroup(
 
   const style = opts?.style ?? DEFAULT_UI_CONFIG.edgeBandHighlightStyle ?? 'line';
   const baseLineWidthPx = Math.min(3, Math.max(1, opts?.lineWidthPx ?? DEFAULT_UI_CONFIG.edgeBandLineWidthPx ?? 2));
-  const pixelRatio = Math.max(1, opts?.pixelRatio ?? 1);
-  const effectiveLineWidthPx = baseLineWidthPx * pixelRatio;
+  // In Three.js LineMaterial with screen-space resolution (from renderer.getViewport in CSS pixels),
+  // linewidth is defined in CSS pixels. Multiplying by pixelRatio would scale it twice,
+  // producing 6 CSS pixels (18 physical pixels at DPR 3) instead of the desired 2 CSS pixels.
+  // We keep effectiveLineWidthPx equal to baseLineWidthPx (CSS pixels).
+  const effectiveLineWidthPx = baseLineWidthPx;
   const normalOffsetMm = opts?.normalOffsetMm ?? DEFAULT_UI_CONFIG.edgeBandNormalOffsetMm ?? 0.3;
   const resW = opts?.viewportResolution?.width ?? 800;
   const resH = opts?.viewportResolution?.height ?? 600;

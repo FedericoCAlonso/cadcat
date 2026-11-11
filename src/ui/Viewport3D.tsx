@@ -577,11 +577,12 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h, false);
 
-      const dpr = rendererRef.current.getPixelRatio();
-      // Update resolution for any LineMaterial in the scene (edge band highlights)
+      // Update resolution for any LineMaterial in the scene (edge band highlights).
+      // LineMaterial expects resolution in logical / CSS viewport pixels so that linewidth
+      // represents constant CSS pixels across all device pixel ratios.
       sceneRef.current?.traverse((obj) => {
         if ('material' in obj && obj.material && (obj.material as { isLineMaterial?: boolean; resolution?: THREE.Vector2 }).isLineMaterial) {
-          (obj.material as { resolution: THREE.Vector2 }).resolution.set(w * dpr, h * dpr);
+          (obj.material as { resolution: THREE.Vector2 }).resolution.set(w, h);
         }
       });
     };
@@ -1091,7 +1092,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
               lineWidthPx: DEFAULT_UI_CONFIG.edgeBandLineWidthPx,
               pixelRatio: currentPixelRatio,
               normalOffsetMm: DEFAULT_UI_CONFIG.edgeBandNormalOffsetMm,
-              viewportResolution: { width: containerW * currentPixelRatio, height: containerH * currentPixelRatio },
+              viewportResolution: { width: containerW, height: containerH },
             },
           );
           edgeGroup.visible = showEdgeBands;
