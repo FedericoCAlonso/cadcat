@@ -15,3 +15,6 @@ coverage/
 # Editor and OS
 .DS_Store
 Thumbs.db
+
+# Review scratch directory
+.review/

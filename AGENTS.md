@@ -99,3 +99,14 @@ Antes de dar por completada cualquier modificación en el repositorio, es mandat
 3. **Compilación de producción:** `npm run build` debe generar el bundle de producción y el Service Worker PWA sin fallas.
 4. **Sincronización de versión:** Verificar que `src/version.ts` y `package.json` tengan la versión actualizada e idéntica.
 5. **Despliegue a GitHub Pages:** Sincronizar la rama `main` y ejecutar `npm run deploy`.
+
+---
+
+## 🔍 Revisión Previa al Reporte Final con Subagentes
+
+Before the final report of any change to the UI, the 3D viewer, the guide, labels or numbers:
+1. Invoke `visual-reviewer` for UI changes. Invoke `numeric-auditor` for changes that touch numbers, labels or exports.
+2. In each invocation, give: the start command, the preset, the screens and what changed. The subagent does not have your context.
+3. Attach the output of the reviewers to your report.
+4. Fix each defect that they find, or explain why you do not fix it.
+5. After a reviewer finishes, run `git status --porcelain`. No tracked file may change because of the reviewer.
