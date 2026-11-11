@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { translateAssemblyPhase, translateHardwareType } from '../i18n';
 import type { ResolvedModule, ResolvedPiece } from './resolver';
 import type { Joint, MachiningConfig } from '../model';
 import { deriveAssemblyGauges, type AssemblyGauge } from './gauges';
@@ -85,8 +86,19 @@ export interface GenerateAssemblySheetInput {
   moduleDimensions?: { width: number; height: number; depth: number };
 }
 
-function getFriendlyPieceName(role: string): string {
+export function getFriendlyPieceName(role: string): string {
   const r = role.toLowerCase();
+  // 1. Drawer-specific components have priority over generic cabinet pieces
+  if (r.includes('drawer-front')) return 'Frente de Cajón';
+  if (r.includes('drawer-box-front')) return 'Frente de Cajón';
+  if (r.includes('drawer') && r.includes('side-left')) return 'Lateral Izquierdo de Cajón';
+  if (r.includes('drawer') && r.includes('side-right')) return 'Lateral Derecho de Cajón';
+  if (r.includes('drawer-box-side') || (r.includes('drawer') && r.includes('side'))) return 'Lateral de Cajón';
+  if (r.includes('drawer-box-back') || (r.includes('drawer') && (r.includes('back') || r.includes('counterfront')))) return 'Trasera de Cajón';
+  if (r.includes('drawer-box-bottom') || (r.includes('drawer') && (r.includes('bottom') || r.includes('base')))) return 'Fondo de Cajón';
+  if (r.includes('drawer')) return 'Cajón';
+
+  // 2. Cabinet body components
   if (r.includes('side-left') || (r.includes('side') && r.includes('1'))) return 'Lateral Izquierdo';
   if (r.includes('side-right') || (r.includes('side') && r.includes('2'))) return 'Lateral Derecho';
   if (r.includes('side')) return 'Lateral';
@@ -97,11 +109,6 @@ function getFriendlyPieceName(role: string): string {
   if (r.includes('partition') || r.includes('divider')) return 'Divisor Vertical';
   if (r.includes('back')) return 'Fondo';
   if (r.includes('door')) return 'Puerta';
-  if (r.includes('drawer-front')) return 'Frente de Cajón';
-  if (r.includes('drawer-box-side')) return 'Lateral de Cajón';
-  if (r.includes('drawer-box-back')) return 'Trasera de Cajón';
-  if (r.includes('drawer-box-bottom')) return 'Fondo de Cajón';
-  if (r.includes('drawer')) return 'Cajón';
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
@@ -313,10 +320,16 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
     // Extract operations from machining sheets if available
     if (panelSheet && panelSheet.totalOperations > 0) {
-      const allOps = [
-        ...panelSheet.faceAOperations,
-        ...panelSheet.faceBOperations,
-      ];
+      // Deduplicate operations for 2D shop drawing (pasante drills appear in both faceA and faceB)
+      const seenOps = new Set<string>();
+      const allOps: typeof panelSheet.faceAOperations = [];
+      for (const op of [...panelSheet.faceAOperations, ...panelSheet.faceBOperations]) {
+        const key = `${Math.round(op.distFromLeftMm)}_${Math.round(op.distFromBottomMm)}_${op.sourceJointKind ?? op.description}`;
+        if (!seenOps.has(key)) {
+          seenOps.add(key);
+          allOps.push(op);
+        }
+      }
 
       for (const op of allOps) {
         panelOps.push({
@@ -925,7 +938,7 @@ export function exportAssemblyGuidePdf(
     doc.text(`${h.quantity} un.`, margin + 3, y + 3.5);
     doc.text(h.label, margin + 18, y + 3.5);
     doc.text(h.toolRequired ?? 'Punta estándar', margin + 95, y + 3.5);
-    doc.text(h.type.toUpperCase(), margin + 145, y + 3.5);
+    doc.text(translateHardwareType(h.type), margin + 145, y + 3.5);
     y += 5.5;
   }
   y += 4;
@@ -1078,7 +1091,7 @@ export function exportAssemblyGuidePdf(
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(86, 112, 95);
-    doc.text(`[Fase: ${step.phase.toUpperCase()}]`, pageWidth - margin - 35, y);
+    doc.text(`[Fase: ${translateAssemblyPhase(step.phase)}]`, pageWidth - margin - 35, y);
     doc.setTextColor(31, 38, 34);
     y += 5;
 

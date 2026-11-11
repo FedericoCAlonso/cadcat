@@ -79,4 +79,33 @@ describe('labelLayout non-overlapping coordinate resolution', () => {
     expect(result).toHaveLength(2);
     expect(hasNoLabelCollisions(result, 60, 10)).toBe(true);
   });
+
+  it('preserves exact input ordering when labels have scrambled Y coordinates', () => {
+    // Top-most operation first in input, bottom-most second
+    const labels: RawOperationLabel[] = [
+      { id: 'top-hole', x: 100, y: 711, text: 'Y=711 (X=100)' },
+      { id: 'bottom-hole', x: 100, y: 9, text: 'Y=9 (X=100)' },
+    ];
+
+    const result = resolveNonOverlappingLabels(labels, 14, 85);
+    expect(result).toHaveLength(2);
+    expect(result[0]!.id).toBe('top-hole');
+    expect(result[0]!.renderedY).toBe(711);
+    expect(result[1]!.id).toBe('bottom-hole');
+    expect(result[1]!.renderedY).toBe(9);
+  });
+
+  it('avoids collision with exclusion boxes (e.g. Datum note mark) by staying clear of the box', () => {
+    const labels: RawOperationLabel[] = [
+      { id: 'bottom-drill', x: 50, y: 275, text: 'Y=9 (X=50)' },
+    ];
+    const exclusionBoxes = [
+      { id: 'datum-box', x: 50, y: 270, width: 120, height: 20 },
+    ];
+
+    const result = resolveNonOverlappingLabels(labels, 14, 85, exclusionBoxes, 268);
+    expect(result).toHaveLength(1);
+    // Rendered Y must be pushed upwards clear of the exclusion box and capped at maxY
+    expect(result[0]!.renderedY).toBeLessThanOrEqual(256);
+  });
 });

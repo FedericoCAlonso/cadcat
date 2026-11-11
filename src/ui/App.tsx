@@ -29,9 +29,9 @@ export function App(): ReactElement {
   const [machiningPieceId, setMachiningPieceId] = useState<string | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-  const [tabletSheetSnap, setTabletSheetSnap] = useState<TabletSheetSnap>('middle');
+  const [tabletSheetSnap, setTabletSheetSnap] = useState<TabletSheetSnap>('collapsed');
   const dragStartYRef = useRef<number | null>(null);
-  const dragStartSnapRef = useRef<TabletSheetSnap>('middle');
+  const dragStartSnapRef = useRef<TabletSheetSnap>('collapsed');
 
   const handleHandlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragStartYRef.current = e.clientY;

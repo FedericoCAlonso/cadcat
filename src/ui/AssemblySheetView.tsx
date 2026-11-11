@@ -16,7 +16,8 @@ import {
 import { Viewport3D } from './Viewport3D';
 import { AssemblyDiagramModal } from './AssemblyDiagramModal';
 import { DEFAULT_UI_CONFIG } from '../config';
-import { resolveNonOverlappingLabels, type RawOperationLabel } from './viewer/labelLayout';
+import { resolveNonOverlappingLabels, type RawOperationLabel, type PositionedOperationLabel } from './viewer/labelLayout';
+import { translateAssemblyPhase } from '../i18n';
 
 export interface AssemblySheetViewProps {
   assemblySheet: AssemblySheet | null;
@@ -530,10 +531,27 @@ function renderPanelDetailSvg(
     };
   });
 
+  // Dedicated exclusion box reserving space for Datum (0,0) Frente-Base note
+  const datumExclusion = [
+    {
+      id: 'datum-origin-mark',
+      x: originX,
+      y: originY + 4,
+      width: Math.min(160, Math.round(contentW * 0.45)),
+      height: 24,
+    },
+  ];
+
   const positionedLabels = resolveNonOverlappingLabels(
     rawLabels,
     labelFontSize + 4,
     Math.max(65, Math.round(contentW * 0.2)),
+    datumExclusion,
+    originY - 2,
+  );
+
+  const labelMap = new Map<string, PositionedOperationLabel>(
+    positionedLabels.map((l) => [l.id, l]),
   );
 
   return (
@@ -636,7 +654,8 @@ function renderPanelDetailSvg(
         const ox = toSvgX(op.xFromFrontMm);
         const oy = toSvgY(op.yFromBottomMm);
         const isSlide = op.hardwareType.includes('slide') || op.description.toLowerCase().includes('corredera');
-        const posLabel = positionedLabels[idx];
+        const opId = `op-${idx}`;
+        const posLabel = labelMap.get(opId);
         const labelX = posLabel ? posLabel.renderedX : (isSlide ? originX + 12 : ox + 8);
         const labelY = posLabel ? posLabel.renderedY : (isSlide ? oy - 4 : oy + 3);
 
@@ -2220,7 +2239,7 @@ export function AssemblySheetView({
                           padding: '2px 8px',
                         }}
                       >
-                        {step.phase.toUpperCase()}
+                        {translateAssemblyPhase(step.phase)}
                       </span>
                     </div>
 

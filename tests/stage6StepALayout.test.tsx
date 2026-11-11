@@ -265,17 +265,17 @@ describe('Stage 6 Step A: Phone and Tablet Ergonomic Layout', () => {
 
       const aside = container.querySelector('.layout-aside');
       expect(aside).not.toBeNull();
-      // Default snap is 'middle'
-      expect(aside?.className).toContain('tablet-bottom-sheet--middle');
+      // Default snap is 'collapsed' to maximize 3D viewer visibility in tablet mode
+      expect(aside?.className).toContain('tablet-bottom-sheet--collapsed');
 
-      // Click "Plegar" (collapsed)
-      const btnPlegar = container.querySelector(
-        '.tablet-bottom-sheet-snap-controls button:nth-child(1)',
+      // Click "Medio" (middle)
+      const btnMedio = container.querySelector(
+        '.tablet-bottom-sheet-snap-controls button:nth-child(2)',
       ) as HTMLButtonElement;
       act(() => {
-        btnPlegar.click();
+        btnMedio.click();
       });
-      expect(aside?.className).toContain('tablet-bottom-sheet--collapsed');
+      expect(aside?.className).toContain('tablet-bottom-sheet--middle');
 
       // Click "Completo" (full)
       const btnCompleto = container.querySelector(
@@ -286,14 +286,14 @@ describe('Stage 6 Step A: Phone and Tablet Ergonomic Layout', () => {
       });
       expect(aside?.className).toContain('tablet-bottom-sheet--full');
 
-      // Click "Medio" (middle)
-      const btnMedio = container.querySelector(
-        '.tablet-bottom-sheet-snap-controls button:nth-child(2)',
+      // Click "Plegar" (collapsed)
+      const btnPlegar = container.querySelector(
+        '.tablet-bottom-sheet-snap-controls button:nth-child(1)',
       ) as HTMLButtonElement;
       act(() => {
-        btnMedio.click();
+        btnPlegar.click();
       });
-      expect(aside?.className).toContain('tablet-bottom-sheet--middle');
+      expect(aside?.className).toContain('tablet-bottom-sheet--collapsed');
 
       act(() => {
         root.unmount();
