@@ -323,7 +323,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2));
+      renderer.setPixelRatio(typeof window !== 'undefined' ? window.devicePixelRatio : 1);
       renderer.setSize(width, height, false); // false avoids overriding CSS responsive dimensions
       containerRef.current.appendChild(renderer.domElement);
       rendererRef.current = renderer;
@@ -577,10 +577,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h, false);
 
+      const dpr = rendererRef.current.getPixelRatio();
       // Update resolution for any LineMaterial in the scene (edge band highlights)
       sceneRef.current?.traverse((obj) => {
         if ('material' in obj && obj.material && (obj.material as { isLineMaterial?: boolean; resolution?: THREE.Vector2 }).isLineMaterial) {
-          (obj.material as { resolution: THREE.Vector2 }).resolution.set(w, h);
+          (obj.material as { resolution: THREE.Vector2 }).resolution.set(w * dpr, h * dpr);
         }
       });
     };
@@ -1075,8 +1076,11 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             fovDegrees: 45,
             minScreenPx: DEFAULT_UI_CONFIG.minEdgeBandScreenPx,
           });
-          const containerW = containerRef.current?.clientWidth || 600;
-          const containerH = containerRef.current?.clientHeight || 600;
+          const containerW = containerRef.current?.clientWidth || (window.innerWidth < 1024 ? window.innerWidth : 360);
+          const containerH = containerRef.current?.clientHeight || (window.innerWidth < 1024 ? 360 : 520);
+          const currentPixelRatio = rendererRef.current
+            ? rendererRef.current.getPixelRatio()
+            : (typeof window !== 'undefined' ? window.devicePixelRatio : 1);
           const edgeGroup = buildPieceEdgeBandHighlightGroup(
             item,
             bandedEdges,
@@ -1085,7 +1089,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
             {
               style: DEFAULT_UI_CONFIG.edgeBandHighlightStyle,
               lineWidthPx: DEFAULT_UI_CONFIG.edgeBandLineWidthPx,
-              viewportResolution: { width: containerW, height: containerH },
+              pixelRatio: currentPixelRatio,
+              normalOffsetMm: DEFAULT_UI_CONFIG.edgeBandNormalOffsetMm,
+              viewportResolution: { width: containerW * currentPixelRatio, height: containerH * currentPixelRatio },
             },
           );
           edgeGroup.visible = showEdgeBands;

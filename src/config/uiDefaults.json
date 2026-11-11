@@ -8,6 +8,7 @@
   "showEdgeBandsByDefault": true,
   "edgeBandHighlightStyle": "line",
   "edgeBandLineWidthPx": 2,
+  "edgeBandNormalOffsetMm": 0.3,
   "edgeBandHighlightColor": {
     "light": "#E91E63",
     "dark": "#FF4081"

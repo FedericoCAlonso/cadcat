@@ -134,6 +134,10 @@ export interface BuildPieceEdgeBandHighlightOptions {
   ribbonThicknessMm?: number;
   /** Width in screen pixels when style is 'line' (defaults to 2 px, max 3 px). */
   lineWidthPx?: number;
+  /** Device pixel ratio to scale physical line buffer width for constant CSS pixel width (defaults to 1). */
+  pixelRatio?: number;
+  /** Outward offset along the face normal in mm to prevent coplanar/adjacent face depth occlusion (defaults to 0.3 mm). */
+  normalOffsetMm?: number;
   /** Viewport resolution { width, height } in pixels for line shaders. */
   viewportResolution?: { width: number; height: number };
 }
@@ -183,7 +187,10 @@ export function buildPieceEdgeBandHighlightGroup(
   }
 
   const style = opts?.style ?? DEFAULT_UI_CONFIG.edgeBandHighlightStyle ?? 'line';
-  const lineWidthPx = Math.min(3, Math.max(1, opts?.lineWidthPx ?? DEFAULT_UI_CONFIG.edgeBandLineWidthPx ?? 2));
+  const baseLineWidthPx = Math.min(3, Math.max(1, opts?.lineWidthPx ?? DEFAULT_UI_CONFIG.edgeBandLineWidthPx ?? 2));
+  const pixelRatio = Math.max(1, opts?.pixelRatio ?? 1);
+  const effectiveLineWidthPx = baseLineWidthPx * pixelRatio;
+  const normalOffsetMm = opts?.normalOffsetMm ?? DEFAULT_UI_CONFIG.edgeBandNormalOffsetMm ?? 0.3;
   const resW = opts?.viewportResolution?.width ?? 800;
   const resH = opts?.viewportResolution?.height ?? 600;
 
@@ -203,12 +210,16 @@ export function buildPieceEdgeBandHighlightGroup(
   if (style === 'line') {
     const lineMat = new LineMaterial({
       color,
-      linewidth: lineWidthPx,
+      linewidth: effectiveLineWidthPx,
       resolution: new THREE.Vector2(resW, resH),
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
       depthTest: true,
+      // DoubleSide is essential because parent pieceGroup has scale.x = -1, which
+      // reverses the triangle winding order; default FrontSide culls the line quads.
+      side: THREE.DoubleSide,
+      transparent: false,
     });
 
     const addEdgeLine = (
@@ -223,70 +234,75 @@ export function buildPieceEdgeBandHighlightGroup(
       geom.setPositions([x1, y1, z1, x2, y2, z2]);
       const line = new LineSegments2(geom, lineMat);
       line.name = 'edgeband-strip';
+      line.frustumCulled = false;
       group.add(line);
     };
 
     // 1. Panels standing in YZ plane (vertical sides, partitions)
     if (orientation.x === 'thickness' && orientation.y === 'height' && orientation.z === 'width') {
-      const extX = (item.role.includes('right') || item.pieceId.includes('side-r')) ? hx : -hx;
+      const isRight = item.role.includes('right') || item.pieceId.includes('side-r');
+      const signX = isRight ? 1 : -1;
+      const extX = signX * (hx + normalOffsetMm);
       if (bandedEdges.left) {
         // Front edge (z = -hz)
-        addEdgeLine(extX, -hy, -hz, extX, +hy, -hz);
+        addEdgeLine(extX, -hy - normalOffsetMm, -hz - normalOffsetMm, extX, +hy + normalOffsetMm, -hz - normalOffsetMm);
       }
       if (bandedEdges.right) {
         // Rear edge (z = +hz)
-        addEdgeLine(extX, -hy, +hz, extX, +hy, +hz);
+        addEdgeLine(extX, -hy - normalOffsetMm, +hz + normalOffsetMm, extX, +hy + normalOffsetMm, +hz + normalOffsetMm);
       }
       if (bandedEdges.bottom) {
         // Bottom edge (y = -hy)
-        addEdgeLine(extX, -hy, -hz, extX, -hy, +hz);
+        addEdgeLine(extX, -hy - normalOffsetMm, -hz - normalOffsetMm, extX, -hy - normalOffsetMm, +hz + normalOffsetMm);
       }
       if (bandedEdges.top) {
         // Top edge (y = +hy)
-        addEdgeLine(extX, +hy, -hz, extX, +hy, +hz);
+        addEdgeLine(extX, +hy + normalOffsetMm, -hz - normalOffsetMm, extX, +hy + normalOffsetMm, +hz + normalOffsetMm);
       }
       return group;
     }
 
     // 2. Horizontal panels in XZ plane (bottom, shelves, top, rails)
     if (orientation.x === 'width' && orientation.y === 'thickness' && orientation.z === 'height') {
-      const extY = item.role.includes('bottom') ? -hy : hy;
+      const isBottom = item.role.includes('bottom');
+      const signY = isBottom ? -1 : 1;
+      const extY = signY * (hy + normalOffsetMm);
       if (bandedEdges.bottom) {
         // Front edge (z = -hz)
-        addEdgeLine(-hx, extY, -hz, hx, extY, -hz);
+        addEdgeLine(-hx - normalOffsetMm, extY, -hz - normalOffsetMm, hx + normalOffsetMm, extY, -hz - normalOffsetMm);
       }
       if (bandedEdges.top) {
         // Rear edge (z = +hz)
-        addEdgeLine(-hx, extY, +hz, hx, extY, +hz);
+        addEdgeLine(-hx - normalOffsetMm, extY, +hz + normalOffsetMm, hx + normalOffsetMm, extY, +hz + normalOffsetMm);
       }
       if (bandedEdges.left) {
         // Left edge (x = -hx)
-        addEdgeLine(-hx, extY, -hz, -hx, extY, +hz);
+        addEdgeLine(-hx - normalOffsetMm, extY, -hz - normalOffsetMm, -hx - normalOffsetMm, extY, +hz + normalOffsetMm);
       }
       if (bandedEdges.right) {
         // Right edge (x = +hx)
-        addEdgeLine(hx, extY, -hz, hx, extY, +hz);
+        addEdgeLine(hx + normalOffsetMm, extY, -hz - normalOffsetMm, hx + normalOffsetMm, extY, +hz + normalOffsetMm);
       }
       return group;
     }
 
     // 3. Vertical panels in XY plane (doors, drawer fronts, backs, plinths)
-    const extZ = -hz; // Front visible exterior surface
+    const extZ = -hz - normalOffsetMm; // Front visible exterior surface
     if (bandedEdges.top) {
       // Top edge (y = +hy)
-      addEdgeLine(-hx, hy, extZ, hx, hy, extZ);
+      addEdgeLine(-hx - normalOffsetMm, hy + normalOffsetMm, extZ, hx + normalOffsetMm, hy + normalOffsetMm, extZ);
     }
     if (bandedEdges.bottom) {
       // Bottom edge (y = -hy)
-      addEdgeLine(-hx, -hy, extZ, hx, -hy, extZ);
+      addEdgeLine(-hx - normalOffsetMm, -hy - normalOffsetMm, extZ, hx + normalOffsetMm, -hy - normalOffsetMm, extZ);
     }
     if (bandedEdges.left) {
       // Left edge (x = -hx)
-      addEdgeLine(-hx, -hy, extZ, -hx, hy, extZ);
+      addEdgeLine(-hx - normalOffsetMm, -hy - normalOffsetMm, extZ, -hx - normalOffsetMm, hy + normalOffsetMm, extZ);
     }
     if (bandedEdges.right) {
       // Right edge (x = +hx)
-      addEdgeLine(hx, -hy, extZ, hx, hy, extZ);
+      addEdgeLine(hx + normalOffsetMm, -hy - normalOffsetMm, extZ, hx + normalOffsetMm, hy + normalOffsetMm, extZ);
     }
 
     return group;

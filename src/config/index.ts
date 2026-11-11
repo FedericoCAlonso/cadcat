@@ -65,6 +65,7 @@ export const uiDefaultsSchema = z.object({
   showEdgeBandsByDefault: z.boolean().default(true),
   edgeBandHighlightStyle: z.enum(['line', 'face']).default('line'),
   edgeBandLineWidthPx: z.number().positive().max(3).default(2),
+  edgeBandNormalOffsetMm: z.number().min(0.1).max(1.0).default(0.3),
   edgeBandHighlightColor: z.object({
     light: z.string().default('#E91E63'),
     dark: z.string().default('#FF4081'),
