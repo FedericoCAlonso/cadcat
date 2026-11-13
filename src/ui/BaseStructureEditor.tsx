@@ -5,6 +5,7 @@ import {
   type BackingType,
   type RearStructuralRails,
 } from '../resolver';
+import { M3ToggleRow } from './M3ToggleRow';
 import { NumericInput } from './NumericInput';
 
 export interface BaseStructureEditorProps {
@@ -150,14 +151,12 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
             </div>
 
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, marginTop: '1.2rem', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={hasMiddleBrace}
-                  onChange={(e) => onHasMiddleBraceChange(e.target.checked)}
-                />
-                Refuerzo Central entre Fajas
-              </label>
+              <M3ToggleRow
+                id="base-middle-brace"
+                label="Refuerzo Central entre Fajas"
+                checked={hasMiddleBrace}
+                onChange={onHasMiddleBraceChange}
+              />
             </div>
 
             {hasMiddleBrace && (
@@ -183,16 +182,14 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
         <h4 className="m3-structure-title">
           🧱 Faja de Colgado / Amarre y Zócalo
         </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', alignItems: 'start' }}>
           <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={hasWallHangingRail}
-                onChange={(e) => onHasWallHangingRailChange(e.target.checked)}
-              />
-              Faja Posterior de Amarre / Colgado
-            </label>
+            <M3ToggleRow
+              id="base-wall-hanging-rail"
+              label="Faja Posterior de Amarre / Colgado"
+              checked={hasWallHangingRail}
+              onChange={onHasWallHangingRailChange}
+            />
             {hasWallHangingRail && (
               <div style={{ marginTop: '0.4rem' }}>
                 <label htmlFor="wall-rail-width" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.2rem' }}>
@@ -211,14 +208,12 @@ export function BaseStructureEditor(props: BaseStructureEditorProps): ReactEleme
           </div>
 
           <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={hasPlinth}
-                onChange={(e) => onHasPlinthChange(e.target.checked)}
-              />
-              Zócalo / Plinto Estructural
-            </label>
+            <M3ToggleRow
+              id="base-plinth"
+              label="Zócalo / Plinto Estructural"
+              checked={hasPlinth}
+              onChange={onHasPlinthChange}
+            />
             {hasPlinth && (
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
                 <div>

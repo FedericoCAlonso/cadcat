@@ -11,6 +11,7 @@ import {
   extractPieceLabelData,
   exportLabelsPdf,
 } from '../resolver/labels';
+import { M3ToggleRow } from './M3ToggleRow';
 
 export interface LabelExportModalProps {
   isOpen: boolean;
@@ -201,29 +202,18 @@ export function LabelExportModal({
 
         {/* Options */}
         <div style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', minHeight: '48px' }}>
-            <input
-              type="checkbox"
-              checked={includeGauges}
-              onChange={(e) => setIncludeGauges(e.target.checked)}
-              style={{ accentColor: 'var(--md-sys-color-primary)', width: '20px', height: '20px' }}
-            />
-            <span style={{ fontSize: '0.9rem', color: 'var(--md-sys-color-on-surface)' }}>
-              Incluir calibres auxiliares de ensamble (tiras de retazo)
-            </span>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', minHeight: '48px' }}>
-            <input
-              type="checkbox"
-              checked={showGuidelines}
-              onChange={(e) => setShowGuidelines(e.target.checked)}
-              style={{ accentColor: 'var(--md-sys-color-primary)', width: '20px', height: '20px' }}
-            />
-            <span style={{ fontSize: '0.9rem', color: 'var(--md-sys-color-on-surface)' }}>
-              Dibujar bordes guía de corte / troquel en el PDF
-            </span>
-          </label>
+          <M3ToggleRow
+            id="label-include-gauges"
+            label="Incluir calibres auxiliares de ensamble (tiras de retazo)"
+            checked={includeGauges}
+            onChange={setIncludeGauges}
+          />
+          <M3ToggleRow
+            id="label-show-guidelines"
+            label="Dibujar bordes guía de corte / troquel en el PDF"
+            checked={showGuidelines}
+            onChange={setShowGuidelines}
+          />
         </div>
 
         {/* Output Summary Card */}

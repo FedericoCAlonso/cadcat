@@ -14,6 +14,7 @@ import {
   getFaceSemanticLabel,
   calculatePocketCornerRelief,
 } from '../resolver';
+import { M3ToggleRow } from './M3ToggleRow';
 import { NumericInput } from './NumericInput';
 import { useMachiningEditorViewModel } from './useMachiningEditorViewModel';
 import { usePanZoom } from './usePanZoom';
@@ -327,14 +328,15 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   </button>
                 </div>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
+                <div style={{ minWidth: '185px' }}>
+                  <M3ToggleRow
+                    id="machining-enable-snaps-desktop"
+                    label="🧲 Snaps Magnéticos"
                     checked={vm.enableSnaps}
-                    onChange={(e) => vm.setEnableSnaps(e.target.checked)}
+                    onChange={vm.setEnableSnaps}
+                    compact
                   />
-                  <span>🧲 Snaps Magnéticos</span>
-                </label>
+                </div>
               </div>
 
               {/* Dynamic Inputs according to opType */}
@@ -417,14 +419,13 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       />
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={vm.drillThrough}
-                          onChange={(e) => vm.setDrillThrough(e.target.checked)}
-                        />
-                        <span>Agujero Pasante (Atraviesa {vm.pieceThickness}mm)</span>
-                      </label>
+                      <M3ToggleRow
+                        id="machining-drill-through"
+                        label={`Agujero Pasante (Atraviesa ${vm.pieceThickness}mm)`}
+                        checked={vm.drillThrough}
+                        onChange={vm.setDrillThrough}
+                        compact
+                      />
                     </div>
                   </div>
                 )}
@@ -535,14 +536,13 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       />
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={vm.seriesThrough}
-                          onChange={(e) => vm.setSeriesThrough(e.target.checked)}
-                        />
-                        <span>Pasante (Atraviesa {vm.pieceThickness}mm)</span>
-                      </label>
+                      <M3ToggleRow
+                        id="machining-series-through"
+                        label={`Pasante (Atraviesa ${vm.pieceThickness}mm)`}
+                        checked={vm.seriesThrough}
+                        onChange={vm.setSeriesThrough}
+                        compact
+                      />
                     </div>
                   </div>
                 )}
@@ -797,14 +797,13 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={vm.cutoutThrough}
-                          onChange={(e) => vm.setCutoutThrough(e.target.checked)}
-                        />
-                        <span>Pasante ({vm.pieceThickness}mm)</span>
-                      </label>
+                      <M3ToggleRow
+                        id="machining-cutout-through"
+                        label={`Pasante (${vm.pieceThickness}mm)`}
+                        checked={vm.cutoutThrough}
+                        onChange={vm.setCutoutThrough}
+                        compact
+                      />
                     </div>
                   </div>
                 )}
@@ -2045,14 +2044,13 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     </button>
                   </div>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={vm.enableSnaps}
-                      onChange={(e) => vm.setEnableSnaps(e.target.checked)}
-                    />
-                    <span>🧲 Snaps Magnéticos</span>
-                  </label>
+                  <M3ToggleRow
+                    id="machining-enable-snaps-mobile"
+                    label="🧲 Snaps Magnéticos"
+                    checked={vm.enableSnaps}
+                    onChange={vm.setEnableSnaps}
+                    compact
+                  />
                 </div>
 
                 {/* 4. Primary Mobile Action Bar */}

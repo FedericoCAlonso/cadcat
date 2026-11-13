@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { RoofType, JointPriority, BackingType, RearStructuralRails } from '../resolver';
+import { M3ToggleRow } from './M3ToggleRow';
 import { NumericInput } from './NumericInput';
 
 /**
@@ -289,14 +290,12 @@ export function StructureSection({
       {/* Divisores pasantes hasta arriba (Decision 2) */}
       {gridType && gridType !== '1-bay' && (
         <div className="form-group" style={{ marginTop: '0.25rem' }}>
-          <label className="m3-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
-            <input
-              type="checkbox"
-              checked={Boolean(partitionPassThroughRoof)}
-              onChange={(e) => onPartitionPassThroughRoofChange?.(e.target.checked)}
-            />
-            <span>Divisores pasantes hasta arriba (secciona la tapa/fajas por vano)</span>
-          </label>
+          <M3ToggleRow
+            id="struct-partition-pass-through-roof"
+            label="Divisores pasantes hasta arriba (secciona la tapa/fajas por vano)"
+            checked={Boolean(partitionPassThroughRoof)}
+            onChange={(checked) => onPartitionPassThroughRoofChange?.(checked)}
+          />
         </div>
       )}
 
@@ -334,30 +333,28 @@ export function StructureSection({
 
       {/* Refuerzos Avanzados de Estructura y Zócalo (Punto 7) */}
       {roofType === 'front-back-rails' && (
-        <div className="form-group m3-structure-card">
-          <label htmlFor="input-rail-orientation" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-            Orientación de Fajas Superiores:
-          </label>
-          <select
-            id="input-rail-orientation"
-            className="m3-select"
-            style={{ width: '100%', fontSize: '0.85rem' }}
-            value={railOrientation}
-            onChange={(e) => onRailOrientationChange?.(e.target.value as 'horizontal' | 'vertical')}
-          >
-            <option value="horizontal">Horizontal (Planos)</option>
-            <option value="vertical">Vertical de Canto (Mayor resistencia)</option>
-          </select>
+        <>
+          <div className="form-group">
+            <label htmlFor="input-rail-orientation">Orientación de Fajas Superiores:</label>
+            <select
+              id="input-rail-orientation"
+              className="m3-select"
+              style={{ width: '100%', fontSize: '0.85rem' }}
+              value={railOrientation}
+              onChange={(e) => onRailOrientationChange?.(e.target.value as 'horizontal' | 'vertical')}
+            >
+              <option value="horizontal">Horizontal (Planos)</option>
+              <option value="vertical">Vertical de Canto (Mayor resistencia)</option>
+            </select>
+          </div>
 
-          <div style={{ marginTop: '0.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-              <input
-                type="checkbox"
-                checked={Boolean(hasMiddleBrace)}
-                onChange={(e) => onHasMiddleBraceChange?.(e.target.checked)}
-              />
-              Refuerzo central entre fajas
-            </label>
+          <div className="form-group">
+            <M3ToggleRow
+              id="struct-middle-brace"
+              label="Refuerzo central entre fajas"
+              checked={Boolean(hasMiddleBrace)}
+              onChange={(checked) => onHasMiddleBraceChange?.(checked)}
+            />
             {hasMiddleBrace && (
               <div style={{ marginTop: '0.35rem' }}>
                 <label htmlFor="input-middle-brace-width" style={{ fontSize: '0.75rem', display: 'block' }}>
@@ -374,95 +371,89 @@ export function StructureSection({
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
-      <div className="form-group m3-structure-card">
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-            <input
-              type="checkbox"
-              checked={Boolean(hasWallHangingRail)}
-              onChange={(e) => onHasWallHangingRailChange?.(e.target.checked)}
+      <div className="form-group">
+        <M3ToggleRow
+          id="struct-wall-hanging-rail"
+          label="Faja posterior de amarre / colgado a pared"
+          checked={Boolean(hasWallHangingRail)}
+          onChange={(checked) => onHasWallHangingRailChange?.(checked)}
+        />
+        {hasWallHangingRail && (
+          <div style={{ marginTop: '0.35rem' }}>
+            <label htmlFor="input-wall-rail-width" style={{ fontSize: '0.75rem', display: 'block' }}>
+              Ancho faja (mm):
+            </label>
+            <NumericInput
+              id="input-wall-rail-width"
+              value={wallHangingRailWidthMm}
+              min={50}
+              max={200}
+              step={10}
+              onChange={(val) => onWallHangingRailWidthChange?.(val)}
             />
-            Faja posterior de amarre / colgado a pared
-          </label>
-          {hasWallHangingRail && (
-            <div style={{ marginTop: '0.35rem' }}>
-              <label htmlFor="input-wall-rail-width" style={{ fontSize: '0.75rem', display: 'block' }}>
-                Ancho faja (mm):
-              </label>
-              <NumericInput
-                id="input-wall-rail-width"
-                value={wallHangingRailWidthMm}
-                min={50}
-                max={200}
-                step={10}
-                onChange={(val) => onWallHangingRailWidthChange?.(val)}
-              />
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: '0.5rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-            <input
-              type="checkbox"
-              checked={Boolean(hasPlinth)}
-              onChange={(e) => onHasPlinthChange?.(e.target.checked)}
-            />
-            Zócalo / Plinto estructural integrado
-          </label>
-          {hasPlinth && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.35rem' }}>
-              <div>
-                <label htmlFor="input-plinth-height" style={{ fontSize: '0.75rem', display: 'block' }}>
-                  Alto zócalo (mm):
-                </label>
-                <NumericInput
-                  id="input-plinth-height"
-                  value={plinthHeightMm}
-                  min={40}
-                  max={200}
-                  step={10}
-                  onChange={(val) => onPlinthHeightChange?.(val)}
-                />
-              </div>
-              <div>
-                <label htmlFor="input-plinth-setback" style={{ fontSize: '0.75rem', display: 'block' }}>
-                  Retranqueo (mm):
-                </label>
-                <NumericInput
-                  id="input-plinth-setback"
-                  value={plinthSetbackMm}
-                  min={0}
-                  max={150}
-                  step={5}
-                  onChange={(val) => onPlinthSetbackChange?.(val)}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {onSaveUserTemplate && (
-          <div style={{ marginTop: '0.75rem' }}>
-            <button
-              type="button"
-              className="m3-btn m3-btn--small m3-btn--tonal"
-              style={{ width: '100%' }}
-              onClick={() => {
-                const name = window.prompt?.('Nombre para la nueva plantilla de estructura base:', 'Módulo Base Personalizado');
-                if (name) {
-                  void onSaveUserTemplate(name, 'Estructura base personalizada con refuerzos');
-                }
-              }}
-            >
-              💾 Guardar Estructura como Módulo Base
-            </button>
           </div>
         )}
       </div>
+
+      <div className="form-group">
+        <M3ToggleRow
+          id="struct-plinth"
+          label="Zócalo / Plinto estructural integrado"
+          checked={Boolean(hasPlinth)}
+          onChange={(checked) => onHasPlinthChange?.(checked)}
+        />
+        {hasPlinth && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.35rem' }}>
+            <div>
+              <label htmlFor="input-plinth-height" style={{ fontSize: '0.75rem', display: 'block' }}>
+                Alto zócalo (mm):
+              </label>
+              <NumericInput
+                id="input-plinth-height"
+                value={plinthHeightMm}
+                min={40}
+                max={200}
+                step={10}
+                onChange={(val) => onPlinthHeightChange?.(val)}
+              />
+            </div>
+            <div>
+              <label htmlFor="input-plinth-setback" style={{ fontSize: '0.75rem', display: 'block' }}>
+                Retranqueo (mm):
+              </label>
+              <NumericInput
+                id="input-plinth-setback"
+                value={plinthSetbackMm}
+                min={0}
+                max={150}
+                step={5}
+                onChange={(val) => onPlinthSetbackChange?.(val)}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {onSaveUserTemplate && (
+        <div className="form-group" style={{ marginTop: '0.5rem' }}>
+          <button
+            type="button"
+            className="m3-btn m3-btn--small m3-btn--tonal"
+            style={{ width: '100%' }}
+            onClick={() => {
+              const name = window.prompt?.('Nombre para la nueva plantilla de estructura base:', 'Módulo Base Personalizado');
+              if (name) {
+                void onSaveUserTemplate(name, 'Estructura base personalizada con refuerzos');
+              }
+            }}
+          >
+            💾 Guardar Estructura como Módulo Base
+          </button>
+        </div>
+      )}
     </fieldset>
   );
 }

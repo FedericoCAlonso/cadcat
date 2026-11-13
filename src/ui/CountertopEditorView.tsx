@@ -7,6 +7,7 @@ import type {
 } from '../model';
 import type { CountertopCalculationResult } from '../resolver';
 import { generateMarmoleriaSheetSvg } from '../resolver';
+import { M3ToggleRow } from './M3ToggleRow';
 
 export interface CountertopEditorViewProps {
   countertopEnabled: boolean;
@@ -75,16 +76,16 @@ export function CountertopEditorView({
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
-              <input
-                type="checkbox"
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: '210px', flex: '1 1 auto' }}>
+              <M3ToggleRow
+                id="countertop-enabled-toggle"
+                label="Habilitar Mesada"
                 checked={countertopEnabled}
-                onChange={(e) => onToggleCountertop(e.target.checked)}
-                style={{ width: '20px', height: '20px', accentColor: 'var(--md-sys-color-primary)' }}
+                onChange={onToggleCountertop}
+                compact
               />
-              Habilitar Mesada
-            </label>
+            </div>
 
             {countertopEnabled && countertopCalculation && (
               <button
@@ -163,16 +164,14 @@ export function CountertopEditorView({
                   </label>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={hasBacksplash}
-                      onChange={(e) => onToggleBacksplash(e.target.checked)}
-                      style={{ width: '18px', height: '18px', accentColor: 'var(--md-sys-color-primary)' }}
-                    />
-                    Zócalo Sanitario (Trasero)
-                  </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  <M3ToggleRow
+                    id="countertop-backsplash-toggle"
+                    label="Zócalo Sanitario (Trasero)"
+                    checked={hasBacksplash}
+                    onChange={onToggleBacksplash}
+                    compact
+                  />
 
                   {hasBacksplash && (
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>

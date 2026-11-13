@@ -9,6 +9,7 @@ import type { JointKind, JointStrategy, Material, EdgeBand, Piece } from '../mod
 import type { PieceMachining } from '../model/operation';
 import { translatePieceRole } from './localization';
 import { LabelExportModal } from './LabelExportModal';
+import { M3ToggleRow } from './M3ToggleRow';
 
 export interface PieceListViewProps {
   pieces: (ResolvedPieceWithCutSize | ConsolidatedPiece)[];
@@ -803,25 +804,25 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                     selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes(edgeKey));
 
                   return (
-                    <label key={edgeKey} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(isBanded)}
-                        onChange={(e) => {
-                          const current = pieceEdgeBandOverrides?.[selectedPiece.id] ?? {
-                            top: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('top')),
-                            bottom: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('bottom')),
-                            left: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('left')),
-                            right: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('right')),
-                          };
-                          onSetPieceEdgeBands?.(selectedPiece.id, {
-                            ...current,
-                            [edgeKey]: e.target.checked,
-                          });
-                        }}
-                      />
-                      {label}
-                    </label>
+                    <M3ToggleRow
+                      key={edgeKey}
+                      id={`piecelist-edge-${selectedPiece.id}-${edgeKey}`}
+                      label={label}
+                      checked={Boolean(isBanded)}
+                      compact
+                      onChange={(checked) => {
+                        const current = pieceEdgeBandOverrides?.[selectedPiece.id] ?? {
+                          top: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('top')),
+                          bottom: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('bottom')),
+                          left: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('left')),
+                          right: selectedPiece.bandedEdges.some((b) => b.faceId.toLowerCase().includes('right')),
+                        };
+                        onSetPieceEdgeBands?.(selectedPiece.id, {
+                          ...current,
+                          [edgeKey]: checked,
+                        });
+                      }}
+                    />
                   );
                 })}
               </div>

@@ -16,6 +16,7 @@ import {
 import { Viewport3D } from './Viewport3D';
 import type { CameraPresetView } from './ViewerToolbar';
 import { AssemblyDiagramModal } from './AssemblyDiagramModal';
+import { M3ToggleRow } from './M3ToggleRow';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { resolveNonOverlappingLabels, type RawOperationLabel, type PositionedOperationLabel } from './viewer/labelLayout';
 import { translateAssemblyPhase } from '../i18n';
@@ -1662,31 +1663,28 @@ export function AssemblySheetView({
               </div>
 
               {effectiveViewMode === '2.5d' && (
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={showTrajectories}
-                      onChange={(e) => setShowTrajectories(e.target.checked)}
-                    />
-                    <span>Líneas Guía</span>
-                  </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={showBalloons}
-                      onChange={(e) => setShowBalloons(e.target.checked)}
-                    />
-                    <span>Globos (#1, #2)</span>
-                  </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={showEdgeBanding}
-                      onChange={(e) => setShowEdgeBanding(e.target.checked)}
-                    />
-                    <span>Cantos Vistos</span>
-                  </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px', flex: '1 1 320px' }}>
+                  <M3ToggleRow
+                    id="assembly-show-trajectories"
+                    label="Líneas Guía"
+                    checked={showTrajectories}
+                    onChange={setShowTrajectories}
+                    compact
+                  />
+                  <M3ToggleRow
+                    id="assembly-show-balloons"
+                    label="Globos (#1, #2)"
+                    checked={showBalloons}
+                    onChange={setShowBalloons}
+                    compact
+                  />
+                  <M3ToggleRow
+                    id="assembly-show-edge-banding"
+                    label="Cantos Vistos"
+                    checked={showEdgeBanding}
+                    onChange={setShowEdgeBanding}
+                    compact
+                  />
                 </div>
               )}
             </div>
