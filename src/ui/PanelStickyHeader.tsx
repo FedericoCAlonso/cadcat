@@ -20,10 +20,6 @@ export interface PanelStickyHeaderProps {
   onHeightChange: (val: number) => void;
   /** Callback fired when module depth changes. */
   onDepthChange: (val: number) => void;
-  /** Callback to switch to mobile site/workshop mode. */
-  onSwitchToSiteMode?: () => void;
-  /** Whether the current environment is detected as a mobile device. */
-  isMobileDevice?: boolean;
   /** Count of active architectural interferences in the module. */
   activeInterferenceCount?: number;
   /** Callback fired when clicking the interference warning badge to navigate to the section. */
@@ -43,8 +39,6 @@ export function PanelStickyHeader({
   onWidthChange,
   onHeightChange,
   onDepthChange,
-  onSwitchToSiteMode,
-  isMobileDevice: _isMobileDevice = false,
   activeInterferenceCount = 0,
   onOpenInterferences,
 }: PanelStickyHeaderProps): ReactElement {
@@ -114,33 +108,18 @@ export function PanelStickyHeader({
           </div>
         </div>
 
-        {(activeInterferenceCount > 0 && onOpenInterferences) || onSwitchToSiteMode ? (
+        {activeInterferenceCount > 0 && onOpenInterferences ? (
           <div className="panel-sticky-header__actions">
-            {activeInterferenceCount > 0 && onOpenInterferences && (
-              <button
-                type="button"
-                onClick={onOpenInterferences}
-                className="panel-sticky-header__warning-badge"
-                title="Interferencias arquitectónicas activas en el módulo. Clic para ver o ajustar."
-                aria-label={`${activeInterferenceCount} interferencias activas`}
-              >
-                <span aria-hidden="true">⚠️</span>
-                <span>{`${activeInterferenceCount}`}</span>
-              </button>
-            )}
-
-            {onSwitchToSiteMode && (
-              <button
-                type="button"
-                onClick={onSwitchToSiteMode}
-                className="m3-button m3-button--tonal panel-header-btn"
-                title="Cambiar a Modo Taller / Obra (gestual para celular)"
-                aria-label="Cambiar a Modo Taller"
-              >
-                <span aria-hidden="true">🏗️</span>
-                <span>Taller</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onOpenInterferences}
+              className="panel-sticky-header__warning-badge"
+              title="Interferencias arquitectónicas activas en el módulo. Clic para ver o ajustar."
+              aria-label={`${activeInterferenceCount} interferencias activas`}
+            >
+              <span aria-hidden="true">⚠️</span>
+              <span>{`${activeInterferenceCount}`}</span>
+            </button>
           </div>
         ) : null}
       </div>

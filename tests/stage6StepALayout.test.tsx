@@ -20,8 +20,6 @@ import * as useModuleViewModelModule from '../src/ui/useModuleViewModel';
 const createMockVm = () => ({
   activeTab: '3d',
   setActiveTab: vi.fn(),
-  uiMode: 'expert',
-  setUiMode: vi.fn(),
   isLoading: false,
   error: null,
   statusMessage: null,

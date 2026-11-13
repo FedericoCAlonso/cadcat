@@ -32,8 +32,6 @@ const mockEdgeBands: EdgeBand[] = [
 
 describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
   it('renders sticky top header with Modo Experto title and section tabs in mobile mode', () => {
-    const handleSwitchSite = vi.fn();
-
     const html = renderToString(
       <ModuleForm
         isMobile={true}
@@ -42,14 +40,13 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
         depth={550}
         materials={mockMaterials}
         edgeBands={mockEdgeBands}
-        onSwitchToSiteMode={handleSwitchSite}
       />,
     );
 
     // Verify Sticky Header
     expect(html).toContain('panel-sticky-header');
     expect(html).toContain('Modo Experto');
-    expect(html).toContain('Modo Taller');
+    expect(html).not.toContain('Cambiar a Modo Taller');
 
     // Verify Section Tabs and Toggle All button
     expect(html).toContain('Medidas');
@@ -371,7 +368,7 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     expect(html).toContain('repeat(auto-fit, minmax(140px, 1fr))');
   });
 
-  it('renders strictly one button to activate Modo Taller / Obra on mobile without duplicates', () => {
+  it('does not render any legacy Modo Taller / Obra switch buttons on mobile', () => {
     const htmlMobile = renderToString(
       <ModuleForm
         isMobile={true}
@@ -380,15 +377,10 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
         depth={560}
         materials={mockMaterials}
         edgeBands={mockEdgeBands}
-        onSwitchToSiteMode={vi.fn()}
       />,
     );
 
-    // Exactly one button in expert-sticky-header for mobile
-    const occurrences = (htmlMobile.match(/aria-label="Cambiar a Modo Taller"/g) || []).length;
-    expect(occurrences).toBe(1);
-
-    // Desktop button "Modo Obra (Táctil)" must NOT be present on mobile
+    expect(htmlMobile).not.toContain('Cambiar a Modo Taller');
     expect(htmlMobile).not.toContain('Modo Obra (Táctil)');
   });
 

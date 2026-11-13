@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, type ReactElement } from 'react';
 import './theme.css';
 import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
-import { ModoObraWizard } from './ModoObraWizard';
 import { PieceListView } from './PieceListView';
 import { Viewport3D } from './Viewport3D';
 import { MachiningSheetView } from './MachiningSheetView';
@@ -15,7 +14,7 @@ import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 import { APP_VERSION } from '../version';
 import { useTheme } from './useTheme';
 import { ThemeToggle } from './ThemeToggle';
-import { triggerHaptic } from '../resolver/thumbArc';
+import { triggerHaptic } from './haptics';
 
 export type TabletSheetSnap = 'collapsed' | 'middle' | 'full';
 
@@ -81,45 +80,14 @@ export function App(): ReactElement {
     }
   }, []);
 
-  const [isLandscape, setIsLandscape] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth > window.innerHeight;
-  });
-
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
-
-  const prevLandscapeRef = useRef<boolean>(isLandscape);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const landscape = window.innerWidth > window.innerHeight;
-      setIsLandscape(landscape);
-    };
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (prevLandscapeRef.current !== isLandscape) {
-      prevLandscapeRef.current = isLandscape;
-      if (vm.uiMode === 'site' && vm.isOneHandDevice && vm.activeTab === '3d') {
-        triggerHaptic('major');
-      }
-    }
-  }, [isLandscape, vm.uiMode, vm.isOneHandDevice, vm.activeTab]);
 
   const logoFileName = effectiveTheme === 'dark' ? 'cadcat-icon-dark.svg' : 'cadcat-icon-light.svg';
   const logoUrl = `${import.meta.env?.BASE_URL || '/'}icons/${logoFileName}`;
-  const isSiteImmersive = vm.uiMode === 'site' && vm.isOneHandDevice;
 
   return (
-    <div className={`app-wrapper ${isSiteImmersive ? 'app-wrapper--site-immersive' : ''}`}>
-      {!isSiteImmersive && (
-        <header className="m3-top-app-bar">
+    <div className="app-wrapper">
+      <header className="m3-top-app-bar">
           <div className="m3-top-app-bar__inner">
             <div className="m3-top-app-bar__brand">
               <img
@@ -215,9 +183,8 @@ export function App(): ReactElement {
             </div>
           </div>
         </header>
-      )}
 
-      <main className={`m3-container ${isSiteImmersive ? 'm3-container--site-immersive' : ''}`}>
+      <main className="m3-container">
         {vm.isLoading && (
           <p className="loading-state">
             <span>Cargando catálogos de base de datos...</span>
@@ -225,8 +192,8 @@ export function App(): ReactElement {
           </p>
         )}
         {vm.error && <p className="error-state" role="alert">{vm.error}</p>}
-        {!isSiteImmersive && vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
-        {!isSiteImmersive && updateAvailable && (
+        {vm.statusMessage && <p className="status-message">{vm.statusMessage}</p>}
+        {updateAvailable && (
           <div className="m3-banner m3-banner--warning" role="alert" style={{ margin: '0 0 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span>{`🎉 ¡Nueva versión de CadCat disponible (v${APP_VERSION})!`}</span>
             <button
@@ -237,173 +204,6 @@ export function App(): ReactElement {
             >
               Actualizar ahora
             </button>
-          </div>
-        )}
-
-
-        {/* Full-screen 3D Viewport in Modo Obra */}
-        {isSiteImmersive && vm.activeTab === '3d' && (
-          <div
-            className={`modo-obra-3d-fullscreen ${isLandscape ? 'modo-obra-3d-fullscreen--landscape' : ''}`}
-            role="region"
-            aria-label="Inspección 3D en Modo Obra"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
-              backgroundColor: 'var(--md-sys-color-surface)',
-              display: 'flex',
-              flexDirection: 'column',
-              width: '100vw',
-              height: '100dvh',
-              overflowY: isLandscape ? 'hidden' : 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            {/* Top header: in portrait displays module name and rotation hint; in landscape collapses to maximize CAD canvas */}
-            {!isLandscape ? (
-              <header
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'max(0.4rem, env(safe-area-inset-top, 0.4rem)) 0.75rem 0.4rem',
-                  borderBottom: '1px solid var(--md-sys-color-outline-variant)',
-                  backgroundColor: 'var(--md-sys-color-surface-container)',
-                  flexShrink: 0,
-                  zIndex: 10,
-                }}
-              >
-                <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--md-sys-color-primary)' }}>
-                  {`👁️ 3D · ${vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name || 'Módulo'}`}
-                </span>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    fontSize: '0.75rem',
-                    color: 'var(--md-sys-color-outline)',
-                    fontWeight: 600,
-                  }}
-                  title="Girá el teléfono en horizontal para vista panorámica CAD"
-                >
-                  <span>🔄 Girar para CAD</span>
-                </div>
-              </header>
-            ) : (
-              /* Floating subtle badge in landscape mode */
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 'max(0.5rem, env(safe-area-inset-top, 0.5rem))',
-                  left: 'max(0.75rem, env(safe-area-inset-left, 0.75rem))',
-                  zIndex: 80,
-                  backgroundColor: 'rgba(25, 25, 25, 0.8)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                  color: '#ffffff',
-                  padding: '0.25rem 0.65rem',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  pointerEvents: 'none',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                }}
-              >
-                <span>📐 Vista Panorámica CAD</span>
-                <span style={{ opacity: 0.8, fontSize: '0.72rem' }}>
-                  {`· ${vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name || 'Módulo'}`}
-                </span>
-              </div>
-            )}
-
-            <div
-              style={{
-                flex: isLandscape ? 1 : 'none',
-                position: 'relative',
-                width: '100%',
-                minHeight: isLandscape ? 0 : 'auto',
-                overflow: isLandscape ? 'hidden' : 'visible',
-              }}
-            >
-              <Viewport3D
-                boxes={vm.spatialBoxes}
-                bounds={vm.spatialBounds}
-                pieces={vm.resolvedPieces}
-                explodedRatio={vm.explodedRatio}
-                onExplodedRatioChange={vm.setExplodedRatio}
-                selectedPieceId={vm.selectedPieceId}
-                onSelectPiece={vm.setSelectedPieceId}
-                shelfDeflections={vm.shelfDeflections}
-                pieceJointOverrides={vm.pieceJointOverrides}
-                onSetPieceJointOverride={vm.setPieceJointOverride}
-                defaultJointStrategy={vm.jointStrategy}
-                kinematicBoxes={vm.kinematicBoxes}
-                kinematicMechanisms={vm.kinematicMechanisms}
-                kinematicsState={vm.kinematicsState}
-                onMechanismOpenRatioChange={vm.setMechanismOpenRatio}
-                materials={vm.materials}
-                edgeBands={vm.edgeBands}
-                pieceMaterialOverrides={vm.pieceMaterialOverrides}
-                pieceThicknessOverrides={vm.pieceThicknessOverrides}
-                pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
-                onSetPieceMaterial={vm.setPieceMaterial}
-                onSetPieceThickness={vm.setPieceThickness}
-                onSetPieceEdgeBands={vm.setPieceEdgeBands}
-                onOpenMachiningModal={(id) => setMachiningPieceId(id)}
-                machiningSheets={vm.machiningSheets}
-                countertopCalculation={vm.countertopCalculation}
-                interferences={vm.interferences}
-                moduleId={vm.activeModuleId}
-              />
-
-              {/* Botón Flotante Ergonómico (FAB) para volver al editor */}
-              <button
-                type="button"
-                className="m3-button m3-button--filled modo-obra-floating-back-fab"
-                aria-label="Volver al editor"
-                title="Volver al editor de taller"
-                onClick={() => {
-                  triggerHaptic('major');
-                  vm.setActiveTab('form');
-                }}
-                style={{
-                  position: 'fixed',
-                  bottom: isLandscape
-                    ? 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))'
-                    : 'max(1.2rem, env(safe-area-inset-bottom, 1.2rem))',
-                  [vm.handMode === 'right' ? 'right' : 'left']: isLandscape
-                    ? 'max(0.75rem, env(safe-area-inset-right, 0.75rem))'
-                    : 'max(1rem, env(safe-area-inset-right, 1rem))',
-                  zIndex: 100,
-                  minHeight: isLandscape ? '44px' : '52px',
-                  padding: isLandscape ? '0 1rem' : '0 1.25rem',
-                  borderRadius: isLandscape ? '22px' : '26px',
-                  fontSize: isLandscape ? '0.85rem' : '0.92rem',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  backgroundColor: 'var(--md-sys-color-primary)',
-                  color: 'var(--md-sys-color-on-primary)',
-                  boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35)',
-                  border: '2px solid rgba(255, 255, 255, 0.35)',
-                  cursor: 'pointer',
-                  backdropFilter: 'blur(8px)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span aria-hidden="true" style={{ fontSize: isLandscape ? '1rem' : '1.15rem' }}>✏️</span>
-                <span>Volver al Editor</span>
-              </button>
-            </div>
           </div>
         )}
 
@@ -480,79 +280,6 @@ export function App(): ReactElement {
                     <span>◀ Ocultar panel</span>
                   </button>
                 </div>
-                {vm.uiMode === 'site' && vm.isOneHandDevice ? (
-                <ModoObraWizard
-                  projectModules={vm.projectModules}
-                  activeModuleId={vm.activeModuleId}
-                  onSetActiveModule={vm.setActiveModule}
-                  onAddProjectModule={vm.addProjectModule}
-                  templates={vm.templates}
-                  selectedTemplateId={vm.selectedTemplateId}
-                  onTemplateChange={vm.setSelectedTemplateId}
-                  width={vm.width}
-                  height={vm.height}
-                  depth={vm.depth}
-                  thickness={
-                    typeof vm.materials.find((m) => m.id === vm.selectedMaterialId)?.thicknessMm === 'number'
-                      ? (vm.materials.find((m) => m.id === vm.selectedMaterialId)!.thicknessMm as number)
-                      : 18
-                  }
-                  onWidthChange={vm.setWidth}
-                  onHeightChange={vm.setHeight}
-                  onDepthChange={vm.setDepth}
-                  onThicknessChange={(th) => {
-                    const match = vm.materials.find((m) => m.thicknessMm === th);
-                    if (match) {
-                      vm.setSelectedMaterialId(match.id);
-                    }
-                  }}
-                  hasPlinth={vm.hasPlinth}
-                  plinthHeightMm={vm.plinthHeightMm}
-                  onHasPlinthChange={vm.setHasPlinth}
-                  onPlinthHeightChange={vm.setPlinthHeightMm}
-                  hasWallHangingRail={vm.hasWallHangingRail}
-                  onHasWallHangingRailChange={vm.setHasWallHangingRail}
-                  roofType={vm.roofType}
-                  onRoofTypeChange={vm.setRoofType}
-                  hasBacking={vm.hasBacking}
-                  backingType={vm.backingType}
-                  backingThicknessMm={vm.backingThicknessMm}
-                  onHasBackingChange={vm.setHasBacking}
-                  onBackingTypeChange={vm.setBackingType}
-                  onBackingThicknessChange={vm.setBackingThicknessMm}
-                  gridType={vm.gridType}
-                  bays={vm.bays}
-                  bayBoxes={vm.bayBoxes}
-                  activeBayIndex={vm.activeBayIndex}
-                  onGridTypeChange={vm.setGridType}
-                  onActiveBayIndexChange={vm.setActiveBayIndex}
-                  onBayContentTypeChange={vm.setBayContentType}
-                  onBayContentChange={vm.setBayContent}
-                  onAddShelf={vm.addShelf}
-                  onRemoveShelf={vm.removeShelf}
-                  onShelfTypeChange={vm.setShelfType}
-                  onAddDrawer={vm.addDrawer}
-                  onRemoveDrawer={vm.removeDrawer}
-                  onDoorCountChange={vm.setDoorCount}
-                  onDoorHingeSideChange={vm.setDoorHingeSide}
-                  onDoorInteriorShelvesCountChange={vm.setDoorInteriorShelvesCount}
-                  materials={vm.materials}
-                  standardThicknessesMm={vm.projectConfig?.hardware?.standardThicknessesMm}
-                  selectedMaterialId={vm.selectedMaterialId}
-                  onMaterialChange={vm.setSelectedMaterialId}
-                  frontsMaterialId={vm.frontsMaterialId}
-                  onFrontsMaterialChange={vm.setFrontsMaterialId}
-                  drawerBoxesMaterialId={vm.drawerBoxesMaterialId}
-                  onDrawerBoxesMaterialChange={vm.setDrawerBoxesMaterialId}
-                  backingsMaterialId={vm.backingsMaterialId}
-                  onBackingsMaterialChange={vm.setBackingsMaterialId}
-                  handMode={vm.handMode}
-                  onHandModeChange={vm.setHandMode}
-                  onSwitchToExpertMode={() => vm.setUiMode('expert')}
-                  onView3dClick={() => vm.setActiveTab(vm.activeTab === '3d' ? 'form' : '3d')}
-                  is3dViewActive={vm.activeTab === '3d'}
-                />
-              ) : (
                 <ModuleForm
                 project={vm.project}
                 projectModules={vm.projectModules}
@@ -721,10 +448,8 @@ export function App(): ReactElement {
                 machiningSheets={vm.machiningSheets}
                 onView3dClick={() => vm.setActiveTab('3d')}
                 onViewAssemblyClick={() => vm.setActiveTab('assembly')}
-                onSwitchToSiteMode={vm.isOneHandDevice ? () => vm.setUiMode('site') : undefined}
                 isMobile={vm.isOneHandDevice}
               />
-            )}
               </aside>
             )}
 
@@ -740,9 +465,8 @@ export function App(): ReactElement {
                 <span>📐 Parámetros</span>
               </button>
             )}
-            {!isSiteImmersive && (vm.activeTab === '3d' || vm.activeTab === 'form') && (
-              <>
-                <Viewport3D
+            {(vm.activeTab === '3d' || vm.activeTab === 'form') && (
+              <Viewport3D
                   boxes={vm.spatialBoxes}
                   bounds={vm.spatialBounds}
                   pieces={vm.resolvedPieces}
@@ -772,21 +496,6 @@ export function App(): ReactElement {
                   interferences={vm.interferences}
                   moduleId={vm.activeModuleId}
                 />
-                <button
-                  type="button"
-                  className="builder-floating-action"
-                  onClick={() => vm.setActiveTab('form')}
-                  aria-label={
-                    vm.uiMode === 'site' && vm.isOneHandDevice
-                      ? 'Volver a Modo Obra'
-                      : 'Modificar o armar mueble'
-                  }
-                >
-                  {vm.uiMode === 'site' && vm.isOneHandDevice
-                    ? '🏗️ Volver a Medidas'
-                    : '🛠️ Armar Módulo'}
-                </button>
-              </>
             )}
 
               {vm.activeTab === 'machining' && (
@@ -926,8 +635,7 @@ export function App(): ReactElement {
       </main>
 
       {/* Material Design 3 Bottom Navigation Bar for Mobile (< 1024px) - 4 Destinations Standard */}
-      {!isSiteImmersive && (
-        <nav aria-label="Navegación móvil" className="m3-bottom-nav">
+      <nav aria-label="Navegación móvil" className="m3-bottom-nav">
           <button
             type="button"
             className={`m3-bottom-nav__item ${vm.activeTab === 'form' ? 'active' : ''}`}
@@ -1014,10 +722,9 @@ export function App(): ReactElement {
             </span>
           </button>
         </nav>
-      )}
 
       {/* Material Design 3 Modal Bottom Sheet for Secondary Tools */}
-      {!isSiteImmersive && isMoreSheetOpen && (
+      {isMoreSheetOpen && (
         <div
           className="m3-bottom-sheet-overlay"
           role="dialog"

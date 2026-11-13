@@ -187,7 +187,6 @@ export interface ModuleFormProps {
   onBackingsMaterialChange?: (id: string) => void;
   onJointStrategyChange?: (strategy: JointStrategy) => void;
   onView3dClick?: () => void;
-  onSwitchToSiteMode?: () => void;
   onSaveUserTemplate?: (name: string, description?: string) => Promise<void> | void;
   onDeleteUserTemplate?: (id: string) => Promise<void> | void;
   // Base structure & reinforcement props (Point 7)
@@ -373,7 +372,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onBackingsMaterialChange,
     onJointStrategyChange,
     onView3dClick,
-    onSwitchToSiteMode,
     railOrientation = 'horizontal',
     hasMiddleBrace = false,
     middleBraceWidthMm = 80,
@@ -732,8 +730,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         onWidthChange={onWidthChange}
         onHeightChange={onHeightChange}
         onDepthChange={onDepthChange}
-        onSwitchToSiteMode={onSwitchToSiteMode}
-        isMobileDevice={isMobileDevice}
         activeInterferenceCount={showInterferences ? activeInterferenceCount : 0}
         onOpenInterferences={
           showInterferences

@@ -20,10 +20,8 @@ Este documento establece las directivas de calidad, diseño y arquitectura **est
   - Los objetivos táctiles (*touch targets*) deben tener un tamaño mínimo de **48x48 px** en vistas móviles.
   - El formulario debe ser **contextual**: ocultar todo control o sección que no aplique a la plantilla seleccionada para evitar desplazamiento vertical innecesario.
   - Uso de controles segmentados táctiles (*chips / segmented buttons*), steppers con botones `+` y `-`, y campos numéricos con validación milimétrica inmediata.
-  - **Zona de Alcance del Pulgar (Thumb Zone):** En móviles y pantallas táctiles (viewport $\le 600$ px), los selectores críticos de dimensión, navegación de pasos y acciones primarias deben situarse en la parte inferior de la pantalla para permitir una operación ágil con una sola mano.
-  - **Esquemas Técnicos Dinámicos de Contexto:** Utilizar los espacios libres de la pantalla para diagramas técnicos CAD contextuales (`WorkshopContextDiagram`), enriqueciendo la comprensión del módulo sin interferir con la zona táctil.
-  - **Evitar Entrada de Texto Intrusiva en Modo Taller:** Prohibido el uso de `<input type="text">` o campos de texto libre en flujos guiados móviles donde apliquen opciones discretas o incrementales, evitando la apertura no deseada del teclado virtual.
-  - **Cero Duplicación de Acciones:** Mantener un único acceso claro y visible por función (ej. un solo botón de conmutación de modo Taller/Experto en lugar de duplicados en cabecera y cuerpo).
+  - **Zona de Alcance del Pulgar (Thumb Zone):** En móviles y pantallas táctiles (viewport $\le 600$ px), los controles críticos de navegación de pasos y acciones primarias deben ser fácilmente accesibles en operación móvil.
+  - **Cero Duplicación de Acciones:** Mantener un único acceso claro y visible por función en la interfaz móvil unificada.
   - Respetar los tokens de color M3 (`surface`, `primary`, `secondary`, `tonal`, `outline`, `error`).
   - Tarjetas elevadas con bordes suaves (`border-radius: 8px - 16px`) y sombras sutiles.
   - Accesibilidad completa: etiquetas semánticas (`<section>`, `<fieldset>`, `<legend>`), atributos `aria-label`, y textos con contraste cromático adecuado según WCAG 2.1 AA.
@@ -66,7 +64,7 @@ Este documento establece las directivas de calidad, diseño y arquitectura **est
   - La interfaz de usuario (`App.tsx`) consume directamente `APP_VERSION`, sin cadenas cableadas.
 
 ### 6. Estricta Política Anti-Regresión y Preservación de Implementaciones Previas
-- **Inviolabilidad de Requerimientos Previos:** Queda terminantemente prohibido deshacer o eliminar implementaciones, herramientas, pantallas o accesos que el usuario solicitó específicamente (ej. botón *Edición Especial* de vanos, diagramas esquemáticos contextuales), salvo que el usuario pida **explícitamente** retirarlos.
+- **Inviolabilidad de Requerimientos Previos:** Queda terminantemente prohibido deshacer o eliminar implementaciones, herramientas, pantallas o accesos que el usuario solicitó específicamente (ej. botón *Edición Especial* de vanos), salvo que el usuario pida **explícitamente** retirarlos.
 - **Validación Previa ante Indicaciones Contradictorias:** Si el usuario proporciona una indicación o solicitud que entra en aparente contradicción con un diseño, componente o regla previamente acordada, el agente **no debe aplicar cambios destructivos de manera automática**. Es mandatorio dialogar primero, señalar con respeto la posible contradicción y confirmar la intención del usuario antes de modificar o remover código existente.
 - **Interferencias:** UI hidden by flag. Planned for a later phase.
 
