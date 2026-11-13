@@ -234,3 +234,9 @@ export {
 
 
 export * from './standardThickness';
+export {
+  BACKUP_BUNDLE_FORMAT,
+  backupBundleSchema,
+  type CadCatBackupBundle,
+  validateBackupBundle,
+} from './backupBundle';

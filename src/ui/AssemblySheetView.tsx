@@ -2444,23 +2444,32 @@ export function AssemblySheetView({
                     boxShadow: isActive ? 'var(--md-sys-elevation-2)' : 'var(--md-sys-elevation-1)',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isDone}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      toggleStep(step.stepNumber);
-                    }}
+                  <label
+                    onClick={(e) => e.stopPropagation()}
                     style={{
-                      marginTop: '3px',
+                      minWidth: '44px',
+                      minHeight: '44px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       cursor: 'pointer',
-                      accentColor: 'var(--primary, #56705f)',
-                      width: '20px',
-                      height: '20px',
                       flexShrink: 0,
+                      margin: '-6px 0 -6px -6px',
                     }}
-                    aria-label={`Marcar paso ${step.stepNumber} como completado`}
-                  />
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isDone}
+                      onChange={() => toggleStep(step.stepNumber)}
+                      style={{
+                        cursor: 'pointer',
+                        accentColor: 'var(--primary, #56705f)',
+                        width: '20px',
+                        height: '20px',
+                      }}
+                      aria-label={`Marcar paso ${step.stepNumber} como completado`}
+                    />
+                  </label>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>

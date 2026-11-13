@@ -66,5 +66,12 @@ export {
   importProjectJson,
 } from './projectStore';
 
+export {
+  type BuildBackupBundleInput,
+  buildBackupBundleJson,
+  parseBackupBundleJson,
+  importBackupBundleToDb,
+} from './backupStore';
+
 
 

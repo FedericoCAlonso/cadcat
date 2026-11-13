@@ -9,6 +9,8 @@ export interface ProjectSettingsViewProps {
   onSaveConfig: () => void;
   onExportConfig: () => void;
   onImportConfigFile: (file: File) => void;
+  onExportFullBackup?: (preferShare?: boolean) => void;
+  onImportFullBackupFile?: (file: File) => void;
   onResetConfig: () => void;
   materials?: Material[];
   edgeBands?: EdgeBand[];
@@ -35,6 +37,8 @@ export function ProjectSettingsView({
   onSaveConfig,
   onExportConfig,
   onImportConfigFile,
+  onExportFullBackup,
+  onImportFullBackupFile,
   onResetConfig,
   initialSection,
   materials = [],
@@ -53,6 +57,7 @@ export function ProjectSettingsView({
     initialSection ?? 'machining'
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
 
   if (!config) {
     return (
@@ -67,6 +72,14 @@ export function ProjectSettingsView({
     const file = e.target.files?.[0];
     if (file) {
       onImportConfigFile(file);
+      e.target.value = '';
+    }
+  };
+
+  const handleBackupFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImportFullBackupFile) {
+      onImportFullBackupFile(file);
       e.target.value = '';
     }
   };
@@ -990,6 +1003,57 @@ export function ProjectSettingsView({
                 </div>
               </div>
             </div>
+
+            {/* Full Portable Backup & PC <-> Mobile Sync (.cadcat.json) */}
+            {(onExportFullBackup || onImportFullBackupFile) && (
+              <div className="settings-group-card" style={{ gridColumn: '1 / -1' }}>
+                <h4 className="group-title">📦 Respaldo Completo y Sincronización PC ↔ Móvil</h4>
+                <p style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)', margin: '0.25rem 0 0.85rem', lineHeight: 1.4 }}>
+                  Empaqueta proyectos, módulos, placas, cantos, herrajes, plantillas y configuración de taller en un único archivo <code>.cadcat.json</code> para resguardo local o envío entre dispositivos (WhatsApp, Drive, Mail o archivo).
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                  {onExportFullBackup && (
+                    <>
+                      <button
+                        type="button"
+                        className="m3-button m3-button--filled"
+                        style={{ minHeight: '44px' }}
+                        onClick={() => onExportFullBackup(true)}
+                      >
+                        📲 Compartir / Enviar Backup
+                      </button>
+                      <button
+                        type="button"
+                        className="m3-button m3-button--tonal"
+                        style={{ minHeight: '44px' }}
+                        onClick={() => onExportFullBackup(false)}
+                      >
+                        💾 Descargar .cadcat.json
+                      </button>
+                    </>
+                  )}
+                  {onImportFullBackupFile && (
+                    <>
+                      <button
+                        type="button"
+                        className="m3-button m3-button--outlined"
+                        style={{ minHeight: '44px' }}
+                        onClick={() => backupFileInputRef.current?.click()}
+                      >
+                        📥 Importar .cadcat.json
+                      </button>
+                      <input
+                        ref={backupFileInputRef}
+                        type="file"
+                        accept=".json,.cadcat.json"
+                        style={{ display: 'none' }}
+                        onChange={handleBackupFileChange}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Application Maintenance & Cache Purge */}
             <div className="settings-group-card" style={{ gridColumn: '1 / -1' }}>

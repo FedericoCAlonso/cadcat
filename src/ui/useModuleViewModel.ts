@@ -53,7 +53,11 @@ import {
   saveProjectToDb,
   loadProjectFromDb,
   loadAllProjectsFromDb,
+  buildBackupBundleJson,
+  parseBackupBundleJson,
+  importBackupBundleToDb,
 } from '../storage';
+import { APP_VERSION } from '../version';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { useOneHandDevice } from './useOneHandDevice';
 import { getSeedMaterials, getSeedEdgeBands, getSeedHardware } from '../catalog';
@@ -268,6 +272,8 @@ export interface ModuleViewModelState {
   saveProjectConfig: () => Promise<void>;
   importProjectConfigFile: (file: File) => Promise<void>;
   exportProjectConfigFile: () => void;
+  exportFullBackup: (preferShare?: boolean) => Promise<void>;
+  importFullBackupFile: (file: File) => Promise<void>;
   resetProjectConfigToDefaults: () => Promise<void>;
   // User templates
   userTemplates: UserTemplate[];
@@ -1612,6 +1618,43 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setIsCustomModular(true);
   }, []);
 
+  const applyProjectSnapshot = useCallback((p: Project) => {
+    setProject(p);
+    setProjectModules(p.modules);
+    const activeMod = p.modules.find((m) => m.id === p.activeModuleId) ?? p.modules[0];
+    if (!activeMod) return;
+    setActiveModuleId(activeMod.id);
+    setWidth(activeMod.width);
+    setHeight(activeMod.height);
+    setDepth(activeMod.depth);
+    if (activeMod.templateId) setSelectedTemplateId(activeMod.templateId);
+    if (activeMod.selectedMaterialId) setSelectedMaterialId(activeMod.selectedMaterialId);
+    if (activeMod.selectedEdgeBandId) setSelectedEdgeBandId(activeMod.selectedEdgeBandId);
+    if (activeMod.frontsMaterialId) setFrontsMaterialId(activeMod.frontsMaterialId);
+    if (activeMod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(activeMod.drawerBoxesMaterialId);
+    if (activeMod.backingsMaterialId) setBackingsMaterialId(activeMod.backingsMaterialId);
+    setIsCustomModular(Boolean(activeMod.isCustomModular));
+    if (activeMod.roofType) setRoofTypeState(activeMod.roofType as RoofType);
+    if (activeMod.jointPriority) setJointPriorityState(activeMod.jointPriority as JointPriority);
+    if (typeof activeMod.hasBacking === 'boolean') setHasBackingState(activeMod.hasBacking);
+    if (activeMod.backingType) setBackingType(activeMod.backingType as BackingType);
+    if (activeMod.backingThicknessMm) setBackingThicknessMm(activeMod.backingThicknessMm);
+    if (typeof activeMod.isIslandCabinet === 'boolean') setIsIslandCabinet(activeMod.isIslandCabinet);
+    if (activeMod.rearStructuralRails) setRearStructuralRails(activeMod.rearStructuralRails as RearStructuralRails);
+    if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
+    if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
+    if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
+    if (activeMod.bayTracks) setBayTracksState(activeMod.bayTracks);
+    if (activeMod.bays) setBaysState(activeMod.bays);
+    if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
+    if (activeMod.interferences?.columnObstacle) {
+      setColumnObstacle(activeMod.interferences.columnObstacle);
+    }
+    if (activeMod.interferences?.falseSquare) {
+      setFalseSquare(activeMod.interferences.falseSquare);
+    }
+  }, []);
+
   // Load catalogs, user templates, and project config from IndexedDB on startup
   useEffect(() => {
     let isMounted = true;
@@ -1637,39 +1680,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         setUserTemplates(loadedUserTpls);
 
         if (loadedProjects.length > 0 && loadedProjects[0]) {
-          const p = loadedProjects[0];
-          setProject(p);
-          setProjectModules(p.modules);
-          const activeMod = p.modules.find((m) => m.id === p.activeModuleId) ?? p.modules[0]!;
-          setActiveModuleId(activeMod.id);
-          setWidth(activeMod.width);
-          setHeight(activeMod.height);
-          setDepth(activeMod.depth);
-          if (activeMod.templateId) setSelectedTemplateId(activeMod.templateId);
-          if (activeMod.selectedMaterialId) setSelectedMaterialId(activeMod.selectedMaterialId);
-          if (activeMod.selectedEdgeBandId) setSelectedEdgeBandId(activeMod.selectedEdgeBandId);
-          if (activeMod.frontsMaterialId) setFrontsMaterialId(activeMod.frontsMaterialId);
-          if (activeMod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(activeMod.drawerBoxesMaterialId);
-          if (activeMod.backingsMaterialId) setBackingsMaterialId(activeMod.backingsMaterialId);
-          setIsCustomModular(Boolean(activeMod.isCustomModular));
-          if (activeMod.roofType) setRoofTypeState(activeMod.roofType as RoofType);
-          if (activeMod.jointPriority) setJointPriorityState(activeMod.jointPriority as JointPriority);
-          if (typeof activeMod.hasBacking === 'boolean') setHasBackingState(activeMod.hasBacking);
-          if (activeMod.backingType) setBackingType(activeMod.backingType as BackingType);
-          if (activeMod.backingThicknessMm) setBackingThicknessMm(activeMod.backingThicknessMm);
-          if (typeof activeMod.isIslandCabinet === 'boolean') setIsIslandCabinet(activeMod.isIslandCabinet);
-          if (activeMod.rearStructuralRails) setRearStructuralRails(activeMod.rearStructuralRails as RearStructuralRails);
-          if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
-          if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
-          if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
-          if (activeMod.bays) setBaysState(activeMod.bays);
-          if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
-          if (activeMod.interferences?.columnObstacle) {
-            setColumnObstacle(activeMod.interferences.columnObstacle);
-          }
-          if (activeMod.interferences?.falseSquare) {
-            setFalseSquare(activeMod.interferences.falseSquare);
-          }
+          applyProjectSnapshot(loadedProjects[0]);
         } else {
           const defProj = createDefaultProject({
             id: 'mod-1',
@@ -1726,7 +1737,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     return () => {
       isMounted = false;
     };
-  }, [initialDb]);
+  }, [initialDb, applyProjectSnapshot]);
 
   // User templates persistence actions
   const saveCurrentUserTemplate = useCallback(
@@ -2835,33 +2846,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       setIsLoading(true);
       const loaded = await loadProjectFromDb(id, initialDb);
       if (loaded && loaded.modules.length > 0) {
-        setProject(loaded);
-        setProjectModules(loaded.modules);
-        const activeMod = loaded.modules.find((m) => m.id === loaded.activeModuleId) ?? loaded.modules[0]!;
-        setActiveModuleId(activeMod.id);
-        setWidth(activeMod.width);
-        setHeight(activeMod.height);
-        setDepth(activeMod.depth);
-        if (activeMod.templateId) setSelectedTemplateId(activeMod.templateId);
-        if (activeMod.selectedMaterialId) setSelectedMaterialId(activeMod.selectedMaterialId);
-        if (activeMod.selectedEdgeBandId) setSelectedEdgeBandId(activeMod.selectedEdgeBandId);
-        if (activeMod.frontsMaterialId) setFrontsMaterialId(activeMod.frontsMaterialId);
-        if (activeMod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(activeMod.drawerBoxesMaterialId);
-        if (activeMod.backingsMaterialId) setBackingsMaterialId(activeMod.backingsMaterialId);
-        setIsCustomModular(Boolean(activeMod.isCustomModular));
-        if (activeMod.roofType) setRoofTypeState(activeMod.roofType as RoofType);
-        if (activeMod.jointPriority) setJointPriorityState(activeMod.jointPriority as JointPriority);
-        if (typeof activeMod.hasBacking === 'boolean') setHasBackingState(activeMod.hasBacking);
-        if (activeMod.backingType) setBackingType(activeMod.backingType as BackingType);
-        if (activeMod.backingThicknessMm) setBackingThicknessMm(activeMod.backingThicknessMm);
-        if (typeof activeMod.isIslandCabinet === 'boolean') setIsIslandCabinet(activeMod.isIslandCabinet);
-        if (activeMod.rearStructuralRails) setRearStructuralRails(activeMod.rearStructuralRails as RearStructuralRails);
-        if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
-        if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
-        if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
-        if (activeMod.bayTracks) setBayTracksState(activeMod.bayTracks);
-        if (activeMod.bays) setBaysState(activeMod.bays);
-        if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
+        applyProjectSnapshot(loaded);
         setStatusMessage(`Proyecto "${loaded.name}" cargado desde la base de datos.`);
       }
     } catch (err) {
@@ -2869,7 +2854,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     } finally {
       setIsLoading(false);
     }
-  }, [initialDb]);
+  }, [initialDb, applyProjectSnapshot]);
 
   // Consolidate pieces and BOM across all modules for full-project optimization
   const modulesToConsolidate: ModuleToConsolidate[] = useMemo(() => {
@@ -3363,6 +3348,125 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setStatusMessage(`Configuración exportada a ${fileName}.`);
   }, [projectConfig]);
 
+  // Export complete portable backup bundle (.cadcat.json) with optional Web Share API
+  const exportFullBackup = useCallback(
+    async (preferShare = false) => {
+      try {
+        const currentPacked = serializeCurrentModule();
+        const allMods = projectModules.map((m) => (m.id === activeModuleId ? currentPacked : m));
+        const liveProject: Project = {
+          schemaVersion: 1,
+          id: project?.id ?? 'proj-default',
+          name: project?.name ?? 'Proyecto CadCat',
+          clientName: project?.clientName ?? 'Cliente Estándar',
+          description: project?.description ?? '',
+          modules: allMods,
+          activeModuleId,
+          createdAt: project?.createdAt ?? new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const existingProjects = await loadAllProjectsFromDb(initialDb);
+        const otherProjects = existingProjects.filter((p) => p.id !== liveProject.id);
+        const jsonStr = buildBackupBundleJson({
+          appVersion: APP_VERSION,
+          projects: [liveProject, ...otherProjects],
+          projectConfig,
+          materials,
+          edgeBands,
+          hardware,
+          userTemplates,
+        });
+
+        const safeSlug = (liveProject.name || 'cadcat')
+          .toLowerCase()
+          .replace(/[^a-z0-9-_]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'proyecto';
+        const fileName = `${safeSlug}.cadcat.json`;
+
+        if (preferShare && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof File !== 'undefined') {
+          const shareFile = new File([jsonStr], fileName, { type: 'application/json' });
+          const canShareFiles =
+            typeof navigator.canShare === 'function' ? navigator.canShare({ files: [shareFile] }) : true;
+          if (canShareFiles) {
+            try {
+              await navigator.share({
+                title: `CadCat Backup · ${liveProject.name}`,
+                text: `Respaldo completo CadCat (${allMods.length} módulos)`,
+                files: [shareFile],
+              });
+              setStatusMessage(`Backup compartido (${fileName}).`);
+              return;
+            } catch (shareErr) {
+              if (shareErr instanceof Error && shareErr.name === 'AbortError') {
+                return;
+              }
+              // Fall back to standard download if OS share fails
+            }
+          }
+        }
+
+        triggerBrowserDownload(fileName, jsonStr, 'application/json');
+        setStatusMessage(`Backup completo exportado a ${fileName}.`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al exportar el respaldo completo');
+      }
+    },
+    [
+      serializeCurrentModule,
+      projectModules,
+      activeModuleId,
+      project,
+      initialDb,
+      projectConfig,
+      materials,
+      edgeBands,
+      hardware,
+      userTemplates,
+    ],
+  );
+
+  // Import complete portable backup bundle (.cadcat.json) and sync state
+  const importFullBackupFile = useCallback(
+    async (file: File) => {
+      try {
+        setIsSaving(true);
+        const text = await file.text();
+        const bundle = parseBackupBundleJson(text);
+        await importBackupBundleToDb(bundle, initialDb);
+
+        const [loadedMats, loadedBands, loadedHw, loadedConfig, loadedUserTpls, loadedProjects] =
+          await Promise.all([
+            loadMaterialsFromDb(initialDb),
+            loadEdgeBandsFromDb(initialDb),
+            loadHardwareFromDb(initialDb),
+            loadProjectConfigFromDb(bundle.projectConfig?.projectId ?? DEFAULT_PROJECT_ID, initialDb),
+            loadUserTemplatesFromDb(initialDb),
+            loadAllProjectsFromDb(initialDb),
+          ]);
+
+        setMaterials(loadedMats);
+        setEdgeBands(loadedBands);
+        setHardware(loadedHw);
+        setProjectConfig(loadedConfig);
+        setUserTemplates(loadedUserTpls);
+
+        if (loadedProjects.length > 0 && loadedProjects[0]) {
+          applyProjectSnapshot(loadedProjects[0]);
+        }
+
+        setStatusMessage(
+          `Respaldo importado desde ${file.name} (${loadedProjects.length} proyecto/s, ${loadedMats.length} placas).`,
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al importar respaldo .cadcat.json');
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [initialDb, applyProjectSnapshot],
+  );
+
   // Reset configuration to base file defaults
   const resetProjectConfigToDefaults = useCallback(async () => {
     try {
@@ -3518,6 +3622,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     saveProjectConfig,
     importProjectConfigFile,
     exportProjectConfigFile,
+    exportFullBackup,
+    importFullBackupFile,
     resetProjectConfigToDefaults,
     railOrientation,
     hasMiddleBrace,

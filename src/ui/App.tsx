@@ -1,20 +1,36 @@
-import { useState, useEffect, useRef, type ReactElement } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, type ReactElement } from 'react';
 import './theme.css';
 import { useModuleViewModel } from './useModuleViewModel';
 import { ModuleForm } from './ModuleForm';
-import { PieceListView } from './PieceListView';
 import { Viewport3D } from './Viewport3D';
-import { MachiningSheetView } from './MachiningSheetView';
-import { ProjectSettingsView } from './ProjectSettingsView';
-import { AssemblySheetView } from './AssemblySheetView';
-import { CatalogManagerView } from './CatalogManagerView';
-import { MachiningEditorModal } from './MachiningEditorModal';
-import { CountertopEditorView } from './CountertopEditorView';
+import { ErrorBoundary } from './ErrorBoundary';
 import { forcePurgeCacheAndReload } from '../registerServiceWorker';
 import { APP_VERSION } from '../version';
 import { useTheme } from './useTheme';
 import { ThemeToggle } from './ThemeToggle';
 import { triggerHaptic } from './haptics';
+
+const PieceListView = lazy(() =>
+  import('./PieceListView').then((m) => ({ default: m.PieceListView })),
+);
+const MachiningSheetView = lazy(() =>
+  import('./MachiningSheetView').then((m) => ({ default: m.MachiningSheetView })),
+);
+const ProjectSettingsView = lazy(() =>
+  import('./ProjectSettingsView').then((m) => ({ default: m.ProjectSettingsView })),
+);
+const AssemblySheetView = lazy(() =>
+  import('./AssemblySheetView').then((m) => ({ default: m.AssemblySheetView })),
+);
+const CatalogManagerView = lazy(() =>
+  import('./CatalogManagerView').then((m) => ({ default: m.CatalogManagerView })),
+);
+const MachiningEditorModal = lazy(() =>
+  import('./MachiningEditorModal').then((m) => ({ default: m.MachiningEditorModal })),
+);
+const CountertopEditorView = lazy(() =>
+  import('./CountertopEditorView').then((m) => ({ default: m.CountertopEditorView })),
+);
 
 export type TabletSheetSnap = 'collapsed' | 'middle' | 'full';
 
@@ -103,7 +119,7 @@ export function App(): ReactElement {
                 }}
               />
               <div className="m3-top-app-bar__titles">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem 0.45rem' }}>
                   <h1 className="m3-top-app-bar__title">CadCat</h1>
                   <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', fontWeight: 600 }}>
                     Taller CAD
@@ -466,7 +482,11 @@ export function App(): ReactElement {
               </button>
             )}
             {(vm.activeTab === '3d' || vm.activeTab === 'form') && (
-              <Viewport3D
+              <ErrorBoundary
+                fallbackTitle="Error en el Visor 3D"
+                fallbackDescription="No se pudo inicializar o actualizar la vista 3D (WebGL). Podés seguir editando parámetros, guardando y exportando."
+              >
+                <Viewport3D
                   boxes={vm.spatialBoxes}
                   bounds={vm.spatialBounds}
                   pieces={vm.resolvedPieces}
@@ -496,126 +516,108 @@ export function App(): ReactElement {
                   interferences={vm.interferences}
                   moduleId={vm.activeModuleId}
                 />
+              </ErrorBoundary>
             )}
 
-              {vm.activeTab === 'machining' && (
-                <MachiningSheetView
-                  sheets={vm.machiningSheets}
-                  selectedPieceId={vm.selectedMachiningPieceId}
-                  onSelectPiece={vm.setSelectedMachiningPieceId}
-                  onExportPdf={vm.exportMachiningPdf}
-                  onExportDxf={vm.exportMachiningDxf}
-                />
-              )}
+            <ErrorBoundary fallbackTitle="Error en esta sección">
+              <Suspense fallback={<p className="loading-state">Cargando vista...</p>}>
+                {vm.activeTab === 'machining' && (
+                  <MachiningSheetView
+                    sheets={vm.machiningSheets}
+                    selectedPieceId={vm.selectedMachiningPieceId}
+                    onSelectPiece={vm.setSelectedMachiningPieceId}
+                    onExportPdf={vm.exportMachiningPdf}
+                    onExportDxf={vm.exportMachiningDxf}
+                  />
+                )}
 
-              {vm.activeTab === 'pieces' && (
-                <PieceListView
-                  pieces={vm.projectScope === 'all-modules' ? vm.consolidatedPieces : vm.resolvedPieces}
-                  projectScope={vm.projectScope}
-                  onProjectScopeChange={vm.setProjectScope}
-                  projectModulesCount={vm.projectModules.length}
-                  currentModuleName={vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name ?? 'Módulo Actual'}
-                  shelfDeflections={vm.shelfDeflections}
-                  selectedPieceId={vm.selectedPieceId}
-                  onSelectPiece={vm.setSelectedPieceId}
-                  pieceJointOverrides={vm.pieceJointOverrides}
-                  onSetPieceJointOverride={vm.setPieceJointOverride}
-                  defaultJointStrategy={vm.jointStrategy}
-                  materials={vm.materials}
-                  edgeBands={vm.edgeBands}
-                  pieceMaterialOverrides={vm.pieceMaterialOverrides}
-                  pieceThicknessOverrides={vm.pieceThicknessOverrides}
-                  pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
-                  onSetPieceMaterial={vm.setPieceMaterial}
-                  onSetPieceThickness={vm.setPieceThickness}
-                  onSetPieceEdgeBands={vm.setPieceEdgeBands}
-                  onOpenMachiningModal={(id) => setMachiningPieceId(id)}
-                  onExportMachiningPdf={vm.exportMachiningPdf}
-                  onExportMachiningDxf={vm.exportMachiningDxf}
-                  enablePieceLabels={vm.projectConfig?.features?.enablePieceLabels ?? true}
-                  orderId={vm.projectConfig?.projectId ?? 'ORD-001'}
-                  clientName={vm.projectConfig?.clientName ?? 'Cliente Taller'}
-                  moduleId={vm.activeModuleId}
-                  machiningList={vm.pieceMachiningList}
-                />
-              )}
+                {vm.activeTab === 'pieces' && (
+                  <PieceListView
+                    pieces={vm.projectScope === 'all-modules' ? vm.consolidatedPieces : vm.resolvedPieces}
+                    projectScope={vm.projectScope}
+                    onProjectScopeChange={vm.setProjectScope}
+                    projectModulesCount={vm.projectModules.length}
+                    currentModuleName={vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name ?? 'Módulo Actual'}
+                    shelfDeflections={vm.shelfDeflections}
+                    selectedPieceId={vm.selectedPieceId}
+                    onSelectPiece={vm.setSelectedPieceId}
+                    pieceJointOverrides={vm.pieceJointOverrides}
+                    onSetPieceJointOverride={vm.setPieceJointOverride}
+                    defaultJointStrategy={vm.jointStrategy}
+                    materials={vm.materials}
+                    edgeBands={vm.edgeBands}
+                    pieceMaterialOverrides={vm.pieceMaterialOverrides}
+                    pieceThicknessOverrides={vm.pieceThicknessOverrides}
+                    pieceEdgeBandOverrides={vm.pieceEdgeBandOverrides}
+                    onSetPieceMaterial={vm.setPieceMaterial}
+                    onSetPieceThickness={vm.setPieceThickness}
+                    onSetPieceEdgeBands={vm.setPieceEdgeBands}
+                    onOpenMachiningModal={(id) => setMachiningPieceId(id)}
+                    onExportMachiningPdf={vm.exportMachiningPdf}
+                    onExportMachiningDxf={vm.exportMachiningDxf}
+                    enablePieceLabels={vm.projectConfig?.features?.enablePieceLabels ?? true}
+                    orderId={vm.projectConfig?.projectId ?? 'ORD-001'}
+                    clientName={vm.projectConfig?.clientName ?? 'Cliente Taller'}
+                    moduleId={vm.activeModuleId}
+                    machiningList={vm.pieceMachiningList}
+                  />
+                )}
 
-              {vm.activeTab === 'assembly' && (
-                <AssemblySheetView
-                  assemblySheet={vm.assemblySheet}
-                  pieces={vm.resolvedPieces}
-                  spatialBoxes={vm.spatialBoxes}
-                  spatialBounds={vm.spatialBounds}
-                  explodedRatio={vm.explodedRatio}
-                  onExplodedRatioChange={vm.setExplodedRatio}
-                  wallShelvingOutput={vm.wallShelvingOutput}
-                  wallShelvingDefinition={vm.wallShelvingDefinition}
-                  onExportPdf={vm.exportAssemblyPdf}
-                  selectedPieceId={vm.selectedPieceId}
-                  onSelectPiece={vm.setSelectedPieceId}
-                />
-              )}
+                {vm.activeTab === 'assembly' && (
+                  <AssemblySheetView
+                    assemblySheet={vm.assemblySheet}
+                    pieces={vm.resolvedPieces}
+                    spatialBoxes={vm.spatialBoxes}
+                    spatialBounds={vm.spatialBounds}
+                    explodedRatio={vm.explodedRatio}
+                    onExplodedRatioChange={vm.setExplodedRatio}
+                    wallShelvingOutput={vm.wallShelvingOutput}
+                    wallShelvingDefinition={vm.wallShelvingDefinition}
+                    onExportPdf={vm.exportAssemblyPdf}
+                    selectedPieceId={vm.selectedPieceId}
+                    onSelectPiece={vm.setSelectedPieceId}
+                  />
+                )}
 
-              {vm.activeTab === 'countertop' && (
-                <CountertopEditorView
-                  countertopEnabled={vm.countertopEnabled}
-                  onToggleCountertop={vm.setCountertopEnabled}
-                  countertopCalculation={vm.countertopCalculation}
-                  countertopDefinition={vm.countertopDefinition}
-                  countertopMaterials={vm.countertopMaterials}
-                  equipmentCatalog={vm.equipmentCatalog}
-                  selectedMaterialId={vm.countertopMaterialId}
-                  onSelectMaterial={vm.setCountertopMaterialId}
-                  selectedEquipmentId={vm.selectedEquipmentId}
-                  onSelectEquipment={vm.setSelectedEquipmentId}
-                  sinkDrawerAdaptation={vm.sinkDrawerAdaptation}
-                  onSelectSinkDrawerAdaptation={vm.setSinkDrawerAdaptation}
-                  frontRailOrientation={vm.countertopFrontRailOrientation}
-                  onSelectFrontRailOrientation={vm.setCountertopFrontRailOrientation}
-                  frontOverhangMm={vm.countertopFrontOverhangMm}
-                  onFrontOverhangChange={vm.setCountertopFrontOverhangMm}
-                  edgeFinish={vm.countertopEdgeFinish}
-                  onEdgeFinishChange={vm.setCountertopEdgeFinish}
-                  hasBacksplash={vm.countertopHasBacksplash}
-                  onToggleBacksplash={vm.setCountertopHasBacksplash}
-                  backsplashHeightMm={vm.countertopBacksplashHeightMm}
-                  onBacksplashHeightChange={vm.setCountertopBacksplashHeightMm}
-                  onExportPdf={vm.exportMarmoleriaPdfReport}
-                />
-              )}
+                {vm.activeTab === 'countertop' && (
+                  <CountertopEditorView
+                    countertopEnabled={vm.countertopEnabled}
+                    onToggleCountertop={vm.setCountertopEnabled}
+                    countertopCalculation={vm.countertopCalculation}
+                    countertopDefinition={vm.countertopDefinition}
+                    countertopMaterials={vm.countertopMaterials}
+                    equipmentCatalog={vm.equipmentCatalog}
+                    selectedMaterialId={vm.countertopMaterialId}
+                    onSelectMaterial={vm.setCountertopMaterialId}
+                    selectedEquipmentId={vm.selectedEquipmentId}
+                    onSelectEquipment={vm.setSelectedEquipmentId}
+                    sinkDrawerAdaptation={vm.sinkDrawerAdaptation}
+                    onSelectSinkDrawerAdaptation={vm.setSinkDrawerAdaptation}
+                    frontRailOrientation={vm.countertopFrontRailOrientation}
+                    onSelectFrontRailOrientation={vm.setCountertopFrontRailOrientation}
+                    frontOverhangMm={vm.countertopFrontOverhangMm}
+                    onFrontOverhangChange={vm.setCountertopFrontOverhangMm}
+                    edgeFinish={vm.countertopEdgeFinish}
+                    onEdgeFinishChange={vm.setCountertopEdgeFinish}
+                    hasBacksplash={vm.countertopHasBacksplash}
+                    onToggleBacksplash={vm.setCountertopHasBacksplash}
+                    backsplashHeightMm={vm.countertopBacksplashHeightMm}
+                    onBacksplashHeightChange={vm.setCountertopBacksplashHeightMm}
+                    onExportPdf={vm.exportMarmoleriaPdfReport}
+                  />
+                )}
 
-              {vm.activeTab === 'settings' && (
-                <ProjectSettingsView
-                  config={vm.projectConfig}
-                  isSaving={vm.isSaving}
-                  onUpdateConfig={vm.updateProjectConfig}
-                  onSaveConfig={() => void vm.saveProjectConfig()}
-                  onExportConfig={vm.exportProjectConfigFile}
-                  onImportConfigFile={(file) => void vm.importProjectConfigFile(file)}
-                  onResetConfig={() => void vm.resetProjectConfigToDefaults()}
-                  materials={vm.materials}
-                  edgeBands={vm.edgeBands}
-                  hardware={vm.hardware}
-                  onSaveMaterial={vm.saveMaterial}
-                  onDeleteMaterial={vm.deleteMaterial}
-                  onSaveEdgeBand={vm.saveEdgeBand}
-                  onDeleteEdgeBand={vm.deleteEdgeBand}
-                  onSaveHardware={vm.saveHardware}
-                  onDeleteHardware={vm.deleteHardware}
-                  onResetCatalogs={vm.resetCatalogs}
-                  onForcePurgeCacheAndReload={forcePurgeCacheAndReload}
-                />
-              )}
-
-              {vm.activeTab === 'catalogs' && (
-                <div className="m3-card" style={{ width: '100%' }}>
-                  <h3 className="m3-card__title">
-                    <span>🗄️ Gestión de Catálogos e Insumos</span>
-                  </h3>
-                  <p className="m3-card__subtitle">
-                    Base de datos local (IndexedDB) de tableros/placas, tapacantos y herrajes de taller.
-                  </p>
-                  <CatalogManagerView
+                {vm.activeTab === 'settings' && (
+                  <ProjectSettingsView
+                    config={vm.projectConfig}
+                    isSaving={vm.isSaving}
+                    onUpdateConfig={vm.updateProjectConfig}
+                    onSaveConfig={() => void vm.saveProjectConfig()}
+                    onExportConfig={vm.exportProjectConfigFile}
+                    onImportConfigFile={(file) => void vm.importProjectConfigFile(file)}
+                    onExportFullBackup={(preferShare) => void vm.exportFullBackup(preferShare)}
+                    onImportFullBackupFile={(file) => void vm.importFullBackupFile(file)}
+                    onResetConfig={() => void vm.resetProjectConfigToDefaults()}
                     materials={vm.materials}
                     edgeBands={vm.edgeBands}
                     hardware={vm.hardware}
@@ -626,9 +628,34 @@ export function App(): ReactElement {
                     onSaveHardware={vm.saveHardware}
                     onDeleteHardware={vm.deleteHardware}
                     onResetCatalogs={vm.resetCatalogs}
+                    onForcePurgeCacheAndReload={forcePurgeCacheAndReload}
                   />
-                </div>
-              )}
+                )}
+
+                {vm.activeTab === 'catalogs' && (
+                  <div className="m3-card" style={{ width: '100%' }}>
+                    <h3 className="m3-card__title">
+                      <span>🗄️ Gestión de Catálogos e Insumos</span>
+                    </h3>
+                    <p className="m3-card__subtitle">
+                      Base de datos local (IndexedDB) de tableros/placas, tapacantos y herrajes de taller.
+                    </p>
+                    <CatalogManagerView
+                      materials={vm.materials}
+                      edgeBands={vm.edgeBands}
+                      hardware={vm.hardware}
+                      onSaveMaterial={vm.saveMaterial}
+                      onDeleteMaterial={vm.deleteMaterial}
+                      onSaveEdgeBand={vm.saveEdgeBand}
+                      onDeleteEdgeBand={vm.deleteEdgeBand}
+                      onSaveHardware={vm.saveHardware}
+                      onDeleteHardware={vm.deleteHardware}
+                      onResetCatalogs={vm.resetCatalogs}
+                    />
+                  </div>
+                )}
+              </Suspense>
+            </ErrorBoundary>
             </section>
           </div>
         )}
@@ -837,17 +864,21 @@ export function App(): ReactElement {
 
       {/* Interactive 2D Machining Editor Modal (Point 8) */}
       {machiningPieceId && (
-        <MachiningEditorModal
-          piece={vm.resolvedPieces.find((p) => p.id === machiningPieceId) ?? null}
-          customOperations={Object.values(vm.customPieceOperations).flat()}
-          spatialBoxes={vm.spatialBoxes}
-          materials={vm.materials}
-          config={vm.projectConfig?.machining}
-          derivedOperations={vm.machiningOperations}
-          onAddOperation={vm.addCustomPieceOperation}
-          onRemoveOperation={vm.removeCustomPieceOperation}
-          onClose={() => setMachiningPieceId(null)}
-        />
+        <ErrorBoundary fallbackTitle="Error en el Editor de Mecanizados" onReset={() => setMachiningPieceId(null)}>
+          <Suspense fallback={null}>
+            <MachiningEditorModal
+              piece={vm.resolvedPieces.find((p) => p.id === machiningPieceId) ?? null}
+              customOperations={Object.values(vm.customPieceOperations).flat()}
+              spatialBoxes={vm.spatialBoxes}
+              materials={vm.materials}
+              config={vm.projectConfig?.machining}
+              derivedOperations={vm.machiningOperations}
+              onAddOperation={vm.addCustomPieceOperation}
+              onRemoveOperation={vm.removeCustomPieceOperation}
+              onClose={() => setMachiningPieceId(null)}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </div>
   );

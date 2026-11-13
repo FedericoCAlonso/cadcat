@@ -45,5 +45,18 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
     },
+    build: {
+      chunkSizeWarningLimit: 700,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-three': ['three'],
+            'vendor-pdf': ['jspdf'],
+            'vendor-zod': ['zod'],
+          },
+        },
+      },
+    },
   };
 });
