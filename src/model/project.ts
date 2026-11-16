@@ -2,6 +2,18 @@ import { z } from 'zod';
 import { jointStrategySchema } from './projectConfig';
 import { interferenceConfigSchema } from './interferences';
 
+export const wallShelvesModuleConfigSchema = z.object({
+  shelfCount: z.number().int().min(1).max(20).default(3),
+  verticalSpacingMm: z.number().positive().default(320),
+  baseElevationYMm: z.number().nonnegative().default(800),
+  bracketType: z.enum(['l-bracket', 'floating-pin', 'track-bracket']).default('l-bracket'),
+  wallType: z.enum(['solid-brick', 'hollow-brick', 'drywall']).default('solid-brick'),
+  loadCategory: z.enum(['light', 'medium', 'heavy']).default('medium'),
+  boundaryCondition: z.enum(['free-ends', 'between-walls']).default('free-ends'),
+  overhangMode: z.enum(['balanced-cantilever', 'flush-ends', 'stud-aligned']).default('balanced-cantilever'),
+});
+export type WallShelvesModuleConfig = z.infer<typeof wallShelvesModuleConfigSchema>;
+
 export const projectModuleItemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -36,6 +48,7 @@ export const projectModuleItemSchema = z.object({
   countertopEnabled: z.boolean().optional(),
   countertopDefinition: z.any().optional(),
   interferences: interferenceConfigSchema.optional(),
+  wallShelves: wallShelvesModuleConfigSchema.optional(),
 });
 export type ProjectModuleItem = z.infer<typeof projectModuleItemSchema>;
 

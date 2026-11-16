@@ -156,4 +156,75 @@ describe('Cut Plan PDF Export', () => {
     expect(translatePieceLabel('door-left')).toBe('Puerta izq');
     expect(translatePieceLabel('custom-piece-123')).toBe('custom-piece-123');
   });
+
+  it('groups rotated and non-rotated identical pieces of a module together with canonical cut size', () => {
+    const nestingWithRotated: NestingResult = {
+      sheets: [
+        {
+          sheetIndex: 1, // 1-based as returned by runMultiMaterialGuillotineNesting
+          materialId: 'mat-egger-white-18',
+          sheetLengthMm: 2800,
+          sheetWidthMm: 2070,
+          placedPieces: [
+            // 5 horizontal + 1 rotated of Module 1 (1400 x 350)
+            { pieceId: 'mod-1__shelf-0__i1', moduleName: 'Estantes 1400', cutWidthMm: 1400, cutHeightMm: 350, x: 10, y: 10, width: 1400, height: 350, rotated: false },
+            { pieceId: 'mod-1__shelf-1__i1', moduleName: 'Estantes 1400', cutWidthMm: 1400, cutHeightMm: 350, x: 10, y: 363.2, width: 1400, height: 350, rotated: false },
+            { pieceId: 'mod-1__shelf-2__i1', moduleName: 'Estantes 1400', cutWidthMm: 1400, cutHeightMm: 350, x: 10, y: 716.4, width: 1400, height: 350, rotated: false },
+            { pieceId: 'mod-1__shelf-3__i1', moduleName: 'Estantes 1400', cutWidthMm: 1400, cutHeightMm: 350, x: 10, y: 1069.6, width: 1400, height: 350, rotated: false },
+            { pieceId: 'mod-1__shelf-4__i1', moduleName: 'Estantes 1400', cutWidthMm: 1400, cutHeightMm: 350, x: 10, y: 1422.8, width: 1400, height: 350, rotated: false },
+            { pieceId: 'mod-1__shelf-5__i1', moduleName: 'Estantes 1400', cutWidthMm: 1400, cutHeightMm: 350, x: 1413.2, y: 10, width: 350, height: 1400, rotated: true },
+            // 6 shelves of Module 2 (900 x 300)
+            { pieceId: 'mod-2__shelf-0__i1', moduleName: 'Estantes 900', cutWidthMm: 900, cutHeightMm: 300, x: 1766.4, y: 10, width: 900, height: 300, rotated: false },
+          ],
+          utilizationPercentage: 55.4,
+          usedAreaM2: 3.21,
+          wasteAreaM2: 2.58,
+          cutPasses: 10,
+        },
+      ],
+      unplacedPieces: [],
+      totalSheets: 1,
+      overallUtilizationPercentage: 55.4,
+      totalCutPasses: 10,
+    };
+
+    const doc = exportCutPlanPdf(nestingWithRotated, 'Plano Estantes');
+    const page1Text = doc.output('datauristring');
+    expect(doc.getNumberOfPages()).toBe(1);
+    expect(page1Text.length).toBeGreaterThan(100);
+
+    // Inspect internal jsPDF page stream for expected grouped text
+    const internalPages = (doc as unknown as { internal: { pages: string[][] } }).internal.pages;
+    const rawPageContent = (internalPages[1] ?? []).join('\n');
+    expect(rawPageContent).toContain('Hoja 1 de 1');
+    expect(rawPageContent).not.toContain('Hoja 2 de 1');
+    expect(rawPageContent).toContain('Estante \\(Estantes 1400\\)');
+    expect(rawPageContent).toContain('Estante \\(Estantes 900\\)');
+    expect(rawPageContent).toContain('1400 x 350 mm');
+    expect(rawPageContent).not.toContain('350 x 1400 mm');
+  });
+
+  it('renders a warning when unplacedPieces exist', () => {
+    const nestingWithUnplaced: NestingResult = {
+      sheets: [],
+      unplacedPieces: [
+        {
+          id: 'too-big',
+          pieceId: 'too-big',
+          materialId: 'mat-egger-white-18',
+          cutWidthMm: 3200,
+          cutHeightMm: 500,
+          canRotate: true,
+        },
+      ],
+      totalSheets: 0,
+      overallUtilizationPercentage: 0,
+      totalCutPasses: 0,
+    };
+
+    const doc = exportCutPlanPdf(nestingWithUnplaced, 'Oversize Test');
+    const internalPages = (doc as unknown as { internal: { pages: string[][] } }).internal.pages;
+    const rawPageContent = (internalPages[1] ?? []).join('\n');
+    expect(rawPageContent).toContain('1 pieza');
+  });
 });

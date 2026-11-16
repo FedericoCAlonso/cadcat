@@ -444,6 +444,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   } = props;
 
   const isWallShelves = selectedTemplateId === 'wall-shelves';
+  const activeModuleQuantity = projectModules?.find((m) => m.id === activeModuleId)?.quantity ?? 1;
 
   const currentBayCount =
     bayBoxes.length > 0
@@ -855,6 +856,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               selectedEdgeBandId={selectedEdgeBandId}
               onEdgeBandChange={onEdgeBandChange}
               wallShelvingOutput={wallShelvingOutput}
+              moduleQuantity={activeModuleQuantity}
               onViewAssemblyClick={onViewAssemblyClick}
               activeSection="dimensions"
             />
@@ -1423,7 +1425,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         isCostCalculating={isCostCalculating}
         materials={materials}
         activeMaterialId={selectedMaterialId}
-        activeModuleQuantity={projectModules?.find((m) => m.id === activeModuleId)?.quantity ?? 1}
+        activeModuleQuantity={activeModuleQuantity}
         scope={projectScope === 'all-modules' ? 'project' : 'module'}
         onScopeChange={(newScope) => {
           onProjectScopeChange?.(newScope === 'project' ? 'all-modules' : 'current-module');

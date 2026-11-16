@@ -195,6 +195,8 @@ export {
 } from './countertop';
 
 export {
+  wallShelvesModuleConfigSchema,
+  type WallShelvesModuleConfig,
   projectModuleItemSchema,
   type ProjectModuleItem,
   projectSchema,

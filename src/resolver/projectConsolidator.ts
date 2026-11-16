@@ -191,6 +191,8 @@ export function buildProjectNestingItems(
         items.push({
           id: uniqueId,
           pieceId: uniqueId,
+          name: p.role,
+          moduleName: modules.length > 1 ? mod.moduleName : undefined,
           materialId: p.materialId,
           cutWidthMm: p.cutDimensionsMm.width,
           cutHeightMm: p.cutDimensionsMm.height,
@@ -209,6 +211,8 @@ export function buildProjectNestingItems(
           items.push({
             id: gId,
             pieceId: gId,
+            name: `Calibre ${g.label.toUpperCase()}`,
+            moduleName: modules.length > 1 ? mod.moduleName : undefined,
             materialId: activeMat?.id ?? 'mat-default',
             cutWidthMm: g.clearSpanMm,
             cutHeightMm: g.widthMm,

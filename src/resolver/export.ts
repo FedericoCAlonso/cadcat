@@ -135,6 +135,14 @@ export function exportCutPlanPdf(
     doc.text(documentTitle, 14, 20);
     doc.setFontSize(12);
     doc.text('No se generaron hojas en el plano de corte.', 14, 35);
+    if (nestingResult.unplacedPieces.length > 0) {
+      doc.setTextColor(180, 30, 30);
+      doc.text(
+        `Advertencia: ${nestingResult.unplacedPieces.length} pieza(s) exceden el formato útil de la placa.`,
+        14,
+        45,
+      );
+    }
     return doc;
   }
 
@@ -143,9 +151,10 @@ export function exportCutPlanPdf(
       doc.addPage('a4', 'landscape');
     }
 
-    // Header in Spanish
+    // Header in Spanish (1-based page index regardless of single/multi-material sheetIndex)
     doc.setFontSize(15);
-    doc.text(`${documentTitle} - Hoja ${sheet.sheetIndex + 1} de ${nestingResult.sheets.length}`, 14, 13);
+    doc.setTextColor(20, 20, 20);
+    doc.text(`${documentTitle} - Hoja ${index + 1} de ${nestingResult.sheets.length}`, 14, 13);
 
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
@@ -156,7 +165,7 @@ export function exportCutPlanPdf(
       19,
     );
 
-    // Group placed pieces to generate short codes [P1], [P2], etc.
+    // Group placed pieces by module + role + canonical cut size (so rotated placements do not split counts)
     interface PieceGroupItem {
       code: string;
       name: string;
@@ -166,17 +175,21 @@ export function exportCutPlanPdf(
     }
     const groupMap = new Map<string, PieceGroupItem>();
     const pieceCodeMap = new Map<string, string>();
+    const pieceLabelMap = new Map<string, string>();
     let groupIndex = 1;
 
     for (const piece of sheet.placedPieces) {
-      const friendlyName = translatePieceLabel(piece.pieceId);
-      const w = Math.round(piece.width);
-      const h = Math.round(piece.height);
-      const key = `${friendlyName}_${w}_${h}`;
+      const baseName = translatePieceLabel(piece.pieceId);
+      const friendlyName = piece.moduleName ? `${baseName} (${piece.moduleName})` : baseName;
+      const cutW = Number((piece.cutWidthMm ?? (piece.rotated ? piece.height : piece.width)).toFixed(1));
+      const cutH = Number((piece.cutHeightMm ?? (piece.rotated ? piece.width : piece.height)).toFixed(1));
+      const key = `${friendlyName}_${cutW}_${cutH}`;
+
+      pieceLabelMap.set(piece.pieceId, friendlyName);
 
       if (!groupMap.has(key)) {
         const code = `P${groupIndex++}`;
-        groupMap.set(key, { code, name: friendlyName, width: w, height: h, count: 1 });
+        groupMap.set(key, { code, name: friendlyName, width: cutW, height: cutH, count: 1 });
         pieceCodeMap.set(piece.pieceId, code);
       } else {
         const item = groupMap.get(key)!;
@@ -217,10 +230,11 @@ export function exportCutPlanPdf(
       doc.setLineWidth(0.3);
       doc.rect(px, py, pw, ph, 'FD');
 
-      const friendlyName = translatePieceLabel(piece.pieceId);
+      const friendlyName = pieceLabelMap.get(piece.pieceId) ?? translatePieceLabel(piece.pieceId);
       const code = pieceCodeMap.get(piece.pieceId) ?? 'P';
-      const w = Math.round(piece.width);
-      const h = Math.round(piece.height);
+      const w = Number(piece.width.toFixed(1));
+      const h = Number(piece.height.toFixed(1));
+      const rotTag = piece.rotated ? ' (R)' : '';
 
       // Render piece label with short code and name
       doc.setTextColor(20, 20, 20);
@@ -228,12 +242,12 @@ export function exportCutPlanPdf(
         doc.setFontSize(7.5);
         doc.text(`[${code}] ${friendlyName}`, px + 1.5, py + 3.8);
         doc.setFontSize(6.5);
-        doc.text(`${w} x ${h} mm`, px + 1.5, py + 7.5);
+        doc.text(`${w} x ${h} mm${rotTag}`, px + 1.5, py + 7.5);
       } else if (pw > 14 && ph > 6) {
         doc.setFontSize(6.5);
         doc.text(`[${code}]`, px + 1, py + 3.5);
         if (ph > 9) {
-          doc.text(`${w}x${h}`, px + 1, py + 6.8);
+          doc.text(`${w}x${h}${piece.rotated ? ' R' : ''}`, px + 1, py + 6.8);
         }
       } else if (pw > 7 && ph > 4.5) {
         doc.setFontSize(5.5);
@@ -252,19 +266,36 @@ export function exportCutPlanPdf(
 
       // Table Header Row
       const tableW = Math.min(drawW, 200);
-      doc.setFillColor(226, 232, 240);
-      doc.rect(marginX, tableY, tableW, 4.5, 'FD');
-      doc.setFontSize(7.5);
-      doc.text('Ref', marginX + 2, tableY + 3.2);
-      doc.text('Pieza / Denominación', marginX + 16, tableY + 3.2);
-      doc.text('Medida de Corte', marginX + 105, tableY + 3.2);
-      doc.text('Cant.', marginX + 165, tableY + 3.2);
+      const drawTableHeader = (yPos: number) => {
+        doc.setFillColor(226, 232, 240);
+        doc.rect(marginX, yPos, tableW, 4.5, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text('Ref', marginX + 2, yPos + 3.2);
+        doc.text('Pieza / Denominación', marginX + 16, yPos + 3.2);
+        doc.text('Medida de Corte', marginX + 105, yPos + 3.2);
+        doc.text('Cant.', marginX + 165, yPos + 3.2);
+      };
+
+      drawTableHeader(tableY);
       tableY += 4.5;
 
       // Table Rows
       doc.setFont('helvetica', 'normal');
       for (const item of groupMap.values()) {
-        if (tableY > pageHeight - 8) break;
+        if (tableY > pageHeight - 10) {
+          doc.addPage('a4', 'landscape');
+          tableY = 16;
+          doc.setFontSize(9);
+          doc.setTextColor(30, 41, 59);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${documentTitle} - Hoja ${index + 1} (continuación de detalle)`, marginX, tableY);
+          tableY += 4;
+          drawTableHeader(tableY);
+          tableY += 4.5;
+          doc.setFont('helvetica', 'normal');
+        }
         doc.setFontSize(7.5);
         doc.setTextColor(30, 41, 59);
         doc.text(`[${item.code}]`, marginX + 2, tableY + 3.2);
@@ -276,6 +307,19 @@ export function exportCutPlanPdf(
         doc.line(marginX, tableY + 4.2, marginX + tableW, tableY + 4.2);
         tableY += 4.2;
       }
+    }
+
+    if (index === nestingResult.sheets.length - 1 && nestingResult.unplacedPieces.length > 0) {
+      const warnY = Math.min(pageHeight - 5, tableY + 5);
+      doc.setFontSize(8);
+      doc.setTextColor(180, 30, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.text(
+        `Advertencia: ${nestingResult.unplacedPieces.length} pieza(s) no pudieron ubicarse por exceder el formato útil de la placa.`,
+        marginX,
+        warnY,
+      );
+      doc.setFont('helvetica', 'normal');
     }
   });
 

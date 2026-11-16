@@ -73,6 +73,8 @@ export interface WallShelvesSectionProps {
   onEdgeBandChange: (id: string) => void;
   /** Output calculation and structural sag diagnostic for wall shelving. */
   wallShelvingOutput?: WallShelvingOutput | null;
+  /** Number of module instances in the project (from ModuleBar). Defaults to 1. */
+  moduleQuantity?: number;
   /** Callback to view wall layout assembly plan. */
   onViewAssemblyClick?: () => void;
   /** Currently active form section. */
@@ -87,21 +89,21 @@ export function WallShelvesSection({
   depth,
   onWidthChange,
   onDepthChange,
-  wallShelvesShelfCount = 3,
+  wallShelvesShelfCount = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.shelfCount,
   onWallShelvesShelfCountChange,
-  wallShelvesVerticalSpacingMm = 320,
+  wallShelvesVerticalSpacingMm = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.verticalSpacingMm,
   onWallShelvesVerticalSpacingMmChange,
-  wallShelvesBaseElevationYMm = 800,
+  wallShelvesBaseElevationYMm = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.baseElevationYMm,
   onWallShelvesBaseElevationYMmChange,
-  wallShelvesBracketType = 'l-bracket',
+  wallShelvesBracketType = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.bracketType,
   onWallShelvesBracketTypeChange,
-  wallShelvesWallType = 'solid-brick',
+  wallShelvesWallType = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.wallType,
   onWallShelvesWallTypeChange,
-  wallShelvesLoadCategory = 'medium',
+  wallShelvesLoadCategory = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.loadCategory,
   onWallShelvesLoadCategoryChange,
-  wallShelvesOverhangMode = 'balanced-cantilever',
+  wallShelvesOverhangMode = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.overhangMode,
   onWallShelvesOverhangModeChange,
-  wallShelvesBoundaryCondition = 'free-ends',
+  wallShelvesBoundaryCondition = DEFAULT_UI_CONFIG.defaultWallShelvesSettings.boundaryCondition,
   onWallShelvesBoundaryConditionChange,
   materials = [],
   standardThicknessesMm,
@@ -111,6 +113,7 @@ export function WallShelvesSection({
   selectedEdgeBandId,
   onEdgeBandChange,
   wallShelvingOutput,
+  moduleQuantity = 1,
   onViewAssemblyClick,
   activeSection,
 }: WallShelvesSectionProps): ReactElement {
@@ -180,9 +183,23 @@ export function WallShelvesSection({
                   +
                 </button>
                 <span style={{ fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-                  ({wallShelvesShelfCount} niveles verticales)
+                  ({wallShelvesShelfCount} {wallShelvesShelfCount === 1 ? 'nivel vertical' : 'niveles verticales'})
                 </span>
               </div>
+              {moduleQuantity > 1 && (
+                <p
+                  style={{
+                    margin: '0.35rem 0 0',
+                    fontSize: '0.8rem',
+                    color: 'var(--md-sys-color-primary)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Total en este lote: {wallShelvesShelfCount}{' '}
+                  {wallShelvesShelfCount === 1 ? 'estante' : 'estantes'} × {moduleQuantity} módulos ={' '}
+                  <strong>{wallShelvesShelfCount * moduleQuantity} estantes</strong>
+                </p>
+              )}
             </div>
 
             {/* Separación vertical */}

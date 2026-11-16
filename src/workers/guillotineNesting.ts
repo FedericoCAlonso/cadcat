@@ -12,6 +12,7 @@ export interface NestingItem {
   id: string;
   pieceId: string;
   name?: string;
+  moduleName?: string;
   materialId: string;
   cutWidthMm: number;
   cutHeightMm: number;
@@ -29,6 +30,10 @@ export interface SheetDefinition {
 
 export interface PlacedPiece {
   pieceId: string;
+  name?: string;
+  moduleName?: string;
+  cutWidthMm?: number;
+  cutHeightMm?: number;
   x: number;
   y: number;
   width: number;
@@ -330,7 +335,7 @@ function tryPlaceItemWithStrategy(
       rawCutSegments.push({
         orientation: 'H',
         coord: freeRect.y + pieceH,
-        start: freeRect.y,
+        start: freeRect.x,
         end: freeRect.x + pieceW,
       });
     }
@@ -338,6 +343,10 @@ function tryPlaceItemWithStrategy(
 
   return {
     pieceId: item.pieceId,
+    name: item.name,
+    moduleName: item.moduleName,
+    cutWidthMm: item.cutWidthMm,
+    cutHeightMm: item.cutHeightMm,
     x: freeRect.x,
     y: freeRect.y,
     width: pieceW,

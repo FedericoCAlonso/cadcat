@@ -139,5 +139,18 @@
     "jointPriority": "lateral-over-bottom",
     "hasBacking": true,
     "railWidthMm": 80
+  },
+  "defaultWallShelvesSettings": {
+    "widthMm": 1200,
+    "heightMm": 960,
+    "depthMm": 250,
+    "shelfCount": 3,
+    "verticalSpacingMm": 320,
+    "baseElevationYMm": 800,
+    "bracketType": "l-bracket",
+    "wallType": "solid-brick",
+    "loadCategory": "medium",
+    "boundaryCondition": "free-ends",
+    "overhangMode": "balanced-cantilever"
   }
 }

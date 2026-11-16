@@ -141,6 +141,31 @@ export const uiDefaultsSchema = z.object({
     hasBacking: z.boolean(),
     railWidthMm: z.number().positive(),
   }),
+  defaultWallShelvesSettings: z.object({
+    widthMm: z.number().positive().default(1200),
+    heightMm: z.number().positive().default(960),
+    depthMm: z.number().positive().default(250),
+    shelfCount: z.number().int().min(1).max(20).default(3),
+    verticalSpacingMm: z.number().positive().default(320),
+    baseElevationYMm: z.number().nonnegative().default(800),
+    bracketType: z.enum(['l-bracket', 'floating-pin', 'track-bracket']).default('l-bracket'),
+    wallType: z.enum(['solid-brick', 'hollow-brick', 'drywall']).default('solid-brick'),
+    loadCategory: z.enum(['light', 'medium', 'heavy']).default('medium'),
+    boundaryCondition: z.enum(['free-ends', 'between-walls']).default('free-ends'),
+    overhangMode: z.enum(['balanced-cantilever', 'flush-ends', 'stud-aligned']).default('balanced-cantilever'),
+  }).default({
+    widthMm: 1200,
+    heightMm: 960,
+    depthMm: 250,
+    shelfCount: 3,
+    verticalSpacingMm: 320,
+    baseElevationYMm: 800,
+    bracketType: 'l-bracket',
+    wallType: 'solid-brick',
+    loadCategory: 'medium',
+    boundaryCondition: 'free-ends',
+    overhangMode: 'balanced-cantilever',
+  }),
 });
 export type UiDefaultsConfig = z.infer<typeof uiDefaultsSchema>;
 

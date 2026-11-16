@@ -69,7 +69,6 @@ import {
   exportCutPlanPdf,
   exportMachiningSheetToDxf,
   triggerBrowserDownload,
-  canPieceRotate,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
   type ModuleCostSummary,
@@ -138,8 +137,6 @@ import {
   MODULAR_PRESETS,
   defaultModularPresetRegistry,
 } from '../resolver';
-
-import { runMultiMaterialGuillotineNesting } from '../workers';
 
 export interface ModuleViewModelState {
   width: number;
@@ -392,6 +389,80 @@ export interface ModuleViewModelState {
 }
 
 /**
+ * Maps wall shelving output pieces to resolved cut-size pieces with 3D positions and banded edges.
+ */
+function mapWallShelvingPiecesToCutSizes(
+  output: WallShelvingOutput,
+  edgeBands: EdgeBand[],
+): ResolvedPieceWithCutSize[] {
+  const positions = output.placementTree.resolvePositions();
+  return output.module.pieces.map((p) => {
+    const cut = calculatePieceCutSize(p, edgeBands);
+    const pos = positions.get(p.id) ?? { x: 0, y: 0, z: 0 };
+    const bandedList = [
+      cut.bandedEdges.bottom,
+      cut.bandedEdges.right,
+      cut.bandedEdges.top,
+      cut.bandedEdges.left,
+    ].filter((b): b is NonNullable<typeof b> => Boolean(b));
+
+    return {
+      ...p,
+      positionMm: pos,
+      dimensionsMm: {
+        width: p.contour.points[1]!.x,
+        height: p.contour.points[2]!.y,
+      },
+      cutDimensionsMm: cut.cutDimensionsMm,
+      cutContour: createRectangularContour(cut.cutDimensionsMm.width, cut.cutDimensionsMm.height),
+      bandedEdges: bandedList,
+    };
+  });
+}
+
+/**
+ * Builds the bay grid definition and normalized bay array from gridType, tracks, and bays.
+ */
+function buildModularGridAndBays(
+  gridType: '1-bay' | '2-bays-vertical' | '3-bays-vertical' | '2-bays-horizontal' | undefined,
+  bayTracks: TrackSize[] | undefined,
+  bays: BayContent[] | undefined,
+): { grid: BayGridDefinition | undefined; normalizedBays: BayContent[] } {
+  const isHorizontalAxis = gridType !== '2-bays-horizontal';
+  const activeTracks =
+    bayTracks && bayTracks.length > 1
+      ? bayTracks
+      : gridType === '2-bays-vertical' || gridType === '2-bays-horizontal'
+      ? [
+          { type: 'fractional' as const, valueFr: 1 },
+          { type: 'fractional' as const, valueFr: 1 },
+        ]
+      : gridType === '3-bays-vertical'
+      ? [
+          { type: 'fractional' as const, valueFr: 1 },
+          { type: 'fractional' as const, valueFr: 1 },
+          { type: 'fractional' as const, valueFr: 1 },
+        ]
+      : undefined;
+
+  const grid: BayGridDefinition | undefined =
+    activeTracks && activeTracks.length > 1 && gridType && gridType !== '1-bay'
+      ? {
+          axis: isHorizontalAxis ? 'horizontal' : 'vertical',
+          tracks: activeTracks,
+        }
+      : undefined;
+
+  const expectedBayCount = grid ? grid.tracks.length : 1;
+  const sourceBays = bays ?? [];
+  const normalizedBays: BayContent[] = [];
+  for (let i = 0; i < expectedBayCount; i++) {
+    normalizedBays.push(sourceBays[i] ?? { type: 'empty' });
+  }
+  return { grid, normalizedBays };
+}
+
+/**
  * Resolves cut pieces, BOM, and assembly gauges for an inactive module in the project.
  */
 function resolveInactiveModule(
@@ -408,6 +479,8 @@ function resolveInactiveModule(
     }
 
     if (item.templateId === 'wall-shelves') {
+      const wsDefaults = DEFAULT_UI_CONFIG.defaultWallShelvesSettings;
+      const ws = item.wallShelves;
       const output = buildWallShelving({
         id: item.id,
         widthMm: item.width,
@@ -415,38 +488,16 @@ function resolveInactiveModule(
         thicknessMm: typeof activeMat.thicknessMm === 'number' ? activeMat.thicknessMm : 18,
         materialId: activeMat.id,
         edgeBandId: item.selectedEdgeBandId || undefined,
-        shelfCount: 3,
-        verticalSpacingMm: 320,
-        baseElevationYMm: 800,
-        bracketType: 'l-bracket',
-        wallType: 'solid-brick',
-        loadCategory: 'medium',
-        boundaryCondition: 'free-ends',
-        overhangMode: 'balanced-cantilever',
+        shelfCount: ws?.shelfCount ?? wsDefaults.shelfCount,
+        verticalSpacingMm: ws?.verticalSpacingMm ?? wsDefaults.verticalSpacingMm,
+        baseElevationYMm: ws?.baseElevationYMm ?? wsDefaults.baseElevationYMm,
+        bracketType: ws?.bracketType ?? wsDefaults.bracketType,
+        wallType: ws?.wallType ?? wsDefaults.wallType,
+        loadCategory: ws?.loadCategory ?? wsDefaults.loadCategory,
+        boundaryCondition: ws?.boundaryCondition ?? wsDefaults.boundaryCondition,
+        overhangMode: ws?.overhangMode ?? wsDefaults.overhangMode,
       });
-      const positions = output.placementTree.resolvePositions();
-      const pieces: ResolvedPieceWithCutSize[] = output.module.pieces.map((p) => {
-        const cut = calculatePieceCutSize(p, edgeBands);
-        const pos = positions.get(p.id) ?? { x: 0, y: 0, z: 0 };
-        const bandedList = [
-          cut.bandedEdges.bottom,
-          cut.bandedEdges.right,
-          cut.bandedEdges.top,
-          cut.bandedEdges.left,
-        ].filter((b): b is NonNullable<typeof b> => Boolean(b));
-
-        return {
-          ...p,
-          positionMm: pos,
-          dimensionsMm: {
-            width: p.contour.points[1]!.x,
-            height: p.contour.points[2]!.y,
-          },
-          cutDimensionsMm: cut.cutDimensionsMm,
-          cutContour: createRectangularContour(cut.cutDimensionsMm.width, cut.cutDimensionsMm.height),
-          bandedEdges: bandedList,
-        };
-      });
+      const pieces = mapWallShelvingPiecesToCutSizes(output, edgeBands);
       const bom = generateBillOfMaterials(
         {
           moduleId: item.id,
@@ -465,6 +516,11 @@ function resolveInactiveModule(
       const backingMat = materials.find((m) => m.id === item.backingsMaterialId);
       const boxMat = materials.find((m) => m.id === item.drawerBoxesMaterialId);
       const frontMat = materials.find((m) => m.id === item.frontsMaterialId);
+      const { grid, normalizedBays } = buildModularGridAndBays(
+        item.gridType,
+        item.bayTracks as TrackSize[] | undefined,
+        item.bays as BayContent[] | undefined,
+      );
 
       const modularDef: ModularModuleDefinition = {
         id: item.id,
@@ -482,11 +538,8 @@ function resolveInactiveModule(
           rearStructuralRailsWidthMm: item.rearStructuralRailsWidthMm,
           partitionPassThroughRoof: item.partitionPassThroughRoof,
         },
-        grid: {
-          axis: 'horizontal',
-          tracks: [{ type: 'fractional', valueFr: 1 }],
-        },
-        bays: item.bays && item.bays.length > 0 ? item.bays : [{ type: 'empty' }],
+        grid,
+        bays: normalizedBays,
         materials: {
           carcassMaterialId: activeMat.id,
           frontsMaterialId: frontMat?.id ?? activeMat.id,
@@ -712,15 +765,43 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   // Interactive Kinematics state (Point 11)
   const [kinematicsState, setKinematicsState] = useState<Record<string, number>>({});
 
-  // Wall Shelves state
-  const [wallShelvesBracketType, setWallShelvesBracketType] = useState<BracketType>('l-bracket');
-  const [wallShelvesWallType, setWallShelvesWallType] = useState<WallType>('solid-brick');
-  const [wallShelvesLoadCategory, setWallShelvesLoadCategory] = useState<LoadCategory>('medium');
-  const [wallShelvesBoundaryCondition, setWallShelvesBoundaryCondition] = useState<BoundaryCondition>('free-ends');
-  const [wallShelvesOverhangMode, setWallShelvesOverhangMode] = useState<OverhangMode>('balanced-cantilever');
-  const [wallShelvesShelfCount, setWallShelvesShelfCountState] = useState<number>(3);
-  const [wallShelvesVerticalSpacingMm, setWallShelvesVerticalSpacingMmState] = useState<number>(320);
-  const [wallShelvesBaseElevationYMm, setWallShelvesBaseElevationYMm] = useState<number>(800);
+  // Wall Shelves state (initialized from centralized UI defaults)
+  const [wallShelvesBracketType, setWallShelvesBracketType] = useState<BracketType>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.bracketType,
+  );
+  const [wallShelvesWallType, setWallShelvesWallType] = useState<WallType>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.wallType,
+  );
+  const [wallShelvesLoadCategory, setWallShelvesLoadCategory] = useState<LoadCategory>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.loadCategory,
+  );
+  const [wallShelvesBoundaryCondition, setWallShelvesBoundaryCondition] = useState<BoundaryCondition>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.boundaryCondition,
+  );
+  const [wallShelvesOverhangMode, setWallShelvesOverhangMode] = useState<OverhangMode>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.overhangMode,
+  );
+  const [wallShelvesShelfCount, setWallShelvesShelfCountState] = useState<number>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.shelfCount,
+  );
+  const [wallShelvesVerticalSpacingMm, setWallShelvesVerticalSpacingMmState] = useState<number>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.verticalSpacingMm,
+  );
+  const [wallShelvesBaseElevationYMm, setWallShelvesBaseElevationYMm] = useState<number>(
+    DEFAULT_UI_CONFIG.defaultWallShelvesSettings.baseElevationYMm,
+  );
+
+  const applyWallShelvesSettings = useCallback((ws?: ProjectModuleItem['wallShelves']) => {
+    const wsDefaults = DEFAULT_UI_CONFIG.defaultWallShelvesSettings;
+    setWallShelvesBracketType(ws?.bracketType ?? wsDefaults.bracketType);
+    setWallShelvesWallType(ws?.wallType ?? wsDefaults.wallType);
+    setWallShelvesLoadCategory(ws?.loadCategory ?? wsDefaults.loadCategory);
+    setWallShelvesBoundaryCondition(ws?.boundaryCondition ?? wsDefaults.boundaryCondition);
+    setWallShelvesOverhangMode(ws?.overhangMode ?? wsDefaults.overhangMode);
+    setWallShelvesShelfCountState(ws?.shelfCount ?? wsDefaults.shelfCount);
+    setWallShelvesVerticalSpacingMmState(ws?.verticalSpacingMm ?? wsDefaults.verticalSpacingMm);
+    setWallShelvesBaseElevationYMm(ws?.baseElevationYMm ?? wsDefaults.baseElevationYMm);
+  }, []);
 
   const setWallShelvesShelfCount = useCallback((count: number) => {
     const validCount = Math.max(1, Math.min(8, Math.round(count)));
@@ -791,9 +872,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setActiveBayIndex(0);
 
     if (id === 'wall-shelves') {
-      setWidth(1200);
-      setHeight(960);
-      setDepth(250);
+      const wsDefaults = DEFAULT_UI_CONFIG.defaultWallShelvesSettings;
+      setWidth(wsDefaults.widthMm);
+      setHeight(wsDefaults.heightMm);
+      setDepth(wsDefaults.depthMm);
+      applyWallShelvesSettings();
       setRoofTypeState('none');
       setJointPriorityState('lateral-over-bottom');
       setHasBackingState(false);
@@ -900,7 +983,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         else setPieceJointOverrides({});
       }
     }
-  }, [userTemplates, materials]);
+  }, [userTemplates, materials, applyWallShelvesSettings]);
 
   // Builder setters that activate custom modular mode
   const setRoofType = useCallback((roof: RoofType) => {
@@ -1618,42 +1701,61 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setIsCustomModular(true);
   }, []);
 
+  const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
+  const setJointStrategy = useCallback((strategy: JointStrategy) => {
+    setProjectConfig((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        machining: {
+          ...prev.machining,
+          jointStrategy: strategy,
+        },
+      };
+    });
+  }, []);
+
+  const hydrateModuleState = useCallback((mod: ProjectModuleItem) => {
+    setWidth(mod.width);
+    setHeight(mod.height);
+    setDepth(mod.depth);
+    if (mod.templateId) setSelectedTemplateId(mod.templateId);
+    if (mod.selectedMaterialId) setSelectedMaterialId(mod.selectedMaterialId);
+    if (mod.selectedEdgeBandId) setSelectedEdgeBandId(mod.selectedEdgeBandId);
+    if (mod.frontsMaterialId) setFrontsMaterialId(mod.frontsMaterialId);
+    if (mod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(mod.drawerBoxesMaterialId);
+    if (mod.backingsMaterialId) setBackingsMaterialId(mod.backingsMaterialId);
+    if (mod.roofType) setRoofTypeState(mod.roofType as RoofType);
+    if (mod.jointPriority) setJointPriorityState(mod.jointPriority as JointPriority);
+    if (typeof mod.hasBacking === 'boolean') setHasBackingState(mod.hasBacking);
+    if (mod.backingType) setBackingTypeState(mod.backingType as BackingType);
+    if (mod.backingThicknessMm) setBackingThicknessMmState(mod.backingThicknessMm);
+    if (typeof mod.isIslandCabinet === 'boolean') setIsIslandCabinetState(mod.isIslandCabinet);
+    if (mod.rearStructuralRails) setRearStructuralRailsState(mod.rearStructuralRails as RearStructuralRails);
+    if (mod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMmState(mod.rearStructuralRailsWidthMm);
+    if (typeof mod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoofState(mod.partitionPassThroughRoof);
+    if (mod.gridType) setGridTypeState(mod.gridType as any);
+    if (mod.bayTracks) setBayTracksState(mod.bayTracks);
+    if (mod.bays) setBaysState(mod.bays);
+    setIsCustomModular(Boolean(mod.isCustomModular));
+    if (mod.jointStrategy) setJointStrategy(mod.jointStrategy);
+    setPieceJointOverrides((mod.pieceJointOverrides as any) ?? {});
+    setPieceMaterialOverrides(mod.pieceMaterialOverrides ?? {});
+    setPieceThicknessOverrides(mod.pieceThicknessOverrides ?? {});
+    setPieceEdgeBandOverrides(mod.pieceEdgeBandOverrides ?? {});
+    setColumnObstacle(mod.interferences?.columnObstacle ?? DEFAULT_COLUMN_OBSTACLE);
+    setFalseSquare(mod.interferences?.falseSquare ?? DEFAULT_FALSE_SQUARE);
+    applyWallShelvesSettings(mod.wallShelves);
+  }, [applyWallShelvesSettings, setJointStrategy]);
+
   const applyProjectSnapshot = useCallback((p: Project) => {
     setProject(p);
     setProjectModules(p.modules);
     const activeMod = p.modules.find((m) => m.id === p.activeModuleId) ?? p.modules[0];
     if (!activeMod) return;
     setActiveModuleId(activeMod.id);
-    setWidth(activeMod.width);
-    setHeight(activeMod.height);
-    setDepth(activeMod.depth);
-    if (activeMod.templateId) setSelectedTemplateId(activeMod.templateId);
-    if (activeMod.selectedMaterialId) setSelectedMaterialId(activeMod.selectedMaterialId);
-    if (activeMod.selectedEdgeBandId) setSelectedEdgeBandId(activeMod.selectedEdgeBandId);
-    if (activeMod.frontsMaterialId) setFrontsMaterialId(activeMod.frontsMaterialId);
-    if (activeMod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(activeMod.drawerBoxesMaterialId);
-    if (activeMod.backingsMaterialId) setBackingsMaterialId(activeMod.backingsMaterialId);
-    setIsCustomModular(Boolean(activeMod.isCustomModular));
-    if (activeMod.roofType) setRoofTypeState(activeMod.roofType as RoofType);
-    if (activeMod.jointPriority) setJointPriorityState(activeMod.jointPriority as JointPriority);
-    if (typeof activeMod.hasBacking === 'boolean') setHasBackingState(activeMod.hasBacking);
-    if (activeMod.backingType) setBackingType(activeMod.backingType as BackingType);
-    if (activeMod.backingThicknessMm) setBackingThicknessMm(activeMod.backingThicknessMm);
-    if (typeof activeMod.isIslandCabinet === 'boolean') setIsIslandCabinet(activeMod.isIslandCabinet);
-    if (activeMod.rearStructuralRails) setRearStructuralRails(activeMod.rearStructuralRails as RearStructuralRails);
-    if (activeMod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(activeMod.rearStructuralRailsWidthMm);
-    if (typeof activeMod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(activeMod.partitionPassThroughRoof);
-    if (activeMod.gridType) setGridTypeState(activeMod.gridType as any);
-    if (activeMod.bayTracks) setBayTracksState(activeMod.bayTracks);
-    if (activeMod.bays) setBaysState(activeMod.bays);
-    if (activeMod.jointStrategy) setJointStrategy(activeMod.jointStrategy);
-    if (activeMod.interferences?.columnObstacle) {
-      setColumnObstacle(activeMod.interferences.columnObstacle);
-    }
-    if (activeMod.interferences?.falseSquare) {
-      setFalseSquare(activeMod.interferences.falseSquare);
-    }
-  }, []);
+    hydrateModuleState(activeMod);
+  }, [hydrateModuleState]);
 
   // Load catalogs, user templates, and project config from IndexedDB on startup
   useEffect(() => {
@@ -1990,7 +2092,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (selectedTemplateId !== 'wall-shelves' || !activeMaterial) return null;
     const thickness = typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18;
     return {
-      id: 'wall-shelves-module',
+      id: activeModuleId,
       widthMm: width,
       depthMm: depth,
       thicknessMm: thickness,
@@ -2006,6 +2108,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       baseElevationYMm: wallShelvesBaseElevationYMm,
     };
   }, [
+    activeModuleId,
     selectedTemplateId,
     activeMaterial,
     width,
@@ -2108,29 +2211,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         if (!wallShelvingOutput) {
           return { currentModule: null, resolvedPieces: [], placementTree: null, bayBoxes: [] };
         }
-        const positions = wallShelvingOutput.placementTree.resolvePositions();
-        const resolvedPieces: ResolvedPieceWithCutSize[] = wallShelvingOutput.module.pieces.map((p) => {
-          const cut = calculatePieceCutSize(p, edgeBands);
-          const pos = positions.get(p.id) ?? { x: 0, y: 0, z: 0 };
-          const bandedList = [
-            cut.bandedEdges.bottom,
-            cut.bandedEdges.right,
-            cut.bandedEdges.top,
-            cut.bandedEdges.left,
-          ].filter((b): b is NonNullable<typeof b> => Boolean(b));
-
-          return {
-            ...p,
-            positionMm: pos,
-            dimensionsMm: {
-              width: p.contour.points[1]!.x,
-              height: p.contour.points[2]!.y,
-            },
-            cutDimensionsMm: cut.cutDimensionsMm,
-            cutContour: createRectangularContour(cut.cutDimensionsMm.width, cut.cutDimensionsMm.height),
-            bandedEdges: bandedList,
-          };
-        });
+        const resolvedPieces = mapWallShelvingPiecesToCutSizes(wallShelvingOutput, edgeBands);
 
         return {
           currentModule: wallShelvingOutput.module,
@@ -2147,36 +2228,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         selectedTemplateId.startsWith('preset-') ||
         selectedTemplateId !== 'wall-shelves'
       ) {
-        const isHorizontalAxis = gridType !== '2-bays-horizontal';
-        const activeTracks =
-          bayTracks && bayTracks.length > 1
-            ? bayTracks
-            : gridType === '2-bays-vertical' || gridType === '2-bays-horizontal'
-            ? [
-                { type: 'fractional' as const, valueFr: 1 },
-                { type: 'fractional' as const, valueFr: 1 },
-              ]
-            : gridType === '3-bays-vertical'
-            ? [
-                { type: 'fractional' as const, valueFr: 1 },
-                { type: 'fractional' as const, valueFr: 1 },
-                { type: 'fractional' as const, valueFr: 1 },
-              ]
-            : undefined;
-
-        const gridDef: BayGridDefinition | undefined =
-          activeTracks && activeTracks.length > 1 && gridType !== '1-bay'
-            ? {
-                axis: isHorizontalAxis ? 'horizontal' : 'vertical',
-                tracks: activeTracks,
-              }
-            : undefined;
-
-        const expectedBayCount = gridDef ? gridDef.tracks.length : 1;
-        const normalizedBays: BayContent[] = [];
-        for (let i = 0; i < expectedBayCount; i++) {
-          normalizedBays.push(bays[i] ?? { type: 'empty' });
-        }
+        const { grid: gridDef, normalizedBays } = buildModularGridAndBays(gridType, bayTracks, bays);
 
         const modularDef: ModularModuleDefinition = {
           id: `mod-${selectedTemplateId}`,
@@ -2605,20 +2657,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [currentModule, resolvedPieces, projectConfig, machiningSheets]);
 
-  const jointStrategy = projectConfig?.machining?.jointStrategy ?? 'confirmat';
-  const setJointStrategy = useCallback((strategy: JointStrategy) => {
-    setProjectConfig((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        machining: {
-          ...prev.machining,
-          jointStrategy: strategy,
-        },
-      };
-    });
-  }, []);
-
   const serializeCurrentModule = useCallback((): ProjectModuleItem => {
     return {
       id: activeModuleId,
@@ -2656,6 +2694,16 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       countertopEnabled,
       countertopDefinition,
       interferences,
+      wallShelves: {
+        shelfCount: wallShelvesShelfCount,
+        verticalSpacingMm: wallShelvesVerticalSpacingMm,
+        baseElevationYMm: wallShelvesBaseElevationYMm,
+        bracketType: wallShelvesBracketType,
+        wallType: wallShelvesWallType,
+        loadCategory: wallShelvesLoadCategory,
+        boundaryCondition: wallShelvesBoundaryCondition,
+        overhangMode: wallShelvesOverhangMode,
+      },
     };
   }, [
     activeModuleId,
@@ -2690,6 +2738,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     countertopEnabled,
     countertopDefinition,
     interferences,
+    wallShelvesShelfCount,
+    wallShelvesVerticalSpacingMm,
+    wallShelvesBaseElevationYMm,
+    wallShelvesBracketType,
+    wallShelvesWallType,
+    wallShelvesLoadCategory,
+    wallShelvesBoundaryCondition,
+    wallShelvesOverhangMode,
   ]);
 
   const setActiveModule = useCallback((targetModuleId: string) => {
@@ -2703,47 +2759,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       prev.map((m) => (m.id === activeModuleId ? currentPacked : m))
     );
 
-    setWidth(targetModule.width);
-    setHeight(targetModule.height);
-    setDepth(targetModule.depth);
-    if (targetModule.templateId) setSelectedTemplateId(targetModule.templateId);
-    if (targetModule.selectedMaterialId) setSelectedMaterialId(targetModule.selectedMaterialId);
-    if (targetModule.selectedEdgeBandId) setSelectedEdgeBandId(targetModule.selectedEdgeBandId);
-    if (targetModule.frontsMaterialId) setFrontsMaterialId(targetModule.frontsMaterialId);
-    if (targetModule.drawerBoxesMaterialId) setDrawerBoxesMaterialId(targetModule.drawerBoxesMaterialId);
-    if (targetModule.backingsMaterialId) setBackingsMaterialId(targetModule.backingsMaterialId);
-    setIsCustomModular(Boolean(targetModule.isCustomModular));
-    if (targetModule.roofType) setRoofTypeState(targetModule.roofType as RoofType);
-    if (targetModule.jointPriority) setJointPriorityState(targetModule.jointPriority as JointPriority);
-    if (typeof targetModule.hasBacking === 'boolean') setHasBackingState(targetModule.hasBacking);
-    if (targetModule.backingType) setBackingType(targetModule.backingType as BackingType);
-    if (targetModule.backingThicknessMm) setBackingThicknessMm(targetModule.backingThicknessMm);
-    if (typeof targetModule.isIslandCabinet === 'boolean') setIsIslandCabinet(targetModule.isIslandCabinet);
-    if (targetModule.rearStructuralRails) setRearStructuralRails(targetModule.rearStructuralRails as RearStructuralRails);
-    if (targetModule.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMm(targetModule.rearStructuralRailsWidthMm);
-    if (typeof targetModule.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoof(targetModule.partitionPassThroughRoof);
-    if (targetModule.gridType) setGridTypeState(targetModule.gridType as any);
-    if (targetModule.bayTracks) setBayTracksState(targetModule.bayTracks);
-    if (targetModule.bays) setBaysState(targetModule.bays);
-    if (targetModule.jointStrategy) setJointStrategy(targetModule.jointStrategy);
-    if (targetModule.pieceJointOverrides) setPieceJointOverrides(targetModule.pieceJointOverrides as any);
-    if (targetModule.pieceMaterialOverrides) setPieceMaterialOverrides(targetModule.pieceMaterialOverrides);
-    if (targetModule.pieceThicknessOverrides) setPieceThicknessOverrides(targetModule.pieceThicknessOverrides);
-    if (targetModule.pieceEdgeBandOverrides) setPieceEdgeBandOverrides(targetModule.pieceEdgeBandOverrides);
-    if (targetModule.interferences?.columnObstacle) {
-      setColumnObstacle(targetModule.interferences.columnObstacle);
-    } else {
-      setColumnObstacle(DEFAULT_COLUMN_OBSTACLE);
-    }
-    if (targetModule.interferences?.falseSquare) {
-      setFalseSquare(targetModule.interferences.falseSquare);
-    } else {
-      setFalseSquare(DEFAULT_FALSE_SQUARE);
-    }
+    hydrateModuleState(targetModule);
 
     setActiveModuleId(targetModuleId);
     setStatusMessage(`Cambiado al módulo "${targetModule.name}".`);
-  }, [activeModuleId, serializeCurrentModule, projectModules]);
+  }, [activeModuleId, serializeCurrentModule, projectModules, hydrateModuleState]);
 
   const addProjectModule = useCallback((name?: string, templateId?: string) => {
     const currentPacked = serializeCurrentModule();
@@ -3087,7 +3107,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
   const exportCsv = useCallback(() => {
     const isGlobal = projectScope === 'all-modules';
-    const piecesToExport = isGlobal ? consolidatedPieces : resolvedPieces;
+    const piecesToExport = isGlobal
+      ? consolidatedPieces
+      : consolidateProjectPieces(activeModuleToConsolidate);
     if (piecesToExport.length === 0) return;
 
     const auxPieces: ResolvedPieceWithCutSize[] = (!isGlobal && assemblySheet?.gauges)
@@ -3117,104 +3139,55 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
     triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
     setStatusMessage(`Lista de corte (${isGlobal ? 'Todo el Proyecto' : 'Módulo Actual'}) exportada a ${fileName}.`);
-  }, [projectScope, consolidatedPieces, resolvedPieces, assemblySheet, project, currentModule]);
+  }, [projectScope, consolidatedPieces, activeModuleToConsolidate, assemblySheet, project, currentModule]);
 
   const exportPdf = useCallback(() => {
     if (!activeMaterial) return;
 
-    if (projectScope === 'all-modules') {
-      if (consolidatedPieces.length === 0) return;
-      const nesting = runProjectNesting(modulesToConsolidate, {
-        materials,
-        sawKerfMm: projectConfig?.nesting?.sawKerfMm,
-        trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
-        grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
-        respectGrain: projectConfig?.nesting?.respectGrain,
-        optimizationGoal: projectConfig?.nesting?.optimizationGoal,
-        includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
-      });
+    const isGlobal = projectScope === 'all-modules';
+    const targetModules = isGlobal ? modulesToConsolidate : activeModuleToConsolidate;
+    const hasPieces = isGlobal ? consolidatedPieces.length > 0 : resolvedPieces.length > 0;
+    if (!hasPieces) return;
 
-      const projectName = project?.name ?? 'Proyecto';
-      const doc = exportCutPlanPdf(nesting, `Plano de Corte Consolidado - ${projectName}`);
-      const pdfBlob = doc.output('blob');
-      const fileName = `plano-corte-proyecto-${projectName.toLowerCase().replace(/\s+/g, '-')}.pdf`;
-      triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-      setStatusMessage(`Plano de corte global del proyecto exportado a ${fileName}.`);
-      return;
-    }
-
-    if (resolvedPieces.length === 0) return;
-    const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
-    const gaugePieces = includeGauges
-      ? (assemblySheet?.gauges ?? []).flatMap((g) => {
-          const count = Math.min(2, Math.max(1, g.occurrences.length));
-          const items = [];
-          for (let i = 0; i < count; i++) {
-            items.push({
-              id: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
-              pieceId: i === 0 ? g.piece.id : `${g.piece.id}-${i + 1}`,
-              materialId: activeMaterial.id,
-              cutWidthMm: g.clearSpanMm,
-              cutHeightMm: g.widthMm,
-              canRotate: true,
-              isAuxiliary: true,
-            });
-          }
-          return items;
-        })
-      : [];
-
-    const grainMode = projectConfig?.nesting?.grainDirectionMode ?? (projectConfig?.nesting?.respectGrain === false ? 'free' : 'auto');
-    const nestingItems = [
-      ...resolvedPieces.map((p) => {
-        const pieceMat = materials.find((m) => m.id === p.materialId);
-        const hasGrain = Boolean(pieceMat ? pieceMat.hasGrain : activeMaterial.hasGrain);
-        return {
-          id: p.id,
-          pieceId: p.id,
-          materialId: p.materialId,
-          cutWidthMm: p.cutDimensionsMm.width,
-          cutHeightMm: p.cutDimensionsMm.height,
-          canRotate: canPieceRotate(p, hasGrain, grainMode),
-          isAuxiliary: p.isAuxiliary,
-        };
-      }),
-      ...gaugePieces,
-    ];
-
-    const nesting = runMultiMaterialGuillotineNesting({
-      items: nestingItems,
-      sheetLookup: (matId) => {
-        const mat = materials.find((m) => m.id === matId) ?? activeMaterial;
-        const sLen = typeof mat.sheetSizeMm.length === 'number' ? mat.sheetSizeMm.length : 2800;
-        const sWid = typeof mat.sheetSizeMm.width === 'number' ? mat.sheetSizeMm.width : 2070;
-        return {
-          materialId: mat.id,
-          lengthMm: sLen,
-          widthMm: sWid,
-          sawKerfMm: projectConfig?.nesting.sawKerfMm,
-          trimMarginMm: projectConfig?.nesting.sheetTrimMarginMm,
-        };
-      },
-      optimizationGoal: projectConfig?.nesting.optimizationGoal,
+    const nesting = runProjectNesting(targetModules, {
+      materials,
+      sawKerfMm: projectConfig?.nesting?.sawKerfMm,
+      trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+      grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
+      respectGrain: projectConfig?.nesting?.respectGrain,
+      optimizationGoal: projectConfig?.nesting?.optimizationGoal,
+      includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
     });
 
-    const doc = exportCutPlanPdf(nesting, `Plano de Corte - ${currentModule?.id ?? 'Módulo'}`);
+    const projectName = project?.name ?? 'Proyecto';
+    const moduleLabel = activeModuleItem?.name ?? currentModule?.id ?? 'Módulo';
+    const title = isGlobal
+      ? `Plano de Corte Consolidado - ${projectName}`
+      : `Plano de Corte - ${moduleLabel}`;
+    const doc = exportCutPlanPdf(nesting, title);
     const pdfBlob = doc.output('blob');
-    const fileName = `plano-corte-${currentModule?.id ?? 'modulo'}.pdf`;
+    const fileName = isGlobal
+      ? `plano-corte-proyecto-${projectName.toLowerCase().replace(/\s+/g, '-')}.pdf`
+      : `plano-corte-${currentModule?.id ?? 'modulo'}.pdf`;
+
     triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-    setStatusMessage(`Plano de corte (nesting) exportado a ${fileName}.`);
+    setStatusMessage(
+      isGlobal
+        ? `Plano de corte global del proyecto exportado a ${fileName}.`
+        : `Plano de corte (nesting) exportado a ${fileName}.`,
+    );
   }, [
     activeMaterial,
     projectScope,
     consolidatedPieces,
     modulesToConsolidate,
+    activeModuleToConsolidate,
+    activeModuleItem?.name,
     resolvedPieces,
     materials,
     projectConfig,
     project,
     currentModule,
-    assemblySheet,
   ]);
 
   // Export sequential assembly guide as PDF
