@@ -69,3 +69,35 @@ export function t(key: string, params?: Record<string, string | number>): string
 
   return text;
 }
+
+const ROLE_ALIASES: Record<string, string> = {
+  lateral_izq: 'side-left',
+  'lateral-izq': 'side-left',
+  side_left: 'side-left',
+  'lateral-left': 'side-left',
+  lateral_der: 'side-right',
+  'lateral-der': 'side-right',
+  side_right: 'side-right',
+  'lateral-right': 'side-right',
+  base: 'bottom',
+  piso: 'bottom',
+  techo: 'top',
+  tapa: 'top',
+  fondo: 'back',
+  estante: 'shelf',
+  division: 'partition',
+  frente_cajon: 'drawer-front',
+  lateral_cajon: 'drawer-side',
+  fondo_cajon: 'drawer-bottom',
+};
+
+/**
+ * Translates a canonical or aliased piece role to localized workshop terminology.
+ */
+export function translateRoleKey(role: string): string {
+  const cleanRole = role.replace(/^\[[^\]]+\]\s*/, '').trim();
+  const canonicalRole = ROLE_ALIASES[cleanRole] ?? cleanRole;
+  const key = `roles.${canonicalRole}`;
+  const translated = t(key);
+  return translated !== key ? translated : cleanRole;
+}

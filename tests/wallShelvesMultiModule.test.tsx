@@ -2,9 +2,11 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import React, { useEffect, act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { useModuleViewModel } from '../src/ui/useModuleViewModel';
+import { PieceListView } from '../src/ui/PieceListView';
 import { projectModuleItemSchema } from '../src/model';
-import { buildWallShelving, runProjectNesting, exportCutPlanPdf } from '../src/resolver';
+import { buildWallShelving, runProjectNesting, exportCutPlanPdf, type ResolvedPieceWithCutSize } from '../src/resolver';
 import { getSeedMaterials } from '../src/catalog';
 
 function createHookRunner<T>(useHook: () => T) {
@@ -185,5 +187,67 @@ describe('Wall Shelves Multi-Module Persistence & Cutting Diagram Consolidation'
 
     const doc = exportCutPlanPdf(nesting, 'Plano Estantes');
     expect(doc.getNumberOfPages()).toBe(nesting.totalSheets);
+  });
+
+  it('includes wall-shelves hardware in module BOM and consolidated project BOM scaled by quantity', () => {
+    const runner = createHookRunner(() => useModuleViewModel());
+
+    act(() => {
+      runner.current.setSelectedTemplateId('wall-shelves');
+    });
+    act(() => {
+      runner.current.setWidth(900);
+      runner.current.setDepth(280);
+      runner.current.setWallShelvesShelfCount(1);
+    });
+
+    const singleBrackets = runner.current.bom?.hardware.find((h) => h.hardwareId === 'hw-l-bracket')?.count ?? 0;
+    expect(singleBrackets).toBeGreaterThan(0);
+    expect(runner.current.bom?.totalHardwareCount).toBeGreaterThan(0);
+
+    act(() => {
+      runner.current.updateProjectModuleQuantity(runner.current.activeModuleId, 6);
+    });
+
+    const batchBrackets = runner.current.consolidatedBom?.hardware.find((h) => h.hardwareId === 'hw-l-bracket')?.count ?? 0;
+    expect(batchBrackets).toBe(singleBrackets * 6);
+
+    runner.unmount();
+  });
+
+  it('displays batch total pieces and edgeband meters in PieceListView when activeModuleQuantity > 1', () => {
+    const samplePiece: ResolvedPieceWithCutSize = {
+      id: 'mod-1-shelf-0',
+      role: 'wall-shelf',
+      materialId: 'mat-egger-white-18',
+      contour: { points: [{ x: 0, y: 0 }, { x: 900, y: 0 }, { x: 900, y: 280 }, { x: 0, y: 280 }] },
+      thicknessMm: 18,
+      faces: [],
+      structural: false,
+      referenceFace: 'A',
+      positionMm: { x: 0, y: 0, z: 0 },
+      dimensionsMm: { width: 900, height: 280 },
+      cutDimensionsMm: { width: 898.4, height: 279.2 },
+      cutContour: { points: [{ x: 0, y: 0 }, { x: 898.4, y: 0 }, { x: 898.4, y: 279.2 }, { x: 0, y: 279.2 }] },
+      bandedEdges: [
+        { faceId: 'bottom-edge', edgeBandId: 'eb-white-08', thicknessMm: 0.8, lengthMm: 900 },
+        { faceId: 'left-edge', edgeBandId: 'eb-white-08', thicknessMm: 0.8, lengthMm: 280 },
+        { faceId: 'right-edge', edgeBandId: 'eb-white-08', thicknessMm: 0.8, lengthMm: 280 },
+      ],
+    };
+
+    const html = renderToString(
+      <PieceListView
+        pieces={[samplePiece]}
+        projectScope="current-module"
+        activeModuleQuantity={6}
+      />,
+    );
+
+    const text = html.replace(/<!-- -->/g, '');
+    expect(text).toContain('(6 piezas)');
+    expect(text).toContain('6 piezas de corte');
+    expect(text).toContain('×6 u.');
+    expect(text).toContain('8.76 m');
   });
 });

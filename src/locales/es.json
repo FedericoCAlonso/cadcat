@@ -27,8 +27,15 @@
     "shelf": "Estante",
     "partition": "División vertical",
     "column-cover-side": "Tapa lateral de columna",
+    "rail": "Faja de amarre",
     "rail-front": "Faja delantera",
     "rail-back": "Faja trasera",
+    "rail-vertical": "Faja vertical",
+    "plinth-front": "Zócalo frontal",
+    "brace-middle": "Refuerzo central",
+    "hanging-rail": "Riel de colgado",
+    "hinge-spacer": "Suplemento de bisagra",
+    "false-front": "Frente fijo",
     "drawer-front": "Frente de cajón",
     "drawer-side": "Lateral de cajón",
     "drawer-box-front": "Contrafrente de cajón",
@@ -47,7 +54,10 @@
     "bifold-leaf": "Hoja articulada (Bi-Fold)",
     "wall-shelf": "Estante de pared amurado",
     "countertop": "Mesada de piedra / granito",
-    "countertop-backsplash": "Zócalo / Trasera de mesada"
+    "countertop-backsplash": "Zócalo / Trasera de mesada",
+    "countertop-splash-left": "Zócalo lateral izq. de mesada",
+    "countertop-splash-right": "Zócalo lateral der. de mesada",
+    "countertop-subtop": "Subtapa de apoyo para mesada"
   },
   "templates": {
     "base-cabinet": "Bajo mesada (1 estante)",

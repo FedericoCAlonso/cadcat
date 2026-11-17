@@ -83,8 +83,13 @@ export function extractPieceLabelData(
       }
     }
 
-    // Machining summary
-    const machining = machiningMap.get(piece.id);
+    // Machining summary (supports both direct piece IDs and batch/consolidated module__piece__iN IDs)
+    const idWithoutInstance = piece.id.replace(/__i\d+$/, '');
+    const idWithoutModulePrefix = idWithoutInstance.replace(/^[^_]+__/, '');
+    const machining =
+      machiningMap.get(piece.id) ??
+      machiningMap.get(idWithoutInstance) ??
+      machiningMap.get(idWithoutModulePrefix);
     let hasMachining = false;
     let machiningSummary = '';
 

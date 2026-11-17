@@ -538,6 +538,7 @@ export function App(): ReactElement {
                     onProjectScopeChange={vm.setProjectScope}
                     projectModulesCount={vm.projectModules.length}
                     currentModuleName={vm.projectModules.find((m) => m.id === vm.activeModuleId)?.name ?? 'Módulo Actual'}
+                    activeModuleQuantity={vm.projectModules.find((m) => m.id === vm.activeModuleId)?.quantity ?? 1}
                     shelfDeflections={vm.shelfDeflections}
                     selectedPieceId={vm.selectedPieceId}
                     onSelectPiece={vm.setSelectedPieceId}

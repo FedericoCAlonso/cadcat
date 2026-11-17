@@ -37,6 +37,7 @@ export interface PieceListViewProps {
   onProjectScopeChange?: (scope: 'current-module' | 'all-modules') => void;
   projectModulesCount?: number;
   currentModuleName?: string;
+  activeModuleQuantity?: number;
   // Label Printing (Hito 1)
   enablePieceLabels?: boolean;
   orderId?: string;
@@ -73,6 +74,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     onProjectScopeChange,
     projectModulesCount,
     currentModuleName,
+    activeModuleQuantity = 1,
     enablePieceLabels = true,
     orderId,
     clientName,
@@ -115,9 +117,25 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     .map((p) => shelfDeflections?.get(p.id))
     .filter((d): d is ShelfDeflectionResult => d !== undefined && d.hasWarning);
 
-  const totalEdgeBandMeters = filteredPieces.reduce((acc, p) => {
-    return acc + p.bandedEdges.reduce((bAcc, b) => bAcc + b.lengthMm / 1000, 0);
-  }, 0);
+  const batchMultiplier =
+    projectScope === 'current-module' ? Math.max(1, Math.round(activeModuleQuantity)) : 1;
+
+  const totalPieceCount = filteredPieces.length * batchMultiplier;
+
+  const totalEdgeBandMeters =
+    filteredPieces.reduce((acc, p) => {
+      return acc + p.bandedEdges.reduce((bAcc, b) => bAcc + b.lengthMm / 1000, 0);
+    }, 0) * batchMultiplier;
+
+  const labelPieces: Piece[] =
+    batchMultiplier > 1
+      ? filteredPieces.flatMap((p) =>
+          Array.from({ length: batchMultiplier }, (_, idx) => ({
+            ...(p as unknown as Piece),
+            id: `${p.id}__i${idx + 1}`,
+          })),
+        )
+      : (filteredPieces as unknown as Piece[]);
 
   const selectedPiece = pieces.find((p) => p.id === selectedPieceId) ?? null;
 
@@ -178,6 +196,15 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                     </div>
                   )}
                   <strong>{translatePieceRole(piece.role)}</strong>
+                  {batchMultiplier > 1 && (
+                    <span
+                      className="m3-badge m3-badge--neutral"
+                      style={{ marginLeft: '0.4rem', fontSize: '0.72rem', fontWeight: 700 }}
+                      title={`Cantidad por lote (${batchMultiplier} módulos)`}
+                    >
+                      {`×${batchMultiplier} u.`}
+                    </span>
+                  )}
                   <br />
                   <code className="piece-tag">{piece.id}</code>
                   {piece.secondaryCuts && piece.secondaryCuts.length > 0 && (
@@ -292,7 +319,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
       className="pieces-cards-grid"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
         gap: '0.75rem',
         marginTop: '0.85rem',
       }}
@@ -355,6 +382,15 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   <strong style={{ fontSize: '0.98rem', color: 'var(--md-sys-color-on-surface)' }}>
                     {translatePieceRole(piece.role)}
                   </strong>
+                  {batchMultiplier > 1 && (
+                    <span
+                      className="m3-badge m3-badge--neutral"
+                      style={{ fontSize: '0.72rem', fontWeight: 700 }}
+                      title={`Cantidad por lote (${batchMultiplier} módulos)`}
+                    >
+                      {`×${batchMultiplier} u.`}
+                    </span>
+                  )}
                   <code className="piece-tag" style={{ fontSize: '0.75rem' }}>{piece.id}</code>
                 </div>
               </div>
@@ -522,8 +558,8 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
         <div className="piece-list-header-row">
           <div>
             <h2 id="pieces-heading" className="m3-card__title">
-              📋 {projectScope === 'all-modules' ? 'Despiece Consolidado del Proyecto' : 'Despiece de Taller'} ({filteredPieces.length} piezas)
-              <span className="visually-hidden">{`Pieces Cut List (${filteredPieces.length})`}</span>
+              📋 {projectScope === 'all-modules' ? 'Despiece Consolidado del Proyecto' : 'Despiece de Taller'} ({totalPieceCount} piezas)
+              <span className="visually-hidden">{`Pieces Cut List (${totalPieceCount})`}</span>
             </h2>
             <p className="m3-card__subtitle">
               Planilla de corte con medidas finales terminadas y descuento de tapacantos para escuadradora.
@@ -531,7 +567,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
           </div>
           <div className="piece-summary-badges" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span className="m3-badge m3-badge--neutral">
-              Total: <strong>{filteredPieces.length} piezas</strong>
+              Total: <strong>{totalPieceCount} piezas</strong>
             </span>
             <span className="m3-badge m3-badge--neutral">
               Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
@@ -544,7 +580,6 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.4rem',
-                  minHeight: '40px',
                   padding: '0.35rem 0.75rem',
                   fontSize: '0.82rem',
                   fontWeight: 600,
@@ -564,7 +599,6 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.4rem',
-                  minHeight: '40px',
                   padding: '0.35rem 0.75rem',
                   fontSize: '0.82rem',
                   fontWeight: 600,
@@ -584,7 +618,6 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.4rem',
-                  minHeight: '40px',
                   padding: '0.35rem 0.85rem',
                   fontSize: '0.85rem',
                   fontWeight: 600,
@@ -607,10 +640,10 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                 className={`m3-btn m3-btn--small ${selectedMaterial === 'all' ? 'm3-btn--primary' : 'm3-btn--text'}`}
                 onClick={() => setSelectedMaterial('all')}
               >
-                Todos ({pieces.length})
+                Todos ({pieces.length * batchMultiplier})
               </button>
               {uniqueMaterials.map((matId) => {
-                const count = pieces.filter((p) => p.materialId === matId).length;
+                const count = pieces.filter((p) => p.materialId === matId).length * batchMultiplier;
                 return (
                   <button
                     key={matId}
@@ -627,13 +660,13 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {/* Format Switcher: Mobile Cards vs Technical Table */}
-            <div className="m3-segmented-button" style={{ height: '36px' }}>
+            <div className="m3-segmented-button">
               <button
                 type="button"
                 className={`m3-segmented-button__item ${displayFormat === 'cards' ? 'selected' : ''}`}
                 onClick={() => setDisplayFormat('cards')}
                 title="Ver fichas de corte compactas para taller"
-                style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem' }}
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
               >
                 🃏 Fichas
               </button>
@@ -642,7 +675,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                 className={`m3-segmented-button__item ${displayFormat === 'table' ? 'selected' : ''}`}
                 onClick={() => setDisplayFormat('table')}
                 title="Ver tabla técnica completa"
-                style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem' }}
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
               >
                 📊 Tabla
               </button>
@@ -684,9 +717,10 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {uniqueMaterials.map((matId) => {
             const matPieces = pieces.filter((p) => p.materialId === matId);
-            const matEdgeMeters = matPieces.reduce((acc, p) => {
-              return acc + p.bandedEdges.reduce((bAcc, b) => bAcc + b.lengthMm / 1000, 0);
-            }, 0);
+            const matEdgeMeters =
+              matPieces.reduce((acc, p) => {
+                return acc + p.bandedEdges.reduce((bAcc, b) => bAcc + b.lengthMm / 1000, 0);
+              }, 0) * batchMultiplier;
             const matObj = materials?.find((m) => m.id === matId);
 
             return (
@@ -702,7 +736,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <span className="m3-plate-badge">
-                      {matPieces.length} piezas de corte
+                      {matPieces.length * batchMultiplier} piezas de corte
                     </span>
                     <span className="m3-badge m3-badge--neutral">
                       Tapacantos: {matEdgeMeters.toFixed(2)} m
@@ -881,7 +915,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
       <LabelExportModal
         isOpen={isLabelModalOpen}
         onClose={() => setIsLabelModalOpen(false)}
-        pieces={filteredPieces as unknown as Piece[]}
+        pieces={labelPieces}
         materials={materials ?? []}
         edgeBands={edgeBands ?? []}
         machiningList={machiningList}

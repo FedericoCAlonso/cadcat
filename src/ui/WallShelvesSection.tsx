@@ -163,8 +163,8 @@ export function WallShelvesSection({
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <button
                   type="button"
-                  className="m3-button m3-button--tonal"
-                  style={{ width: '40px', height: '40px', fontSize: '1.2rem', padding: 0 }}
+                  className="m3-button m3-button--tonal m3-stepper-btn"
+                  aria-label="Disminuir cantidad de estantes"
                   onClick={() => onWallShelvesShelfCountChange?.(Math.max(1, wallShelvesShelfCount - 1))}
                   disabled={wallShelvesShelfCount <= 1}
                 >
@@ -175,8 +175,8 @@ export function WallShelvesSection({
                 </span>
                 <button
                   type="button"
-                  className="m3-button m3-button--tonal"
-                  style={{ width: '40px', height: '40px', fontSize: '1.2rem', padding: 0 }}
+                  className="m3-button m3-button--tonal m3-stepper-btn"
+                  aria-label="Aumentar cantidad de estantes"
                   onClick={() => onWallShelvesShelfCountChange?.(Math.min(8, wallShelvesShelfCount + 1))}
                   disabled={wallShelvesShelfCount >= 8}
                 >

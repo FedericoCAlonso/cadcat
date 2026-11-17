@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import { type ResolvedPieceWithCutSize, type BandedEdgeInfo } from './edgeBand';
 import { type BOMPieceItem } from './bom';
 import { type NestingResult } from '../workers';
+import { translateRoleKey } from '../locales';
 
 /**
  * Escape a CSV field value.
@@ -40,6 +41,7 @@ export function exportCutListCsv(
     'Thickness (mm)',
     'Structural',
     'Edge Bands',
+    'Nombre (ES)',
   ];
 
   const rows: string[] = [headers.join(',')];
@@ -67,6 +69,7 @@ export function exportCutListCsv(
       escapeCsv(piece.thicknessMm),
       escapeCsv(piece.structural ? 'Yes' : 'No'),
       escapeCsv(bandedStr),
+      escapeCsv(translateRoleKey(piece.role)),
     ];
 
     rows.push(row.join(','));
@@ -76,23 +79,42 @@ export function exportCutListCsv(
 }
 
 /**
- * Generate a PDF cut plan showing sheet diagrams and cut piece positions.
- */
-/**
  * Translates technical piece IDs or roles into friendly Argentine Spanish descriptions.
+ * Prefers canonical piece role when supplied, falling back to normalized pieceId matching.
  */
-export function translatePieceLabel(pieceId: string): string {
-  const lower = pieceId.toLowerCase();
+export function translatePieceLabel(pieceId: string, role?: string): string {
+  if (role && role.trim().length > 0) {
+    const translated = translateRoleKey(role);
+    if (translated !== role) {
+      return translated;
+    }
+    if (role.toLowerCase().startsWith('calibre')) {
+      return role;
+    }
+  }
+
+  const stripped = pieceId
+    .replace(/^[^_]+__/, '')
+    .replace(/__i\d+$/, '')
+    .replace(/^module-preset-[a-z0-9-]+-/, '');
+  const lower = stripped.toLowerCase();
+
   if (lower.startsWith('gauge') || lower.includes('calibre')) {
     const match = lower.match(/g\d+/);
     return match ? `Calibre ${match[0].toUpperCase()}` : 'Calibre de armado';
   }
   // Drawer components first to avoid matching generic side/bottom
-  if (lower.includes('drawer-box-side-left') || lower.includes('lateral-cajon-izq')) return 'Lat. cajón izq';
-  if (lower.includes('drawer-box-side-right') || lower.includes('lateral-cajon-der')) return 'Lat. cajón der';
+  if (lower.includes('drawer-box-side-left') || lower.includes('drawer-box-side-l') || lower.includes('lateral-cajon-izq')) {
+    return 'Lat. cajón izq';
+  }
+  if (lower.includes('drawer-box-side-right') || lower.includes('drawer-box-side-r') || lower.includes('lateral-cajon-der')) {
+    return 'Lat. cajón der';
+  }
   if (lower.includes('drawer-box-front') || lower.includes('cabezal-cajon')) return 'Frente int. cajón';
   if (lower.includes('drawer-box-back') || lower.includes('contrafrente')) return 'Contrafrente cajón';
-  if (lower.includes('drawer-bottom') || lower.includes('fondo-cajon')) return 'Fondo cajón';
+  if (lower.includes('drawer-box-bottom') || lower.includes('drawer-bottom') || lower.includes('fondo-cajon')) {
+    return 'Fondo cajón';
+  }
   if (lower.includes('drawer-front') || lower.includes('frente-cajon')) return 'Frente cajón';
 
   // Carcase components
@@ -179,7 +201,7 @@ export function exportCutPlanPdf(
     let groupIndex = 1;
 
     for (const piece of sheet.placedPieces) {
-      const baseName = translatePieceLabel(piece.pieceId);
+      const baseName = translatePieceLabel(piece.pieceId, piece.name);
       const friendlyName = piece.moduleName ? `${baseName} (${piece.moduleName})` : baseName;
       const cutW = Number((piece.cutWidthMm ?? (piece.rotated ? piece.height : piece.width)).toFixed(1));
       const cutH = Number((piece.cutHeightMm ?? (piece.rotated ? piece.width : piece.height)).toFixed(1));

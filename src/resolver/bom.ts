@@ -259,10 +259,22 @@ export function groupBOMPiecesByMaterial(pieces: BOMPieceItem[]): BOMMaterialGro
 export function generateBillOfMaterials(
   resolvedModule: ResolvedModule,
   edgeBands: Map<string, EdgeBand> | EdgeBand[] | { edgeBands: EdgeBand[] },
+  extraHardware?: BOMHardwareItem[],
 ): BillOfMaterials {
   const pieces = generateBOMPieces(resolvedModule.pieces, edgeBands);
   const edgeBandsSummary = generateBOMEdgeBands(resolvedModule.pieces, edgeBands);
   const hardware = generateBOMHardware(resolvedModule);
+  if (extraHardware && extraHardware.length > 0) {
+    for (const extra of extraHardware) {
+      if (extra.count <= 0) continue;
+      const existing = hardware.find((h) => h.hardwareId === extra.hardwareId);
+      if (existing) {
+        existing.count += extra.count;
+      } else {
+        hardware.push({ ...extra });
+      }
+    }
+  }
   const materialGroups = groupBOMPiecesByMaterial(pieces);
 
   const totalCutAreaM2 = Number(

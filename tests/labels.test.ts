@@ -154,6 +154,35 @@ describe('Piece Label Data Extractor', () => {
     expect(gauge.pieceName).toContain('Calibre Auxiliar');
     expect(gauge.totalPieces).toBe(3);
   });
+
+  it('preserves machining summary for batch (__iN) and consolidated (mod__piece__iN) label IDs', () => {
+    const batchPieces = [
+      { ...mockPieces[0]!, id: 'piece-side-left__i2' },
+      { ...mockPieces[0]!, id: 'mod-1__piece-side-left__i3' },
+    ];
+    const labels = extractPieceLabelData(batchPieces, {
+      materials: [mockMaterial],
+      edgeBands: [mockEdgeBand04, mockEdgeBand20],
+      machiningList: [
+        {
+          schemaVersion: 1,
+          pieceId: 'piece-side-left',
+          role: 'side-left',
+          requiresTurn: false,
+          operations: [
+            { schemaVersion: 1, id: 'op-1', pieceId: 'piece-side-left', faceId: 'face-A', faceType: 'face-A', positionMm: { x: 37, y: 50 }, diameterMm: 5, depthMm: 12, isThrough: false, origin: 'derived', description: 'Perno' },
+            { schemaVersion: 1, id: 'op-2', pieceId: 'piece-side-left', faceId: 'face-A', faceType: 'face-A', positionMm: { x: 37, y: 100 }, diameterMm: 5, depthMm: 12, isThrough: false, origin: 'derived', description: 'Perno' },
+          ],
+        },
+      ],
+    });
+
+    expect(labels).toHaveLength(2);
+    labels.forEach((lbl) => {
+      expect(lbl.hasMachining).toBe(true);
+      expect(lbl.machiningSummary).toContain('Cara A: 2 perf.');
+    });
+  });
 });
 
 describe('Universal Label PDF Generator', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getFriendlyPieceName } from '../src/resolver/assemblySheet';
+import { translateRoleKey } from '../src/locales';
 import {
   translateAssemblyPhase,
   translateHardwareType,
@@ -39,6 +40,17 @@ describe('i18n and Piece Friendly Names', () => {
       expect(getFriendlyPieceName('shelf')).toBe('Estante');
       expect(getFriendlyPieceName('back')).toBe('Fondo');
       expect(getFriendlyPieceName('rail')).toBe('Faja / Travesaño');
+    });
+
+    it('translates all modular piece roles via locale dictionary including rail and structural parts', () => {
+      expect(translateRoleKey('rail')).toBe('Faja de amarre');
+      expect(translateRoleKey('rail-vertical')).toBe('Faja vertical');
+      expect(translateRoleKey('plinth-front')).toBe('Zócalo frontal');
+      expect(translateRoleKey('brace-middle')).toBe('Refuerzo central');
+      expect(translateRoleKey('hanging-rail')).toBe('Riel de colgado');
+      expect(translateRoleKey('hinge-spacer')).toBe('Suplemento de bisagra');
+      expect(translateRoleKey('false-front')).toBe('Frente fijo');
+      expect(translateRoleKey('wall-shelf')).toBe('Estante de pared amurado');
     });
   });
 

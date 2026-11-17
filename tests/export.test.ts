@@ -76,9 +76,9 @@ describe('Cut List CSV Export', () => {
   it('exports standard CSV headers and rows with cut sizes', () => {
     const csv = exportCutListCsv(samplePieces);
 
-    expect(csv).toContain('Piece ID,Role,Material ID,Finished Width (mm),Finished Height (mm),Cut Width (mm),Cut Height (mm),Thickness (mm),Structural,Edge Bands');
-    expect(csv).toContain('piece-side-left,side-left,mat-egger-white-18,560,800,558,800,18,Yes,right-edge (2mm)');
-    expect(csv).toContain('piece-bottom,bottom,mat-egger-white-18,564,560,562,560,18,Yes,right-edge (0.8mm)');
+    expect(csv).toContain('Piece ID,Role,Material ID,Finished Width (mm),Finished Height (mm),Cut Width (mm),Cut Height (mm),Thickness (mm),Structural,Edge Bands,Nombre (ES)');
+    expect(csv).toContain('piece-side-left,side-left,mat-egger-white-18,560,800,558,800,18,Yes,right-edge (2mm),Lateral izquierdo');
+    expect(csv).toContain('piece-bottom,bottom,mat-egger-white-18,564,560,562,560,18,Yes,right-edge (0.8mm),Piso / Base');
   });
 });
 
@@ -155,6 +155,12 @@ describe('Cut Plan PDF Export', () => {
     expect(translatePieceLabel('gauge-g1')).toBe('Calibre G1');
     expect(translatePieceLabel('door-left')).toBe('Puerta izq');
     expect(translatePieceLabel('custom-piece-123')).toBe('custom-piece-123');
+    expect(translatePieceLabel('mod-1__module-preset-door-cabinet-back__i1')).toBe('Fondo trasero');
+    expect(translatePieceLabel('mod-1__drawer-box-side-l-1__i1')).toBe('Lat. cajón izq');
+    expect(translatePieceLabel('mod-1__drawer-box-bottom-1__i1')).toBe('Fondo cajón');
+    expect(translatePieceLabel('mod-1__drawer-box-side-l-1__i1', 'drawer-side')).toBe('Lateral de cajón');
+    expect(translatePieceLabel('mod-1__drawer-box-bottom-1__i1', 'drawer-bottom')).toBe('Fondo de cajón');
+    expect(translatePieceLabel('mod-1__rail-front__i1', 'rail')).toBe('Faja de amarre');
   });
 
   it('groups rotated and non-rotated identical pieces of a module together with canonical cut size', () => {

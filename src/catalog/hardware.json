@@ -42,6 +42,48 @@
       "name": "Shelf Support Pin 5mm",
       "jointKind": "shelf-pin",
       "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-l-bracket",
+      "name": "Ménsula Metálica en L para Estante",
+      "jointKind": "bracket",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-floating-pin-12",
+      "name": "Perno Flotante Invisible Ø12x120mm",
+      "jointKind": "bracket",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-track-rail",
+      "name": "Cremallera Vertical Doble Ranura",
+      "jointKind": "bracket",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-track-arm",
+      "name": "Brazo Ménsula Encastrable",
+      "jointKind": "bracket",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-shelf-screws",
+      "name": "Tornillo Autorroscante 4x16mm",
+      "jointKind": "wood-screw",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-wall-anchor",
+      "name": "Tarugo + Tornillo Fijación Pared",
+      "jointKind": "bracket",
+      "pricePerUnit": "TO_CONFIRM"
     }
   ]
 }

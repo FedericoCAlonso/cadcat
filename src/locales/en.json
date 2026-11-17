@@ -27,8 +27,15 @@
     "shelf": "Shelf",
     "partition": "Vertical partition",
     "column-cover-side": "Column side cover",
+    "rail": "Stretcher rail",
     "rail-front": "Front stretcher",
     "rail-back": "Rear stretcher",
+    "rail-vertical": "Vertical rail",
+    "plinth-front": "Front plinth",
+    "brace-middle": "Center brace",
+    "hanging-rail": "Hanging rail",
+    "hinge-spacer": "Hinge spacer",
+    "false-front": "False front",
     "drawer-front": "Drawer front",
     "drawer-side": "Drawer box side",
     "drawer-box-front": "Drawer sub-front",
@@ -47,7 +54,10 @@
     "bifold-leaf": "Articulated leaf (Bi-Fold)",
     "wall-shelf": "Wall-mounted shelf",
     "countertop": "Countertop slab",
-    "countertop-backsplash": "Backsplash / Upstand"
+    "countertop-backsplash": "Backsplash / Upstand",
+    "countertop-splash-left": "Left countertop splash",
+    "countertop-splash-right": "Right countertop splash",
+    "countertop-subtop": "Countertop sub-top"
   },
   "templates": {
     "base-cabinet": "Base cabinet (1 shelf)",

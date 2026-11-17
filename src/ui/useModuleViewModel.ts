@@ -71,6 +71,7 @@ import {
   triggerBrowserDownload,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
+  type BOMHardwareItem,
   type ModuleCostSummary,
   type TemplateDefinition,
   BASE_EMPTY_TEMPLATE,
@@ -117,6 +118,7 @@ import {
   type OverhangMode,
   type WallShelvingDefinition,
   type WallShelvingOutput,
+  type WallShelvingHardwareItem,
   buildWallShelving,
   exportWallShelvesInstallationPdf,
   calculatePieceCutSize,
@@ -421,6 +423,18 @@ function mapWallShelvingPiecesToCutSizes(
 }
 
 /**
+ * Maps wall shelving hardware items (brackets, anchors, screws) to standard BOMHardwareItem entries.
+ */
+function mapWallShelvingHardwareToBom(items: WallShelvingHardwareItem[]): BOMHardwareItem[] {
+  return items.map((hw) => ({
+    hardwareId: hw.id,
+    name: hw.name,
+    jointKind: hw.id === 'hw-shelf-screws' ? 'wood-screw' : 'bracket',
+    count: hw.quantity,
+  }));
+}
+
+/**
  * Builds the bay grid definition and normalized bay array from gridType, tracks, and bays.
  */
 function buildModularGridAndBays(
@@ -508,6 +522,7 @@ function resolveInactiveModule(
           jointGraph: new JointGraph([]),
         },
         edgeBands,
+        mapWallShelvingHardwareToBom(output.hardwareBOM),
       );
       return { pieces, bom, gauges: [] };
     }
@@ -2621,6 +2636,10 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   // Generates Bill of Materials
   const bom = useMemo(() => {
     if (!currentModule || resolvedPieces.length === 0) return null;
+    const extraHardware =
+      selectedTemplateId === 'wall-shelves' && wallShelvingOutput
+        ? mapWallShelvingHardwareToBom(wallShelvingOutput.hardwareBOM)
+        : undefined;
     return generateBillOfMaterials(
       {
         moduleId: currentModule.id,
@@ -2631,8 +2650,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         jointGraph: new JointGraph(currentModule.joints),
       },
       edgeBands,
+      extraHardware,
     );
-  }, [currentModule, resolvedPieces, edgeBands]);
+  }, [currentModule, resolvedPieces, edgeBands, selectedTemplateId, wallShelvingOutput]);
 
   // Generates Assembly Sheet
   const assemblySheet = useMemo<AssemblySheet | null>(() => {
