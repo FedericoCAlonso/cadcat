@@ -10,36 +10,36 @@ import {
 
 describe('i18n and Piece Friendly Names', () => {
   describe('getFriendlyPieceName drawer-specific precedence', () => {
-    it('prioritizes drawer box parts over generic cabinet pieces', () => {
-      // Drawer side box must be named "Lateral de Cajón", not generic "Lateral"
-      expect(getFriendlyPieceName('drawer-box-side')).toBe('Lateral de Cajón');
-      expect(getFriendlyPieceName('drawer-box-side-left')).toBe('Lateral Izquierdo de Cajón');
-      expect(getFriendlyPieceName('drawer-box-side-right')).toBe('Lateral Derecho de Cajón');
-      expect(getFriendlyPieceName('drawer-side')).toBe('Lateral de Cajón');
+    it('prioritizes drawer box parts over generic cabinet pieces using canonical locale SSOT', () => {
+      // Drawer side box must be named "Lateral de cajón", not generic "Lateral"
+      expect(getFriendlyPieceName('drawer-box-side')).toBe('Lateral de cajón');
+      expect(getFriendlyPieceName('drawer-box-side-left')).toBe('Lateral izquierdo de cajón');
+      expect(getFriendlyPieceName('drawer-box-side-right')).toBe('Lateral derecho de cajón');
+      expect(getFriendlyPieceName('drawer-side')).toBe('Lateral de cajón');
 
-      // Drawer bottom must be named "Fondo de Cajón", not "Base / Piso"
-      expect(getFriendlyPieceName('drawer-box-bottom')).toBe('Fondo de Cajón');
-      expect(getFriendlyPieceName('drawer-bottom')).toBe('Fondo de Cajón');
+      // Drawer bottom must be named "Fondo de cajón", not "Piso / Base"
+      expect(getFriendlyPieceName('drawer-box-bottom')).toBe('Fondo de cajón');
+      expect(getFriendlyPieceName('drawer-bottom')).toBe('Fondo de cajón');
 
-      // Drawer back/counterfront must be named "Trasera de Cajón", not "Fondo"
-      expect(getFriendlyPieceName('drawer-box-back')).toBe('Trasera de Cajón');
-      expect(getFriendlyPieceName('drawer-back')).toBe('Trasera de Cajón');
-      expect(getFriendlyPieceName('drawer-counterfront')).toBe('Trasera de Cajón');
+      // Drawer back/counterfront must be named "Trasera de cajón", not "Fondo posterior"
+      expect(getFriendlyPieceName('drawer-box-back')).toBe('Trasera de cajón');
+      expect(getFriendlyPieceName('drawer-back')).toBe('Trasera de cajón');
+      expect(getFriendlyPieceName('drawer-counterfront')).toBe('Trasera de cajón');
 
       // Drawer front vs inner drawer box counter-front (distinct names to avoid collision)
-      expect(getFriendlyPieceName('drawer-front')).toBe('Frente de Cajón');
-      expect(getFriendlyPieceName('drawer-box-front')).toBe('Contrafrente de Cajón');
+      expect(getFriendlyPieceName('drawer-front')).toBe('Frente de cajón');
+      expect(getFriendlyPieceName('drawer-box-front')).toBe('Contrafrente de cajón');
     });
 
-    it('correctly names standard carcass cabinet components', () => {
-      expect(getFriendlyPieceName('side-left')).toBe('Lateral Izquierdo');
-      expect(getFriendlyPieceName('side-right')).toBe('Lateral Derecho');
+    it('correctly names standard carcass cabinet components matching es.json SSOT', () => {
+      expect(getFriendlyPieceName('side-left')).toBe('Lateral izquierdo');
+      expect(getFriendlyPieceName('side-right')).toBe('Lateral derecho');
       expect(getFriendlyPieceName('side')).toBe('Lateral');
-      expect(getFriendlyPieceName('bottom')).toBe('Base / Piso');
-      expect(getFriendlyPieceName('top')).toBe('Tapa Superior / Techo');
+      expect(getFriendlyPieceName('bottom')).toBe('Piso / Base');
+      expect(getFriendlyPieceName('top')).toBe('Techo / Tapa');
       expect(getFriendlyPieceName('shelf')).toBe('Estante');
-      expect(getFriendlyPieceName('back')).toBe('Fondo');
-      expect(getFriendlyPieceName('rail')).toBe('Faja / Travesaño');
+      expect(getFriendlyPieceName('back')).toBe('Fondo posterior');
+      expect(getFriendlyPieceName('rail')).toBe('Faja de amarre');
     });
 
     it('translates all modular piece roles via locale dictionary including rail and structural parts', () => {

@@ -7,6 +7,7 @@ import {
   derivePieceBJointPositions,
 } from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
+import { translateRoleKey } from '../../../locales';
 
 export class ScrewJointStrategy implements IJointMachiningStrategy {
   public readonly kind = 'screw' as const;
@@ -21,6 +22,7 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
     const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
+    const targetName = translateRoleKey(pieceB.role);
 
     const throughDiameter = config.screwThroughDiameterMm ?? 4.0;
     const coreDiameter = config.screwCoreDiameterMm ?? 3.0;
@@ -42,7 +44,7 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
         positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'screw',
-        description: `Spax screw through hole Ø${throughDiameter}mm for ${pieceB.id}`,
+        description: `Pasante tornillo Ø${throughDiameter} mm (unión con ${targetName})`,
       });
 
       operations.push({
@@ -57,7 +59,7 @@ export class ScrewJointStrategy implements IJointMachiningStrategy {
         positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'screw',
-        description: `Spax pilot core Ø${coreDiameter}x${coreDepth}mm into edge`,
+        description: `Guía tornillo en canto Ø${coreDiameter}×${coreDepth} mm`,
       });
     }
 

@@ -257,9 +257,11 @@ export function groupBOMPiecesByMaterial(pieces: BOMPieceItem[]): BOMMaterialGro
 
   const groups: BOMMaterialGroup[] = [];
   for (const [materialId, groupPieces] of map.entries()) {
-    const totalCutAreaM2 = Number(
-      groupPieces.reduce((acc, p) => acc + p.areaM2, 0).toFixed(4),
+    const exactGroupAreaM2 = groupPieces.reduce(
+      (acc, p) => acc + (p.cutDimensionsMm.width * p.cutDimensionsMm.height) / 1_000_000,
+      0,
     );
+    const totalCutAreaM2 = Number(exactGroupAreaM2.toFixed(3));
     groups.push({
       materialId,
       pieces: groupPieces,

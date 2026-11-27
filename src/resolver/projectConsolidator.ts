@@ -201,6 +201,8 @@ export function buildProjectNestingItems(
           materialId: p.materialId,
           cutWidthMm: nestCutWidthMm,
           cutHeightMm: nestCutHeightMm,
+          displayCutWidthMm: p.cutDimensionsMm.width,
+          displayCutHeightMm: p.cutDimensionsMm.height,
           canRotate,
           isAuxiliary: Boolean(p.isAuxiliary),
         });
@@ -218,7 +220,7 @@ export function buildProjectNestingItems(
             pieceId: gId,
             name: `Calibre ${g.label.toUpperCase()}`,
             moduleName: modules.length > 1 ? mod.moduleName : undefined,
-            materialId: activeMat?.id ?? 'mat-default',
+            materialId: g.piece.materialId || activeMat?.id || 'mat-default',
             cutWidthMm: g.clearSpanMm,
             cutHeightMm: g.widthMm,
             canRotate: true,

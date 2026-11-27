@@ -11,9 +11,9 @@ import {
   type PieceEdgeBandOverride,
   type ExplodedPieceBox,
   type PieceMachiningSheet,
-  buildPieceMachining3DGroup,
   type CountertopCalculationResult,
 } from '../resolver';
+import { buildPieceMachining3DGroup } from './viewer/machining3d';
 import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { translatePieceRole } from './localization';
@@ -237,6 +237,24 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
   const [showEdgeBands, setShowEdgeBands] = useState<boolean>(
     props.initialShowEdgeBands ?? DEFAULT_UI_CONFIG.showEdgeBandsByDefault ?? true,
   );
+
+  // Live theme reactivity: observe document data-theme changes when effectiveTheme prop is not pinned
+  const [domTheme, setDomTheme] = useState<'light' | 'dark'>(() =>
+    typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
+      ? 'dark'
+      : 'light',
+  );
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+    const syncTheme = () => {
+      setDomTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    };
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  const resolvedTheme: 'light' | 'dark' = effectiveTheme ?? domTheme;
 
   const hoveredPieceIdRef = useRef<string | null>(null);
   const explodedRatioRef = useRef(explodedRatio);
@@ -763,17 +781,16 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       prevTargetRef.current = { ...bounds.center };
     }
 
-    // Update fading grid for new bounds
+    // Update fading grid for new bounds or live theme change
     if (fadingGridRef.current) {
       scene.remove(fadingGridRef.current);
       disposeFadingGrid(fadingGridRef.current);
       fadingGridRef.current = null;
     }
-    const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
-    const newGrid = createFadingGrid(bounds, { theme: isLight ? 'light' : 'dark' });
+    const newGrid = createFadingGrid(bounds, { theme: resolvedTheme });
     scene.add(newGrid);
     fadingGridRef.current = newGrid;
-  }, [bounds, props.moduleId]);
+  }, [bounds, props.moduleId, resolvedTheme]);
 
   // Helper: Extrude countertop slab geometry with cutouts and faucet holes
   function buildCountertopSlabGeometry(
@@ -1164,11 +1181,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       dimensionLinesGroupRef.current = null;
     }
     if (effectiveShowDimensions) {
-      const isLight =
-        effectiveTheme !== undefined
-          ? effectiveTheme === 'light'
-          : typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
-      const dimGroup = createDimensionLinesGroup(bounds, { theme: isLight ? 'light' : 'dark' });
+      const dimGroup = createDimensionLinesGroup(bounds, { theme: resolvedTheme });
       group.add(dimGroup);
       dimensionLinesGroupRef.current = dimGroup;
     }
@@ -1190,7 +1203,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
       prevTargetRef.current = { ...fit.target };
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, effectiveTheme, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides, activeStepPieceIds, assembledPieceIds]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, resolvedTheme, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides, activeStepPieceIds, assembledPieceIds]);
 
   // Handle auto-fit / zoom to fit module
   const handleFitCamera = useCallback(() => {

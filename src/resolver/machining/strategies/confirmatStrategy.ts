@@ -7,6 +7,7 @@ import {
   derivePieceBJointPositions,
 } from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
+import { translateRoleKey } from '../../../locales';
 
 export class ConfirmatJointStrategy implements IJointMachiningStrategy {
   public readonly kind = 'confirmat' as const;
@@ -21,6 +22,7 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
     const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
+    const targetName = translateRoleKey(pieceB.role);
 
     for (const off of offsets) {
       const posA = geom.getPieceAPosition ? geom.getPieceAPosition(off) : { x: zStart + off, y: yContact };
@@ -39,7 +41,7 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
         positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'confirmat',
-        description: `Confirmat through hole Ø${config.confirmatThroughDiameterMm}mm for ${pieceB.id}`,
+        description: `Pasante Confirmat Ø${config.confirmatThroughDiameterMm} mm (unión con ${targetName})`,
       });
 
       // Operation on Piece B (Edge blind pilot hole)
@@ -55,7 +57,7 @@ export class ConfirmatJointStrategy implements IJointMachiningStrategy {
         positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'confirmat',
-        description: `Confirmat pilot core Ø${config.confirmatCoreDiameterMm}x${config.confirmatCoreDepthMm}mm into edge`,
+        description: `Pre-perforación Confirmat en canto Ø${config.confirmatCoreDiameterMm}×${config.confirmatCoreDepthMm} mm`,
       });
     }
 

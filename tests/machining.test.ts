@@ -12,8 +12,8 @@ import {
   createJoint,
   createRectangularContour,
   buildPieceMachiningSheet,
-  buildPieceMachining3DGroup,
 } from '../src/resolver';
+import { buildPieceMachining3DGroup } from '../src/ui/viewer/machining3d';
 import type { Material } from '../src/model';
 
 const testMaterial: Material = {
@@ -308,14 +308,14 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
     const sideOps = ops.filter((o) => o.pieceId === 'side-left');
 
     // 1. Bottom holes on side panel: Y must be 9mm, X at [50, 510]
-    const bottomHoles = sideOps.filter((o) => o.description?.includes('bottom'));
+    const bottomHoles = sideOps.filter((o) => o.description?.includes('Piso / Base'));
     expect(bottomHoles).toHaveLength(2);
     expect(bottomHoles[0]!.positionMm.y).toBe(9);
     expect(bottomHoles[0]!.positionMm.x).toBe(50);
     expect(bottomHoles[1]!.positionMm.x).toBe(510);
 
     // 2. Front rail holes on side panel: Y must be 711mm, X at [25, 55] (Z_start = 0)
-    const frontRailHoles = sideOps.filter((o) => o.description?.includes('rail-front'));
+    const frontRailHoles = sideOps.filter((o) => o.description?.includes('Faja delantera'));
     expect(frontRailHoles).toHaveLength(2);
     expect(frontRailHoles[0]!.positionMm.y).toBe(711);
     expect(frontRailHoles[0]!.positionMm.x).toBe(25);
@@ -323,7 +323,7 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
 
     // 3. Back rail holes on side panel: Y must be 711mm, X at [505, 535] (Z_start = 480 + 25, 480 + 55)
     // CRITICAL: They must NOT be at X = 25 or 50 (the front of the cabinet)!
-    const backRailHoles = sideOps.filter((o) => o.description?.includes('rail-back'));
+    const backRailHoles = sideOps.filter((o) => o.description?.includes('Faja trasera'));
     expect(backRailHoles).toHaveLength(2);
     expect(backRailHoles[0]!.positionMm.y).toBe(711);
     expect(backRailHoles[0]!.positionMm.x).toBe(505);
@@ -374,7 +374,7 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
     const screwSideOps = screwOps.filter((o) => o.pieceId === 'p-side');
     expect(screwSideOps).toHaveLength(2);
     expect(screwSideOps[0]!.diameterMm).toBe(4);
-    expect(screwSideOps[0]!.description).toContain('Spax screw');
+    expect(screwSideOps[0]!.description).toContain('Pasante tornillo');
 
     const screwEdgeOps = screwOps.filter((o) => o.pieceId === 'p-bottom');
     expect(screwEdgeOps).toHaveLength(2);
@@ -396,7 +396,7 @@ describe('Machining Derivation - Integrated Modules & Grouping', () => {
     expect(overrideSideOps[0]!.sourceJointKind).toBe('cam-dowel');
 
     const overrideBottomOps = overrideOps.filter((o) => o.pieceId === 'p-bottom');
-    const pocketOps = overrideBottomOps.filter((o) => o.description?.includes('Minifix cam pocket'));
+    const pocketOps = overrideBottomOps.filter((o) => o.description?.includes('Caja excéntrica Minifix'));
     expect(pocketOps.length).toBeGreaterThan(0);
   });
 });
@@ -449,8 +449,9 @@ describe('Machining Derivation - Drawer Front Screws Dynamic Positioning', () =>
       // 2 left screws and 2 right screws
       expect(frontOps).toHaveLength(4);
 
-      const leftHoles = frontOps.filter((o) => o.description?.includes('box-side-l'));
-      const rightHoles = frontOps.filter((o) => o.description?.includes('box-side-r'));
+      const frontWidth = frontPiece.dimensionsMm?.width ?? 0;
+      const leftHoles = frontOps.filter((o) => o.positionMm.x < frontWidth / 2);
+      const rightHoles = frontOps.filter((o) => o.positionMm.x >= frontWidth / 2);
       expect(leftHoles).toHaveLength(2);
       expect(rightHoles).toHaveLength(2);
 
@@ -468,7 +469,6 @@ describe('Machining Derivation - Drawer Front Screws Dynamic Positioning', () =>
       prevRightX.push(rightX);
 
       // Right holes must be near the right edge of the front
-      const frontWidth = frontPiece.dimensionsMm?.width ?? 0;
       expect(rightX).toBeGreaterThan(frontWidth - 35);
       expect(rightX).toBeLessThan(frontWidth);
 

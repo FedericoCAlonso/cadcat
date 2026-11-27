@@ -142,6 +142,7 @@ export function translatePieceLabel(pieceId: string, role?: string): string {
 export function exportCutPlanPdf(
   nestingResult: NestingResult,
   documentTitle = 'Plano de Corte CadCat',
+  materialNameMap?: Record<string, string>,
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -178,16 +179,17 @@ export function exportCutPlanPdf(
     doc.setTextColor(20, 20, 20);
     doc.text(`${documentTitle} - Hoja ${index + 1} de ${nestingResult.sheets.length}`, 14, 13);
 
+    const displayMaterial = materialNameMap?.[sheet.materialId] ?? sheet.materialId;
     doc.setFontSize(9);
     doc.setTextColor(60, 60, 60);
     doc.text(
-      `Material: ${sheet.materialId} | Formato Placa: ${sheet.sheetLengthMm} x ${sheet.sheetWidthMm} mm | ` +
+      `Material: ${displayMaterial} | Formato Placa: ${sheet.sheetLengthMm} x ${sheet.sheetWidthMm} mm | ` +
       `Aprovechamiento: ${sheet.utilizationPercentage}% | Piezas en hoja: ${sheet.placedPieces.length}`,
       14,
       19,
     );
 
-    // Group placed pieces by module + role + canonical cut size (so rotated placements do not split counts)
+    // Group placed pieces by module + role + canonical cut size (so rotated or grain-swapped placements keep W x H order)
     interface PieceGroupItem {
       code: string;
       name: string;
@@ -203,8 +205,8 @@ export function exportCutPlanPdf(
     for (const piece of sheet.placedPieces) {
       const baseName = translatePieceLabel(piece.pieceId, piece.name);
       const friendlyName = piece.moduleName ? `${baseName} (${piece.moduleName})` : baseName;
-      const cutW = Number((piece.cutWidthMm ?? (piece.rotated ? piece.height : piece.width)).toFixed(1));
-      const cutH = Number((piece.cutHeightMm ?? (piece.rotated ? piece.width : piece.height)).toFixed(1));
+      const cutW = Number((piece.displayCutWidthMm ?? piece.cutWidthMm ?? (piece.rotated ? piece.height : piece.width)).toFixed(1));
+      const cutH = Number((piece.displayCutHeightMm ?? piece.cutHeightMm ?? (piece.rotated ? piece.width : piece.height)).toFixed(1));
       const key = `${friendlyName}_${cutW}_${cutH}`;
 
       pieceLabelMap.set(piece.pieceId, friendlyName);
@@ -256,7 +258,11 @@ export function exportCutPlanPdf(
       const code = pieceCodeMap.get(piece.pieceId) ?? 'P';
       const w = Number(piece.width.toFixed(1));
       const h = Number(piece.height.toFixed(1));
-      const rotTag = piece.rotated ? ' (R)' : '';
+      const isGrainSwapped =
+        piece.displayCutWidthMm !== undefined &&
+        piece.cutWidthMm !== undefined &&
+        Math.abs(piece.displayCutWidthMm - piece.cutWidthMm) > 0.05;
+      const rotTag = piece.rotated ? ' (R)' : isGrainSwapped ? ' (V)' : '';
 
       // Render piece label with short code and name
       doc.setTextColor(20, 20, 20);
@@ -346,30 +352,4 @@ export function exportCutPlanPdf(
   });
 
   return doc;
-}
-
-/**
- * Trigger file download in browser environments.
- */
-export function triggerBrowserDownload(
-  fileName: string,
-  content: string | Blob | Uint8Array,
-  mimeType: string,
-): void {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return;
-  }
-
-  const blob = content instanceof Blob
-    ? content
-    : new Blob([content as unknown as BlobPart], { type: mimeType });
-
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
 }

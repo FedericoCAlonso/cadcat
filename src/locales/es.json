@@ -19,6 +19,7 @@
     "settings": "Configuración del Proyecto"
   },
   "roles": {
+    "side": "Lateral",
     "side-left": "Lateral izquierdo",
     "side-right": "Lateral derecho",
     "bottom": "Piso / Base",
@@ -38,9 +39,16 @@
     "false-front": "Frente fijo",
     "drawer-front": "Frente de cajón",
     "drawer-side": "Lateral de cajón",
+    "drawer-box-side": "Lateral de cajón",
+    "drawer-box-side-left": "Lateral izquierdo de cajón",
+    "drawer-box-side-right": "Lateral derecho de cajón",
     "drawer-box-front": "Contrafrente de cajón",
     "drawer-box-back": "Trasera de cajón",
+    "drawer-back": "Trasera de cajón",
+    "drawer-counterfront": "Trasera de cajón",
     "drawer-bottom": "Fondo de cajón",
+    "drawer-box-bottom": "Fondo de cajón",
+    "door": "Puerta",
     "door-left": "Puerta izquierda",
     "door-right": "Puerta derecha",
     "door-single": "Puerta batiente",
@@ -242,5 +250,39 @@
     "needsGroove": "Requiere ranura",
     "hardwareName": "Nombre del herraje",
     "jointKind": "Tipo de unión"
+  },
+  "assembly": {
+    "phases": {
+      "preparation": "Preparación",
+      "pre-assembly": "Pre-armado",
+      "carcass": "Estructura",
+      "shelves": "Estantes",
+      "rails": "Fajas / Amarres",
+      "squaring": "Escuadrado",
+      "drawers": "Cajones",
+      "doors": "Puertas",
+      "inspection": "Inspección final"
+    },
+    "hardware": {
+      "confirmat": "Tornillo Confirmat",
+      "minifix": "Perno Minifix",
+      "slide": "Guía corredera",
+      "shelf_pin": "Soporte para estante",
+      "shelf-pin": "Soporte para estante",
+      "hinge": "Bisagra cazoleta",
+      "hinge-plate": "Base de bisagra",
+      "dowel": "Tarugo de madera",
+      "screw": "Tornillo de ensamble",
+      "wood-screw": "Tornillo autorroscante",
+      "euro-screw": "Tornillo Euro",
+      "bracket": "Escuadra de fijación"
+    },
+    "common": {
+      "phaseLabel": "Fase",
+      "datumOrigin": "Datum (0,0) Frente-Base",
+      "width": "Ancho",
+      "height": "Alto",
+      "thickness": "Espesor"
+    }
   }
 }

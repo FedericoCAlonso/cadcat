@@ -38,7 +38,7 @@ export class DowelJointStrategy implements IJointMachiningStrategy {
         positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'dowel',
-        description: `Wooden dowel face hole Ø${config.dowelFaceDiameterMm}x${config.dowelFaceDepthMm}mm`,
+        description: `Orificio cara para tarugo Ø${config.dowelFaceDiameterMm}×${config.dowelFaceDepthMm} mm`,
       });
 
       operations.push({
@@ -53,7 +53,7 @@ export class DowelJointStrategy implements IJointMachiningStrategy {
         positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'dowel',
-        description: `Wooden dowel edge hole Ø${config.dowelEdgeDiameterMm}x${config.dowelEdgeDepthMm}mm`,
+        description: `Orificio canto para tarugo Ø${config.dowelEdgeDiameterMm}×${config.dowelEdgeDepthMm} mm`,
       });
     }
 

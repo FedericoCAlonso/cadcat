@@ -76,7 +76,6 @@ export {
   exportCutListCsv,
   exportCutPlanPdf,
   translatePieceLabel,
-  triggerBrowserDownload,
 } from './export';
 
 export {
@@ -284,9 +283,8 @@ export {
 } from './machining/fastenerDistributionSolver';
 
 export {
-  buildPieceMachining3DGroup,
   getPieceFaceNormalSign,
-} from './machining/machining3d';
+} from './machining/faceNormal';
 
 export {
   type BracketType,

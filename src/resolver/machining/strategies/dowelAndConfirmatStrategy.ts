@@ -7,6 +7,7 @@ import {
   derivePieceBJointPositions,
 } from '../geometry';
 import { type Joint, type JointKind } from '../../../model';
+import { translateRoleKey } from '../../../locales';
 
 export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
   public readonly kind = 'dowel-and-confirmat' as const;
@@ -21,6 +22,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
     const { yContact, zStart, contactLen } = geom;
     const offsets = calculateDrillSpacingsFromConfig(contactLen, config);
     const operations: DrillOperation[] = [];
+    const targetName = translateRoleKey(pieceB.role);
 
     // 1. Confirmat clamping screws
     for (const off of offsets) {
@@ -39,7 +41,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         positionMm: posA,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
-        description: `Confirmat through hole Ø${config.confirmatThroughDiameterMm}mm for ${pieceB.id}`,
+        description: `Pasante Confirmat Ø${config.confirmatThroughDiameterMm} mm (unión con ${targetName})`,
       });
 
       operations.push({
@@ -54,7 +56,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         positionMm: posBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
-        description: `Confirmat pilot core Ø${config.confirmatCoreDiameterMm}x${config.confirmatCoreDepthMm}mm into edge`,
+        description: `Pre-perforación Confirmat en canto Ø${config.confirmatCoreDiameterMm}×${config.confirmatCoreDepthMm} mm`,
       });
     }
 
@@ -85,7 +87,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         positionMm: dPosA,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
-        description: `Dowel face hole Ø${config.dowelFaceDiameterMm}x${config.dowelFaceDepthMm}mm`,
+        description: `Orificio cara para tarugo Ø${config.dowelFaceDiameterMm}×${config.dowelFaceDepthMm} mm`,
       });
 
       operations.push({
@@ -100,7 +102,7 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
         positionMm: dPosBGeom.edgePosition,
         origin: 'derived',
         sourceJointKind: 'dowel-and-confirmat',
-        description: `Dowel edge hole Ø${config.dowelEdgeDiameterMm}x${config.dowelEdgeDepthMm}mm`,
+        description: `Orificio canto para tarugo Ø${config.dowelEdgeDiameterMm}×${config.dowelEdgeDepthMm} mm`,
       });
     }
 

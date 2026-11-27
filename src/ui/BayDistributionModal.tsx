@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, type ReactElement } from 'react';
+import { useState, useMemo, useEffect, useRef, type ReactElement } from 'react';
+import { useFocusTrapModal } from './hooks/useFocusTrapModal';
 import {
   type Material,
   DEFAULT_STANDARD_THICKNESSES_MM,
@@ -60,6 +61,9 @@ export function BayDistributionModal({
   materials = [],
   standardThicknessesMm = DEFAULT_STANDARD_THICKNESSES_MM,
 }: BayDistributionModalProps): ReactElement | null {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrapModal({ isOpen, containerRef: modalRef, onClose });
+
   // Working draft of the bay content tree
   const [draft, setDraft] = useState<BayContent>(initialContent);
 
@@ -301,6 +305,7 @@ export function BayDistributionModal({
 
   return (
     <div
+      ref={modalRef}
       className="m3-modal-overlay"
       role="dialog"
       aria-modal="true"

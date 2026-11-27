@@ -23,8 +23,8 @@ import {
   type MachiningValidationIssue,
   calculatePocketCornerRelief,
   exportPieceToDxf,
-  triggerBrowserDownload,
 } from '../resolver';
+import { triggerBrowserDownload } from './browserDownload';
 
 export type MachiningOpType =
   | 'drill'

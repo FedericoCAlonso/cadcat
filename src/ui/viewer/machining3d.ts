@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import type { PieceMachiningSheet, SheetOperationItem } from '../machiningSheet';
-import { getPieceFaceNormalSign } from './faceNormal';
+import type { PieceMachiningSheet, SheetOperationItem } from '../../resolver/machiningSheet';
+import { getPieceFaceNormalSign } from '../../resolver/machining/faceNormal';
 
-export { getPieceFaceNormalSign } from './faceNormal';
+export { getPieceFaceNormalSign } from '../../resolver/machining/faceNormal';
 
 /**
  * Builds a Three.js Group containing 3D visual representations of all machinings
  * (drill holes, hinge cups, grooves, cutouts) for a given piece, positioned in the piece's local coordinates.
+ * Lives in the UI viewer layer so src/resolver/ remains 100% pure (zero Three.js dependency).
  */
 export function buildPieceMachining3DGroup(
   sheet: PieceMachiningSheet,
@@ -198,7 +199,6 @@ export function buildPieceMachining3DGroup(
         const normalSign = getPieceFaceNormalSign(sheet.role, sheet.pieceId, isFaceA, normal);
 
         if (normal === 'x') {
-          // 2D: X along Z, Y along Y
           const gLen = isAxisX ? sz : sy;
           const geom = isAxisX
             ? new THREE.BoxGeometry(gDepth, gWidth, gLen)
@@ -212,7 +212,6 @@ export function buildPieceMachining3DGroup(
           }
           group.add(mesh);
         } else if (normal === 'y') {
-          // 2D: X along X, Y along Z
           const gLen = isAxisX ? sx : sz;
           const geom = isAxisX
             ? new THREE.BoxGeometry(gLen, gDepth, gWidth)
@@ -226,7 +225,6 @@ export function buildPieceMachining3DGroup(
           }
           group.add(mesh);
         } else {
-          // 2D: X along X, Y along Y
           const gLen = isAxisX ? sx : sy;
           const geom = isAxisX
             ? new THREE.BoxGeometry(gLen, gWidth, gDepth)

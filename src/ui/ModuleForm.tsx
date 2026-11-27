@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, type ReactElement } from 'react';
+import { M3ConfirmDialog } from './M3Dialog';
 import type { Material, EdgeBand, JointStrategy, JointKind, Project, ProjectModuleItem } from '../model';
 import type {
   TemplateDefinition,
@@ -547,6 +548,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
+  const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState<{ id: string; name: string } | null>(null);
   const detectedMobile = useIsMobileDevice();
   const isMobileDevice = isMobileProp ?? detectedMobile;
 
@@ -736,9 +738,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               onClick={() => {
                 const currentTpl = templates.find((tpl) => tpl.id === selectedTemplateId);
                 const name = currentTpl?.name ?? selectedTemplateId;
-                if (window.confirm(t('userTemplates.deleteConfirm', { name }))) {
-                  onDeleteUserTemplate(selectedTemplateId);
-                }
+                setConfirmDeleteTemplate({ id: selectedTemplateId, name });
               }}
             >
               🗑️
@@ -1390,6 +1390,23 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         initialContent={activeBay}
         materials={materials}
         standardThicknessesMm={standardThicknessesMm}
+      />
+
+      <M3ConfirmDialog
+        isOpen={Boolean(confirmDeleteTemplate)}
+        title={t('userTemplates.delete')}
+        message={t('userTemplates.deleteConfirm', { name: confirmDeleteTemplate?.name ?? '' })}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onCancel={() => setConfirmDeleteTemplate(null)}
+        onConfirm={() => {
+          const targetId = confirmDeleteTemplate?.id;
+          setConfirmDeleteTemplate(null);
+          if (targetId && onDeleteUserTemplate) {
+            onDeleteUserTemplate(targetId);
+          }
+        }}
       />
     </section>
   );

@@ -136,22 +136,17 @@ export function MachiningSheetView({
           if (panZoom.isPanning) panZoom.endPan();
         }}
       >
-        {/* Floating CAD Zoom Toolbar */}
+        {/* CAD Zoom Toolbar docked cleanly above SVG so it never occludes drawing or cotas */}
         <div
           className="cad-floating-toolbar"
           style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            zIndex: 10,
             display: 'flex',
+            justifyContent: 'flex-end',
             gap: '4px',
+            flexWrap: 'wrap',
             backgroundColor: 'var(--md-sys-color-surface-container-high)',
-            backdropFilter: 'blur(4px)',
-            padding: '3px 6px',
-            borderRadius: '8px',
-            boxShadow: 'var(--md-sys-elevation-2)',
-            border: '1px solid var(--md-sys-color-outline-variant)',
+            padding: '4px 8px',
+            borderBottom: '1px solid var(--md-sys-color-outline-variant)',
           }}
         >
           <button
@@ -259,9 +254,9 @@ export function MachiningSheetView({
               value={activeSheet.pieceId}
               onChange={(e) => onSelectPiece(e.target.value)}
             >
-              {sheets.map((sheet) => (
+              {sheets.map((sheet, idx) => (
                 <option key={sheet.pieceId} value={sheet.pieceId}>
-                  {translatePieceRole(sheet.role)} ({sheet.pieceId}) {sheet.requiresTurn ? '🔄 Giro' : ''}
+                  {`#${idx + 1} ${translatePieceRole(sheet.role)}${sheet.requiresTurn ? ' 🔄 Giro' : ''}`}
                 </option>
               ))}
             </select>
@@ -269,8 +264,9 @@ export function MachiningSheetView({
 
           {/* Desktop & Tablet Touch Chips Strip */}
           <div className="machining-chips-row" role="tablist" aria-label="Seleccionar Pieza">
-            {sheets.map((sheet) => {
+            {sheets.map((sheet, idx) => {
               const isSelected = sheet.pieceId === activeSheet.pieceId;
+              const friendlyLabel = `${translatePieceRole(sheet.role)} #${idx + 1}`;
               return (
                 <button
                   key={sheet.pieceId}
@@ -281,7 +277,7 @@ export function MachiningSheetView({
                   style={{ minHeight: '44px', padding: '0 0.85rem' }}
                   onClick={() => onSelectPiece(sheet.pieceId)}
                 >
-                  <span className="m3-chip__label">{sheet.pieceId}</span>
+                  <span className="m3-chip__label">{friendlyLabel}</span>
                   {sheet.requiresTurn && (
                     <span
                       className="m3-badge m3-badge--warning"
@@ -472,22 +468,31 @@ export function MachiningSheetView({
               </tr>
             </thead>
             <tbody>
-              {activeSheet.edgeOperations.map((op, idx) => (
-                <tr key={op.id}>
-                  <td>{idx + 1}</td>
-                  <td>{op.faceId}</td>
-                  <td>{op.description}</td>
-                  <td>Ø{op.diameterMm} mm</td>
-                  <td>{op.depthMm} mm</td>
-                  <td>
-                    {op.faceId.toLowerCase().includes('left') || op.faceId.toLowerCase().includes('right')
-                      ? `Y = ${op.yMm} mm`
-                      : `X = ${op.xMm} mm`}
-                  </td>
-                  <td>{op.xMm} mm</td>
-                  <td>{op.yMm} mm</td>
-                </tr>
-              ))}
+              {activeSheet.edgeOperations.map((op, idx) => {
+                const faceLabels: Record<string, string> = {
+                  'left-edge': 'Canto Izq. (Frente)',
+                  'right-edge': 'Canto Der. (Trasero)',
+                  'top-edge': 'Canto Superior',
+                  'bottom-edge': 'Canto Inferior',
+                };
+                const friendlyEdge = faceLabels[op.faceId.toLowerCase()] ?? op.faceId;
+                return (
+                  <tr key={op.id}>
+                    <td>{idx + 1}</td>
+                    <td>{friendlyEdge}</td>
+                    <td>{op.description}</td>
+                    <td>Ø{op.diameterMm} mm</td>
+                    <td>{op.depthMm} mm</td>
+                    <td>
+                      {op.faceId.toLowerCase().includes('left') || op.faceId.toLowerCase().includes('right')
+                        ? `Y = ${op.yMm} mm`
+                        : `X = ${op.xMm} mm`}
+                    </td>
+                    <td>{op.xMm} mm</td>
+                    <td>{op.yMm} mm</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>

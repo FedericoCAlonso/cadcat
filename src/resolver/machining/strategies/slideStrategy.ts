@@ -38,7 +38,7 @@ export class SlideJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: setback, y: slideY },
         origin: 'derived',
         sourceJointKind: 'slide',
-        description: `Drawer slide front mounting hole Ø${diameter}x${depth}mm`,
+        description: `Guía corredera orificio frontal Ø${diameter}×${depth} mm`,
       },
       {
         schemaVersion: 1,
@@ -52,7 +52,7 @@ export class SlideJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: setback + pitch, y: slideY },
         origin: 'derived',
         sourceJointKind: 'slide',
-        description: `Drawer slide rear mounting hole Ø${diameter}x${depth}mm`,
+        description: `Guía corredera orificio trasero Ø${diameter}×${depth} mm`,
       },
     );
 

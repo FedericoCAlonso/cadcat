@@ -55,7 +55,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
             positionMm: { x: cup1X, y: cupY },
             origin: 'derived',
             sourceJointKind: 'hinge',
-            description: `Bifold intermediate hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (Leaf 1)`,
+            description: `Cazoleta bisagra intermedia Bi-Fold Ø${config.hingeCupDiameterMm}×${config.hingeCupDepthMm} mm (Hoja 1)`,
           },
           {
             schemaVersion: 1,
@@ -69,7 +69,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
             positionMm: { x: cup2X, y: cupY },
             origin: 'derived',
             sourceJointKind: 'hinge',
-            description: `Bifold intermediate hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (Leaf 2)`,
+            description: `Cazoleta bisagra intermedia Bi-Fold Ø${config.hingeCupDiameterMm}×${config.hingeCupDepthMm} mm (Hoja 2)`,
           },
         );
       } else {
@@ -91,7 +91,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
             positionMm: { x: cupX, y: cup1Y },
             origin: 'derived',
             sourceJointKind: 'hinge',
-            description: `Bifold intermediate hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (Upper Leaf)`,
+            description: `Cazoleta bisagra intermedia Bi-Fold Ø${config.hingeCupDiameterMm}×${config.hingeCupDepthMm} mm (Hoja superior)`,
           },
           {
             schemaVersion: 1,
@@ -105,7 +105,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
             positionMm: { x: cupX, y: cup2Y },
             origin: 'derived',
             sourceJointKind: 'hinge',
-            description: `Bifold intermediate hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (Lower Leaf)`,
+            description: `Cazoleta bisagra intermedia Bi-Fold Ø${config.hingeCupDiameterMm}×${config.hingeCupDepthMm} mm (Hoja inferior)`,
           },
         );
       }
@@ -137,7 +137,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: cupX, y: cupY },
         origin: 'derived',
         sourceJointKind: 'hinge',
-        description: `Concealed hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (Top edge)`,
+        description: `Cazoleta bisagra Ø${config.hingeCupDiameterMm}×${config.hingeCupDepthMm} mm (borde superior)`,
       });
 
       // Mounting plate on carcase top/roof (inner face)
@@ -158,7 +158,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
           positionMm: { x: cupX - halfSpacing, y: plateSetback },
           origin: 'derived',
           sourceJointKind: 'hinge',
-          description: `Hinge mounting plate hole 1 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm`,
+          description: `Base de bisagra orificio 1 Ø${config.hingePlateDiameterMm}×${config.hingePlateDepthMm} mm`,
         },
         {
           schemaVersion: 1,
@@ -172,7 +172,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
           positionMm: { x: cupX + halfSpacing, y: plateSetback },
           origin: 'derived',
           sourceJointKind: 'hinge',
-          description: `Hinge mounting plate hole 2 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm`,
+          description: `Base de bisagra orificio 2 Ø${config.hingePlateDiameterMm}×${config.hingePlateDepthMm} mm`,
         },
       );
       return operations;
@@ -218,7 +218,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
       positionMm: { x: cupX, y: safeDoorHingeY },
       origin: 'derived',
       sourceJointKind: 'hinge',
-      description: `Concealed hinge cup Ø${config.hingeCupDiameterMm}x${config.hingeCupDepthMm}mm (${isRightDoor ? 'right' : 'left'})`,
+      description: `Cazoleta bisagra Ø${config.hingeCupDiameterMm}×${config.hingeCupDepthMm} mm (${isRightDoor ? 'der.' : 'izq.'})`,
     });
 
     // 2. On Carcase Side / Partition: 2 mounting plate holes in System 32 line
@@ -247,7 +247,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: plateSetback, y: carcaseHingeY - halfSpacing },
         origin: 'derived',
         sourceJointKind: 'hinge',
-        description: `Hinge mounting plate hole 1 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm${isInset ? ' (Codo 18 / Inset)' : ''}`,
+        description: `Base de bisagra orificio 1 Ø${config.hingePlateDiameterMm}×${config.hingePlateDepthMm} mm${isInset ? ' (Codo 18 / Embutida)' : ''}`,
       },
       {
         schemaVersion: 1,
@@ -261,7 +261,7 @@ export class HingeJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: plateSetback, y: carcaseHingeY + halfSpacing },
         origin: 'derived',
         sourceJointKind: 'hinge',
-        description: `Hinge mounting plate hole 2 Ø${config.hingePlateDiameterMm}x${config.hingePlateDepthMm}mm${isInset ? ' (Codo 18 / Inset)' : ''}`,
+        description: `Base de bisagra orificio 2 Ø${config.hingePlateDiameterMm}×${config.hingePlateDepthMm} mm${isInset ? ' (Codo 18 / Embutida)' : ''}`,
       },
     );
 

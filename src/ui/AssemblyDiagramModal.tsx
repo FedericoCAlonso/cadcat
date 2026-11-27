@@ -1,6 +1,7 @@
-import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { useRef, type ReactElement, type ReactNode } from 'react';
 import { usePanZoom } from './usePanZoom';
 import { DEFAULT_UI_CONFIG } from '../config';
+import { useFocusTrapModal } from './hooks/useFocusTrapModal';
 
 /**
  * Properties for the full-screen interactive assembly diagram modal.
@@ -37,22 +38,10 @@ export function AssemblyDiagramModal({
     zoomStep: 1.25,
   });
 
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape key press
-  useEffect(() => {
-    /**
-     * Handles keyboard events to close modal when Escape key is pressed.
-     */
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  useFocusTrapModal({ isOpen: true, containerRef: modalRef, onClose });
 
   // Touch pan handling for single touch while allowing two-touch pinch to zoom
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -94,6 +83,7 @@ export function AssemblyDiagramModal({
 
   return (
     <div
+      ref={modalRef}
       role="dialog"
       aria-modal="true"
       aria-label={title}

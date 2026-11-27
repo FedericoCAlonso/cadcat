@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, type ReactElement } from 'react';
+import { useState, useMemo, useRef, type ReactElement } from 'react';
+import { useFocusTrapModal } from './hooks/useFocusTrapModal';
 import {
   type Piece,
   type Material,
@@ -76,16 +77,8 @@ export function LabelExportModal({
     ? totalLabels
     : Math.ceil(totalLabels / layout.labelsPerPage);
 
-  useEffect(() => {
-    if (!isOpen || typeof window === 'undefined') return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrapModal({ isOpen, containerRef: modalRef, onClose });
 
   if (!isOpen) {
     return null;
@@ -129,6 +122,7 @@ export function LabelExportModal({
       }}
     >
       <div
+        ref={modalRef}
         className="m3-card"
         style={{
           width: '100%',

@@ -352,10 +352,10 @@ describe('Assembly Gauges & Auxiliary Pieces (Phase 2 WP2)', () => {
     expect(sheet.steps.length).toBeGreaterThanOrEqual(4);
     expect(sheet.gauges.length).toBeGreaterThanOrEqual(1);
 
-    // Check step content references gauge
+    // Check step content references gauge in localized Spanish
     const shelfStep = sheet.steps.find((s) => s.stepNumber > 1 && s.gaugesInvolved.includes('G1'));
     expect(shelfStep).toBeDefined();
-    expect(shelfStep?.instruction).toContain('gauge G1');
+    expect(shelfStep?.instruction).toContain('calibre G1');
 
     // Export PDF
     const pdfDoc = exportAssemblyGuidePdf(sheet);

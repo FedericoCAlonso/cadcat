@@ -6,6 +6,7 @@ import {
   type CustomPieceOperation,
   customDrillToDrillOperation,
 } from '../model/operation';
+import { translateRoleKey } from '../locales';
 
 export interface SheetOperationItem {
   id: string;
@@ -116,7 +117,7 @@ export function buildPieceMachiningSheet(
       distFromBottomMm: y,
       distFromRightMm: Math.round(Math.max(0, pWidth - x) * 10) / 10,
       distFromTopMm: Math.round(Math.max(0, pHeight - y) * 10) / 10,
-      description: op.description ?? `${op.sourceJointKind ?? 'Drill'} hole`,
+      description: op.description ?? `Perforación ${op.sourceJointKind ?? 'manual'}`,
       sourceJointKind: op.sourceJointKind,
     };
 
@@ -392,11 +393,18 @@ export function renderPieceMachiningSvg(
         rx = originX + drawW - rw;
       }
 
+      const edgeEsMap: Record<string, string> = {
+        top: 'Sup.',
+        bottom: 'Inf.',
+        left: 'Izq.',
+        right: 'Der.',
+      };
+      const rebateEdgeLabel = edgeEsMap[cop.edge] ?? cop.edge;
       svgParts.push(`
         <!-- Custom Rebate -->
         <rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#ffd8e4" fill-opacity="0.45" stroke="#b3261e" stroke-width="1.2" />
         <text x="${rx + rw / 2}" y="${ry + rh / 2 + 3}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#b3261e">
-          Rebaje ${cop.edge} ${cop.widthMm}x${cop.depthMm}mm
+          Rebaje ${rebateEdgeLabel} ${cop.widthMm}×${cop.depthMm} mm
         </text>
       `);
     } else if (cop.kind === 'cutout') {
@@ -572,6 +580,7 @@ export function renderPieceMachiningSvg(
 export function exportMachiningSheetPdf(
   sheets: PieceMachiningSheet | PieceMachiningSheet[],
   documentTitle = 'CadCat - Plano de Mecanizado de Taller',
+  materialNameMap?: Record<string, string>,
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -606,15 +615,18 @@ export function exportMachiningSheetPdf(
     doc.setFillColor(245, 247, 250);
     doc.rect(marginX, currentY, pageWidth - 2 * marginX, 22, 'FD');
 
+    const pieceDisplayName = translateRoleKey(sheet.role);
+    const materialDisplayName = materialNameMap?.[sheet.materialId] ?? sheet.materialId;
+
     doc.setTextColor(31, 31, 31);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Pieza: ${sheet.pieceId} (${sheet.role})`, marginX + 3, currentY + 6);
+    doc.text(`Pieza: ${pieceDisplayName}`, marginX + 3, currentY + 6);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.text(
-      `Material: ${sheet.materialId} | Espesor: ${sheet.dimensionsMm.thickness} mm`,
+      `Material: ${materialDisplayName} | Espesor: ${sheet.dimensionsMm.thickness} mm`,
       marginX + 3,
       currentY + 12,
     );
@@ -834,16 +846,66 @@ export function exportMachiningSheetPdf(
 
     currentY += 6;
 
+    const customTableRows: Array<{
+      faceType: FaceType;
+      description: string;
+      diameterLabel: string;
+      depthMm: number;
+      isThrough: boolean;
+      xMm: number;
+      yMm: number;
+    }> = (sheet.customOperations ?? [])
+      .filter((cop) => cop.kind !== 'drill')
+      .map((cop) => {
+        if (cop.kind === 'groove') {
+          return {
+            faceType: cop.faceType,
+            description: cop.description ?? `Ranura ${cop.widthMm}×${cop.depthMm} mm`,
+            diameterLabel: `${cop.widthMm} (ran.)`,
+            depthMm: cop.depthMm,
+            isThrough: false,
+            xMm: cop.axis === 'y' ? cop.offsetMm : (cop.startMm ?? 0),
+            yMm: cop.axis === 'x' ? cop.offsetMm : (cop.startMm ?? 0),
+          };
+        }
+        if (cop.kind === 'rebate') {
+          return {
+            faceType: cop.faceType,
+            description: cop.description ?? `Rebaje ${cop.widthMm}×${cop.depthMm} mm`,
+            diameterLabel: `${cop.widthMm} (reb.)`,
+            depthMm: cop.depthMm,
+            isThrough: false,
+            xMm: 0,
+            yMm: 0,
+          };
+        }
+        return {
+          faceType: cop.faceType,
+          description: cop.description ?? `Mecanizado (${cop.kind})`,
+          diameterLabel: '—',
+          depthMm: 'depthMm' in cop ? (cop.depthMm ?? 0) : 0,
+          isThrough: 'isThrough' in cop ? Boolean(cop.isThrough) : false,
+          xMm: 'xMm' in cop ? (cop.xMm ?? 0) : 0,
+          yMm: 'yMm' in cop ? (cop.yMm ?? 0) : 0,
+        };
+      });
+
+    // Exclude mirrored through-hole duplicates (-through-A / -through-B) so PDF row count matches totalOperations 1:1
     const allOps = [
-      ...sheet.faceAOperations,
-      ...sheet.faceBOperations,
-      ...sheet.edgeOperations,
+      ...sheet.faceAOperations
+        .filter((op) => !op.id.endsWith('-through-A'))
+        .map((op) => ({ ...op, diameterLabel: String(op.diameterMm) })),
+      ...sheet.faceBOperations
+        .filter((op) => !op.id.endsWith('-through-B'))
+        .map((op) => ({ ...op, diameterLabel: String(op.diameterMm) })),
+      ...sheet.edgeOperations.map((op) => ({ ...op, diameterLabel: String(op.diameterMm) })),
+      ...customTableRows,
     ];
 
     if (allOps.length === 0) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
-      doc.text('Esta pieza no requiere operaciones de perforado.', marginX + 4, currentY + 4);
+      doc.text('Esta pieza no requiere operaciones de mecanizado.', marginX + 4, currentY + 4);
     } else {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
@@ -880,7 +942,7 @@ export function exportMachiningSheetPdf(
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(8.5);
           doc.setTextColor(31, 31, 31);
-          doc.text(`Continuación de tabla — ${sheet.pieceId}`, marginX, currentY);
+          doc.text(`Continuación de tabla — ${pieceDisplayName}`, marginX, currentY);
           currentY += 5;
           drawTableHeader();
         }
@@ -893,7 +955,7 @@ export function exportMachiningSheetPdf(
         doc.text(String(opIdx + 1), colX[0]! + 2, currentY + 3.5);
         doc.text(formatFaceEs(op.faceType), colX[1]! + 1, currentY + 3.5);
         doc.text(op.description.slice(0, 35), colX[2]! + 1, currentY + 3.5);
-        doc.text(String(op.diameterMm), colX[3]! + 3, currentY + 3.5);
+        doc.text(op.diameterLabel, colX[3]! + 2, currentY + 3.5);
         doc.text(String(op.depthMm), colX[4]! + 3, currentY + 3.5);
         doc.text(op.isThrough ? 'Sí' : 'No', colX[5]! + 2, currentY + 3.5);
         doc.text(`${op.xMm} mm`, colX[6]! + 1, currentY + 3.5);

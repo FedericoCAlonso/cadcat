@@ -42,28 +42,22 @@ import {
   loadProjectConfigFromDb,
   saveProjectConfigToDb,
   getDefaultProjectConfig,
-  exportProjectConfigJson,
   importProjectConfigJson,
   DEFAULT_PROJECT_ID,
   saveProjectToDb,
   loadProjectFromDb,
   loadAllProjectsFromDb,
-  buildBackupBundleJson,
   parseBackupBundleJson,
   importBackupBundleToDb,
 } from '../storage';
-import { APP_VERSION } from '../version';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { useOneHandDevice } from './useOneHandDevice';
+import { useModuleExports } from './viewmodel/useModuleExports';
 import { getSeedMaterials, getSeedEdgeBands, getSeedHardware } from '../catalog';
 import {
   generateBillOfMaterials,
   PlacementTree,
   JointGraph,
-  exportCutListCsv,
-  exportCutPlanPdf,
-  exportMachiningSheetToDxf,
-  triggerBrowserDownload,
   type ResolvedPieceWithCutSize,
   type BillOfMaterials,
   type BOMHardwareItem,
@@ -80,12 +74,10 @@ import {
   deriveModuleGrooveOperations,
   groupOperationsByPiece,
   buildModuleMachiningSheets,
-  exportMachiningSheetPdf,
   type PieceMachiningSheet,
   checkModuleShelvesDeflection,
   type ShelfDeflectionResult,
   generateAssemblySheet,
-  exportAssemblyGuidePdf,
   type AssemblySheet,
   type JointPriority,
   type RoofType,
@@ -115,14 +107,12 @@ import {
   type WallShelvingOutput,
   type WallShelvingHardwareItem,
   buildWallShelving,
-  exportWallShelvesInstallationPdf,
   calculatePieceCutSize,
   createRectangularContour,
   buildModularModule,
   type CountertopCalculationResult,
   calculateCountertop,
   adaptCabinetForEquipment,
-  exportMarmoleriaPdf,
   type ConsolidatedPiece,
   type ModuleToConsolidate,
   consolidateProjectPieces,
@@ -615,6 +605,8 @@ function resolveInactiveModule(
         jointGraph: new JointGraph(built.module.joints),
       },
       edgeBands,
+      undefined,
+      item.jointStrategy ?? projectConfig?.machining?.jointStrategy,
     );
 
     const gauges = deriveAssemblyGauges({ pieces: built.resolvedPieces, joints: built.module.joints }, projectConfig?.machining);
@@ -2627,6 +2619,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   // Generates Assembly Sheet
   const assemblySheet = useMemo<AssemblySheet | null>(() => {
     if (!currentModule || resolvedPieces.length === 0) return null;
+    const activeModName = projectModules.find((m) => m.id === activeModuleId)?.name;
     try {
       return generateAssemblySheet({
         module: {
@@ -2634,6 +2627,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           pieces: resolvedPieces,
           joints: currentModule.joints,
         },
+        moduleName: activeModName,
         machiningConfig: projectConfig?.machining,
         machiningSheets,
         moduleDimensions: {
@@ -2645,7 +2639,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     } catch {
       return null;
     }
-  }, [currentModule, resolvedPieces, projectConfig, machiningSheets]);
+  }, [currentModule, resolvedPieces, projectModules, activeModuleId, projectConfig, machiningSheets]);
 
   const serializeCurrentModule = useCallback((): ProjectModuleItem => {
     return {
@@ -3112,198 +3106,43 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [initialDb]);
 
-  const exportCsv = useCallback(() => {
-    const isGlobal = projectScope === 'all-modules';
-    const piecesToExport = isGlobal
-      ? consolidatedPieces
-      : consolidateProjectPieces(activeModuleToConsolidate);
-    if (piecesToExport.length === 0) return;
-
-    const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
-    const auxPieces: ResolvedPieceWithCutSize[] = (!isGlobal && includeGauges && assemblySheet?.gauges)
-      ? assemblySheet.gauges.map((g) => ({
-          id: g.piece.id,
-          role: g.piece.role,
-          materialId: g.piece.materialId,
-          contour: g.piece.contour,
-          thicknessMm: g.piece.thicknessMm,
-          faces: g.piece.faces,
-          structural: g.piece.structural,
-          referenceFace: g.piece.referenceFace,
-          isAuxiliary: true,
-          positionMm: { x: 0, y: 0, z: 0 },
-          dimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
-          cutDimensionsMm: { width: g.clearSpanMm, height: g.widthMm },
-          cutContour: g.piece.contour,
-          bandedEdges: [],
-        }))
-      : [];
-
-    const allPieces = [...piecesToExport, ...auxPieces];
-    const csvContent = exportCutListCsv(allPieces);
-    const fileName = isGlobal
-      ? `cut-list-proyecto-${(project?.name ?? 'global').toLowerCase().replace(/\s+/g, '-')}.csv`
-      : `cut-list-${currentModule?.id ?? 'module'}.csv`;
-
-    triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
-    setStatusMessage(`Lista de corte (${isGlobal ? 'Todo el Proyecto' : 'Módulo Actual'}) exportada a ${fileName}.`);
-  }, [projectScope, consolidatedPieces, activeModuleToConsolidate, assemblySheet, project, currentModule, projectConfig]);
-
-  const exportPdf = useCallback(() => {
-    if (!activeMaterial) return;
-
-    const isGlobal = projectScope === 'all-modules';
-    const targetModules = isGlobal ? modulesToConsolidate : activeModuleToConsolidate;
-    const hasPieces = isGlobal ? consolidatedPieces.length > 0 : resolvedPieces.length > 0;
-    if (!hasPieces) return;
-
-    const nesting = runProjectNesting(targetModules, {
-      materials,
-      sawKerfMm: projectConfig?.nesting?.sawKerfMm,
-      trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
-      grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
-      respectGrain: projectConfig?.nesting?.respectGrain,
-      optimizationGoal: projectConfig?.nesting?.optimizationGoal,
-      includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
-    });
-
-    const projectName = project?.name ?? 'Proyecto';
-    const moduleLabel = activeModuleItem?.name ?? currentModule?.id ?? 'Módulo';
-    const title = isGlobal
-      ? `Plano de Corte Consolidado - ${projectName}`
-      : `Plano de Corte - ${moduleLabel}`;
-    const doc = exportCutPlanPdf(nesting, title);
-    const pdfBlob = doc.output('blob');
-    const fileName = isGlobal
-      ? `plano-corte-proyecto-${projectName.toLowerCase().replace(/\s+/g, '-')}.pdf`
-      : `plano-corte-${currentModule?.id ?? 'modulo'}.pdf`;
-
-    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-    setStatusMessage(
-      isGlobal
-        ? `Plano de corte global del proyecto exportado a ${fileName}.`
-        : `Plano de corte (nesting) exportado a ${fileName}.`,
-    );
-  }, [
-    activeMaterial,
+  const {
+    exportCsv,
+    exportPdf,
+    exportAssemblyPdf,
+    exportMarmoleriaPdfReport,
+    exportMachiningPdf,
+    exportMachiningDxf,
+    exportProjectConfigFile,
+    exportFullBackup,
+  } = useModuleExports({
+    project,
+    projectModules,
+    activeModuleId,
+    activeModuleItem,
+    currentModule,
+    selectedTemplateId,
     projectScope,
+    activeMaterial,
+    materials,
+    edgeBands,
+    hardware,
+    userTemplates,
+    projectConfig,
+    resolvedPieces,
     consolidatedPieces,
     modulesToConsolidate,
     activeModuleToConsolidate,
-    activeModuleItem?.name,
-    resolvedPieces,
-    materials,
-    projectConfig,
-    project,
-    currentModule,
-  ]);
-
-  // Export sequential assembly guide as PDF
-  const exportAssemblyPdf = useCallback(() => {
-    if (selectedTemplateId === 'wall-shelves' && wallShelvingOutput && wallShelvingDefinition) {
-      const doc = exportWallShelvesInstallationPdf(
-        wallShelvingOutput,
-        wallShelvingDefinition,
-        `Plano de Replanteo en Pared - ${currentModule?.id ?? 'Estantería'}`,
-      );
-      const pdfBlob = doc.output('blob');
-      const fileName = `plano-replanteo-pared-${currentModule?.id ?? 'estanteria'}.pdf`;
-      triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-      setStatusMessage(`Plano de replanteo en pared exportado a ${fileName}.`);
-      return;
-    }
-    if (!assemblySheet) return;
-    const doc = exportAssemblyGuidePdf(assemblySheet, `Guía de Armado - ${currentModule?.id ?? 'Módulo'}`);
-    const pdfBlob = doc.output('blob');
-    const fileName = `guia-armado-${currentModule?.id ?? 'modulo'}.pdf`;
-    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-    setStatusMessage(`Guía de armado exportada a ${fileName}.`);
-  }, [selectedTemplateId, wallShelvingOutput, wallShelvingDefinition, assemblySheet, currentModule]);
-
-  // Export technical countertop / marmoleria drawing as PDF
-  const exportMarmoleriaPdfReport = useCallback(() => {
-    if (!countertopCalculation) return;
-    const doc = exportMarmoleriaPdf(
-      countertopCalculation,
-      `Plano de Marmolería — ${currentModule?.id ?? 'Mesada'}`,
-    );
-    const pdfBlob = doc.output('blob');
-    const fileName = `plano-marmoleria-${currentModule?.id ?? 'mesada'}.pdf`;
-    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-    setStatusMessage(`Plano de marmolería exportado a ${fileName}.`);
-  }, [countertopCalculation, currentModule]);
-
-
-  // Export workshop machining sheets as PDF (single piece or full module)
-  const exportMachiningPdf = useCallback(
-    (pieceId?: string) => {
-      if (machiningSheets.length === 0) return;
-      const targetSheets = pieceId
-        ? machiningSheets.filter((s) => s.pieceId === pieceId)
-        : machiningSheets;
-      if (targetSheets.length === 0) return;
-
-      const doc = exportMachiningSheetPdf(
-        targetSheets,
-        pieceId
-          ? `Plano de Mecanizado - ${pieceId}`
-          : `Planos de Mecanizado - ${currentModule?.id ?? 'Módulo'}`,
-      );
-      const pdfBlob = doc.output('blob');
-      const fileName = pieceId
-        ? `mecanizado-${pieceId}.pdf`
-        : `mecanizado-${currentModule?.id ?? 'modulo'}.pdf`;
-      triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
-      setStatusMessage(`Planos de mecanizado exportados a ${fileName}.`);
-    },
-    [machiningSheets, currentModule],
-  );
-
-  // Export workshop machining sheets as AutoCAD R12 DXF (cut dimensions + Cara B when piece requires turning)
-  const exportMachiningDxf = useCallback(
-    (pieceId?: string) => {
-      if (machiningSheets.length === 0) return;
-      const exportSheetFaces = (sheet: PieceMachiningSheet) => {
-        let exportedCount = 0;
-        const dxfA = exportMachiningSheetToDxf(sheet, {
-          face: 'face-A',
-          useCutDimensions: true,
-          includeGrooveCenterline: true,
-        });
-        triggerBrowserDownload(`${sheet.pieceId}-face-A.dxf`, dxfA, 'application/dxf');
-        exportedCount += 1;
-
-        if (sheet.requiresTurn) {
-          const dxfB = exportMachiningSheetToDxf(sheet, {
-            face: 'face-B',
-            useCutDimensions: true,
-            includeGrooveCenterline: true,
-          });
-          triggerBrowserDownload(`${sheet.pieceId}-face-B.dxf`, dxfB, 'application/dxf');
-          exportedCount += 1;
-        }
-        return exportedCount;
-      };
-
-      if (pieceId) {
-        const targetSheet = machiningSheets.find((s) => s.pieceId === pieceId);
-        if (!targetSheet) return;
-        const count = exportSheetFaces(targetSheet);
-        setStatusMessage(
-          count > 1
-            ? `Archivos DXF exportados (Cara A y Cara B): ${targetSheet.pieceId}`
-            : `Archivo DXF exportado: ${targetSheet.pieceId}-face-A.dxf`,
-        );
-      } else {
-        let totalFiles = 0;
-        for (const sheet of machiningSheets) {
-          totalFiles += exportSheetFaces(sheet);
-        }
-        setStatusMessage(`Se exportaron ${totalFiles} archivos DXF.`);
-      }
-    },
-    [machiningSheets],
-  );
+    assemblySheet,
+    machiningSheets,
+    wallShelvingOutput,
+    wallShelvingDefinition,
+    countertopCalculation,
+    initialDb,
+    serializeCurrentModule,
+    setStatusMessage,
+    setError,
+  });
 
   // Update in-memory project configuration
   const updateProjectConfig = useCallback((newConfig: ProjectConfig) => {
@@ -3336,93 +3175,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       setError(err instanceof Error ? err.message : 'Error al importar archivo de configuración');
     }
   }, [initialDb]);
-
-  // Export configuration as JSON file
-  const exportProjectConfigFile = useCallback(() => {
-    if (!projectConfig) return;
-    const jsonStr = exportProjectConfigJson(projectConfig);
-    const fileName = `${projectConfig.projectId}-config.json`;
-    triggerBrowserDownload(fileName, jsonStr, 'application/json');
-    setStatusMessage(`Configuración exportada a ${fileName}.`);
-  }, [projectConfig]);
-
-  // Export complete portable backup bundle (.cadcat.json) with optional Web Share API
-  const exportFullBackup = useCallback(
-    async (preferShare = false) => {
-      try {
-        const currentPacked = serializeCurrentModule();
-        const allMods = projectModules.map((m) => (m.id === activeModuleId ? currentPacked : m));
-        const liveProject: Project = {
-          schemaVersion: 1,
-          id: project?.id ?? 'proj-default',
-          name: project?.name ?? 'Proyecto CadCat',
-          clientName: project?.clientName ?? 'Cliente Estándar',
-          description: project?.description ?? '',
-          modules: allMods,
-          activeModuleId,
-          createdAt: project?.createdAt ?? new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        const existingProjects = await loadAllProjectsFromDb(initialDb);
-        const otherProjects = existingProjects.filter((p) => p.id !== liveProject.id);
-        const jsonStr = buildBackupBundleJson({
-          appVersion: APP_VERSION,
-          projects: [liveProject, ...otherProjects],
-          projectConfig,
-          materials,
-          edgeBands,
-          hardware,
-          userTemplates,
-        });
-
-        const safeSlug = (liveProject.name || 'cadcat')
-          .toLowerCase()
-          .replace(/[^a-z0-9-_]+/g, '-')
-          .replace(/^-+|-+$/g, '') || 'proyecto';
-        const fileName = `${safeSlug}.cadcat.json`;
-
-        if (preferShare && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof File !== 'undefined') {
-          const shareFile = new File([jsonStr], fileName, { type: 'application/json' });
-          const canShareFiles =
-            typeof navigator.canShare === 'function' ? navigator.canShare({ files: [shareFile] }) : true;
-          if (canShareFiles) {
-            try {
-              await navigator.share({
-                title: `CadCat Backup · ${liveProject.name}`,
-                text: `Respaldo completo CadCat (${allMods.length} módulos)`,
-                files: [shareFile],
-              });
-              setStatusMessage(`Backup compartido (${fileName}).`);
-              return;
-            } catch (shareErr) {
-              if (shareErr instanceof Error && shareErr.name === 'AbortError') {
-                return;
-              }
-              // Fall back to standard download if OS share fails
-            }
-          }
-        }
-
-        triggerBrowserDownload(fileName, jsonStr, 'application/json');
-        setStatusMessage(`Backup completo exportado a ${fileName}.`);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al exportar el respaldo completo');
-      }
-    },
-    [
-      serializeCurrentModule,
-      projectModules,
-      activeModuleId,
-      project,
-      initialDb,
-      projectConfig,
-      materials,
-      edgeBands,
-      hardware,
-      userTemplates,
-    ],
-  );
 
   // Import complete portable backup bundle (.cadcat.json) and sync state
   const importFullBackupFile = useCallback(

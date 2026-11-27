@@ -1,7 +1,9 @@
 import { jsPDF } from 'jspdf';
 import { translateAssemblyPhase, translateHardwareType } from '../i18n';
+import { translateRoleKey } from '../locales';
 import type { ResolvedModule, ResolvedPiece } from './resolver';
 import type { Joint, MachiningConfig } from '../model';
+import { getHardwareCountForJoint } from './bom';
 import { deriveAssemblyGauges, type AssemblyGauge } from './gauges';
 import { determinePieceSpatialSize } from './spatial3d';
 import type { PieceMachiningSheet } from './machiningSheet';
@@ -80,6 +82,7 @@ export interface AssemblySheet {
 
 export interface GenerateAssemblySheetInput {
   module: ResolvedModule | { moduleId: string; pieces: ResolvedPiece[]; joints: Joint[] };
+  moduleName?: string;
   gauges?: AssemblyGauge[];
   machiningConfig?: MachiningConfig;
   machiningSheets?: PieceMachiningSheet[];
@@ -87,29 +90,199 @@ export interface GenerateAssemblySheetInput {
 }
 
 export function getFriendlyPieceName(role: string): string {
+  const direct = translateRoleKey(role);
+  if (direct !== role && direct !== role.replace(/^\[[^\]]+\]\s*/, '').trim()) {
+    return direct;
+  }
+
   const r = role.toLowerCase();
-  // 1. Drawer-specific components have priority over generic cabinet pieces
-  if (r.includes('drawer-front')) return 'Frente de Cajón';
-  if (r.includes('drawer-box-front')) return 'Contrafrente de Cajón';
-  if (r.includes('drawer') && r.includes('side-left')) return 'Lateral Izquierdo de Cajón';
-  if (r.includes('drawer') && r.includes('side-right')) return 'Lateral Derecho de Cajón';
-  if (r.includes('drawer-box-side') || (r.includes('drawer') && r.includes('side'))) return 'Lateral de Cajón';
-  if (r.includes('drawer-box-back') || (r.includes('drawer') && (r.includes('back') || r.includes('counterfront')))) return 'Trasera de Cajón';
-  if (r.includes('drawer-box-bottom') || (r.includes('drawer') && (r.includes('bottom') || r.includes('base')))) return 'Fondo de Cajón';
+  // 1. Drawer-specific compound roles fallback
+  if (r.includes('drawer-front')) return translateRoleKey('drawer-front');
+  if (r.includes('drawer-box-front')) return translateRoleKey('drawer-box-front');
+  if (r.includes('drawer') && r.includes('side-left')) return translateRoleKey('drawer-box-side-left');
+  if (r.includes('drawer') && r.includes('side-right')) return translateRoleKey('drawer-box-side-right');
+  if (r.includes('drawer-box-side') || (r.includes('drawer') && r.includes('side'))) return translateRoleKey('drawer-side');
+  if (r.includes('drawer-box-back') || (r.includes('drawer') && (r.includes('back') || r.includes('counterfront')))) return translateRoleKey('drawer-box-back');
+  if (r.includes('drawer-box-bottom') || (r.includes('drawer') && (r.includes('bottom') || r.includes('base')))) return translateRoleKey('drawer-bottom');
   if (r.includes('drawer')) return 'Cajón';
 
-  // 2. Cabinet body components
-  if (r.includes('side-left') || (r.includes('side') && r.includes('1'))) return 'Lateral Izquierdo';
-  if (r.includes('side-right') || (r.includes('side') && r.includes('2'))) return 'Lateral Derecho';
-  if (r.includes('side')) return 'Lateral';
-  if (r.includes('bottom') || r.includes('base') || r.includes('piso')) return 'Base / Piso';
-  if (r.includes('top') && !r.includes('rail')) return 'Tapa Superior / Techo';
-  if (r.includes('rail')) return 'Faja / Travesaño';
-  if (r.includes('shelf')) return 'Estante';
-  if (r.includes('partition') || r.includes('divider')) return 'Divisor Vertical';
-  if (r.includes('back')) return 'Fondo';
-  if (r.includes('door')) return 'Puerta';
+  // 2. Cabinet body compound roles fallback
+  if (r.includes('side-left') || (r.includes('side') && r.includes('1'))) return translateRoleKey('side-left');
+  if (r.includes('side-right') || (r.includes('side') && r.includes('2'))) return translateRoleKey('side-right');
+  if (r.includes('side')) return translateRoleKey('side');
+  if (r.includes('bottom') || r.includes('base') || r.includes('piso')) return translateRoleKey('bottom');
+  if (r.includes('top') && !r.includes('rail')) return translateRoleKey('top');
+  if (r.includes('rail')) return translateRoleKey('rail');
+  if (r.includes('shelf')) return translateRoleKey('shelf');
+  if (r.includes('partition') || r.includes('divider')) return translateRoleKey('partition');
+  if (r.includes('back')) return translateRoleKey('back');
+  if (r.includes('door-left') || r.endsWith('door-l')) return translateRoleKey('door-left');
+  if (r.includes('door-right') || r.endsWith('door-r')) return translateRoleKey('door-right');
+  if (r.includes('door')) return translateRoleKey('door');
   return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/**
+ * Maps a single structural/hardware Joint into AssemblyHardwareRequirement items
+ * using the exact same counting rules as generateBOMHardware in bom.ts (SSOT).
+ */
+function mapJointToHardwareRequirements(
+  joint: Joint,
+  jointStrategy?: string,
+): AssemblyHardwareRequirement[] {
+  const effectiveKind =
+    joint.kind === 'confirmat' && jointStrategy ? jointStrategy : joint.kind;
+  const contactLengthMm = joint.region ? joint.region.end - joint.region.start : undefined;
+
+  if (effectiveKind === 'dowel-and-confirmat') {
+    const units = getHardwareCountForJoint('confirmat', contactLengthMm);
+    const dowelUnits = Math.min(2, units);
+    const items: AssemblyHardwareRequirement[] = [];
+    if (units > 0) {
+      items.push({
+        type: 'confirmat',
+        label: 'Tornillo Confirmat 7×50 mm',
+        quantity: units,
+        toolRequired: 'Llave Allen 4 mm / Mecha 5 mm',
+        pilotDrillMm: 5.0,
+      });
+    }
+    if (dowelUnits > 0) {
+      items.push({
+        type: 'dowel',
+        label: 'Tarugo de Madera 8×35 mm',
+        quantity: dowelUnits,
+        toolRequired: 'Martillo de goma y cola vinílica D3',
+        pilotDrillMm: 8.0,
+      });
+    }
+    return items;
+  }
+
+  const units = getHardwareCountForJoint(effectiveKind, contactLengthMm);
+  if (units <= 0) return [];
+
+  switch (effectiveKind) {
+    case 'confirmat':
+      return [{
+        type: 'confirmat',
+        label: 'Tornillo Confirmat 7×50 mm',
+        quantity: units,
+        toolRequired: 'Llave Allen 4 mm / Mecha 5 mm',
+        pilotDrillMm: 5.0,
+      }];
+    case 'cam-dowel':
+      return [{
+        type: 'minifix',
+        label: 'Minifix Ø15 mm + Perno',
+        quantity: units,
+        toolRequired: 'Destornillador PZ2 / Mecha Forstner 15 mm',
+        pilotDrillMm: 5.0,
+      }];
+    case 'dowel':
+      return [{
+        type: 'dowel',
+        label: 'Tarugo de Madera 8×35 mm',
+        quantity: units,
+        toolRequired: 'Martillo de goma y cola vinílica D3',
+        pilotDrillMm: 8.0,
+      }];
+    case 'screw':
+      return [{
+        type: 'wood-screw',
+        label: 'Tornillo Madera / Armado 4×40 mm',
+        quantity: units,
+        toolRequired: 'Destornillador PZ2 / Mecha 3 mm',
+        pilotDrillMm: 3.0,
+      }];
+    case 'shelf-pin':
+      return [{
+        type: 'shelf-pin',
+        label: 'Soporte / Pin de Estante Ø5 mm',
+        quantity: units,
+        toolRequired: 'Mecha 5 mm (System 32)',
+        pilotDrillMm: 5.0,
+      }];
+    case 'slide':
+      return [{
+        type: 'slide',
+        label: 'Corredera Telescópica (guía lateral; 2 = 1 par)',
+        quantity: units,
+        toolRequired: 'Destornillador PH2 / Tornillos 3.5×16 mm',
+      }];
+    case 'hinge':
+      return [{
+        type: 'hinge-plate',
+        label: 'Bisagra Cazoleta Ø35 mm',
+        quantity: units,
+        toolRequired: 'Mecha Forstner 35 mm / Destornillador PH2',
+      }];
+    case 'butt-hinge':
+      return [{
+        type: 'hinge-plate',
+        label: 'Bisagra Libro / Pomela',
+        quantity: units,
+        toolRequired: 'Destornillador PH2',
+      }];
+    case 'piano-hinge':
+      return [{
+        type: 'hinge-plate',
+        label: 'Bisagra Piano Continua',
+        quantity: units,
+        toolRequired: 'Destornillador PH2',
+      }];
+    case 'handle':
+      return [{
+        type: 'bracket',
+        label: 'Tirador / Manija con Tornillos M4',
+        quantity: units,
+        toolRequired: 'Mecha 4.5 mm / Destornillador PH2',
+        pilotDrillMm: 4.5,
+      }];
+    case 'magnetic-catch':
+      return [{
+        type: 'bracket',
+        label: 'Retén Magnético con Contraplaca',
+        quantity: units,
+        toolRequired: 'Destornillador PH2',
+      }];
+    case 'push-catch':
+      return [{
+        type: 'bracket',
+        label: 'Expulsor Push-to-Open',
+        quantity: units,
+        toolRequired: 'Destornillador PH2',
+      }];
+    case 'roller-catch':
+      return [{
+        type: 'bracket',
+        label: 'Retén a Rodillo',
+        quantity: units,
+        toolRequired: 'Destornillador PH2',
+      }];
+    default:
+      return [];
+  }
+}
+
+function mergeHardwareRequirements(
+  items: AssemblyHardwareRequirement[],
+): AssemblyHardwareRequirement[] {
+  const map = new Map<string, AssemblyHardwareRequirement>();
+  for (const h of items) {
+    const existing = map.get(h.label);
+    if (existing) {
+      existing.quantity += h.quantity;
+    } else {
+      map.set(h.label, { ...h });
+    }
+  }
+  return Array.from(map.values());
+}
+
+function summarizeHardwareList(items: AssemblyHardwareRequirement[], fallback: string): string {
+  if (items.length === 0) return fallback;
+  return items.map((h) => `${h.quantity}× ${h.label}`).join(' + ');
 }
 
 /**
@@ -328,27 +501,63 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     const panelOps: PanelDetailItem['operations'] = [];
     const panelHardware: AssemblyHardwareRequirement[] = [];
 
-    // Extract operations from machining sheets if available
+    // Extract operations from machining sheets if available (1:1 parity with PieceMachiningSheet.totalOperations)
     if (panelSheet && panelSheet.totalOperations > 0) {
-      // Deduplicate operations for 2D shop drawing (pasante drills appear in both faceA and faceB)
-      const seenOps = new Set<string>();
-      const allOps: typeof panelSheet.faceAOperations = [];
-      for (const op of [...panelSheet.faceAOperations, ...panelSheet.faceBOperations]) {
-        const key = `${Math.round(op.distFromLeftMm)}_${Math.round(op.distFromBottomMm)}_${op.sourceJointKind ?? op.description}`;
-        if (!seenOps.has(key)) {
-          seenOps.add(key);
-          allOps.push(op);
-        }
-      }
+      // Exclude synthetic mirrored through-hole duplicates (-through-A / -through-B) so each physical hole counts once
+      const primaryFaceOps = [
+        ...panelSheet.faceAOperations.filter((op) => !op.id.endsWith('-through-A')),
+        ...panelSheet.faceBOperations.filter((op) => !op.id.endsWith('-through-B')),
+      ];
 
-      for (const op of allOps) {
+      for (const op of primaryFaceOps) {
         panelOps.push({
           yFromBottomMm: Math.round(op.distFromBottomMm),
           xFromFrontMm: Math.round(op.distFromLeftMm),
           description: op.description,
           hardwareType: op.sourceJointKind ?? 'drill',
-          drillSpecs: `ø${op.diameterMm} x ${op.depthMm} mm`,
+          drillSpecs: `ø${op.diameterMm} × ${op.depthMm} mm`,
         });
+      }
+
+      // Include edge operations (confirmat/dowel/minifix edge cores)
+      for (const op of panelSheet.edgeOperations) {
+        panelOps.push({
+          yFromBottomMm: Math.round(op.distFromBottomMm),
+          xFromFrontMm: Math.round(op.distFromLeftMm),
+          description: op.description,
+          hardwareType: op.sourceJointKind ?? 'edge-drill',
+          drillSpecs: `Canto ø${op.diameterMm} × ${op.depthMm} mm`,
+        });
+      }
+
+      // Include non-drill custom operations (grooves, rebates, pockets, edge profiles)
+      for (const cop of panelSheet.customOperations ?? []) {
+        if (cop.kind === 'drill') continue;
+        if (cop.kind === 'groove') {
+          panelOps.push({
+            yFromBottomMm: Math.round(cop.axis === 'x' ? cop.offsetMm : (cop.startMm ?? 0)),
+            xFromFrontMm: Math.round(cop.axis === 'y' ? cop.offsetMm : (cop.startMm ?? 0)),
+            description: cop.description ?? `Ranura ${cop.widthMm}×${cop.depthMm} mm`,
+            hardwareType: 'groove',
+            drillSpecs: `Ranura ${cop.widthMm} × ${cop.depthMm} mm`,
+          });
+        } else if (cop.kind === 'rebate') {
+          panelOps.push({
+            yFromBottomMm: 0,
+            xFromFrontMm: 0,
+            description: cop.description ?? `Rebaje ${cop.widthMm}×${cop.depthMm} mm`,
+            hardwareType: 'rebate',
+            drillSpecs: `Rebaje ${cop.widthMm} × ${cop.depthMm} mm`,
+          });
+        } else {
+          panelOps.push({
+            yFromBottomMm: 0,
+            xFromFrontMm: 0,
+            description: cop.description ?? `Mecanizado especial (${cop.kind})`,
+            hardwareType: cop.kind,
+            drillSpecs: cop.kind,
+          });
+        }
       }
     } else {
       // Fallback: derive operations from module geometry and joints
@@ -409,25 +618,68 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       }
     }
 
-    // Hardware summary for this panel
-    if (panelOps.some((o) => o.hardwareType.includes('confirmat'))) {
-      const count = panelOps.filter((o) => o.hardwareType.includes('confirmat')).length;
+    // Hardware summary for this panel (accurate across all joint strategies)
+    const confirmatOps = panelOps.filter(
+      (o) =>
+        (o.hardwareType === 'confirmat' ||
+          (o.hardwareType === 'dowel-and-confirmat' && !o.description.toLowerCase().includes('tarugo'))),
+    );
+    if (confirmatOps.length > 0) {
       panelHardware.push({
         type: 'confirmat',
-        label: 'Tornillo Confirmat 7x50 mm',
-        quantity: count,
+        label: 'Tornillo Confirmat 7×50 mm',
+        quantity: confirmatOps.length,
         toolRequired: 'Llave Allen 4 mm / Mecha 5 mm',
         pilotDrillMm: 5.0,
       });
     }
 
-    if (panelOps.some((o) => o.hardwareType.includes('minifix'))) {
-      const minifixCount = panelOps.filter((o) => o.hardwareType.includes('minifix')).length;
+    const minifixOps = panelOps.filter(
+      (o) => o.hardwareType === 'cam-dowel' || o.hardwareType.includes('minifix'),
+    );
+    if (minifixOps.length > 0) {
       panelHardware.push({
         type: 'minifix',
-        label: 'Pernos de Minifix System 32',
-        quantity: minifixCount,
-        toolRequired: 'Destornillador PZ2',
+        label: 'Minifix Ø15 mm + Perno',
+        quantity: minifixOps.length,
+        toolRequired: 'Destornillador PZ2 / Mecha Forstner 15 mm',
+        pilotDrillMm: 5.0,
+      });
+    }
+
+    const dowelOps = panelOps.filter(
+      (o) =>
+        o.hardwareType === 'dowel' ||
+        (o.hardwareType === 'dowel-and-confirmat' && o.description.toLowerCase().includes('tarugo')),
+    );
+    if (dowelOps.length > 0) {
+      panelHardware.push({
+        type: 'dowel',
+        label: 'Tarugo de Madera 8×35 mm',
+        quantity: dowelOps.length,
+        toolRequired: 'Martillo de goma y cola vinílica D3',
+        pilotDrillMm: 8.0,
+      });
+    }
+
+    const screwOps = panelOps.filter((o) => o.hardwareType === 'screw');
+    if (screwOps.length > 0) {
+      panelHardware.push({
+        type: 'wood-screw',
+        label: 'Tornillo Madera / Armado 4×40 mm',
+        quantity: screwOps.length,
+        toolRequired: 'Destornillador PZ2 / Mecha 3 mm',
+        pilotDrillMm: 3.0,
+      });
+    }
+
+    const shelfPinOps = panelOps.filter((o) => o.hardwareType === 'shelf-pin');
+    if (shelfPinOps.length > 0) {
+      panelHardware.push({
+        type: 'shelf-pin',
+        label: 'Soporte / Pin de Estante Ø5 mm',
+        quantity: shelfPinOps.length,
+        toolRequired: 'Mecha 5 mm (System 32)',
         pilotDrillMm: 5.0,
       });
     }
@@ -465,9 +717,45 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     });
   }
 
-  // 3. Sequential Assembly Steps with Exact Metrics
+  // 3. Sequential Assembly Steps with Exact Metrics & SSOT Hardware derived from module.joints
   const steps: AssemblyStep[] = [];
   let stepNumber = 1;
+  const effectiveJointStrategy = input.machiningConfig?.jointStrategy;
+  const consumedJointIndices = new Set<number>();
+
+  const consumeJointHardware = (predicate: (j: Joint) => boolean): AssemblyHardwareRequirement[] => {
+    const collected: AssemblyHardwareRequirement[] = [];
+    joints.forEach((joint, idx) => {
+      if (consumedJointIndices.has(idx)) return;
+      if (!predicate(joint)) return;
+      consumedJointIndices.add(idx);
+      collected.push(...mapJointToHardwareRequirements(joint, effectiveJointStrategy));
+    });
+    return mergeHardwareRequirements(collected);
+  };
+
+  const formatPieceRef = (piece: ResolvedPiece): string => {
+    const ref = pieceRefMap.get(piece.id);
+    const label = getFriendlyPieceName(piece.role);
+    return ref ? `${label} (#${ref})` : label;
+  };
+
+  // Detect real edge band thicknesses present in the module (no hardcoded "2 mm")
+  const distinctBandThicknesses = new Set<number>();
+  for (const p of pieces) {
+    if ('bandedEdges' in p && Array.isArray((p as { bandedEdges?: Array<{ thicknessMm: number }> }).bandedEdges)) {
+      for (const b of (p as { bandedEdges: Array<{ thicknessMm: number }> }).bandedEdges) {
+        if (b.thicknessMm > 0) distinctBandThicknesses.add(b.thicknessMm);
+      }
+    }
+  }
+  const frontBandTip =
+    distinctBandThicknesses.size > 0
+      ? `Identificar los cantos con tapacanto aplicado (${Array.from(distinctBandThicknesses)
+          .sort((a, b) => a - b)
+          .map((t) => `${t} mm`)
+          .join(' / ')}) para mantener la cara frontal orientada hacia el frente de trabajo.`
+      : 'Identificar la cara frontal de cada panel para mantener la alineación del frente durante el armado.';
 
   // Step 1: Preparation & Verification
   const gaugeSummary = gauges.length > 0
@@ -496,67 +784,28 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     toolsRequired: toolsPreparation,
     workshopTips: [
       'Asegurar que el banco de trabajo esté libre de aserrín o virutas para prevenir rayaduras en la melamina.',
-      'Identificar la cara frontal con tapacantos de 2 mm para mantenerla siempre orientada hacia el frente de trabajo.',
+      frontBandTip,
     ],
     notes: 'Asegurar que el banco de trabajo esté limpio y plano para prevenir rayaduras en las superficies.',
   });
 
-  // Step 2: Pre-machining and Hardware on Flat Panels
+  // Step 2: Pre-machining and Hardware on Flat Panels (slides mounted on sides/partitions before assembly)
   const sideIds = [sideLeft?.id, sideRight?.id].filter((id): id is string => Boolean(id));
-  const totalHingeJoints = joints.filter(
-    (j) => j.kind === 'hinge' || j.kind === 'butt-hinge' || j.kind === 'piano-hinge',
-  ).length;
-  const totalSlideJoints = joints.filter((j) => j.kind === 'slide').length;
-  const totalDowelJoints = joints.filter(
-    (j) => j.kind === 'dowel' || j.kind === 'dowel-and-confirmat',
-  ).length;
-  const effectiveJointStrategy = input.machiningConfig?.jointStrategy;
-  const hasDowelsInModule =
-    totalDowelJoints > 0 ||
-    effectiveJointStrategy === 'dowel-and-confirmat';
-
   if (sideIds.length > 0) {
-    const preAssemblyHardware: AssemblyHardwareRequirement[] = [];
-    if (totalHingeJoints > 0) {
-      preAssemblyHardware.push({
-        type: 'hinge-plate',
-        label: 'Bases de bisagra cazoleta',
-        quantity: totalHingeJoints,
-        toolRequired: 'Destornillador PH2 / Tornillos autorroscantes 3.5x16 mm',
-      });
-    }
-    if (totalSlideJoints > 0) {
-      preAssemblyHardware.push({
-        type: 'slide',
-        label: 'Guías de corredera telescópica (1 por lado / 2 = 1 par)',
-        quantity: totalSlideJoints,
-        toolRequired: 'Tornillos Euro 6.3x13 mm o 3.5x16 mm',
-      });
-    }
-    if (hasDowelsInModule) {
-      const dowelCount = totalDowelJoints > 0
-        ? totalDowelJoints * 2
-        : joints.filter((j) => j.kind === 'confirmat').length * 2;
-      if (dowelCount > 0) {
-        preAssemblyHardware.push({
-          type: 'dowel',
-          label: 'Tarugos de madera 8x35 mm',
-          quantity: dowelCount,
-          toolRequired: 'Martillo de goma y cola vinílica D3',
-          pilotDrillMm: 8.0,
-        });
-      }
-    }
+    const preAssemblyHardware = consumeJointHardware((j) => j.kind === 'slide');
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'pre-assembly',
       title: 'Pre-mecanizado e Inserción de Herrajes en Banco',
-      instruction: 'Colocar tarugos, pernos minifix y guías de cajón o bases de bisagra en los laterales en plano sobre el banco de trabajo según las cotas milimétricas del plano de detalle.',
+      instruction: 'Colocar tarugos, pernos minifix, guías de cajón o bases de bisagra en los laterales en plano sobre el banco de trabajo según las cotas milimétricas del plano de detalle.',
       piecesInvolved: sideIds,
       gaugesInvolved: [],
       hardwareRequirements: preAssemblyHardware,
-      hardwareSummary: `${joints.length > 0 ? joints.length : preAssemblyHardware.reduce((acc, h) => acc + h.quantity, 0)} conexiones de unión planificadas`,
+      hardwareSummary: summarizeHardwareList(
+        preAssemblyHardware,
+        `${joints.length} conexiones de unión planificadas`,
+      ),
       toolsRequired: ['Destornillador PZ2 / PH2', 'Martillo de goma', 'Cola vinílica'],
       workshopTips: [
         'Montar herrajes sobre paneles en plano en el banco es 4 veces más rápido y previene desalineaciones durante el ensamble del casco.',
@@ -568,25 +817,21 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
   // Step 3: Base Carcass Assembly (Bottom + Left Side)
   if (bottom && sideLeft) {
-    const bottomSideHardware: AssemblyHardwareRequirement[] = [
-      {
-        type: 'confirmat',
-        label: 'Tornillos Confirmat 7x50 mm',
-        quantity: Math.max(2, Math.round(modDepth / 250)),
-        toolRequired: 'Llave Allen 4 mm / Punta Hex 4',
-        pilotDrillMm: 5.0,
-      },
-    ];
+    const bottomLeftHardware = consumeJointHardware(
+      (j) =>
+        (j.a.pieceId === bottom.id && j.b.pieceId === sideLeft.id) ||
+        (j.a.pieceId === sideLeft.id && j.b.pieceId === bottom.id),
+    );
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'carcass',
       title: 'Ensamblar Base con Lateral Izquierdo',
-      instruction: `Posicionar la base (${bottom.id}) contra el lateral izquierdo (${sideLeft.id}). Enrasar cantos y fijar uniones firmemente.`,
+      instruction: `Posicionar ${formatPieceRef(bottom)} contra ${formatPieceRef(sideLeft)}. Enrasar cantos y fijar uniones firmemente.`,
       piecesInvolved: [bottom.id, sideLeft.id],
       gaugesInvolved: [],
-      hardwareRequirements: bottomSideHardware,
-      hardwareSummary: 'Tornillos Confirmat / Minifix',
+      hardwareRequirements: bottomLeftHardware,
+      hardwareSummary: summarizeHardwareList(bottomLeftHardware, 'Unión de casco base-lateral'),
       toolsRequired: ['Prensa escuadra a 90°', 'Llave Allen 4 mm', 'Mecha piloto 5 mm'],
       referenceEdge: 'front',
       criticalDimensionMm: {
@@ -605,25 +850,21 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
   // Step 4: Base Carcass Assembly (Bottom + Right Side)
   if (bottom && sideRight && sideRight.id !== sideLeft?.id) {
-    const bottomSideHardware: AssemblyHardwareRequirement[] = [
-      {
-        type: 'confirmat',
-        label: 'Tornillos Confirmat 7x50 mm',
-        quantity: Math.max(2, Math.round(modDepth / 250)),
-        toolRequired: 'Llave Allen 4 mm',
-        pilotDrillMm: 5.0,
-      },
-    ];
+    const bottomRightHardware = consumeJointHardware(
+      (j) =>
+        (j.a.pieceId === bottom.id && j.b.pieceId === sideRight.id) ||
+        (j.a.pieceId === sideRight.id && j.b.pieceId === bottom.id),
+    );
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'carcass',
       title: 'Ensamblar Base con Lateral Derecho',
-      instruction: `Posicionar el lateral derecho (${sideRight.id}) contra la base (${bottom.id}). Enrasar cantos y fijar uniones.`,
+      instruction: `Posicionar ${formatPieceRef(sideRight)} contra ${formatPieceRef(bottom)}. Enrasar cantos y fijar uniones.`,
       piecesInvolved: [bottom.id, sideRight.id],
       gaugesInvolved: [],
-      hardwareRequirements: bottomSideHardware,
-      hardwareSummary: 'Tornillos Confirmat / Minifix',
+      hardwareRequirements: bottomRightHardware,
+      hardwareSummary: summarizeHardwareList(bottomRightHardware, 'Unión de casco base-lateral'),
       toolsRequired: ['Prensa escuadra a 90°', 'Llave Allen 4 mm'],
       referenceEdge: 'front',
       criticalDimensionMm: {
@@ -637,13 +878,51 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     });
   }
 
+  // Step 4b: Vertical Partitions (if present)
+  if (partitions.length > 0) {
+    const partitionIdSet = new Set(partitions.map((p) => p.id));
+    const shelfIdSetForFilter = new Set(shelves.map((s) => s.id));
+    const drawerIdSetForFilter = new Set(drawers.map((d) => d.id));
+    const doorIdSetForFilter = new Set(doors.map((d) => d.id));
+    const partitionHardware = consumeJointHardware(
+      (j) =>
+        (partitionIdSet.has(j.a.pieceId) || partitionIdSet.has(j.b.pieceId)) &&
+        !shelfIdSetForFilter.has(j.a.pieceId) &&
+        !shelfIdSetForFilter.has(j.b.pieceId) &&
+        !drawerIdSetForFilter.has(j.a.pieceId) &&
+        !drawerIdSetForFilter.has(j.b.pieceId) &&
+        !doorIdSetForFilter.has(j.a.pieceId) &&
+        !doorIdSetForFilter.has(j.b.pieceId) &&
+        j.kind !== 'shelf-pin' &&
+        j.kind !== 'hinge' &&
+        j.kind !== 'slide',
+    );
+
+    if (partitionHardware.length > 0 || partitions.length > 0) {
+      const partNames = partitions.map((p) => formatPieceRef(p)).join(', ');
+      steps.push({
+        stepNumber: stepNumber++,
+        phase: 'carcass',
+        title: 'Instalar Divisiones Verticales',
+        instruction: `Posicionar ${partNames} en las cotas proyectadas sobre la base y fijar uniones estructurales.`,
+        piecesInvolved: partitions.map((p) => p.id),
+        gaugesInvolved: [],
+        hardwareRequirements: partitionHardware,
+        hardwareSummary: summarizeHardwareList(partitionHardware, 'Fijación de divisiones verticales'),
+        toolsRequired: ['Prensa escuadra a 90°', 'Llave Allen 4 mm'],
+        referenceEdge: 'front',
+      });
+    }
+  }
+
   // Step 5: Sequential Shelves Installation using Gauges
   let previousHorizontalPiece = bottom;
 
   for (let i = 0; i < shelves.length; i++) {
     const shelf = shelves[i]!;
-    const shelfName = `estante ${i + 1} (${shelf.id})`;
-    const prevName = previousHorizontalPiece ? previousHorizontalPiece.id : 'panel inferior (piso)';
+    const shelfRef = pieceRefMap.get(shelf.id);
+    const shelfName = shelfRef ? `estante ${i + 1} (#${shelfRef})` : `estante ${i + 1}`;
+    const prevName = previousHorizontalPiece ? formatPieceRef(previousHorizontalPiece) : 'panel inferior (piso)';
 
     let matchedGaugeLabel: string | undefined;
     if (previousHorizontalPiece) {
@@ -659,15 +938,10 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       if (matched) matchedGaugeLabel = matched.label;
     }
 
-    const shelfHardware: AssemblyHardwareRequirement[] = [
-      {
-        type: 'confirmat',
-        label: 'Tornillos Confirmat 7x50 mm o Soportes de estante',
-        quantity: 4,
-        toolRequired: 'Llave Allen 4 mm o Destornillador',
-        pilotDrillMm: 5.0,
-      },
-    ];
+    const shelfHardware = consumeJointHardware(
+      (j) => j.a.pieceId === shelf.id || j.b.pieceId === shelf.id,
+    );
+    const isAdjustableShelf = shelfHardware.some((h) => h.type === 'shelf-pin');
 
     if (matchedGaugeLabel) {
       const matchedGauge = gauges.find((g) => g.label === matchedGaugeLabel);
@@ -677,12 +951,18 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
         stepNumber: stepNumber++,
         phase: 'shelves',
         title: `Instalar ${shelfName} con Calibre ${matchedGaugeLabel}`,
-        instruction: `Apoyar el calibre (gauge ${matchedGaugeLabel}) sobre ${prevName}. Colocar ${shelfName} sobre el calibre (gauge ${matchedGaugeLabel}). Fijar uniones.`,
+        instruction: `Apoyar el calibre ${matchedGaugeLabel} sobre ${prevName}. Colocar ${shelfName} sobre el calibre ${matchedGaugeLabel}. ${isAdjustableShelf ? 'Insertar los soportes de estante Ø5 mm y apoyar el estante.' : 'Fijar uniones.'}`,
         piecesInvolved: [shelf.id, ...(previousHorizontalPiece ? [previousHorizontalPiece.id] : [])],
         gaugesInvolved: [matchedGaugeLabel],
         hardwareRequirements: shelfHardware,
-        hardwareSummary: 'Tornillos confirmat o soportes de estante',
-        toolsRequired: ['Calibre auxiliar ' + matchedGaugeLabel, 'Llave Allen 4 mm'],
+        hardwareSummary: summarizeHardwareList(
+          shelfHardware,
+          isAdjustableShelf ? 'Soportes de estante regulable' : 'Fijación estructural de estante',
+        ),
+        toolsRequired: [
+          `Calibre auxiliar ${matchedGaugeLabel}`,
+          isAdjustableShelf ? 'Pines de estante Ø5 mm' : 'Llave Allen 4 mm',
+        ],
         criticalDimensionMm: {
           label: `Luz libre de vano calibre ${matchedGaugeLabel}`,
           valueMm: spanVal,
@@ -699,12 +979,15 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
         stepNumber: stepNumber++,
         phase: 'shelves',
         title: `Instalar ${shelfName}`,
-        instruction: `Posicionar ${shelfName} a la altura proyectada sobre ${prevName}. Verificar nivel y fijar uniones.`,
+        instruction: `Posicionar ${shelfName} a la altura proyectada sobre ${prevName}. Verificar nivel y ${isAdjustableShelf ? 'apoyar sobre los pines Ø5 mm' : 'fijar uniones'}.`,
         piecesInvolved: [shelf.id],
         gaugesInvolved: [],
         hardwareRequirements: shelfHardware,
-        hardwareSummary: 'Fijar tornillos confirmat',
-        toolsRequired: ['Cinta métrica', 'Nivel de burbuja', 'Llave Allen 4 mm'],
+        hardwareSummary: summarizeHardwareList(
+          shelfHardware,
+          isAdjustableShelf ? 'Soportes de estante Ø5 mm' : 'Fijación de estante',
+        ),
+        toolsRequired: ['Cinta métrica', 'Nivel de burbuja', isAdjustableShelf ? 'Pines de estante Ø5 mm' : 'Llave Allen 4 mm'],
       });
     }
 
@@ -714,48 +997,40 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   // Step 6: Rails / Top Panel Installation
   if (rails.length > 0) {
     const railIds = rails.map((r) => r.id);
-    const railHardware: AssemblyHardwareRequirement[] = [
-      {
-        type: 'confirmat',
-        label: 'Tornillos Confirmat 7x50 mm',
-        quantity: rails.length * 2,
-        toolRequired: 'Llave Allen 4 mm',
-      },
-    ];
+    const railIdSet = new Set(railIds);
+    const railHardware = consumeJointHardware(
+      (j) => railIdSet.has(j.a.pieceId) || railIdSet.has(j.b.pieceId),
+    );
+    const railNames = rails.map((r) => formatPieceRef(r)).join(', ');
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'rails',
       title: 'Instalar Fajas / Travesaños Superiores',
-      instruction: `Posicionar las fajas superiores (${railIds.join(', ')}). Enrasar con el borde superior de los laterales y asegurar uniones firmemente.`,
+      instruction: `Posicionar las fajas superiores (${railNames}). Enrasar con el borde superior de los laterales y asegurar uniones firmemente.`,
       piecesInvolved: railIds,
       gaugesInvolved: [],
       hardwareRequirements: railHardware,
-      hardwareSummary: 'Tornillos confirmat',
+      hardwareSummary: summarizeHardwareList(railHardware, 'Fijación de fajas superiores'),
       toolsRequired: ['Prensas sargento', 'Llave Allen 4 mm'],
       workshopTips: [
         'Las fajas delanteras y traseras evitan que el casco sufra deformaciones por alabeo antes de colocar la cubierta o mesada.',
       ],
     });
   } else if (top) {
-    const topHardware: AssemblyHardwareRequirement[] = [
-      {
-        type: 'confirmat',
-        label: 'Tornillos Confirmat 7x50 mm',
-        quantity: Math.max(2, Math.round(modDepth / 250) * 2),
-        toolRequired: 'Llave Allen 4 mm',
-      },
-    ];
+    const topHardware = consumeJointHardware(
+      (j) => j.a.pieceId === top.id || j.b.pieceId === top.id,
+    );
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'carcass',
       title: 'Instalar Tapa Superior',
-      instruction: `Posicionar la tapa superior (${top.id}) enrasada con el borde superior del mueble. Asegurar uniones.`,
+      instruction: `Posicionar ${formatPieceRef(top)} enrasada con el borde superior del mueble. Asegurar uniones.`,
       piecesInvolved: [top.id],
       gaugesInvolved: [],
       hardwareRequirements: topHardware,
-      hardwareSummary: 'Tornillos Confirmat / Minifix',
+      hardwareSummary: summarizeHardwareList(topHardware, 'Fijación de tapa superior'),
       toolsRequired: ['Prensas sargento', 'Llave Allen 4 mm'],
       referenceEdge: 'top',
     });
@@ -765,41 +1040,23 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   if (back) {
     const backJoints = joints.filter((j) => j.a.pieceId === back.id || j.b.pieceId === back.id);
     const isGroovedBack = backJoints.some((j) => j.kind === 'groove');
-    const isOverlayBack = backJoints.some((j) => j.kind === 'screw');
-    const backFastenersCount = Math.max(16, Math.round(((modWidth + modHeight) * 2) / 120));
-    const backHardware: AssemblyHardwareRequirement[] = isGroovedBack
-      ? []
-      : isOverlayBack
-        ? [
-            {
-              type: 'wood-screw',
-              label: 'Tornillos autorroscantes 3.5x20 mm o clavos con arandela',
-              quantity: backFastenersCount,
-              toolRequired: 'Destornillador PZ2 o Martillo carpintero',
-            },
-          ]
-        : [
-            {
-              type: 'confirmat',
-              label: 'Tornillos Confirmat 7x50 mm (fondo estructural)',
-              quantity: Math.max(4, backJoints.length * 2),
-              toolRequired: 'Llave Allen 4 mm',
-            },
-          ];
+    const backHardware = consumeJointHardware(
+      (j) => j.a.pieceId === back.id || j.b.pieceId === back.id,
+    );
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'squaring',
       title: 'Escuadrar Casco y Colocar Fondo',
       instruction: isGroovedBack
-        ? `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Deslizar el fondo de ${back.thicknessMm} mm (${back.id}) por las ranuras perimetrales.`
-        : `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Colocar y fijar el fondo de ${back.thicknessMm} mm (${back.id}).`,
+        ? `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Deslizar ${formatPieceRef(back)} de ${back.thicknessMm} mm por las ranuras perimetrales.`
+        : `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Colocar y fijar ${formatPieceRef(back)} de ${back.thicknessMm} mm.`,
       piecesInvolved: [back.id],
       gaugesInvolved: [],
       hardwareRequirements: backHardware,
       hardwareSummary: isGroovedBack
         ? `Encastre en ranura perimetral (${back.thicknessMm} mm)`
-        : `${backHardware[0]?.quantity ?? 0} fijaciones perimetrales`,
+        : summarizeHardwareList(backHardware, 'Fijación perimetral de fondo'),
       toolsRequired: ['Cinta métrica metálica', 'Destornillador PZ2', 'Prensas de apriete cruzado'],
       criticalDimensionMm: {
         label: 'Diagonal de escuadra teórica calculada (D1 = D2)',
@@ -835,36 +1092,28 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     });
   }
 
-  // Step 8: Sub-assemblies (Drawers & Doors)
+  // Step 8: Sub-assemblies (Drawers & Doors) + any remaining joints
+  const drawerAndDoorIds = new Set([...drawers.map((d) => d.id), ...doors.map((d) => d.id)]);
   if (drawers.length > 0 || doors.length > 0) {
-    const subAssemblyHardware: AssemblyHardwareRequirement[] = [];
-    const drawerCount = drawers.filter((d) => d.role === 'drawer-front').length || Math.ceil(totalSlideJoints / 2);
-    if (drawers.length > 0 && drawerCount > 0) {
-      subAssemblyHardware.push({
-        type: 'wood-screw',
-        label: 'Tornillos fijación frente/corredera 3.5x16 mm',
-        quantity: drawerCount * 6,
-        toolRequired: 'Destornillador PH2',
-      });
-    }
-    if (totalHingeJoints > 0) {
-      subAssemblyHardware.push({
-        type: 'hinge-plate',
-        label: 'Bisagras cazoleta 35 mm con tornillos de regulación',
-        quantity: totalHingeJoints,
-        toolRequired: 'Destornillador PH2',
-      });
-    }
+    const subAssemblyHardware = consumeJointHardware(
+      (j) =>
+        drawerAndDoorIds.has(j.a.pieceId) ||
+        drawerAndDoorIds.has(j.b.pieceId) ||
+        j.kind === 'hinge' ||
+        j.kind === 'butt-hinge' ||
+        j.kind === 'piano-hinge' ||
+        j.kind === 'handle',
+    );
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'drawers',
-      title: 'Montaje de Cajones, Frentes y Puertas',
-      instruction: 'Deslizar los cajones sobre sus guías telescópicas. Montar las puertas en los brazos de bisagra. Calibrar las luces perimetrales de 2.0 mm mediante los tornillos de regulación tridimensional.',
+      title: 'Armado y Montaje de Cajones, Frentes y Puertas',
+      instruction: 'Armar las cajas de cajón, deslizarlas sobre sus guías telescópicas y montar las puertas con sus bisagras. Calibrar las luces perimetrales de 2.0 mm mediante regulación tridimensional.',
       piecesInvolved: [...drawers.map((d) => d.id), ...doors.map((d) => d.id)],
       gaugesInvolved: [],
       hardwareRequirements: subAssemblyHardware,
-      hardwareSummary: 'Herrajes móviles de apertura',
+      hardwareSummary: summarizeHardwareList(subAssemblyHardware, 'Herrajes móviles de apertura'),
       toolsRequired: ['Destornillador PH2', 'Espaciadores de 2 mm para luz de frente'],
       criticalDimensionMm: {
         label: 'Luz perimetral entre frentes y casco',
@@ -876,6 +1125,25 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
         'Ajustar el tornillo de profundidad de la bisagra antes de apretar la altura.',
       ],
     });
+  }
+
+  // Catch any remaining unconsumed joints (e.g. plinth, middle brace, transoms, hanging rail, pull-out trays)
+  const remainingHardware = consumeJointHardware(() => true);
+  if (remainingHardware.length > 0) {
+    const extraStepTarget =
+      steps.find((s) => s.phase === 'rails') ??
+      steps.find((s) => s.phase === 'carcass') ??
+      steps[steps.length - 1];
+    if (extraStepTarget) {
+      extraStepTarget.hardwareRequirements = mergeHardwareRequirements([
+        ...extraStepTarget.hardwareRequirements,
+        ...remainingHardware,
+      ]);
+      extraStepTarget.hardwareSummary = summarizeHardwareList(
+        extraStepTarget.hardwareRequirements,
+        extraStepTarget.hardwareSummary ?? 'Fijaciones complementarias',
+      );
+    }
   }
 
   // Step 9: Final Quality Inspection
@@ -896,24 +1164,18 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     notes: 'Confirmar que el ancho, alto y profundidad exteriores del módulo cumplan con las especificaciones del diseño.',
   });
 
-  // Calculate Total Hardware BOM across all steps
-  const hardwareMap = new Map<string, AssemblyHardwareRequirement>();
-  for (const step of steps) {
-    for (const h of step.hardwareRequirements) {
-      const existing = hardwareMap.get(h.label);
-      if (existing) {
-        existing.quantity += h.quantity;
-      } else {
-        hardwareMap.set(h.label, { ...h });
-      }
-    }
-  }
+  // Calculate Total Hardware BOM across all steps (guaranteed 100% consistent with bom.ts)
+  const totalHardwareBOM = mergeHardwareRequirements(
+    steps.flatMap((step) => step.hardwareRequirements),
+  );
 
-  const totalHardwareBOM = Array.from(hardwareMap.values());
+  const displayTitle = input.moduleName?.trim()
+    ? `Guía de Armado — ${input.moduleName.trim()}`
+    : `Guía de Armado — Módulo ${modWidth}×${modHeight}×${modDepth} mm`;
 
   return {
     moduleId: module.moduleId,
-    title: `Guía de Armado - ${module.moduleId}`,
+    title: displayTitle,
     moduleDimensionsMm: {
       width: modWidth,
       height: modHeight,
@@ -963,7 +1225,8 @@ export function exportAssemblyGuidePdf(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Módulo: ${sheet.moduleId} | Dimensiones: ${sheet.moduleDimensionsMm.width} x ${sheet.moduleDimensionsMm.height} x ${sheet.moduleDimensionsMm.depth} mm | Diagonal Escuadra: ${sheet.squaringDiagonalMm} mm`, margin + 4, y + 14);
+  const displayModuleBanner = (moduleTitle ?? sheet.title).replace(/^Guía de Armado\s*[—-]\s*/i, '');
+  doc.text(`Módulo: ${displayModuleBanner} | Dimensiones: ${sheet.moduleDimensionsMm.width} × ${sheet.moduleDimensionsMm.height} × ${sheet.moduleDimensionsMm.depth} mm | Diagonal Escuadra: ${sheet.squaringDiagonalMm} mm`, margin + 4, y + 14);
 
   y += 24;
   doc.setTextColor(31, 38, 34); // CadCat Text (#1F2622)
@@ -1025,7 +1288,7 @@ export function exportAssemblyGuidePdf(
     doc.setFont('helvetica', 'bold');
     doc.text(`#${p.referenceNumber}`, margin + 3, y + 3.5);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${p.name} (${p.pieceId})`, margin + 18, y + 3.5);
+    doc.text(p.name, margin + 18, y + 3.5);
     doc.text(`${p.dimensionsMm.width} x ${p.dimensionsMm.height} x ${p.dimensionsMm.thickness} mm`, margin + 70, y + 3.5);
     doc.text(p.bandedEdgesSummary, margin + 125, y + 3.5);
     y += 5.2;
@@ -1107,7 +1370,7 @@ export function exportAssemblyGuidePdf(
       y += 6;
 
       doc.setFont('helvetica', 'normal');
-      for (const op of pDetail.operations.slice(0, 12)) {
+      for (const op of pDetail.operations) {
         if (y > pageHeight - 20) {
           doc.addPage();
           y = 16;

@@ -36,7 +36,7 @@ export class ShelfPinJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: config.system32FrontSetbackMm, y: shelfY },
         origin: 'derived',
         sourceJointKind: 'shelf-pin',
-        description: `Front shelf support pin Ø${config.shelfPinDiameterMm}x${config.shelfPinDepthMm}mm`,
+        description: `Soporte de estante frontal Ø${config.shelfPinDiameterMm}×${config.shelfPinDepthMm} mm`,
       },
       {
         schemaVersion: 1,
@@ -50,7 +50,7 @@ export class ShelfPinJointStrategy implements IJointMachiningStrategy {
         positionMm: { x: depthMm - config.system32FrontSetbackMm, y: shelfY },
         origin: 'derived',
         sourceJointKind: 'shelf-pin',
-        description: `Rear shelf support pin Ø${config.shelfPinDiameterMm}x${config.shelfPinDepthMm}mm`,
+        description: `Soporte de estante trasero Ø${config.shelfPinDiameterMm}×${config.shelfPinDepthMm} mm`,
       },
     );
 

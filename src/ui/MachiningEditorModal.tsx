@@ -18,6 +18,8 @@ import { M3ToggleRow } from './M3ToggleRow';
 import { NumericInput } from './NumericInput';
 import { useMachiningEditorViewModel } from './useMachiningEditorViewModel';
 import { usePanZoom } from './usePanZoom';
+import { useFocusTrapModal } from './hooks/useFocusTrapModal';
+import { translateRoleKey } from '../locales';
 
 export interface MachiningEditorModalProps {
   piece: ResolvedPieceWithCutSize | null;
@@ -50,13 +52,21 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
     targetViewBox: { width: DEFAULT_CANVAS_WIDTH, height: DEFAULT_CANVAS_HEIGHT },
   });
 
-  // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, S=Series, P=Profile, T=Fasteners, Esc=Close
+  const modalDialogRef = useRef<HTMLDivElement | null>(null);
+  const hotkeyDepsRef = useRef({ vm, panZoom });
+  hotkeyDepsRef.current = { vm, panZoom };
+
+  useFocusTrapModal({
+    isOpen: Boolean(piece),
+    containerRef: modalDialogRef,
+    onClose: () => hotkeyDepsRef.current.vm.onClose(),
+  });
+
+  // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, S=Series, P=Profile, T=Fasteners
+  // Uses stable ref so pointermove re-renders never tear down and re-register keydown listeners.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        vm.onClose();
-        return;
-      }
+      const { vm: currentVm, panZoom: currentPanZoom } = hotkeyDepsRef.current;
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -67,33 +77,31 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
 
       const key = e.key.toLowerCase();
       if (key === 'g') {
-        vm.setOpType('groove');
+        currentVm.setOpType('groove');
       } else if (key === 'r') {
-        vm.setOpType('rebate');
+        currentVm.setOpType('rebate');
       } else if (key === 'f' && !e.shiftKey) {
-        vm.setOpType('cutout');
+        currentVm.setOpType('cutout');
       } else if (key === 'd') {
-        vm.setOpType('drill');
+        currentVm.setOpType('drill');
       } else if (key === 's') {
-        vm.setOpType('hole-series');
+        currentVm.setOpType('hole-series');
       } else if (key === 'p') {
-        vm.setOpType('edge-profile');
+        currentVm.setOpType('edge-profile');
       } else if (key === 't') {
-        vm.setOpType('fastener');
-      } else if (e.key === 'Escape') {
-        vm.onClose();
+        currentVm.setOpType('fastener');
       } else if (key === 'f' && e.shiftKey) {
-        panZoom.fitView();
+        currentPanZoom.fitView();
       } else if (e.key === '+' || e.key === '=') {
-        panZoom.zoomIn();
+        currentPanZoom.zoomIn();
       } else if (e.key === '-') {
-        panZoom.zoomOut();
+        currentPanZoom.zoomOut();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [vm, panZoom]);
+  }, []);
 
   if (!piece) return null;
 
@@ -175,18 +183,17 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
         if (e.target === e.currentTarget) vm.onClose();
       }}
     >
-      <div className={`m3-modal-dialog machining-editor-dialog ${isMaximized ? 'machining-editor-dialog--maximized' : ''}`}>
+      <div ref={modalDialogRef} className={`m3-modal-dialog machining-editor-dialog ${isMaximized ? 'machining-editor-dialog--maximized' : ''}`}>
         {/* Header */}
         <div className="m3-modal-header machining-editor-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="machining-editor-header-text">
             <h3 className="m3-modal-title">
               <span className="desktop-only-text">🛠️ Editor de Mecanizados en Placa: </span>
               <span className="mobile-only-inline" aria-hidden="true" style={{ marginRight: '0.2rem' }}>🛠️</span>
-              <strong>{piece.id}</strong>
+              <strong>{translateRoleKey(piece.role)}</strong>
             </h3>
             <p className="m3-modal-subtitle">
               <span className="machining-header-dim-badge">{`${piece.dimensionsMm.width} × ${piece.dimensionsMm.height} × ${piece.thicknessMm} mm`}</span>
-              <span className="desktop-only-text">{` | Rol: ${piece.role}`}</span>
               {vm.validationIssues.length === 0 ? (
                 <span
                   style={{
@@ -225,14 +232,14 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
               )}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
             <button
               type="button"
               className="m3-btn m3-btn--small m3-btn--tonal"
               onClick={vm.handleExportDxf}
               title="Descargar archivo AutoCAD R12 DXF para mecanizado CNC"
               aria-label="Descargar DXF de la pieza"
-              style={{ minHeight: '44px', fontWeight: 600 }}
+              style={{ minHeight: '44px', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               📐 DXF
             </button>
@@ -1265,22 +1272,20 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 </div>
               )}
 
-              <div className="m3-modal-svg-canvas" style={{ width: '100%', position: 'relative', overflow: 'hidden' }}>
-                {/* Floating CAD Zoom Toolbar */}
+              <div className="m3-modal-svg-canvas" style={{ width: '100%', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {/* CAD Zoom Toolbar docked cleanly above SVG so it never occludes rail labels */}
                 <div
                   className="cad-floating-toolbar"
                   style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
+                    alignSelf: 'flex-end',
                     zIndex: 10,
                     display: 'flex',
                     gap: '4px',
+                    flexWrap: 'wrap',
                     backgroundColor: 'var(--md-sys-color-surface-container-high)',
-                    backdropFilter: 'blur(4px)',
                     padding: '3px 6px',
                     borderRadius: '6px',
-                    boxShadow: 'var(--md-sys-elevation-2)',
+                    boxShadow: 'var(--md-sys-elevation-1)',
                     border: '1px solid var(--md-sys-color-outline-variant)',
                   }}
                 >
@@ -1523,13 +1528,14 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                             strokeDasharray="2 2"
                           />
                         )}
-                        {/* Label */}
+                        {/* Label (offset vertical projections to mid-height so they never collide with top/bottom horizontal rails) */}
                         <text
-                          x={pxX + 6}
-                          y={pxY + 14}
+                          x={!isH && pxX > originX + drawW * 0.65 ? pxX - 4 : pxX + 6}
+                          y={!isH ? pxY + Math.max(24, pH / 2) : pxY + Math.max(12, Math.min(pH - 2, 13))}
+                          textAnchor={!isH && pxX > originX + drawW * 0.65 ? 'end' : 'start'}
                           fontSize="9"
                           fontWeight="bold"
-                          fill="#01579b"
+                          fill="var(--md-sys-color-primary, #01579b)"
                         >
                           {proj.label}
                         </text>

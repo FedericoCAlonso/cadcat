@@ -275,7 +275,7 @@ describe('Machining Sheet Resolver (machiningSheet)', () => {
 
     const svg = renderPieceMachiningSvg(sheet, 'face-A');
     expect(svg).toContain('Ranura 4x8mm (Y: 20mm)');
-    expect(svg).toContain('Rebaje top 10x5mm');
+    expect(svg).toContain('Rebaje Sup. 10×5 mm');
     expect(svg).toContain('Fresado 60x60x18mm');
     expect(svg).toContain('Ø8x12');
   });

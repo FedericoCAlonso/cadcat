@@ -2,6 +2,7 @@ import { useState, type ReactElement } from 'react';
 import type { Material, EdgeBand, Hardware, EdgeBandKind, JointKind } from '../model';
 import { NumericInput } from './NumericInput';
 import { t } from '../locales';
+import { M3ConfirmDialog } from './M3Dialog';
 
 export interface CatalogManagerViewProps {
   materials: Material[];
@@ -32,6 +33,11 @@ export function CatalogManagerView({
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [isAddingEdgeBand, setIsAddingEdgeBand] = useState(false);
   const [isAddingHardware, setIsAddingHardware] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    title: string;
+    message: string;
+    action: () => Promise<void>;
+  } | null>(null);
 
   // Material Form state
   const [matId, setMatId] = useState('');
@@ -331,10 +337,12 @@ export function CatalogManagerView({
                           type="button"
                           className="m3-button m3-button--outlined"
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--md-sys-color-error)' }}
-                          onClick={async () => {
-                            if (window.confirm(t('catalog.deleteConfirm'))) {
-                              await onDeleteMaterial(m.id);
-                            }
+                          onClick={() => {
+                            setPendingConfirm({
+                              title: t('catalog.delete'),
+                              message: t('catalog.deleteConfirm'),
+                              action: () => onDeleteMaterial(m.id),
+                            });
                           }}
                         >
                           🗑️ {t('catalog.delete')}
@@ -391,10 +399,12 @@ export function CatalogManagerView({
                     type="button"
                     className="m3-btn m3-btn--small m3-btn--outlined"
                     style={{ color: 'var(--md-sys-color-error)' }}
-                    onClick={async () => {
-                      if (window.confirm(t('catalog.deleteConfirm'))) {
-                        await onDeleteMaterial(m.id);
-                      }
+                    onClick={() => {
+                      setPendingConfirm({
+                        title: t('catalog.delete'),
+                        message: t('catalog.deleteConfirm'),
+                        action: () => onDeleteMaterial(m.id),
+                      });
                     }}
                   >
                     🗑️ {t('catalog.delete')}
@@ -528,10 +538,12 @@ export function CatalogManagerView({
                           type="button"
                           className="m3-button m3-button--outlined"
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--md-sys-color-error)' }}
-                          onClick={async () => {
-                            if (window.confirm(t('catalog.deleteConfirm'))) {
-                              await onDeleteEdgeBand(b.id);
-                            }
+                          onClick={() => {
+                            setPendingConfirm({
+                              title: t('catalog.delete'),
+                              message: t('catalog.deleteConfirm'),
+                              action: () => onDeleteEdgeBand(b.id),
+                            });
                           }}
                         >
                           🗑️ {t('catalog.delete')}
@@ -577,10 +589,12 @@ export function CatalogManagerView({
                     type="button"
                     className="m3-btn m3-btn--small m3-btn--outlined"
                     style={{ color: 'var(--md-sys-color-error)' }}
-                    onClick={async () => {
-                      if (window.confirm(t('catalog.deleteConfirm'))) {
-                        await onDeleteEdgeBand(b.id);
-                      }
+                    onClick={() => {
+                      setPendingConfirm({
+                        title: t('catalog.delete'),
+                        message: t('catalog.deleteConfirm'),
+                        action: () => onDeleteEdgeBand(b.id),
+                      });
                     }}
                   >
                     🗑️ {t('catalog.delete')}
@@ -707,10 +721,12 @@ export function CatalogManagerView({
                           type="button"
                           className="m3-button m3-button--outlined"
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: 'var(--md-sys-color-error)' }}
-                          onClick={async () => {
-                            if (window.confirm(t('catalog.deleteConfirm'))) {
-                              await onDeleteHardware(h.id);
-                            }
+                          onClick={() => {
+                            setPendingConfirm({
+                              title: t('catalog.delete'),
+                              message: t('catalog.deleteConfirm'),
+                              action: () => onDeleteHardware(h.id),
+                            });
                           }}
                         >
                           🗑️ {t('catalog.delete')}
@@ -756,10 +772,12 @@ export function CatalogManagerView({
                     type="button"
                     className="m3-btn m3-btn--small m3-btn--outlined"
                     style={{ color: 'var(--md-sys-color-error)' }}
-                    onClick={async () => {
-                      if (window.confirm(t('catalog.deleteConfirm'))) {
-                        await onDeleteHardware(h.id);
-                      }
+                    onClick={() => {
+                      setPendingConfirm({
+                        title: t('catalog.delete'),
+                        message: t('catalog.deleteConfirm'),
+                        action: () => onDeleteHardware(h.id),
+                      });
                     }}
                   >
                     🗑️ {t('catalog.delete')}
@@ -777,15 +795,32 @@ export function CatalogManagerView({
           type="button"
           className="m3-button m3-button--outlined"
           style={{ color: 'var(--md-sys-color-error)' }}
-          onClick={async () => {
-            if (window.confirm(t('catalog.resetConfirm'))) {
-              await onResetCatalogs();
-            }
+          onClick={() => {
+            setPendingConfirm({
+              title: t('catalog.resetDefaults'),
+              message: t('catalog.resetConfirm'),
+              action: onResetCatalogs,
+            });
           }}
         >
           🔄 {t('catalog.resetDefaults')}
         </button>
       </div>
+
+      <M3ConfirmDialog
+        isOpen={Boolean(pendingConfirm)}
+        title={pendingConfirm?.title ?? ''}
+        message={pendingConfirm?.message ?? ''}
+        confirmLabel="Confirmar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onCancel={() => setPendingConfirm(null)}
+        onConfirm={() => {
+          const action = pendingConfirm?.action;
+          setPendingConfirm(null);
+          if (action) void action();
+        }}
+      />
     </div>
   );
 }

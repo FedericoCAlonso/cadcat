@@ -1,7 +1,8 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import type { RoofType, JointPriority, BackingType, RearStructuralRails } from '../resolver';
 import { M3ToggleRow } from './M3ToggleRow';
 import { NumericInput } from './NumericInput';
+import { M3PromptDialog } from './M3Dialog';
 
 /**
  * Props for the StructureSection component.
@@ -125,6 +126,8 @@ export function StructureSection({
   onPlinthSetbackChange,
   onSaveUserTemplate,
 }: StructureSectionProps): ReactElement {
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+
   return (
     <fieldset className="builder-section">
       <legend className="builder-section-title">
@@ -443,17 +446,29 @@ export function StructureSection({
             type="button"
             className="m3-btn m3-btn--small m3-btn--tonal"
             style={{ width: '100%' }}
-            onClick={() => {
-              const name = window.prompt?.('Nombre para la nueva plantilla de estructura base:', 'Módulo Base Personalizado');
-              if (name) {
-                void onSaveUserTemplate(name, 'Estructura base personalizada con refuerzos');
-              }
-            }}
+            onClick={() => setIsPromptOpen(true)}
           >
             💾 Guardar Estructura como Módulo Base
           </button>
         </div>
       )}
+
+      <M3PromptDialog
+        isOpen={isPromptOpen}
+        title="Guardar plantilla de estructura base"
+        label="Nombre para la nueva plantilla:"
+        defaultValue="Módulo Base Personalizado"
+        placeholder="Ej. Bajo mesada reforzado"
+        confirmLabel="Guardar plantilla"
+        cancelLabel="Cancelar"
+        onCancel={() => setIsPromptOpen(false)}
+        onConfirm={(name) => {
+          setIsPromptOpen(false);
+          if (onSaveUserTemplate) {
+            void onSaveUserTemplate(name, 'Estructura base personalizada con refuerzos');
+          }
+        }}
+      />
     </fieldset>
   );
 }

@@ -53,7 +53,7 @@
     {
       "schemaVersion": 1,
       "id": "hw-slide-telescopic",
-      "name": "Riel Corredera Telescópica (unidad)",
+      "name": "Corredera Telescópica (guía lateral; 2 = 1 par)",
       "jointKind": "slide",
       "pricePerUnit": "TO_CONFIRM"
     },

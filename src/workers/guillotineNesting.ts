@@ -18,6 +18,9 @@ export interface NestingItem {
   materialId: string;
   cutWidthMm: number;
   cutHeightMm: number;
+  /** Canonical cut dimensions before any grain-alignment swap (for CutPlanPDF summary table). */
+  displayCutWidthMm?: number;
+  displayCutHeightMm?: number;
   canRotate: boolean;
   isAuxiliary?: boolean;
 }
@@ -36,6 +39,8 @@ export interface PlacedPiece {
   moduleName?: string;
   cutWidthMm?: number;
   cutHeightMm?: number;
+  displayCutWidthMm?: number;
+  displayCutHeightMm?: number;
   x: number;
   y: number;
   width: number;
@@ -349,6 +354,8 @@ function tryPlaceItemWithStrategy(
     moduleName: item.moduleName,
     cutWidthMm: item.cutWidthMm,
     cutHeightMm: item.cutHeightMm,
+    displayCutWidthMm: item.displayCutWidthMm ?? item.cutWidthMm,
+    displayCutHeightMm: item.displayCutHeightMm ?? item.cutHeightMm,
     x: freeRect.x,
     y: freeRect.y,
     width: pieceW,

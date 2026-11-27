@@ -58,7 +58,7 @@ describe('MachiningEditorModal Component (Point 8)', () => {
     );
 
     expect(html).toContain('Editor de Mecanizados en Placa:');
-    expect(html).toContain('base-side-l');
+    expect(html).toContain('Lateral izquierdo');
     expect(html).toContain('500 × 700 × 18 mm');
     expect(html).toContain('Vista Técnica 2D');
     expect(html).toContain('<svg');

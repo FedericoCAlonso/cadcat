@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type ReactElement } from 'react';
 import type { ProjectModuleItem, Project } from '../model';
+import { M3ConfirmDialog } from './M3Dialog';
 
 /**
  * Props for the compact ModuleBar component.
@@ -54,6 +55,7 @@ export function ModuleBar({
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState<string>('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [confirmRemoveModuleId, setConfirmRemoveModuleId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -236,9 +238,7 @@ export function ModuleBar({
                   role="menuitem"
                   onClick={() => {
                     setIsMenuOpen(false);
-                    if (window.confirm(`¿Eliminar el módulo "${activeModule?.name}" del proyecto?`)) {
-                      onRemoveProjectModule(activeId);
-                    }
+                    setConfirmRemoveModuleId(activeId);
                   }}
                 >
                   <span aria-hidden="true">🗑️</span>
@@ -279,6 +279,23 @@ export function ModuleBar({
           )}
         </div>
       </div>
+
+      <M3ConfirmDialog
+        isOpen={Boolean(confirmRemoveModuleId)}
+        title="Eliminar módulo"
+        message={`¿Eliminar el módulo "${activeModule?.name ?? ''}" del proyecto?`}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        onCancel={() => setConfirmRemoveModuleId(null)}
+        onConfirm={() => {
+          const targetId = confirmRemoveModuleId;
+          setConfirmRemoveModuleId(null);
+          if (targetId && onRemoveProjectModule) {
+            onRemoveProjectModule(targetId);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -5,10 +5,10 @@ import {
   HingeJointStrategy,
   deriveModuleDrillOperations,
   buildPieceMachiningSheet,
-  buildPieceMachining3DGroup,
   getPieceFaceNormalSign,
   type ModularModuleDefinition,
 } from '../src/resolver';
+import { buildPieceMachining3DGroup } from '../src/ui/viewer/machining3d';
 import type { Material, ProjectConfig } from '../src/model';
 import defaultProjectConfigJson from '../src/config/defaultProjectConfig.json';
 
