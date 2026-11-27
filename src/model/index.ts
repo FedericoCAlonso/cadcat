@@ -34,6 +34,8 @@ export {
   type EdgeBandKind,
   edgeBandSchema,
   type EdgeBand,
+  pieceEdgeBandOverrideSchema,
+  type PieceEdgeBandOverrideModel,
   edgeBandCatalogSchema,
   type EdgeBandCatalog,
   validateEdgeBand,
@@ -140,12 +142,19 @@ export {
   type DeflectionConfig,
   hardwareConfigSchema,
   type HardwareConfig,
+  DEFAULT_HARDWARE_CONFIG,
+  featuresConfigSchema,
+  type FeaturesConfig,
+  DEFAULT_FEATURES_CONFIG,
   projectConfigSchema,
   type ProjectConfig,
   validateProjectConfig,
 } from './projectConfig';
 
 export {
+  trackSizeSchema,
+  bayContentSchema,
+  type BayContentSchemaType,
   userTemplateSchema,
   type UserTemplate,
   validateUserTemplate,
@@ -216,24 +225,6 @@ export {
   pieceLabelDataSchema,
   type PieceLabelData,
 } from './labels';
-
-export {
-  columnObstacleSchema,
-  type ColumnObstacle,
-  type ParametricObstacle,
-  type ObstacleType,
-  type ObstacleReferenceEdge,
-  falseSquareSchema,
-  type FalseSquare,
-  interferenceConfigSchema,
-  type InterferenceConfig,
-  DEFAULT_COLUMN_OBSTACLE,
-  DEFAULT_FALSE_SQUARE,
-  DEFAULT_INTERFERENCE_CONFIG,
-} from './interferences';
-
-
-
 
 export * from './standardThickness';
 export {

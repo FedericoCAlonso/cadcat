@@ -23,16 +23,20 @@ Este documento describe en detalle la arquitectura y las estructuras de datos qu
 
 ```mermaid
 erDiagram
+    PROJECT ||--|{ PROJECT_MODULE_ITEM : includes
     PROJECT_CONFIG ||--|| UNITS_CONFIG : define
     PROJECT_CONFIG ||--|| MACHINING_CONFIG : define
     PROJECT_CONFIG ||--|| NESTING_CONFIG : define
     PROJECT_CONFIG ||--|| COST_CONFIG : define
     PROJECT_CONFIG ||--|| DEFLECTION_CONFIG : define
+    PROJECT_CONFIG ||--|| HARDWARE_CONFIG : define
+    PROJECT_CONFIG ||--|| FEATURES_CONFIG : define
 
     MODULE ||--|{ PIECE : owns
     MODULE ||--|{ JOINT : contains
     MODULE ||--|{ SUB_ASSEMBLY : organizes
     MODULE ||--o{ OVERRIDE : overrides
+    MODULE ||--o{ CUSTOM_OPERATION : applies
 
     PIECE ||--|{ FACE : has
     PIECE }|--|| MATERIAL : uses
@@ -128,11 +132,14 @@ export type EdgeBandKind = 'adhesive' | 'aluminium-profile' | 'veneer' | 'rod';
 
 export interface EdgeBand {
   schemaVersion?: number;
-  id: string;                              // Identificador único (ej. "eb-white-08")
+  id: string;                              // Identificador único (ej. "eb-white-08", "eb-white-045")
+  name?: string;                           // Nombre descriptivo en español
   kind: EdgeBandKind;                      // Tipo de canto
-  thicknessMm: number | 'TO_CONFIRM';      // Espesor real que descuenta en corte (ej. 0.8, 2.0)
+  thicknessMm: number | 'TO_CONFIRM';      // Espesor nominal (ej. 0.45, 0.8, 2.0)
   pricePerMeter: ShopValue;                // Costo por metro lineal
   needsGroove?: boolean;                   // Si requiere ranura previa de inserción
+  deductFromCut?: boolean;                 // false para cintas finas (0.45 mm) que no descuentan en corte
+  preMillingMm?: number;                   // Prefresado (mm) compensado por pegadora de cantos
 }
 ```
 
@@ -253,7 +260,7 @@ export interface MachiningConfig {
   // Tornillos Confirmat
   confirmatThroughDiameterMm: number;      // ej. 7.0 mm (agujero pasante)
   confirmatCoreDiameterMm: number;         // ej. 5.0 mm (agujero guía)
-  confirmatCoreDepthMm: number;            // ej. 50.0 mm
+  confirmatCoreDepthMm: number;            // ej. 35.0 mm (profundidad real en canto)
   // Cajas Minifix / Rastex
   minifixPocketDiameterMm: number;         // ej. 15.0 mm
   minifixPocketDepthMm: number;            // ej. 12.5 mm
@@ -282,20 +289,52 @@ export interface MachiningConfig {
 }
 
 export interface NestingConfig {
-  sawKerfMm: number;                       // Espesor del disco de corte (ej. 3.2 mm)
+  sawKerfMm: number;                       // Espesor del disco de corte (ej. 4.4 mm)
   sheetTrimMarginMm: number;               // Margen de refilado perimetral (ej. 10.0 mm)
   respectGrain: boolean;                   // Obligar corte longitudinal si hasGrain=true
+  grainDirectionMode: 'auto' | 'strict' | 'free';
+  optimizationGoal: 'min-waste' | 'min-passes' | 'balanced';
+  includeAssemblyGaugesInCutPlan: boolean; // Incluir calibres auxiliares de armado en corte/CSV
 }
 
 export interface CostConfig {
   wasteFactorPercent: number;              // Porcentaje de desperdicio estimado (ej. 10%)
   hourlyLaborRate: number;                 // Tarifa horaria de mano de obra
+  pricePerCutPass: ShopValue;              // Precio por pasada de sierra
+  cutPricingMode: 'per-pass' | 'per-meter';
 }
 
 export interface DeflectionConfig {
   maxDeflectionRatio: number;              // Relación admisible L / ratio (ej. 200 para L/200)
   maxAbsoluteDeflectionMm: number;         // Flecha absoluta máxima (ej. 3.0 mm)
   designUniformLoadKgM2: number;           // Carga de diseño distribuida (ej. 30.0 kg/m²)
+  defaultElasticModulusMPa: number;        // Módulo E de referencia
+  gravityAccelerationMS2: number;          // Gravedad estándar (9.80665)
+}
+
+export interface HardwareConfig {
+  slideClearanceTelescopicMm: number;      // ej. 25.4 mm
+  slideClearanceUndermountMm: number;      // ej. 10.0 mm
+  slideClearanceMetalBoxMm: number;        // ej. 31.0 mm
+  slideClearanceRollerMm: number;          // ej. 25.0 mm
+  drawerFrontGapMm: number;                // Luz entre frentes de cajón (ej. 3.0 mm)
+  drawerBoxFrontOffsetMm: number;          // Retranqueo frontal caja de cajón
+  drawerBoxBottomClearanceMm: number;      // Luz inferior caja de cajón
+  doorOverlayRevealMm: number;             // Luz puerta aplicada (ej. 1.5 mm)
+  doorHalfOverlayRevealMm: number;         // Luz puerta media cazoleta (ej. 1.5 mm)
+  doorInsetGapMm: number;                  // Luz puerta embutida (ej. 2.0 mm)
+  doorHingeMarginMm: number;               // Margen bisagra a borde (ej. 100.0 mm)
+  maxDrawerSpanMm: number;                 // Ancho máximo recomendado sin refuerzo
+  maxUnreinforcedSpanMm: number;           // Luz libre máxima sin tabique intermedio
+  standardThicknessesMm: number[];         // Espesores estándar habilitados
+}
+
+export interface FeaturesConfig {
+  enablePieceLabels: boolean;
+  enableSecondaryContourCuts: boolean;
+  enableLedInstallations: boolean;
+  enableElectricalCutouts: boolean;
+  enableCncExport: boolean;
 }
 
 export interface ProjectConfig {
@@ -309,8 +348,16 @@ export interface ProjectConfig {
   nesting: NestingConfig;
   cost: CostConfig;
   deflection: DeflectionConfig;
+  hardware: HardwareConfig;
+  features: FeaturesConfig;
 }
 ```
+
+### 3.9. Proyectos Multimódulo, Operaciones Manuales y Respaldos (`project.ts`, `operation.ts`, `countertop.ts`, `backupBundle.ts`)
+
+- **`Project` / `ProjectModuleItem` (`src/model/project.ts`):** Agrupa múltiples módulos con `quantity`, parámetros constructivos completos (casco, zócalo, fajas, fondo, grilla `bayTracks`, vanos tipados `bayContentSchema`, estantes de pared `wallShelves`, mesadas `countertopDefinitionSchema`), overrides por pieza (`pieceMaterialOverrides`, `pieceThicknessOverrides`, `pieceEdgeBandOverrides`, `pieceJointOverrides`) y operaciones manuales de taller (`customPieceOperations`). Validado íntegramente con esquemas Zod tipados sin `z.any()`.
+- **`CustomPieceOperation` (`src/model/operation.ts`):** Unión discriminada por `kind` (`drill`, `hole-series`, `groove`, `rebate`, `cutout`, `edge-profile`) para mecanizados manuales, ranuras derivadas y alivios de esquinas CNC (`natural-radius`, `dog-bone`, `t-bone`).
+- **`BackupBundle` (`src/model/backupBundle.ts`):** Paquete JSON portátil para sincronización PC ↔ móvil sin backend; se restaura mediante una única transacción `readwrite` multi-store atómica en IndexedDB.
 
 ---
 
@@ -533,13 +580,15 @@ export interface ModuleCostSummary {
 
 ## 5. Capa de Persistencia en IndexedDB (`src/storage/db.ts`)
 
-La base de datos local del navegador se llama **`cadcat_db`** (versión 2) y cuenta con tres almacenes principales:
+La base de datos local del navegador se llama **`cadcat_db`** (**versión 4**) y cuenta con cinco almacenes (*object stores*), todos persistidos confirmando `transaction.oncomplete` y manejando `onversionchange`:
 
 | Almacén (*Object Store*) | Clave Primaria (*keyPath*) | Estructura Almacenada | Descripción |
 |---|---|---|---|
-| `modules` | `id` | [`Module`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/module.ts#L40) | Diseños de módulos guardados por el usuario. |
-| `catalogs` | `id` | `MaterialCatalog`, `EdgeBandCatalog`, `HardwareCatalog` | Catálogos de tableros, cantos y herrajes cargados en la aplicación. |
-| `configs` | `projectId` | [`ProjectConfig`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/projectConfig.ts#L69) | Configuraciones de mecanizado, sierra, costos y deflexión por proyecto. |
+| `modules` | `id` | [`Module`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/module.ts) | Diseños de módulos individuales guardados por el usuario. |
+| `catalogs` | `id` | `MaterialCatalog`, `EdgeBandCatalog`, `HardwareCatalog`, `ToolCatalog`, `CountertopMaterialCatalog` | Catálogos de tableros, tapacantos, herrajes, herramientas y mesadas cargados en la aplicación. |
+| `configs` | `id` | [`ProjectConfig`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/projectConfig.ts) | Configuraciones de mecanizado, sierra, costos, deflexión y herrajes por proyecto. |
+| `user_templates` | `id` | [`UserTemplate`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/userTemplate.ts) | Plantillas personalizadas reutilizables creadas por el carpintero. |
+| `projects` | `id` | [`Project`](file:///home/federico@uba-ilse.com.ar/mobilius/src/model/project.ts) | Proyectos multimódulo con lotes, overrides por pieza, mecanizados manuales, mesadas y estantes de pared. |
 
 Todas las entidades almacenadas cumplen con la interfaz base:
 ```typescript

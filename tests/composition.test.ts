@@ -299,13 +299,13 @@ describe('Modular Parametric Composition Engine - Fase 1', () => {
       const slideJoints = result.joints.filter((j) => j.kind === 'slide');
       expect(slideJoints.length).toBe(4); // 2 drawers * 2 sides
 
-      // Drawer 1 (Cajón 1) is at the top (y = 564 with gap), Drawer 2 is at the bottom (y = 20 with gap)
+      // Drawer 1 (Cajón 1) is at the top (y = 564.5 with default 2.5mm gap), Drawer 2 is at the bottom (y = 20 with gap)
       const front1Node = result.placementNodes.find((n) => n.pieceId.includes('-drawer-front-1'));
       const front2Node = result.placementNodes.find((n) => n.pieceId.includes('-drawer-front-2'));
       expect(front1Node).toBeDefined();
       expect(front2Node).toBeDefined();
-      expect(front1Node!.relativeOffset.y).toBe(564);
-      expect(front2Node!.relativeOffset.y).toBe(20);
+      expect(front1Node!.relativeOffset.y).toBe(564.5);
+      expect(front2Node!.relativeOffset.y).toBe(20.5);
       expect(front1Node!.relativeOffset.y).toBeGreaterThan(front2Node!.relativeOffset.y);
     });
 

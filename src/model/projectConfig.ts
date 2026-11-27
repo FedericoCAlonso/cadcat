@@ -118,7 +118,6 @@ export const DEFAULT_HARDWARE_CONFIG: HardwareConfig = hardwareConfigSchema.pars
 
 export const featuresConfigSchema = z.object({
   enablePieceLabels: z.boolean().default(true),
-  enableInterferencesLab: z.boolean().default(false),
   enableSecondaryContourCuts: z.boolean().default(false),
   enableLedInstallations: z.boolean().default(false),
   enableElectricalCutouts: z.boolean().default(false),

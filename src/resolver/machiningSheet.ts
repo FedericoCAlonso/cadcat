@@ -85,11 +85,13 @@ export function buildPieceMachiningSheet(
 
   const pieceCustomOps = (customOperations ?? []).filter((op) => op.pieceId === piece.id);
   const pieceOps = operations.filter((op) => op.pieceId === piece.id);
+  const existingOpIds = new Set(pieceOps.map((op) => op.id));
 
-  // Convert custom drill operations to participate in drill tables and coordinate cotas
+  // Convert custom drill operations to participate in drill tables and coordinate cotas (avoiding duplicates)
   for (const cop of pieceCustomOps) {
-    if (cop.kind === 'drill') {
+    if (cop.kind === 'drill' && !existingOpIds.has(cop.id)) {
       pieceOps.push(customDrillToDrillOperation(cop));
+      existingOpIds.add(cop.id);
     }
   }
 
@@ -252,7 +254,7 @@ export function renderPieceMachiningSvg(
   const svgParts: string[] = [];
 
   svgParts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${targetWidth} ${targetHeight}" width="100%" height="100%" style="background-color: #fafafa; font-family: sans-serif;">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${targetWidth} ${targetHeight}" width="100%" height="100%" style="background-color: var(--md-sys-color-surface-container-lowest, #fafafa); font-family: sans-serif;">`,
   );
 
   // Turn banner for Face B
@@ -260,14 +262,14 @@ export function renderPieceMachiningSvg(
     svgParts.push(`
       <rect x="20" y="12" width="${targetWidth - 40}" height="32" rx="6" fill="#fff3cd" stroke="#ffc107" stroke-width="1.5" />
       <text x="${targetWidth / 2}" y="32" text-anchor="middle" font-size="13" font-weight="bold" fill="#664d03">
-        ⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B (TURN PIECE OVER)
+        ⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B
       </text>
     `);
   }
 
   // Piece Rectangle
   svgParts.push(
-    `<rect x="${originX}" y="${originY}" width="${drawW}" height="${drawH}" fill="#e8eaed" stroke="#1f1f1f" stroke-width="2" />`,
+    `<rect x="${originX}" y="${originY}" width="${drawW}" height="${drawH}" fill="var(--md-sys-color-surface-container-high, #e8eaed)" stroke="var(--md-sys-color-on-surface, #1f1f1f)" stroke-width="2" />`,
   );
 
   // Banded Edges (highlighted with bold blue outline)
@@ -308,22 +310,22 @@ export function renderPieceMachiningSvg(
 
   // Overall Dimensions and Edge Orientation Reference
   svgParts.push(`
-    <text x="${originX + drawW / 2}" y="${datumY + 28}" text-anchor="middle" font-size="11" font-weight="bold" fill="#444746">
+    <text x="${originX + drawW / 2}" y="${datumY + 28}" text-anchor="middle" font-size="11" font-weight="bold" fill="var(--md-sys-color-on-surface, #444746)">
       Ancho: ${widthMm} mm
     </text>
-    <text x="${originX - 18}" y="${originY + drawH / 2}" text-anchor="middle" font-size="11" font-weight="bold" fill="#444746" transform="rotate(-90, ${originX - 18}, ${originY + drawH / 2})">
+    <text x="${originX - 28}" y="${originY + drawH / 2}" text-anchor="middle" font-size="11" font-weight="bold" fill="var(--md-sys-color-on-surface, #444746)" transform="rotate(-90, ${originX - 28}, ${originY + drawH / 2})">
       Alto: ${heightMm} mm
     </text>
-    <text x="${originX + drawW / 2}" y="${datumY + 15}" text-anchor="middle" font-size="8" fill="#747775">
+    <text x="${originX + drawW / 2}" y="${datumY + 15}" text-anchor="middle" font-size="8" fill="var(--md-sys-color-on-surface-variant, #747775)">
       Borde Inferior (Datum 0)
     </text>
-    <text x="${originX + drawW / 2}" y="${originY - 8}" text-anchor="middle" font-size="8" fill="#747775">
+    <text x="${originX + drawW / 2}" y="${originY - 8}" text-anchor="middle" font-size="8" fill="var(--md-sys-color-on-surface-variant, #747775)">
       Borde Superior
     </text>
-    <text x="${originX - 6}" y="${originY + 14}" text-anchor="end" font-size="8" fill="#747775">
+    <text x="${originX - 6}" y="${originY - 8}" text-anchor="end" font-size="8" fill="var(--md-sys-color-on-surface-variant, #747775)">
       Borde Izq.
     </text>
-    <text x="${originX + drawW + 6}" y="${originY + 14}" text-anchor="start" font-size="8" fill="#747775">
+    <text x="${originX + drawW + 6}" y="${originY - 8}" text-anchor="start" font-size="8" fill="var(--md-sys-color-on-surface-variant, #747775)">
       Borde Der.
     </text>
   `);
@@ -415,7 +417,11 @@ export function renderPieceMachiningSvg(
     }
   }
 
-  // Draw operations
+  // Draw operations with collision-avoiding cota labels & callout boxes
+  const placedXTicks: number[] = [];
+  const placedYTicks: number[] = [];
+  const placedCallouts: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i]!;
     const hx = originX + op.xMm * scale;
@@ -437,20 +443,52 @@ export function renderPieceMachiningSvg(
       <circle cx="${hx}" cy="${hy}" r="1.5" fill="#ba1a1a" />
     `);
 
-    // Hole Callout Label
-    const calloutY = hy - r - 5;
+    // Hole Callout Label — avoid overlapping existing callout boxes and edge ticks
+    const boxW = 48;
+    const boxH = 13;
+    let calloutX = Math.max(originX + boxW / 2 + 4, Math.min(originX + drawW - boxW / 2 - 4, hx));
+    let calloutY = hy - r - 5;
+    if (calloutY - boxH < originY + 2) {
+      calloutY = hy + r + boxH + 4;
+    }
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const candidate = {
+        x1: calloutX - boxW / 2 - 2,
+        y1: calloutY - boxH - 1,
+        x2: calloutX + boxW / 2 + 2,
+        y2: calloutY + 2,
+      };
+      const overlaps = placedCallouts.some(
+        (b) => !(candidate.x2 < b.x1 || candidate.x1 > b.x2 || candidate.y2 < b.y1 || candidate.y1 > b.y2),
+      );
+      if (!overlaps) break;
+      calloutY -= boxH + 3;
+      if (calloutY - boxH < originY + 2) {
+        calloutY = hy + r + boxH + 6 + attempt * 4;
+      }
+    }
+    placedCallouts.push({
+      x1: calloutX - boxW / 2,
+      y1: calloutY - boxH,
+      x2: calloutX + boxW / 2,
+      y2: calloutY,
+    });
+
+    // Deduplicate/space X and Y tick labels to prevent text collisions
+    const showXTick = !placedXTicks.some((px) => Math.abs(px - hx) < 30);
+    if (showXTick) placedXTicks.push(hx);
+
+    const showYTick = !placedYTicks.some((py) => Math.abs(py - hy) < 14);
+    if (showYTick) placedYTicks.push(hy);
+
     svgParts.push(`
       <g>
-        <rect x="${hx - 22}" y="${calloutY - 11}" width="44" height="13" rx="3" fill="#ffffff" stroke="${op.isThrough ? '#0b57d0' : '#c4c7c5'}" stroke-width="${op.isThrough ? '1.2' : '0.8'}" />
-        <text x="${hx}" y="${calloutY - 2}" text-anchor="middle" font-size="8" font-weight="bold" fill="${op.isThrough ? '#0b57d0' : '#1f1f1f'}">
+        <rect x="${calloutX - boxW / 2}" y="${calloutY - 11}" width="${boxW}" height="${boxH}" rx="3" fill="var(--md-sys-color-surface-container, #ffffff)" stroke="${op.isThrough ? 'var(--md-sys-color-primary, #0b57d0)' : 'var(--md-sys-color-outline, #c4c7c5)'}" stroke-width="${op.isThrough ? '1.2' : '0.8'}" />
+        <text x="${calloutX}" y="${calloutY - 2}" text-anchor="middle" font-size="8" font-weight="bold" fill="${op.isThrough ? 'var(--md-sys-color-primary, #0b57d0)' : 'var(--md-sys-color-on-surface, #1f1f1f)'}">
           Ø${op.diameterMm}x${op.depthMm}${op.isThrough ? ' 🔄' : ''}
         </text>
-        <text x="${hx}" y="${datumY - 2}" text-anchor="middle" font-size="7.5" fill="#00639b" font-weight="bold">
-          X:${op.xMm}
-        </text>
-        <text x="${originX + 2}" y="${hy - 2}" font-size="7.5" fill="#00639b" font-weight="bold">
-          Y:${op.yMm}
-        </text>
+        ${showXTick ? `<text x="${hx}" y="${datumY - 2}" text-anchor="middle" font-size="7.5" fill="var(--md-sys-color-primary, #00639b)" font-weight="bold">X:${op.xMm}</text>` : ''}
+        ${showYTick ? `<text x="${originX - 4}" y="${hy + 3}" text-anchor="end" font-size="7.5" fill="var(--md-sys-color-primary, #00639b)" font-weight="bold">Y:${op.yMm}</text>` : ''}
       </g>
     `);
   }
@@ -595,7 +633,7 @@ export function exportMachiningSheetPdf(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.5);
     doc.setTextColor(11, 87, 208);
-    doc.text('CARA A (Cara de referencia / Front Face)', marginX, currentY);
+    doc.text('CARA A (Cara de referencia)', marginX, currentY);
 
     currentY += 4;
     const diagramBoxW = pageWidth - 2 * marginX;
@@ -638,6 +676,29 @@ export function exportMachiningSheetPdf(
     doc.text(`${sheet.dimensionsMm.width} mm`, drawX + drawW / 2 - 6, drawY + drawH + 4);
     doc.text(`${sheet.dimensionsMm.height} mm`, drawX - 12, drawY + drawH / 2);
 
+    // Face A grooves / rebates
+    for (const cop of sheet.customOperations ?? []) {
+      if (cop.faceType !== 'face-A') continue;
+      if (cop.kind === 'groove') {
+        doc.setFillColor(191, 219, 254);
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(0.25);
+        if (cop.axis === 'x') {
+          const gx = drawX + (cop.startMm ?? 0) * scaleA;
+          const gw = (cop.lengthMm ?? sheet.dimensionsMm.width) * scaleA;
+          const gh = Math.max(0.8, cop.widthMm * scaleA);
+          const gy = drawY + drawH - (cop.offsetMm + cop.widthMm) * scaleA;
+          doc.rect(gx, gy, gw, gh, 'FD');
+        } else {
+          const gx = drawX + cop.offsetMm * scaleA;
+          const gw = Math.max(0.8, cop.widthMm * scaleA);
+          const gh = (cop.lengthMm ?? sheet.dimensionsMm.height) * scaleA;
+          const gy = drawY + drawH - ((cop.startMm ?? 0) + (cop.lengthMm ?? sheet.dimensionsMm.height)) * scaleA;
+          doc.rect(gx, gy, gw, gh, 'FD');
+        }
+      }
+    }
+
     // Face A drill holes
     doc.setFontSize(6.5);
     for (const op of sheet.faceAOperations) {
@@ -668,7 +729,7 @@ export function exportMachiningSheetPdf(
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
       doc.text(
-        '⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B (TURN PIECE OVER)',
+        'ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B',
         marginX + 6,
         currentY + 6,
       );
@@ -679,7 +740,7 @@ export function exportMachiningSheetPdf(
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.5);
       doc.setTextColor(11, 87, 208);
-      doc.text('CARA B (Cara posterior / Reversal Face)', marginX, currentY);
+      doc.text('CARA B (Cara posterior)', marginX, currentY);
 
       currentY += 4;
       const diagramBoxHB = 45;
@@ -787,8 +848,42 @@ export function exportMachiningSheetPdf(
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
 
+      const drawTableHeader = () => {
+        doc.setFillColor(230, 235, 245);
+        doc.setDrawColor(180, 190, 205);
+        doc.rect(marginX, currentY, pageWidth - 2 * marginX, 6, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(20, 20, 20);
+        doc.text('#', colX[0]! + 2, currentY + 4.2);
+        doc.text('Cara', colX[1]! + 1, currentY + 4.2);
+        doc.text('Descripción / Tipo', colX[2]! + 1, currentY + 4.2);
+        doc.text('Ø (mm)', colX[3]! + 1, currentY + 4.2);
+        doc.text('Prof. (mm)', colX[4]! + 1, currentY + 4.2);
+        doc.text('Pasante', colX[5]! + 1, currentY + 4.2);
+        doc.text('X (desde Izq.)', colX[6]! + 1, currentY + 4.2);
+        doc.text('Y (desde Inf.)', colX[7]! + 1, currentY + 4.2);
+
+        currentY += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+      };
+
+      const formatFaceEs = (ft: FaceType) =>
+        ft === 'face-A' ? 'Cara A' : ft === 'face-B' ? 'Cara B' : 'Canto';
+
       allOps.forEach((op, opIdx) => {
-        if (currentY > 280) return; // Protect against page overflow
+        if (currentY > 280) {
+          doc.addPage();
+          currentY = 18;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(31, 31, 31);
+          doc.text(`Continuación de tabla — ${sheet.pieceId}`, marginX, currentY);
+          currentY += 5;
+          drawTableHeader();
+        }
 
         const rowBg = opIdx % 2 === 0 ? 255 : 248;
         doc.setFillColor(rowBg, rowBg, rowBg);
@@ -796,7 +891,7 @@ export function exportMachiningSheetPdf(
 
         doc.setTextColor(30, 30, 30);
         doc.text(String(opIdx + 1), colX[0]! + 2, currentY + 3.5);
-        doc.text(op.faceType, colX[1]! + 1, currentY + 3.5);
+        doc.text(formatFaceEs(op.faceType), colX[1]! + 1, currentY + 3.5);
         doc.text(op.description.slice(0, 35), colX[2]! + 1, currentY + 3.5);
         doc.text(String(op.diameterMm), colX[3]! + 3, currentY + 3.5);
         doc.text(String(op.depthMm), colX[4]! + 3, currentY + 3.5);

@@ -47,7 +47,13 @@ export async function openDatabase(
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => {
+        db.close();
+      };
+      resolve(db);
+    };
     request.onerror = () => reject(request.error ?? new Error('Failed to open database'));
   });
 }
@@ -82,8 +88,10 @@ export async function saveItem<T extends StoredEntity>(
       const transaction = db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.put(item);
-      request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error ?? new Error('Failed to save item'));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('Failed to commit save transaction'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Save transaction aborted'));
     });
   } finally {
     if (autoClose) {
@@ -134,8 +142,10 @@ export async function deleteItem(
       const transaction = db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.delete(id);
-      request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error ?? new Error('Failed to delete item'));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('Failed to commit delete transaction'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Delete transaction aborted'));
     });
   } finally {
     if (autoClose) {
@@ -183,8 +193,10 @@ export async function clearStore(
       const transaction = db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.clear();
-      request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error ?? new Error('Failed to clear store'));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('Failed to commit clear transaction'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('Clear transaction aborted'));
     });
   } finally {
     if (autoClose) {

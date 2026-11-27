@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { jointStrategySchema } from './projectConfig';
-import { interferenceConfigSchema } from './interferences';
+import { bayContentSchema, trackSizeSchema } from './userTemplate';
+import { pieceEdgeBandOverrideSchema } from './edgeBand';
+import { countertopDefinitionSchema } from './countertop';
+import { customPieceOperationSchema } from './operation';
 
 export const wallShelvesModuleConfigSchema = z.object({
   shelfCount: z.number().int().min(1).max(20).default(3),
@@ -29,25 +32,34 @@ export const projectModuleItemSchema = z.object({
   backingsMaterialId: z.string().default(''),
   isCustomModular: z.boolean().default(true),
   roofType: z.enum(['solid-panel', 'front-back-rails', 'none']).default('front-back-rails'),
+  railOrientation: z.enum(['horizontal', 'vertical']).optional(),
+  hasMiddleBrace: z.boolean().optional(),
+  middleBraceWidthMm: z.number().positive().optional(),
+  hasWallHangingRail: z.boolean().optional(),
+  wallHangingRailWidthMm: z.number().positive().optional(),
+  hasPlinth: z.boolean().optional(),
+  plinthHeightMm: z.number().positive().optional(),
+  plinthSetbackMm: z.number().nonnegative().optional(),
   jointPriority: z.enum(['lateral-over-bottom', 'bottom-over-lateral', 'miter-45']).default('lateral-over-bottom'),
   hasBacking: z.boolean().default(true),
   backingType: z.enum(['groove', 'rebate', 'overlay', 'none']).default('groove'),
   backingThicknessMm: z.number().positive().default(3),
+  backingMultiBayMode: z.enum(['split-per-bay', 'continuous']).optional(),
   isIslandCabinet: z.boolean().default(false),
   rearStructuralRails: z.enum(['none', 'top-and-bottom', 'top-only']).default('none'),
   rearStructuralRailsWidthMm: z.number().positive().default(100),
   partitionPassThroughRoof: z.boolean().default(false),
   gridType: z.enum(['1-bay', '2-bays-vertical', '3-bays-vertical', '2-bays-horizontal']).default('1-bay'),
-  bays: z.array(z.any()).default([]),
-  bayTracks: z.array(z.any()).optional(),
+  bays: z.array(bayContentSchema).default([]),
+  bayTracks: z.array(trackSizeSchema).optional(),
   jointStrategy: jointStrategySchema.default('confirmat'),
   pieceJointOverrides: z.record(z.string(), z.string()).optional(),
   pieceMaterialOverrides: z.record(z.string(), z.string()).optional(),
   pieceThicknessOverrides: z.record(z.string(), z.number()).optional(),
-  pieceEdgeBandOverrides: z.record(z.string(), z.any()).optional(),
+  pieceEdgeBandOverrides: z.record(z.string(), pieceEdgeBandOverrideSchema).optional(),
+  customPieceOperations: z.record(z.string(), z.array(customPieceOperationSchema)).optional(),
   countertopEnabled: z.boolean().optional(),
-  countertopDefinition: z.any().optional(),
-  interferences: interferenceConfigSchema.optional(),
+  countertopDefinition: countertopDefinitionSchema.optional(),
   wallShelves: wallShelvesModuleConfigSchema.optional(),
 });
 export type ProjectModuleItem = z.infer<typeof projectModuleItemSchema>;

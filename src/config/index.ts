@@ -28,7 +28,7 @@ export const modularPresetConfigSchema = z.object({
     depth: z.number().positive(),
   }),
   carcass: z.object({
-    jointPriority: z.enum(['lateral-over-bottom', 'bottom-over-lateral']).default('lateral-over-bottom'),
+    jointPriority: z.enum(['lateral-over-bottom', 'bottom-over-lateral', 'miter-45']).default('lateral-over-bottom'),
     roofType: z.enum(['front-back-rails', 'solid-panel', 'none']).default('front-back-rails'),
     railWidthMm: z.number().positive().optional(),
     hasBacking: z.boolean().default(true),
@@ -56,7 +56,6 @@ export const dimensionBoundsSchema = z.object({
 });
 
 export const uiDefaultsSchema = z.object({
-  showInterferences: z.boolean().default(false),
   costDebounceMs: z.number().nonnegative().default(250),
   summaryScopeDefault: z.enum(['project', 'module']).default('project'),
   currencySymbol: z.string().default('$'),

@@ -4,6 +4,7 @@ import {
   type Joint,
   type SubAssembly,
   type EdgeBand,
+  type HardwareConfig,
 } from '../../model';
 import { PlacementTree } from '../tree';
 import { resolveModule } from '../resolver';
@@ -31,6 +32,7 @@ export interface ModularBuildOptions {
   backingThicknessMm?: number;
   drawerBottomScrewedDeductionWidthMm?: number;
   drawerBottomScrewedDeductionDepthMm?: number;
+  hardwareConfig?: HardwareConfig;
   edgeBands?: EdgeBand[];
 }
 
@@ -55,6 +57,7 @@ export function buildModularModule(
     backingThicknessMm = definition.carcass.backingThicknessMm ?? 3,
     drawerBottomScrewedDeductionWidthMm,
     drawerBottomScrewedDeductionDepthMm,
+    hardwareConfig,
     edgeBands = [],
   } = options;
 
@@ -86,7 +89,6 @@ export function buildModularModule(
     backingThicknessMm: effectiveBackingThick,
     edgeBandId,
     idPrefix: `${id}-carcass`,
-    interferences: definition.interferences,
     backingReserveMm: resolveBackingReserveMm({
       ...carcass,
       backingThicknessMm: effectiveBackingThick,
@@ -113,7 +115,6 @@ export function buildModularModule(
     rightPieceId: carcassResult.rightPieceId,
     bottomPieceId: carcassResult.bottomPieceId,
     topPieceId: carcassResult.topPieceId,
-    interferences: definition.interferences,
     overallWidth: carcass.width,
     overallDepth: carcass.depth,
   };
@@ -261,18 +262,18 @@ export function buildModularModule(
 
         joints.push(
           createJoint({
-            a: { pieceId: b.leftPieceId, faceId: 'rear-edge' },
-            b: { pieceId: backPieceId, faceId: 'inner' },
+            a: { pieceId: backPieceId, faceId: 'inner' },
+            b: { pieceId: b.leftPieceId, faceId: 'rear-edge' },
             kind: 'screw',
           }),
           createJoint({
-            a: { pieceId: b.rightPieceId, faceId: 'rear-edge' },
-            b: { pieceId: backPieceId, faceId: 'inner' },
+            a: { pieceId: backPieceId, faceId: 'inner' },
+            b: { pieceId: b.rightPieceId, faceId: 'rear-edge' },
             kind: 'screw',
           }),
           createJoint({
-            a: { pieceId: b.bottomPieceId, faceId: 'rear-edge' },
-            b: { pieceId: backPieceId, faceId: 'inner' },
+            a: { pieceId: backPieceId, faceId: 'inner' },
+            b: { pieceId: b.bottomPieceId, faceId: 'rear-edge' },
             kind: 'screw',
           }),
         );
@@ -280,8 +281,8 @@ export function buildModularModule(
         if (b.topPieceId && b.topPieceId !== b.leftPieceId) {
           joints.push(
             createJoint({
-              a: { pieceId: b.topPieceId, faceId: 'rear-edge' },
-              b: { pieceId: backPieceId, faceId: 'inner' },
+              a: { pieceId: backPieceId, faceId: 'inner' },
+              b: { pieceId: b.topPieceId, faceId: 'rear-edge' },
               kind: 'screw',
             }),
           );
@@ -356,8 +357,9 @@ export function buildModularModule(
         frontThicknessMm,
         boxThicknessMm,
         backingThicknessMm,
-        drawerBottomScrewedDeductionWidthMm,
-        drawerBottomScrewedDeductionDepthMm,
+        drawerBottomScrewedDeductionWidthMm: drawerBottomScrewedDeductionWidthMm ?? hardwareConfig?.drawerBottomScrewedDeductionWidthMm,
+        drawerBottomScrewedDeductionDepthMm: drawerBottomScrewedDeductionDepthMm ?? hardwareConfig?.drawerBottomScrewedDeductionDepthMm,
+        hardwareConfig,
         edgeBandId,
         rootPieceId,
         idPrefix: `${id}-bay-${i + 1}`,
@@ -425,7 +427,6 @@ export function buildModularModule(
     joints,
     subAssemblies,
     overrides: {},
-    interferences: definition.interferences,
   };
 
   // 8. Resolve Module Positions and Cut Sizes

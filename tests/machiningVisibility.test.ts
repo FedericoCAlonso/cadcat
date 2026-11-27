@@ -264,9 +264,9 @@ describe('Stage 5 Step B: Machining Visibility & Role Colors', () => {
         turnInstructions: '',
       };
 
-      // 38 standard + 4 custom = 42 operations
-      expect(countPieceMachiningOperations(mockSheet)).toBe(42);
-      expect(formatHolesCountText(42)).toBe('42 agujeros');
+      // totalOperations (38) already includes customOperations — must NOT double-count (+4)
+      expect(countPieceMachiningOperations(mockSheet)).toBe(38);
+      expect(formatHolesCountText(38)).toBe('38 agujeros');
     });
 
     it('formats singular and plural hole text cleanly', () => {

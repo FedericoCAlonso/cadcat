@@ -13,10 +13,11 @@ export interface StoredProject extends StoredEntity {
  * Persists a complete Project entity to IndexedDB.
  */
 export async function saveProjectToDb(project: Project, database?: IDBDatabase): Promise<void> {
+  const validated = validateProject(project);
   const stored: StoredProject = {
-    id: project.id,
-    schemaVersion: project.schemaVersion,
-    project,
+    id: validated.id,
+    schemaVersion: validated.schemaVersion,
+    project: validated,
   };
   await saveItem(PROJECTS_STORE, stored, database);
 }

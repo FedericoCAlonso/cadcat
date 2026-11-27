@@ -86,9 +86,9 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     );
     expect(legendEstructura).toBeDefined();
 
-    // Special cell matrix button is accessible in compact module bar
+    // Special cell matrix button is consolidated in ONE place (DistributionSection), NOT duplicated in ModuleBar
     const specialHeaderBtn = container.querySelector('button[aria-label="Especial"]');
-    expect(specialHeaderBtn).not.toBeNull();
+    expect(specialHeaderBtn).toBeNull();
 
     // Special cell matrix button is accessible in Vanos section
     const specialVanosBtn = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -384,9 +384,8 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
     expect(htmlMobile).not.toContain('Modo Obra (Táctil)');
   });
 
-  it('controls visibility of Interferencias elements based on showInterferences flag', () => {
-    // 1. With showInterferences={false} (default)
-    const htmlHidden = renderToString(
+  it('does not render deprecated Interferencias section in ModuleForm', () => {
+    const html = renderToString(
       <ModuleForm
         isMobile={false}
         width={600}
@@ -394,44 +393,9 @@ describe('ModuleForm Mobile Expert UI (Modo Experto en Celular)', () => {
         depth={560}
         materials={mockMaterials}
         edgeBands={mockEdgeBands}
-        showInterferences={false}
-        columnObstacle={{
-          enabled: true,
-          type: 'vertical-column',
-          referenceEdge: 'left',
-          distanceFromReferenceMm: 0,
-          widthMm: 150,
-          depthMm: 120,
-          corner: 'back-left',
-        }}
       />,
     );
-    expect(htmlHidden).not.toContain('accordion-section-interferences');
-    expect(htmlHidden).not.toContain('interferencia');
-    expect(htmlHidden).not.toContain('📐 Interferencias');
-
-    // 2. With showInterferences={true}
-    const htmlVisible = renderToString(
-      <ModuleForm
-        isMobile={false}
-        width={600}
-        height={720}
-        depth={560}
-        materials={mockMaterials}
-        edgeBands={mockEdgeBands}
-        showInterferences={true}
-        columnObstacle={{
-          enabled: true,
-          type: 'vertical-column',
-          referenceEdge: 'left',
-          distanceFromReferenceMm: 0,
-          widthMm: 150,
-          depthMm: 120,
-          corner: 'back-left',
-        }}
-      />,
-    );
-    expect(htmlVisible).toContain('accordion-section-interferences');
-    expect(htmlVisible).toContain('interferencia');
+    expect(html).not.toContain('accordion-section-interferences');
+    expect(html).not.toContain('📐 Interferencias');
   });
 });

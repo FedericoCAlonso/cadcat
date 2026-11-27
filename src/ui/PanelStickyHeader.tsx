@@ -20,16 +20,14 @@ export interface PanelStickyHeaderProps {
   onHeightChange: (val: number) => void;
   /** Callback fired when module depth changes. */
   onDepthChange: (val: number) => void;
-  /** Count of active architectural interferences in the module. */
-  activeInterferenceCount?: number;
-  /** Callback fired when clicking the interference warning badge to navigate to the section. */
-  onOpenInterferences?: () => void;
+  /** Hide Height input when active template does not use module height (e.g., wall shelves). */
+  hideHeight?: boolean;
 }
 
 /**
  * Sticky header for the configuration sidebar.
- * Displays the current section title, active interference warnings, and allows direct editing
- * of module dimensions (W × H × D) arranged in three equal columns with draft buffer protection.
+ * Displays the current section title and allows direct editing
+ * of module dimensions (W × H × D) arranged in equal columns with draft buffer protection.
  */
 export function PanelStickyHeader({
   currentSectionName,
@@ -39,8 +37,7 @@ export function PanelStickyHeader({
   onWidthChange,
   onHeightChange,
   onDepthChange,
-  activeInterferenceCount = 0,
-  onOpenInterferences,
+  hideHeight = false,
 }: PanelStickyHeaderProps): ReactElement {
   return (
     <header className="panel-sticky-header">
@@ -54,7 +51,7 @@ export function PanelStickyHeader({
 
         <div className="panel-sticky-header__dimensions-bar">
           <span className="dimensions-bar-unit" title="Milímetros (mm)">mm</span>
-          <div className="panel-sticky-header__dimensions-grid">
+          <div className="panel-sticky-header__dimensions-grid" style={hideHeight ? { gridTemplateColumns: '1fr 1fr' } : undefined}>
             <div className="header-dim-col">
               <label htmlFor="header-dim-width" className="header-dim-label-inside">
                 An
@@ -72,22 +69,24 @@ export function PanelStickyHeader({
               />
             </div>
 
-            <div className="header-dim-col">
-              <label htmlFor="header-dim-height" className="header-dim-label-inside">
-                Al
-              </label>
-              <NumericInput
-                id="header-dim-height"
-                value={height}
-                min={DEFAULT_UI_CONFIG.dimensions.height.min}
-                max={DEFAULT_UI_CONFIG.dimensions.height.max}
-                step={DEFAULT_UI_CONFIG.dimensions.height.step}
-                onChange={onHeightChange}
-                restoreOnInvalid={true}
-                ariaLabel="Alto del módulo en mm"
-                className="header-dim-input"
-              />
-            </div>
+            {!hideHeight && (
+              <div className="header-dim-col">
+                <label htmlFor="header-dim-height" className="header-dim-label-inside">
+                  Al
+                </label>
+                <NumericInput
+                  id="header-dim-height"
+                  value={height}
+                  min={DEFAULT_UI_CONFIG.dimensions.height.min}
+                  max={DEFAULT_UI_CONFIG.dimensions.height.max}
+                  step={DEFAULT_UI_CONFIG.dimensions.height.step}
+                  onChange={onHeightChange}
+                  restoreOnInvalid={true}
+                  ariaLabel="Alto del módulo en mm"
+                  className="header-dim-input"
+                />
+              </div>
+            )}
 
             <div className="header-dim-col">
               <label htmlFor="header-dim-depth" className="header-dim-label-inside">
@@ -107,21 +106,6 @@ export function PanelStickyHeader({
             </div>
           </div>
         </div>
-
-        {activeInterferenceCount > 0 && onOpenInterferences ? (
-          <div className="panel-sticky-header__actions">
-            <button
-              type="button"
-              onClick={onOpenInterferences}
-              className="panel-sticky-header__warning-badge"
-              title="Interferencias arquitectónicas activas en el módulo. Clic para ver o ajustar."
-              aria-label={`${activeInterferenceCount} interferencias activas`}
-            >
-              <span aria-hidden="true">⚠️</span>
-              <span>{`${activeInterferenceCount}`}</span>
-            </button>
-          </div>
-        ) : null}
       </div>
     </header>
   );

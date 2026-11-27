@@ -232,8 +232,8 @@ describe('Stage 6 Step A: Phone and Tablet Ergonomic Layout', () => {
 
       const handleBar = container.querySelector('.tablet-bottom-sheet-handle-bar');
       expect(handleBar).not.toBeNull();
-      expect(handleBar?.getAttribute('role')).toBe('slider');
-      expect(handleBar?.getAttribute('aria-label')).toContain('Manija de arrastre del panel');
+      expect(handleBar?.getAttribute('role')).toBe('group');
+      expect(handleBar?.getAttribute('aria-label')).toContain('Controles de altura del panel');
 
       // Drag pill element exists
       const pill = container.querySelector('.tablet-bottom-sheet-pill');

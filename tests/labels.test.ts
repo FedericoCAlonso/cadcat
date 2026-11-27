@@ -52,9 +52,9 @@ const mockPieces: Piece[] = [
     },
     faces: [
       { id: 'bottom-edge', visible: true, edgeBandId: 'eb-white-20' }, // Piso: 2.0mm
-      { id: 'right-edge', visible: true, edgeBandId: 'eb-white-04' },  // Frente: 0.4mm
+      { id: 'left-edge', visible: true, edgeBandId: 'eb-white-04' },   // Frente (z=0 en 3D): 0.4mm
       { id: 'top-edge', visible: true, edgeBandId: 'eb-white-04' },
-      { id: 'left-edge', visible: false }, // Fondo sin canto
+      { id: 'right-edge', visible: false }, // Fondo (z=depth) sin canto
     ],
     structural: true,
     referenceFace: 'A',
@@ -137,9 +137,9 @@ describe('Piece Label Data Extractor', () => {
     // Edge bands
     expect(sideLeft.edgeBands.bottom?.thicknessMm).toBe(2.0);
     expect(sideLeft.edgeBands.bottom?.note).toBe('PISO');
-    expect(sideLeft.edgeBands.right?.thicknessMm).toBe(0.4);
-    expect(sideLeft.edgeBands.right?.note).toBe('FRENTE');
-    expect(sideLeft.edgeBands.left).toBeUndefined(); // Sin canto
+    expect(sideLeft.edgeBands.left?.thicknessMm).toBe(0.4);
+    expect(sideLeft.edgeBands.left?.note).toBe('FRENTE');
+    expect(sideLeft.edgeBands.right).toBeUndefined(); // Sin canto trasero
   });
 
   it('includes auxiliary gauges when explicitly requested', () => {

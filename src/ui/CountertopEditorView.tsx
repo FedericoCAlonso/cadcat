@@ -218,8 +218,8 @@ export function CountertopEditorView({
 
                 {/* Contextual Sink Drawer Adaptation */}
                 {isSink && (
-                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '6px' }}>
+                  <div style={{ background: 'var(--md-sys-color-surface-container-low)', padding: '10px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)', display: 'block', marginBottom: '6px' }}>
                       Adaptación de Cajón Superior (Sifón):
                     </span>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -227,7 +227,7 @@ export function CountertopEditorView({
                         type="button"
                         className={`m3-button ${sinkDrawerAdaptation === 'false-front' ? 'm3-button--filled' : 'm3-button--tonal'}`}
                         onClick={() => onSelectSinkDrawerAdaptation('false-front')}
-                        style={{ fontSize: '0.8rem', minHeight: '40px', padding: '0 10px' }}
+                        style={{ fontSize: '0.8rem', minHeight: '44px', padding: '0 10px' }}
                       >
                         ✓ Falso Frente Fijo
                       </button>
@@ -235,7 +235,7 @@ export function CountertopEditorView({
                         type="button"
                         className={`m3-button ${sinkDrawerAdaptation === 'u-shape-drawer' ? 'm3-button--filled' : 'm3-button--tonal'}`}
                         onClick={() => onSelectSinkDrawerAdaptation('u-shape-drawer')}
-                        style={{ fontSize: '0.8rem', minHeight: '40px', padding: '0 10px' }}
+                        style={{ fontSize: '0.8rem', minHeight: '44px', padding: '0 10px' }}
                       >
                         ⊔ Cajón Escotado en "U"
                       </button>
@@ -244,8 +244,8 @@ export function CountertopEditorView({
                 )}
 
                 {/* Stretcher Rail Orientation */}
-                <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '6px' }}>
+                <div style={{ background: 'var(--md-sys-color-surface-container-low)', padding: '10px', borderRadius: '8px', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--md-sys-color-on-surface)', display: 'block', marginBottom: '6px' }}>
                     Travesaño Superior Delantero:
                   </span>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -253,7 +253,7 @@ export function CountertopEditorView({
                       type="button"
                       className={`m3-button ${frontRailOrientation === 'vertical' ? 'm3-button--filled' : 'm3-button--tonal'}`}
                       onClick={() => onSelectFrontRailOrientation('vertical')}
-                      style={{ fontSize: '0.8rem', minHeight: '40px', padding: '0 10px' }}
+                      style={{ fontSize: '0.8rem', minHeight: '44px', padding: '0 10px' }}
                       title="Coloca el travesaño de canto: 15x más resistente y no interfiere con la cuba"
                     >
                       🪵 De Canto / Vertical (Recomendado)
@@ -262,7 +262,7 @@ export function CountertopEditorView({
                       type="button"
                       className={`m3-button ${frontRailOrientation === 'suppressed' ? 'm3-button--filled' : 'm3-button--tonal'}`}
                       onClick={() => onSelectFrontRailOrientation('suppressed')}
-                      style={{ fontSize: '0.8rem', minHeight: '40px', padding: '0 10px' }}
+                      style={{ fontSize: '0.8rem', minHeight: '44px', padding: '0 10px' }}
                     >
                       ✕ Suprimir Travesaño
                     </button>
@@ -273,12 +273,12 @@ export function CountertopEditorView({
 
             {/* Card 3: Real-Time Diagnostic */}
             {countertopCalculation && (
-              <section className="m3-card" style={{ padding: '16px', background: '#f8fafc', border: '1px solid #cbd5e1' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 12px 0', color: '#0f172a' }}>
+              <section className="m3-card" style={{ padding: '16px', background: 'var(--md-sys-color-surface-container-low)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 12px 0', color: 'var(--md-sys-color-on-surface)' }}>
                   3. Diagnóstico Físico & Estructural
                 </h3>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem', color: '#334155' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
                   <div>
                     <strong>Superficie de Piedra:</strong> {countertopCalculation.areaM2} m² (
                     {countertopCalculation.widthMm} x {countertopCalculation.depthMm} x {countertopCalculation.thicknessMm} mm)
@@ -289,24 +289,24 @@ export function CountertopEditorView({
                   <div>
                     <strong>Estado del Voladizo ({countertopCalculation.overhangAnalysis.frontOverhangMm} mm):</strong>{' '}
                     {countertopCalculation.overhangAnalysis.needsBrackets ? (
-                      <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--md-sys-color-error)', fontWeight: 700 }}>
                         ⚠️ Excesivo (Requiere ménsula de soporte)
                       </span>
                     ) : (
-                      <span style={{ color: '#16a34a', fontWeight: 700 }}>✓ Seguro sin refuerzo</span>
+                      <span style={{ color: 'var(--md-sys-color-primary)', fontWeight: 700 }}>✓ Seguro sin refuerzo</span>
                     )}
                   </div>
 
                   {countertopCalculation.cutouts.map((c, i) => (
-                    <div key={i} style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px dashed #cbd5e1' }}>
+                    <div key={i} style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px dashed var(--md-sys-color-outline-variant)' }}>
                       <strong>{c.brandModel}:</strong>
                       <br />
                       Puente Frontal: {c.remainingBridgesMm.frontMm} mm | Posterior: {c.remainingBridgesMm.backMm} mm
                       <br />
                       {c.isSafeStoneBridge ? (
-                        <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ Puentes de piedra seguros contra rotura</span>
+                        <span style={{ color: 'var(--md-sys-color-primary)', fontWeight: 600 }}>✓ Puentes de piedra seguros contra rotura</span>
                       ) : (
-                        <span style={{ color: '#dc2626', fontWeight: 600 }}>⚠️ {c.warnings[0]}</span>
+                        <span style={{ color: 'var(--md-sys-color-error)', fontWeight: 600 }}>⚠️ {c.warnings[0]}</span>
                       )}
                     </div>
                   ))}
@@ -330,10 +330,10 @@ export function CountertopEditorView({
               <div
                 style={{
                   padding: '12px',
-                  background: '#ffffff',
+                  background: 'var(--md-sys-color-surface-container-lowest)',
                   borderRadius: '8px',
                   overflowX: 'auto',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
                 }}
               >
                 <div

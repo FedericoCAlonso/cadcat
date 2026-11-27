@@ -1,5 +1,6 @@
 import type { Piece } from '../model';
 import type { PlacementTree, Position3D } from './tree';
+import { getContourBoundingBox } from './piece';
 
 export interface SpatialPieceBox {
   pieceId: string;
@@ -100,9 +101,9 @@ export function resolveDepthEdgeFaceIds(
  */
 export function determinePieceSpatialSize(piece: Piece): Position3D {
   const t = piece.thicknessMm;
-  const points = piece.contour.points;
-  const w = Math.abs(points[1]?.x ?? 100);
-  const h = Math.abs(points[2]?.y ?? 100);
+  const bbox = getContourBoundingBox(piece.contour);
+  const w = bbox.width > 0 ? bbox.width : 100;
+  const h = bbox.height > 0 ? bbox.height : 100;
   const values: Record<ContourAxisSource, number> = { width: w, height: h, thickness: t };
   const o = resolvePieceOrientation(piece.role);
   return { x: values[o.x], y: values[o.y], z: values[o.z] };

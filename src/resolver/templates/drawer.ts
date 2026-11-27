@@ -266,7 +266,7 @@ export function buildDrawerSubAssembly(
 
   if (effectiveBottomMount === 'grooved') {
     bottomWidth = Math.round(drawerBoxWidth - 2 * actualBoxT + 2 * effectiveGrooveDepth - 1);
-    bottomDepth = Math.round(boxDepth - 2 * actualBoxT + 2 * effectiveGrooveDepth - 1);
+    bottomDepth = Math.round(boxDepth - (isSimpleInterior ? actualBoxT : 2 * actualBoxT) + 2 * effectiveGrooveDepth - 1);
     bottomOffsetX = boxX + actualBoxT - effectiveGrooveDepth + 0.5;
     bottomOffsetY = boxY + effectiveGrooveOffset;
     bottomOffsetZ = boxOffsetZ + (isSimpleInterior ? 0 : actualBoxT) - effectiveGrooveDepth + 0.5;
@@ -282,12 +282,12 @@ export function buildDrawerSubAssembly(
     bottomOffsetY = boxY - bottomThickness;
     bottomOffsetZ = boxOffsetZ + Math.round(dedD / 2);
   } else {
-    // flush-thick (default, 15/18mm)
+    // flush-thick (15/18mm): fits strictly between front/back and sides with zero 3D collision
     bottomWidth = drawerBoxWidth - 2 * actualBoxT;
-    bottomDepth = boxDepth;
+    bottomDepth = boxDepth - (isSimpleInterior ? actualBoxT : 2 * actualBoxT);
     bottomOffsetX = boxX + actualBoxT;
     bottomOffsetY = boxY;
-    bottomOffsetZ = boxOffsetZ;
+    bottomOffsetZ = boxOffsetZ + (isSimpleInterior ? 0 : actualBoxT);
   }
 
   const boxBottom = createPiece({

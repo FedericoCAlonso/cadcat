@@ -321,27 +321,27 @@ describe('Workshop Benchmarks - Hand-Calculated Canonical Projects', () => {
         expect(dim.width).toBe(350);
       }
 
-      // 2. Fondo ranurado:
-      // Profundidad = 350 - 2 * 15 (frentes de caja) + 2 * 7 (ranura de 7mm) - 1mm juego = 333 mm
+      // 2. Fondo ranurado en cajón simple-interior (solo trasera de 15mm, sin contrafrente):
+      // Profundidad = 350 - 1 * 15 (trasera) + 2 * 7 (ranuras) - 1mm juego = 348 mm
       const subDrawerBottoms = result.resolvedPieces.filter(
         (p) => p.role === 'drawer-bottom' && p.id.includes('drawer')
       );
       expect(subDrawerBottoms.length).toBe(2);
       for (const b of subDrawerBottoms) {
         const dim = getPieceDimensions(b);
-        expect(dim.height).toBe(333);
+        expect(dim.height).toBe(348);
       }
 
       // 3. Frentes embutidos (inset):
       // Ancho de la celda de columna 1 = 400 mm.
-      // Frente embutido con luz perimetral (2mm por lado): 400 - 2 * 2 = 396 mm.
+      // Frente embutido con luz perimetral estándar (2.5mm por lado): 400 - 2 * 2.5 = 395 mm.
       const subDrawerFronts = result.resolvedPieces.filter(
         (p) => p.role === 'drawer-front' && p.id.includes('drawer')
       );
       expect(subDrawerFronts.length).toBe(2);
       for (const f of subDrawerFronts) {
         const dim = getPieceDimensions(f);
-        expect(dim.width).toBe(396);
+        expect(dim.width).toBe(395);
       }
     });
   });

@@ -18,12 +18,11 @@ import {
   HARDWARE_CATALOG_ID,
   MATERIALS_CATALOG_ID,
 } from './catalogStore';
-import { saveProjectConfigToDb } from './projectConfigStore';
-import { saveProjectToDb } from './projectStore';
-import { saveUserTemplateToDb } from './userTemplateStore';
-import { clearStore, openDatabase, saveItem } from './db';
-import { USER_TEMPLATE_STORE } from './userTemplateStore';
+import { CONFIG_STORE } from './configService';
 import { PROJECTS_STORE } from './projectStore';
+import { USER_TEMPLATE_STORE } from './userTemplateStore';
+import { openDatabase } from './db';
+import { validateProject, validateProjectConfig, validateUserTemplate } from '../model';
 
 export interface BuildBackupBundleInput {
   appVersion?: string;
@@ -63,45 +62,83 @@ export function parseBackupBundleJson(jsonString: string): CadCatBackupBundle {
 }
 
 /**
- * Persists all entities from a validated CadCatBackupBundle into IndexedDB.
+ * Persists all entities from a validated CadCatBackupBundle into IndexedDB atomically
+ * using a single multi-store readwrite transaction.
  */
 export async function importBackupBundleToDb(
   bundle: CadCatBackupBundle,
   database?: IDBDatabase,
 ): Promise<void> {
+  // Pre-validate everything in memory before mutating IndexedDB
   const validated = validateBackupBundle(bundle);
+  const matCatalog = validated.materials.length > 0
+    ? validateMaterialCatalog({ schemaVersion: 1, materials: validated.materials })
+    : null;
+  const ebCatalog = validated.edgeBands.length > 0
+    ? validateEdgeBandCatalog({ schemaVersion: 1, edgeBands: validated.edgeBands })
+    : null;
+  const hwCatalog = validated.hardware.length > 0
+    ? validateHardwareCatalog({ schemaVersion: 1, hardware: validated.hardware })
+    : null;
+  const validatedConfig = validated.projectConfig
+    ? validateProjectConfig(validated.projectConfig)
+    : null;
+  const validatedProjects = validated.projects.map((p) => validateProject(p));
+  const validatedTemplates = validated.userTemplates.map((t) => validateUserTemplate(t));
+
   const db = database ?? (await openDatabase());
   const shouldClose = !database;
 
   try {
-    if (validated.materials.length > 0) {
-      const matCatalog = validateMaterialCatalog({ schemaVersion: 1, materials: validated.materials });
-      await saveItem(CATALOG_STORE, { id: MATERIALS_CATALOG_ID, schemaVersion: 1, data: matCatalog }, db);
-    }
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(
+        [CATALOG_STORE, CONFIG_STORE, PROJECTS_STORE, USER_TEMPLATE_STORE],
+        'readwrite',
+      );
+      const catalogStore = tx.objectStore(CATALOG_STORE);
+      const configStore = tx.objectStore(CONFIG_STORE);
+      const projectsStore = tx.objectStore(PROJECTS_STORE);
+      const templatesStore = tx.objectStore(USER_TEMPLATE_STORE);
 
-    if (validated.edgeBands.length > 0) {
-      const ebCatalog = validateEdgeBandCatalog({ schemaVersion: 1, edgeBands: validated.edgeBands });
-      await saveItem(CATALOG_STORE, { id: EDGE_BANDS_CATALOG_ID, schemaVersion: 1, data: ebCatalog }, db);
-    }
+      if (matCatalog) {
+        catalogStore.put({ id: MATERIALS_CATALOG_ID, schemaVersion: 1, data: matCatalog });
+      }
+      if (ebCatalog) {
+        catalogStore.put({ id: EDGE_BANDS_CATALOG_ID, schemaVersion: 1, data: ebCatalog });
+      }
+      if (hwCatalog) {
+        catalogStore.put({ id: HARDWARE_CATALOG_ID, schemaVersion: 1, data: hwCatalog });
+      }
+      if (validatedConfig) {
+        configStore.put({
+          id: validatedConfig.projectId,
+          schemaVersion: 1,
+          data: validatedConfig,
+        });
+      }
 
-    if (validated.hardware.length > 0) {
-      const hwCatalog = validateHardwareCatalog({ schemaVersion: 1, hardware: validated.hardware });
-      await saveItem(CATALOG_STORE, { id: HARDWARE_CATALOG_ID, schemaVersion: 1, data: hwCatalog }, db);
-    }
+      projectsStore.clear();
+      for (const proj of validatedProjects) {
+        projectsStore.put({
+          id: proj.id,
+          schemaVersion: proj.schemaVersion,
+          project: proj,
+        });
+      }
 
-    if (validated.projectConfig) {
-      await saveProjectConfigToDb(validated.projectConfig, db);
-    }
+      templatesStore.clear();
+      for (const tpl of validatedTemplates) {
+        templatesStore.put({
+          id: tpl.id,
+          schemaVersion: 1,
+          data: tpl,
+        });
+      }
 
-    await clearStore(PROJECTS_STORE, db);
-    for (const proj of validated.projects) {
-      await saveProjectToDb(proj, db);
-    }
-
-    await clearStore(USER_TEMPLATE_STORE, db);
-    for (const tpl of validated.userTemplates) {
-      await saveUserTemplateToDb(tpl, db);
-    }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('Failed to import backup bundle atomically'));
+      tx.onabort = () => reject(tx.error ?? new Error('Backup import transaction aborted'));
+    });
   } finally {
     if (shouldClose) {
       db.close();

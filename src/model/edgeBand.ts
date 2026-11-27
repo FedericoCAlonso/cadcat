@@ -18,12 +18,26 @@ export type EdgeBandKind = z.infer<typeof edgeBandKindSchema>;
 export const edgeBandSchema = z.object({
   schemaVersion: z.number().int().positive().optional(),
   id: z.string().min(1),
+  name: z.string().min(1).optional(),
   kind: edgeBandKindSchema,
   thicknessMm: z.union([z.number().nonnegative(), z.literal(TO_CONFIRM)]),
   pricePerMeter: shopValueSchema,
   needsGroove: z.boolean().optional(),
+  /** Whether the edge band thickness is deducted from the panel cut size (false for thin 0.45mm melamine tape or full pre-milling). */
+  deductFromCut: z.boolean().optional(),
+  /** Optional edgebander pre-milling depth (mm) already compensated by the machine. */
+  preMillingMm: z.number().nonnegative().optional(),
 });
 export type EdgeBand = z.infer<typeof edgeBandSchema>;
+
+export const pieceEdgeBandOverrideSchema = z.object({
+  top: z.boolean().optional(),
+  bottom: z.boolean().optional(),
+  left: z.boolean().optional(),
+  right: z.boolean().optional(),
+  edgeBandId: z.string().optional(),
+});
+export type PieceEdgeBandOverrideModel = z.infer<typeof pieceEdgeBandOverrideSchema>;
 
 /**
  * Catalog of edge bands with schema version.

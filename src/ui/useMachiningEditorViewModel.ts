@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { loadDefaultProjectConfigFile } from '../config';
 import {
   type CustomPieceOperation,
   type ToolItem,
@@ -324,13 +325,8 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         setDrillX(targetX);
         setDrillY(targetY);
       } else if (opType === 'hole-series') {
-        if (seriesAxis === 'y') {
-          setSeriesStartX(targetX);
-          setSeriesStartY(targetY);
-        } else {
-          setSeriesStartX(targetX);
-          setSeriesStartY(targetY);
-        }
+        setSeriesStartX(targetX);
+        setSeriesStartY(targetY);
       } else if (opType === 'cutout') {
         setCutoutX(targetX);
         setCutoutY(targetY);
@@ -338,7 +334,7 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         setGrooveOffset(grooveAxis === 'x' ? targetY : targetX);
       }
     },
-    [cursorPosMm, opType, grooveAxis, seriesAxis],
+    [cursorPosMm, opType, grooveAxis],
   );
 
   // Add individual operation
@@ -591,17 +587,18 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
     setCompletedOps((prev) => ({ ...prev, [opId]: !prev[opId] }));
   }, []);
 
-  // One-click Cup Hinges preset (Ø35mm at 21.5mm from front/left edge, 100mm from ends)
+  // One-click Cup Hinges preset reading defaults from MachiningConfig (Zero Hardcoding)
   const applyCupHingesPreset = useCallback(
     (options?: { setbackMm?: number; topDistMm?: number; bottomDistMm?: number; edge?: 'left' | 'right' }) => {
       if (!piece) return;
-      const setback = options?.setbackMm ?? 21.5;
+      const defaultMachining = loadDefaultProjectConfigFile().machining;
+      const setback = options?.setbackMm ?? config?.hingeCupEdgeSetbackMm ?? defaultMachining.hingeCupEdgeSetbackMm;
       const topDist = options?.topDistMm ?? 100;
       const bottomDist = options?.bottomDistMm ?? 100;
       const isRight = options?.edge === 'right';
       const xPos = isRight ? pieceWidth - setback : setback;
-      const depth = 11.5;
-      const dia = 35;
+      const depth = config?.hingeCupDepthMm ?? defaultMachining.hingeCupDepthMm;
+      const dia = config?.hingeCupDiameterMm ?? defaultMachining.hingeCupDiameterMm;
 
       const op1: CustomPieceOperation = {
         kind: 'drill',
@@ -613,7 +610,7 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         diameterMm: dia,
         depthMm: depth,
         isThrough: false,
-        description: 'Cazoleta Bisagra Ø35mm (Inferior)',
+        description: `Cazoleta Bisagra Ø${dia}mm (Inferior)`,
       };
       const op2: CustomPieceOperation = {
         kind: 'drill',
@@ -625,25 +622,27 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         diameterMm: dia,
         depthMm: depth,
         isThrough: false,
-        description: 'Cazoleta Bisagra Ø35mm (Superior)',
+        description: `Cazoleta Bisagra Ø${dia}mm (Superior)`,
       };
 
       onAddOperation(piece.id, op1);
       onAddOperation(piece.id, op2);
     },
-    [piece, pieceWidth, pieceHeight, faceType, onAddOperation],
+    [piece, pieceWidth, pieceHeight, faceType, onAddOperation, config],
   );
 
-  // One-click System 32 Shelf Pins row preset (Front & Rear rows at 37mm setback, 32mm pitch)
+  // One-click System 32 Shelf Pins row preset reading defaults from MachiningConfig (Zero Hardcoding)
   const applySystem32ShelfPinsPreset = useCallback(
     (options?: { frontSetbackMm?: number; rearSetbackMm?: number; pitchMm?: number }) => {
       if (!piece) return;
-      const frontSetback = options?.frontSetbackMm ?? 37;
-      const rearSetback = options?.rearSetbackMm ?? 37;
-      const pitch = options?.pitchMm ?? 32;
-      const dia = 5;
-      const depth = 12;
-      const marginY = 96;
+      const defaultMachining = loadDefaultProjectConfigFile().machining;
+      const defaultSetback = config?.system32FrontSetbackMm ?? defaultMachining.system32FrontSetbackMm;
+      const frontSetback = options?.frontSetbackMm ?? defaultSetback;
+      const rearSetback = options?.rearSetbackMm ?? defaultSetback;
+      const pitch = options?.pitchMm ?? config?.dowelSpacingMm ?? defaultMachining.dowelSpacingMm;
+      const dia = config?.shelfPinDiameterMm ?? defaultMachining.shelfPinDiameterMm;
+      const depth = config?.shelfPinDepthMm ?? defaultMachining.shelfPinDepthMm;
+      const marginY = pitch * 3;
 
       const availableY = pieceHeight - 2 * marginY;
       const count = Math.max(2, Math.floor(availableY / pitch) + 1);
@@ -661,7 +660,7 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         diameterMm: dia,
         depthMm: depth,
         isThrough: false,
-        description: `Cremallera Sist. 32 Frontal (${count}x Ø5)`,
+        description: `Cremallera Sist. 32 Frontal (${count}x Ø${dia})`,
       };
 
       const opRear: CustomPieceOperation = {
@@ -677,13 +676,13 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         diameterMm: dia,
         depthMm: depth,
         isThrough: false,
-        description: `Cremallera Sist. 32 Trasera (${count}x Ø5)`,
+        description: `Cremallera Sist. 32 Trasera (${count}x Ø${dia})`,
       };
 
       onAddOperation(piece.id, opFront);
       onAddOperation(piece.id, opRear);
     },
-    [piece, pieceWidth, pieceHeight, faceType, onAddOperation],
+    [piece, pieceWidth, pieceHeight, faceType, onAddOperation, config],
   );
 
   // One-click Backing Groove preset
@@ -741,33 +740,51 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
       }
     }
 
-    // Custom ops
+    // Custom ops (typed exhaustive switch, no `as any`)
     for (const cop of pieceCustomOps.filter((c) => c.faceType === faceType)) {
-      const x = (cop as any).xMm ?? (cop as any).startXMm ?? (cop as any).offsetMm ?? 0;
-      const y = (cop as any).yMm ?? (cop as any).startYMm ?? (cop as any).offsetMm ?? 0;
-      const { x: dX, y: dY } = toDatumCoords(x, y);
-
+      let x = 0;
+      let y = 0;
       let sizeDesc = '';
       let depth = 0;
-      if (cop.kind === 'drill') {
-        sizeDesc = `Ø${cop.diameterMm} mm`;
-        depth = cop.depthMm;
-      } else if (cop.kind === 'hole-series') {
-        sizeDesc = `${cop.count}x Ø${cop.diameterMm} (Paso ${cop.pitchMm}mm)`;
-        depth = cop.depthMm;
-      } else if (cop.kind === 'groove') {
-        sizeDesc = `Ranura Eje ${cop.axis.toUpperCase()} (${cop.widthMm}mm)`;
-        depth = cop.depthMm;
-      } else if (cop.kind === 'rebate') {
-        sizeDesc = `Rebaje Canto ${cop.edge} (${cop.widthMm}mm)`;
-        depth = cop.depthMm;
-      } else if (cop.kind === 'cutout') {
-        sizeDesc = `Cajeado ${cop.widthMm} × ${cop.heightMm} mm`;
-        depth = cop.depthMm;
-      } else if (cop.kind === 'edge-profile') {
-        sizeDesc = `Perfil ${cop.profileKind} (${cop.edge})`;
-        depth = cop.depthMm;
+      switch (cop.kind) {
+        case 'drill':
+          x = cop.xMm;
+          y = cop.yMm;
+          sizeDesc = `Ø${cop.diameterMm} mm`;
+          depth = cop.depthMm;
+          break;
+        case 'hole-series':
+          x = cop.startXMm;
+          y = cop.startYMm;
+          sizeDesc = `${cop.count}x Ø${cop.diameterMm} (Paso ${cop.pitchMm}mm)`;
+          depth = cop.depthMm;
+          break;
+        case 'groove':
+          x = cop.axis === 'y' ? cop.offsetMm : (cop.startMm ?? 0);
+          y = cop.axis === 'x' ? cop.offsetMm : (cop.startMm ?? 0);
+          sizeDesc = `Ranura Eje ${cop.axis.toUpperCase()} (${cop.widthMm}mm)`;
+          depth = cop.depthMm;
+          break;
+        case 'rebate':
+          x = cop.edge === 'right' ? Math.max(0, pieceWidth - cop.widthMm) : 0;
+          y = cop.edge === 'top' ? Math.max(0, pieceHeight - cop.widthMm) : 0;
+          sizeDesc = `Rebaje Canto ${cop.edge} (${cop.widthMm}mm)`;
+          depth = cop.depthMm;
+          break;
+        case 'cutout':
+          x = cop.xMm;
+          y = cop.yMm;
+          sizeDesc = `Cajeado ${cop.widthMm} × ${cop.heightMm} mm`;
+          depth = cop.depthMm;
+          break;
+        case 'edge-profile':
+          x = cop.edge === 'right' ? pieceWidth : 0;
+          y = cop.edge === 'top' ? pieceHeight : 0;
+          sizeDesc = `Perfil ${cop.profileKind} (${cop.edge})`;
+          depth = cop.depthMm;
+          break;
       }
+      const { x: dX, y: dY } = toDatumCoords(x, y);
 
       rows.push({
         id: cop.id,
@@ -781,13 +798,13 @@ export function useMachiningEditorViewModel(props: UseMachiningEditorViewModelPr
         datumY: dY,
         sizeDescription: sizeDesc,
         depthMm: depth,
-        toolDescription: (cop as any).isThrough ? 'Pasante' : `${depth} mm prof.`,
+        toolDescription: (cop.kind === 'drill' || cop.kind === 'hole-series') && cop.isThrough ? 'Pasante' : `${depth} mm prof.`,
         isCustom: true,
       });
     }
 
     return rows;
-  }, [piece, previewSheet, faceType, pieceCustomOps, toDatumCoords]);
+  }, [piece, previewSheet, faceType, pieceCustomOps, toDatumCoords, pieceWidth, pieceHeight]);
 
   return {
     piece,

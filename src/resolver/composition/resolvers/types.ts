@@ -1,4 +1,4 @@
-import { type Piece, type Joint, type SubAssembly } from '../../../model';
+import { type Piece, type Joint, type SubAssembly, type HardwareConfig } from '../../../model';
 import { type PlacementNode } from '../../tree';
 import {
   type BayBoundingBox,
@@ -13,6 +13,7 @@ export interface ComponentSolverOptions {
   backingThicknessMm?: number;
   drawerBottomScrewedDeductionWidthMm?: number;
   drawerBottomScrewedDeductionDepthMm?: number;
+  hardwareConfig?: HardwareConfig;
   edgeBandId?: string;
   rootPieceId: string;
   idPrefix?: string;

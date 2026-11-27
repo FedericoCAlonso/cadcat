@@ -80,7 +80,7 @@ describe('Machining Derivation - Specific Joint Rules', () => {
     const bottomOps = ops.filter((o) => o.pieceId === 'p-bottom');
     expect(bottomOps).toHaveLength(2);
     expect(bottomOps[0]!.diameterMm).toBe(5);
-    expect(bottomOps[0]!.depthMm).toBe(50);
+    expect(bottomOps[0]!.depthMm).toBe(35);
     expect(bottomOps[0]!.isThrough).toBe(false);
     expect(bottomOps[0]!.faceType).toBe('edge');
   });

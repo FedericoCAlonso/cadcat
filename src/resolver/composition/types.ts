@@ -1,5 +1,3 @@
-import { type InterferenceConfig } from '../../model';
-
 /**
  * Types and definitions for the Modular Parametric Composition Engine.
  */
@@ -81,7 +79,6 @@ export interface BayBoundingBox {
   rightPieceId: string;
   bottomPieceId: string;
   topPieceId: string;
-  interferences?: InterferenceConfig;
   overallWidth?: number;
   overallDepth?: number;
 }
@@ -231,5 +228,4 @@ export interface ModularModuleDefinition {
   bays: BayContent[]; // One per track in grid (or single bay if grid is omitted)
   materials: ModuleMaterialRoles;
   edgeBandId?: string;
-  interferences?: InterferenceConfig;
 }

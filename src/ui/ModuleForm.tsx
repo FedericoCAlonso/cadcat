@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, type ReactElement } from 'react';
-import type { Material, EdgeBand, JointStrategy, JointKind, Project, ProjectModuleItem, ColumnObstacle, FalseSquare } from '../model';
+import type { Material, EdgeBand, JointStrategy, JointKind, Project, ProjectModuleItem } from '../model';
 import type {
   TemplateDefinition,
   RoofType,
@@ -37,7 +37,6 @@ import { useOneHandDevice, ONE_HAND_MOBILE_MAX_WIDTH_PX } from './useOneHandDevi
 import { PieceInspectorCard } from './PieceInspectorCard';
 import { WallShelvesSection } from './WallShelvesSection';
 import { StructureSection } from './StructureSection';
-import { InterferencesSection } from './InterferencesSection';
 import { DistributionSection } from './DistributionSection';
 import { InteriorSection } from './InteriorSection';
 import { MaterialsSection } from './MaterialsSection';
@@ -47,7 +46,7 @@ import { ScrollFadeTabs } from './ScrollFadeTabs';
 import { Accordion } from './Accordion';
 import { PanelSummaryFooter } from './PanelSummaryFooter';
 
-export type FormSection = 'dimensions' | 'structure' | 'distribution' | 'interior' | 'materials' | 'interferences' | 'all';
+export type FormSection = 'dimensions' | 'structure' | 'distribution' | 'interior' | 'materials' | 'all';
 
 function useIsMobileDevice(maxWidth = ONE_HAND_MOBILE_MAX_WIDTH_PX): boolean {
   const isOneHand = useOneHandDevice();
@@ -220,14 +219,6 @@ export interface ModuleFormProps {
   onIsIslandCabinetChange?: (val: boolean) => void;
   onRearStructuralRailsChange?: (val: RearStructuralRails) => void;
   onRearStructuralRailsWidthChange?: (val: number) => void;
-  // Architectural Interferences Lab (Hito 2)
-  enableInterferencesLab?: boolean;
-  /** Whether the architectural interferences section and controls are visible in the UI. */
-  showInterferences?: boolean;
-  columnObstacle?: ColumnObstacle;
-  falseSquare?: FalseSquare;
-  onColumnObstacleChange?: (col: ColumnObstacle) => void;
-  onFalseSquareChange?: (fs: FalseSquare) => void;
   // Wall Shelves props
   wallShelvesBracketType?: BracketType;
   wallShelvesWallType?: WallType;
@@ -400,12 +391,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     onIsIslandCabinetChange,
     onRearStructuralRailsChange,
     onRearStructuralRailsWidthChange,
-    enableInterferencesLab: _enableInterferencesLab = false,
-    showInterferences = DEFAULT_UI_CONFIG.showInterferences,
-    columnObstacle,
-    falseSquare,
-    onColumnObstacleChange,
-    onFalseSquareChange,
     wallShelvesBracketType = 'l-bracket',
     wallShelvesWallType = 'solid-brick',
     wallShelvesLoadCategory = 'medium',
@@ -582,9 +567,8 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
       { id: 'distribution' as FormSection, label: 'Vanos', icon: '🔲' },
       { id: 'interior' as FormSection, label: 'Interior', icon: '🚪' },
       { id: 'materials' as FormSection, label: 'Materiales', icon: '🎨' },
-      ...(showInterferences ? [{ id: 'interferences' as FormSection, label: 'Interferencias', icon: '📐' }] : []),
     ];
-  }, [isWallShelves, showInterferences]);
+  }, [isWallShelves]);
 
   // Section index for mobile step navigation
   const currentStepIndex = sectionsList.findIndex((s) => s.id === openSection);
@@ -688,15 +672,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
     return `${matName} · ${jointName}`;
   }, [materials, selectedMaterialId, matThickness, jointStrategy]);
 
-  const interferencesSummary = useMemo(() => {
-    const isObstacleActive = columnObstacle?.enabled;
-    const isFalseSquareActive = falseSquare?.enabled;
-    if (isObstacleActive && isFalseSquareActive) return 'Columna y Falso Escuadra';
-    if (isObstacleActive) return 'Columna activa';
-    if (isFalseSquareActive) return 'Falsa escuadra';
-    return 'Ninguna';
-  }, [columnObstacle, falseSquare]);
-
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
 
   const hasDoorsOrFronts =
@@ -715,13 +690,120 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
   const hasBackingBoard =
     Boolean(backingsMaterialId) || (hasBacking && backingType !== 'none');
 
-  const activeInterferenceCount =
-    (columnObstacle?.enabled ? 1 : 0) + (falseSquare?.enabled ? 1 : 0);
-
   const totalProjectUnits = projectModules?.reduce((acc, m) => acc + (m.quantity || 1), 0) ?? 1;
+
+  const templateSelectorBlock =
+    templates && templates.length > 0 && onTemplateChange ? (
+      <div className="form-group template-selection-group">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label htmlFor="select-template">
+            Plantilla base o personalizada:
+            <span className="visually-hidden">Module Template:</span>
+          </label>
+          {onSaveUserTemplate && !isWallShelves && (
+            <button
+              type="button"
+              className="m3-button m3-button--tonal"
+              style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
+              onClick={() => setIsSavingTemplate(!isSavingTemplate)}
+            >
+              💾 {t('userTemplates.saveButton')}
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+          <select
+            id="select-template"
+            value={selectedTemplateId}
+            onChange={(e) => onTemplateChange(e.target.value)}
+            className="m3-select"
+            style={{ flex: 1 }}
+          >
+            {templates.map((tpl) => (
+              <option key={tpl.id} value={tpl.id}>
+                {tpl.id.startsWith('user-') ? `⭐ ${tpl.name}` : translateTemplateName(tpl.id, tpl.name)}
+              </option>
+            ))}
+          </select>
+
+          {selectedTemplateId?.startsWith('user-') && onDeleteUserTemplate && (
+            <button
+              type="button"
+              className="m3-button m3-button--outlined"
+              style={{ padding: '0.25rem 0.5rem', color: 'var(--md-sys-color-error)' }}
+              title={t('userTemplates.delete')}
+              onClick={() => {
+                const currentTpl = templates.find((tpl) => tpl.id === selectedTemplateId);
+                const name = currentTpl?.name ?? selectedTemplateId;
+                if (window.confirm(t('userTemplates.deleteConfirm', { name }))) {
+                  onDeleteUserTemplate(selectedTemplateId);
+                }
+              }}
+            >
+              🗑️
+            </button>
+          )}
+        </div>
+
+        {isSavingTemplate && (
+          <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--md-sys-color-surface-container)' }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{t('userTemplates.saveTitle')}</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <input
+                type="text"
+                className="m3-input"
+                placeholder={t('userTemplates.namePlaceholder')}
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                style={{ width: '100%' }}
+              />
+              <input
+                type="text"
+                className="m3-input"
+                placeholder={t('userTemplates.descPlaceholder')}
+                value={newTemplateDesc}
+                onChange={(e) => setNewTemplateDesc(e.target.value)}
+                style={{ width: '100%' }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="m3-button m3-button--outlined"
+                  style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                  onClick={() => {
+                    setIsSavingTemplate(false);
+                    setNewTemplateName('');
+                    setNewTemplateDesc('');
+                  }}
+                >
+                  {t('userTemplates.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="m3-button m3-button--filled"
+                  style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                  disabled={!newTemplateName.trim()}
+                  onClick={async () => {
+                    if (!newTemplateName.trim()) return;
+                    await onSaveUserTemplate?.(newTemplateName, newTemplateDesc);
+                    setIsSavingTemplate(false);
+                    setNewTemplateName('');
+                    setNewTemplateDesc('');
+                  }}
+                >
+                  {t('userTemplates.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    ) : null;
 
   return (
     <section aria-labelledby="form-heading" className="m3-card module-form">
+      <h2 id="form-heading" className="visually-hidden">Configuración de parámetros del módulo</h2>
       {/* 1. Sticky Header with Current Section & Dimensions */}
       <PanelStickyHeader
         currentSectionName={currentSectionTitle}
@@ -731,23 +813,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         onWidthChange={onWidthChange}
         onHeightChange={onHeightChange}
         onDepthChange={onDepthChange}
-        activeInterferenceCount={showInterferences ? activeInterferenceCount : 0}
-        onOpenInterferences={
-          showInterferences
-            ? () => {
-                setOpenSection('interferences');
-                setIsAllExpanded(false);
-                if (typeof document !== 'undefined') {
-                  const el = document.getElementById('accordion-section-interferences');
-                  if (el && typeof el.scrollIntoView === 'function') {
-                    try {
-                      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    } catch {}
-                  }
-                }
-              }
-            : undefined
-        }
+        hideHeight={isWallShelves}
       />
 
       {/* Main scrollable body for accordion sections and builder controls */}
@@ -765,8 +831,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
         onUpdateProjectModuleName={onUpdateProjectModuleName}
         onSaveModule={onSave}
         onSaveProject={onSaveProject}
-        onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
-        isSubdividedBay={activeBay.type === 'subdivided'}
       />
 
       {/* 3. Sticky Horizontal Tabs with Scroll Fade (< 1024px) */}
@@ -827,6 +891,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             isOpen={isAllExpanded || openSection === 'dimensions'}
             onToggle={() => handleToggleSection('dimensions')}
           >
+            {templateSelectorBlock}
             <WallShelvesSection
               width={width}
               depth={depth}
@@ -915,113 +980,7 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
             isOpen={isAllExpanded || openSection === 'dimensions'}
             onToggle={() => handleToggleSection('dimensions')}
           >
-            {templates && templates.length > 0 && onTemplateChange && (
-              <div className="form-group template-selection-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label htmlFor="select-template">
-                    Plantilla base o personalizada:
-                    <span className="visually-hidden">Module Template:</span>
-                  </label>
-                  {onSaveUserTemplate && (
-                    <button
-                      type="button"
-                      className="m3-button m3-button--tonal"
-                      style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}
-                      onClick={() => setIsSavingTemplate(!isSavingTemplate)}
-                    >
-                      💾 {t('userTemplates.saveButton')}
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  <select
-                    id="select-template"
-                    value={selectedTemplateId}
-                    onChange={(e) => onTemplateChange(e.target.value)}
-                    className="m3-select"
-                    style={{ flex: 1 }}
-                  >
-                    {templates.map((tpl) => (
-                      <option key={tpl.id} value={tpl.id}>
-                        {tpl.id.startsWith('user-') ? `⭐ ${tpl.name}` : translateTemplateName(tpl.id, tpl.name)}
-                      </option>
-                    ))}
-                  </select>
-
-                  {selectedTemplateId?.startsWith('user-') && onDeleteUserTemplate && (
-                    <button
-                      type="button"
-                      className="m3-button m3-button--outlined"
-                      style={{ padding: '0.25rem 0.5rem', color: 'var(--md-sys-color-error)' }}
-                      title={t('userTemplates.delete')}
-                      onClick={() => {
-                        const currentTpl = templates.find((tpl) => tpl.id === selectedTemplateId);
-                        const name = currentTpl?.name ?? selectedTemplateId;
-                        if (window.confirm(t('userTemplates.deleteConfirm', { name }))) {
-                          onDeleteUserTemplate(selectedTemplateId);
-                        }
-                      }}
-                    >
-                      🗑️
-                    </button>
-                  )}
-                </div>
-
-                {isSavingTemplate && (
-                  <div className="m3-card" style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--md-sys-color-surface-container)' }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>{t('userTemplates.saveTitle')}</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <input
-                        type="text"
-                        className="m3-input"
-                        placeholder={t('userTemplates.namePlaceholder')}
-                        value={newTemplateName}
-                        onChange={(e) => setNewTemplateName(e.target.value)}
-                        style={{ width: '100%' }}
-                      />
-                      <input
-                        type="text"
-                        className="m3-input"
-                        placeholder={t('userTemplates.descPlaceholder')}
-                        value={newTemplateDesc}
-                        onChange={(e) => setNewTemplateDesc(e.target.value)}
-                        style={{ width: '100%' }}
-                      />
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          className="m3-button m3-button--outlined"
-                          style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-                          onClick={() => {
-                            setIsSavingTemplate(false);
-                            setNewTemplateName('');
-                            setNewTemplateDesc('');
-                          }}
-                        >
-                          {t('userTemplates.cancel')}
-                        </button>
-                        <button
-                          type="button"
-                          className="m3-button m3-button--filled"
-                          style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-                          disabled={!newTemplateName.trim()}
-                          onClick={async () => {
-                            if (!newTemplateName.trim()) return;
-                            await onSaveUserTemplate?.(newTemplateName, newTemplateDesc);
-                            setIsSavingTemplate(false);
-                            setNewTemplateName('');
-                            setNewTemplateDesc('');
-                          }}
-                        >
-                          {t('userTemplates.save')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {templateSelectorBlock}
 
             <div className="dimension-row-grid">
               {/* Ancho */}
@@ -1170,7 +1129,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               onActiveBayIndexChange={onActiveBayIndexChange}
               activeBay={activeBay}
               onBayContentTypeChange={onBayContentTypeChange}
-              onOpenDistributionModal={() => setIsDistributionModalOpen(true)}
               onRemoveDrawer={onRemoveDrawer}
               onAddDrawer={onAddDrawer}
               onDrawerTracksChange={onDrawerTracksChange}
@@ -1238,28 +1196,6 @@ export function ModuleForm(props: ModuleFormProps): ReactElement {
               onJointStrategyChange={onJointStrategyChange}
             />
           </Accordion>
-
-          {/* SECCIÓN 6: Interferencias Arquitectónicas (Oculta según flag showInterferences) */}
-          {showInterferences && (
-            <Accordion
-              id="interferences"
-              icon="📐"
-              title="Interferencias"
-              summary={interferencesSummary}
-              isOpen={isAllExpanded || openSection === 'interferences'}
-              onToggle={() => handleToggleSection('interferences')}
-            >
-              <InterferencesSection
-                width={width}
-                height={height}
-                depth={depth}
-                columnObstacle={columnObstacle}
-                falseSquare={falseSquare}
-                onColumnObstacleChange={onColumnObstacleChange}
-                onFalseSquareChange={onFalseSquareChange}
-              />
-            </Accordion>
-          )}
         </>
       )}
 

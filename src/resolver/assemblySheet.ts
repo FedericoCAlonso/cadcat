@@ -90,7 +90,7 @@ export function getFriendlyPieceName(role: string): string {
   const r = role.toLowerCase();
   // 1. Drawer-specific components have priority over generic cabinet pieces
   if (r.includes('drawer-front')) return 'Frente de Cajón';
-  if (r.includes('drawer-box-front')) return 'Frente de Cajón';
+  if (r.includes('drawer-box-front')) return 'Contrafrente de Cajón';
   if (r.includes('drawer') && r.includes('side-left')) return 'Lateral Izquierdo de Cajón';
   if (r.includes('drawer') && r.includes('side-right')) return 'Lateral Derecho de Cajón';
   if (r.includes('drawer-box-side') || (r.includes('drawer') && r.includes('side'))) return 'Lateral de Cajón';
@@ -115,8 +115,7 @@ export function getFriendlyPieceName(role: string): string {
 /**
  * Resolves the 2D planar cut dimensions for a piece.
  * Consumes the exact cut dimensions (Cut Width x Cut Height x Thickness) identical to the Cut List CSV.
- * Prioritizes cutDimensionsMm from ResolvedPieceWithCutSize; otherwise falls back to finished dimensionsMm
- * or 2D contour width/height.
+ * Preserves 0.1 mm decimal precision so 0.8 mm edgeband deductions stay aligned across CSV, PieceList, Labels and Guide.
  */
 export function getPieceCutDimensions(
   piece: ResolvedPiece | { dimensionsMm?: { width: number; height: number }; cutDimensionsMm?: { width: number; height: number }; thicknessMm?: number; contour: { points: { x: number; y: number }[] } },
@@ -126,19 +125,20 @@ export function getPieceCutDimensions(
   thickness: number;
 } {
   const thickness = piece.thicknessMm ?? 18;
+  const round1 = (v: number) => Math.round(v * 10) / 10;
 
   if ('cutDimensionsMm' in piece && piece.cutDimensionsMm) {
     return {
-      width: Math.round(piece.cutDimensionsMm.width),
-      height: Math.round(piece.cutDimensionsMm.height),
+      width: round1(piece.cutDimensionsMm.width),
+      height: round1(piece.cutDimensionsMm.height),
       thickness,
     };
   }
 
   if ('dimensionsMm' in piece && piece.dimensionsMm) {
     return {
-      width: Math.round(piece.dimensionsMm.width),
-      height: Math.round(piece.dimensionsMm.height),
+      width: round1(piece.dimensionsMm.width),
+      height: round1(piece.dimensionsMm.height),
       thickness,
     };
   }
@@ -149,8 +149,8 @@ export function getPieceCutDimensions(
   const polyMaxY = Math.max(...piece.contour.points.map((pt) => pt.y));
 
   return {
-    width: Math.round(Math.max(1, polyMaxX - polyMinX)),
-    height: Math.round(Math.max(1, polyMaxY - polyMinY)),
+    width: round1(Math.max(1, polyMaxX - polyMinX)),
+    height: round1(Math.max(1, polyMaxY - polyMinY)),
     thickness,
   };
 }
@@ -268,16 +268,26 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       dy = 0;
     }
 
-    // Determine edge band summary
-    let bandedSummary = 'Canto frontal visto';
-    if (r.includes('back')) {
-      bandedSummary = 'Sin cantos (oculto en ranura)';
-    } else if (r.includes('shelf')) {
-      bandedSummary = 'Frente 2 mm PVC (canto visto)';
-    } else if (r.includes('side')) {
-      bandedSummary = 'Frente 2 mm PVC / Sup-Inf 0.45 mm';
-    } else if (r.includes('bottom') || r.includes('top')) {
-      bandedSummary = 'Frente 2 mm PVC / Laterales ciegos';
+    // Determine real edge band summary from piece faces / bandedEdges
+    const rawBandedList = ('bandedEdges' in p && Array.isArray((p as { bandedEdges?: Array<{ faceId: string; thicknessMm: number }> }).bandedEdges))
+      ? (p as { bandedEdges: Array<{ faceId: string; thicknessMm: number }> }).bandedEdges
+      : (p.faces ?? [])
+          .filter((f) => Boolean(f.edgeBandId))
+          .map((f) => ({ faceId: f.id, thicknessMm: 0 }));
+
+    let bandedSummary = 'Sin tapacantos';
+    if (rawBandedList.length > 0) {
+      const edgeNameMap: Record<string, string> = {
+        'top-edge': 'Sup',
+        'bottom-edge': 'Inf',
+        'left-edge': 'Izq',
+        'right-edge': 'Der',
+      };
+      const names = rawBandedList.map((b) => {
+        const label = edgeNameMap[b.faceId] ?? b.faceId;
+        return b.thicknessMm > 0 ? `${label} (${b.thicknessMm} mm)` : label;
+      });
+      bandedSummary = names.length === 4 ? `4 cantos${rawBandedList[0]?.thicknessMm ? ` (${rawBandedList[0].thicknessMm} mm)` : ''}` : names.join(' · ');
     }
 
     // Count prepared hardware for this piece
@@ -412,23 +422,35 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
     }
 
     if (panelOps.some((o) => o.hardwareType.includes('minifix'))) {
+      const minifixCount = panelOps.filter((o) => o.hardwareType.includes('minifix')).length;
       panelHardware.push({
         type: 'minifix',
         label: 'Pernos de Minifix System 32',
-        quantity: 4,
+        quantity: minifixCount,
         toolRequired: 'Destornillador PZ2',
         pilotDrillMm: 5.0,
       });
     }
 
-    if (doors.length > 0 && panel.role.includes('side')) {
+    const panelHingeJointCount = joints.filter(
+      (j) => (j.kind === 'hinge' || j.kind === 'butt-hinge' || j.kind === 'piano-hinge') &&
+        (j.a.pieceId === panel.id || j.b.pieceId === panel.id),
+    ).length;
+    if (panelHingeJointCount > 0 && panel.role.includes('side')) {
       panelHardware.push({
         type: 'hinge-plate',
         label: 'Bases de bisagra cazoleta (System 32)',
-        quantity: 2,
+        quantity: panelHingeJointCount,
         toolRequired: 'Destornillador PH2 / Tornillos 3.5x16 mm',
       });
     }
+
+    const realPanelBanded = panelSheet?.bandedEdges ?? {
+      top: (panel.faces ?? []).some((f) => f.id.includes('top') && Boolean(f.edgeBandId)),
+      bottom: (panel.faces ?? []).some((f) => f.id.includes('bottom') && Boolean(f.edgeBandId)),
+      left: (panel.faces ?? []).some((f) => f.id.includes('left') && Boolean(f.edgeBandId)),
+      right: (panel.faces ?? []).some((f) => f.id.includes('right') && Boolean(f.edgeBandId)),
+    };
 
     panelDetails.push({
       pieceId: panel.id,
@@ -436,12 +458,7 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       role: panel.role,
       name: getFriendlyPieceName(panel.role),
       dimensionsMm: cutDims,
-      bandedEdges: {
-        top: true,
-        bottom: false,
-        left: true,
-        right: false,
-      },
+      bandedEdges: realPanelBanded,
       datumNotes: 'Origen Datum (0,0): Esquina inferior frontal. Todas las cotas medidas en mm desde esta referencia.',
       hardwareInstalled: panelHardware,
       operations: panelOps,
@@ -486,31 +503,50 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
   // Step 2: Pre-machining and Hardware on Flat Panels
   const sideIds = [sideLeft?.id, sideRight?.id].filter((id): id is string => Boolean(id));
+  const totalHingeJoints = joints.filter(
+    (j) => j.kind === 'hinge' || j.kind === 'butt-hinge' || j.kind === 'piano-hinge',
+  ).length;
+  const totalSlideJoints = joints.filter((j) => j.kind === 'slide').length;
+  const totalDowelJoints = joints.filter(
+    (j) => j.kind === 'dowel' || j.kind === 'dowel-and-confirmat',
+  ).length;
+  const effectiveJointStrategy = input.machiningConfig?.jointStrategy;
+  const hasDowelsInModule =
+    totalDowelJoints > 0 ||
+    effectiveJointStrategy === 'dowel-and-confirmat';
+
   if (sideIds.length > 0) {
     const preAssemblyHardware: AssemblyHardwareRequirement[] = [];
-    if (doors.length > 0) {
+    if (totalHingeJoints > 0) {
       preAssemblyHardware.push({
         type: 'hinge-plate',
         label: 'Bases de bisagra cazoleta',
-        quantity: doors.length * 2,
+        quantity: totalHingeJoints,
         toolRequired: 'Destornillador PH2 / Tornillos autorroscantes 3.5x16 mm',
       });
     }
-    if (drawers.length > 0) {
+    if (totalSlideJoints > 0) {
       preAssemblyHardware.push({
         type: 'slide',
-        label: 'Guías de corredera telescópica (miembro de mueble)',
-        quantity: Math.max(2, Math.floor(drawers.length / 4) * 2),
+        label: 'Guías de corredera telescópica (1 por lado / 2 = 1 par)',
+        quantity: totalSlideJoints,
         toolRequired: 'Tornillos Euro 6.3x13 mm o 3.5x16 mm',
       });
     }
-    preAssemblyHardware.push({
-      type: 'dowel',
-      label: 'Tarugos de madera haya 8x30 mm',
-      quantity: 6,
-      toolRequired: 'Martillo de goma y cola vinílica D3',
-      pilotDrillMm: 8.0,
-    });
+    if (hasDowelsInModule) {
+      const dowelCount = totalDowelJoints > 0
+        ? totalDowelJoints * 2
+        : joints.filter((j) => j.kind === 'confirmat').length * 2;
+      if (dowelCount > 0) {
+        preAssemblyHardware.push({
+          type: 'dowel',
+          label: 'Tarugos de madera 8x35 mm',
+          quantity: dowelCount,
+          toolRequired: 'Martillo de goma y cola vinílica D3',
+          pilotDrillMm: 8.0,
+        });
+      }
+    }
 
     steps.push({
       stepNumber: stepNumber++,
@@ -560,7 +596,9 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
       },
       workshopTips: [
         'Alinear los cantos frontales a ras absoluto (0.0 mm) antes de apretar.',
-        'Verificar que la ranura posterior para el fondo de 9 mm quede continua y en el mismo plano.',
+        back
+          ? `Verificar la alineación posterior para el fondo de ${back.thicknessMm} mm antes del apriete definitivo.`
+          : 'Verificar el escuadrado a 90° entre base y lateral antes del apriete definitivo.',
       ],
     });
   }
@@ -725,25 +763,43 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
 
   // Step 7: Squaring and Back Panel (Mathematical Squaring)
   if (back) {
-    const backFastenersCount = Math.round(((modWidth + modHeight) * 2) / 120);
-    const backHardware: AssemblyHardwareRequirement[] = [
-      {
-        type: 'wood-screw',
-        label: 'Tornillos autorroscantes 3.5x20 mm o clavos con arandela',
-        quantity: Math.max(16, backFastenersCount),
-        toolRequired: 'Destornillador PZ2 o Martillo carpintero',
-      },
-    ];
+    const backJoints = joints.filter((j) => j.a.pieceId === back.id || j.b.pieceId === back.id);
+    const isGroovedBack = backJoints.some((j) => j.kind === 'groove');
+    const isOverlayBack = backJoints.some((j) => j.kind === 'screw');
+    const backFastenersCount = Math.max(16, Math.round(((modWidth + modHeight) * 2) / 120));
+    const backHardware: AssemblyHardwareRequirement[] = isGroovedBack
+      ? []
+      : isOverlayBack
+        ? [
+            {
+              type: 'wood-screw',
+              label: 'Tornillos autorroscantes 3.5x20 mm o clavos con arandela',
+              quantity: backFastenersCount,
+              toolRequired: 'Destornillador PZ2 o Martillo carpintero',
+            },
+          ]
+        : [
+            {
+              type: 'confirmat',
+              label: 'Tornillos Confirmat 7x50 mm (fondo estructural)',
+              quantity: Math.max(4, backJoints.length * 2),
+              toolRequired: 'Llave Allen 4 mm',
+            },
+          ];
 
     steps.push({
       stepNumber: stepNumber++,
       phase: 'squaring',
       title: 'Escuadrar Casco y Colocar Fondo',
-      instruction: `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Insertar o atornillar el fondo (${back.id}) en ranuras o solape y fijar.`,
+      instruction: isGroovedBack
+        ? `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Deslizar el fondo de ${back.thicknessMm} mm (${back.id}) por las ranuras perimetrales.`
+        : `Medir ambas diagonales entre esquinas opuestas del mueble. Verificar que coincidan con tolerancia ≤ 1 mm (valor teórico calculado: ${squaringDiagonalMm} mm). Colocar y fijar el fondo de ${back.thicknessMm} mm (${back.id}).`,
       piecesInvolved: [back.id],
       gaugesInvolved: [],
       hardwareRequirements: backHardware,
-      hardwareSummary: `${backHardware[0]!.quantity} fijaciones perimetrales`,
+      hardwareSummary: isGroovedBack
+        ? `Encastre en ranura perimetral (${back.thicknessMm} mm)`
+        : `${backHardware[0]?.quantity ?? 0} fijaciones perimetrales`,
       toolsRequired: ['Cinta métrica metálica', 'Destornillador PZ2', 'Prensas de apriete cruzado'],
       criticalDimensionMm: {
         label: 'Diagonal de escuadra teórica calculada (D1 = D2)',
@@ -782,19 +838,20 @@ export function generateAssemblySheet(input: GenerateAssemblySheetInput): Assemb
   // Step 8: Sub-assemblies (Drawers & Doors)
   if (drawers.length > 0 || doors.length > 0) {
     const subAssemblyHardware: AssemblyHardwareRequirement[] = [];
-    if (drawers.length > 0) {
+    const drawerCount = drawers.filter((d) => d.role === 'drawer-front').length || Math.ceil(totalSlideJoints / 2);
+    if (drawers.length > 0 && drawerCount > 0) {
       subAssemblyHardware.push({
-        type: 'slide',
-        label: 'Tornillos fijación cajón 3.5x14 mm',
-        quantity: 8,
+        type: 'wood-screw',
+        label: 'Tornillos fijación frente/corredera 3.5x16 mm',
+        quantity: drawerCount * 6,
         toolRequired: 'Destornillador PH2',
       });
     }
-    if (doors.length > 0) {
+    if (totalHingeJoints > 0) {
       subAssemblyHardware.push({
         type: 'hinge-plate',
         label: 'Bisagras cazoleta 35 mm con tornillos de regulación',
-        quantity: doors.length * 2,
+        quantity: totalHingeJoints,
         toolRequired: 'Destornillador PH2',
       });
     }

@@ -302,7 +302,7 @@ describe('PieceListView Component', () => {
     expect(html).toContain('560 x 800 mm');
     expect(html).toContain('558 x 800 mm');
     expect(html).toContain('18 mm');
-    expect(html).toContain('right-edge (2mm)');
+    expect(html).toContain('Der. (2mm)');
   });
 
   it('renders empty placeholder when pieces array is empty', () => {

@@ -16,7 +16,7 @@ import {
 } from './cost';
 import { type ResolvedPieceWithCutSize } from './edgeBand';
 import { type AssemblyGauge } from './gauges';
-import { canPieceRotate } from './piece';
+import { canPieceRotate, resolvePieceGrainAxis } from './piece';
 import { type NestingItem, runMultiMaterialGuillotineNesting, type MultiMaterialNestingResult } from '../workers';
 
 export interface ModuleToConsolidate {
@@ -184,6 +184,11 @@ export function buildProjectNestingItems(
       for (const p of mod.pieces) {
         const pieceMat = materials.find((m) => m.id === p.materialId) ?? activeMat;
         const canRotate = canPieceRotate(p, Boolean(pieceMat?.hasGrain), grainMode);
+        const grainAxis = Boolean(pieceMat?.hasGrain) ? resolvePieceGrainAxis(p) : 'none';
+        // Align visible vertical panels' height along the sheet's X grain length (e.g. 2800mm)
+        const swapForGrain = !canRotate && grainAxis === 'height';
+        const nestCutWidthMm = swapForGrain ? p.cutDimensionsMm.height : p.cutDimensionsMm.width;
+        const nestCutHeightMm = swapForGrain ? p.cutDimensionsMm.width : p.cutDimensionsMm.height;
         const uniqueId = qty > 1 || modules.length > 1
           ? `${mod.moduleId}__${p.id}__i${instance}`
           : p.id;
@@ -194,8 +199,8 @@ export function buildProjectNestingItems(
           name: p.role,
           moduleName: modules.length > 1 ? mod.moduleName : undefined,
           materialId: p.materialId,
-          cutWidthMm: p.cutDimensionsMm.width,
-          cutHeightMm: p.cutDimensionsMm.height,
+          cutWidthMm: nestCutWidthMm,
+          cutHeightMm: nestCutHeightMm,
           canRotate,
           isAuxiliary: Boolean(p.isAuxiliary),
         });

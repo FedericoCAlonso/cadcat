@@ -109,6 +109,10 @@ export function calculatePieceCutSize(
     }
 
     const thickness = getEdgeBandThickness(band);
+    const effectiveDeduction =
+      band.deductFromCut === false
+        ? 0
+        : Math.max(0, thickness - (band.preMillingMm ?? 0));
     const seg = segments.find((s) => s.faceId === face.id);
     const lengthMm = seg?.lengthMm ?? 0;
 
@@ -120,16 +124,16 @@ export function calculatePieceCutSize(
     };
 
     if (face.id === 'left-edge' || face.id === 'edge-3') {
-      leftDeduction = thickness;
+      leftDeduction = effectiveDeduction;
       leftEdge = edgeInfo;
     } else if (face.id === 'right-edge' || face.id === 'edge-1') {
-      rightDeduction = thickness;
+      rightDeduction = effectiveDeduction;
       rightEdge = edgeInfo;
     } else if (face.id === 'bottom-edge' || face.id === 'edge-0') {
-      bottomDeduction = thickness;
+      bottomDeduction = effectiveDeduction;
       bottomEdge = edgeInfo;
     } else if (face.id === 'top-edge' || face.id === 'edge-2') {
-      topDeduction = thickness;
+      topDeduction = effectiveDeduction;
       topEdge = edgeInfo;
     }
   }

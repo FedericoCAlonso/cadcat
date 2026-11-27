@@ -284,11 +284,23 @@ export function PieceInspectorCard({
               }}
             >
               <option value="">Por defecto del módulo</option>
-              {edgeBands.map((eb) => (
-                <option key={eb.id} value={eb.id}>
-                  {eb.id} ({eb.thicknessMm} mm - {eb.kind})
-                </option>
-              ))}
+              {edgeBands.map((eb) => {
+                const kindEs =
+                  eb.kind === 'adhesive'
+                    ? 'Adhesivo'
+                    : eb.kind === 'aluminium-profile'
+                      ? 'Aluminio'
+                      : eb.kind === 'veneer'
+                        ? 'Chapa'
+                        : eb.kind === 'rod'
+                          ? 'Varilla'
+                          : String(eb.kind).toUpperCase();
+                return (
+                  <option key={eb.id} value={eb.id}>
+                    {eb.name ?? eb.id} ({eb.thicknessMm} mm · {kindEs})
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}
@@ -312,7 +324,17 @@ export function PieceInspectorCard({
             onSetPieceJointOverride?.(selectedPiece.id, val ? val : null);
           }}
         >
-          <option value="">Por defecto del proyecto ({jointStrategy})</option>
+          <option value="">
+            Por defecto del proyecto (
+            {jointStrategy === 'cam-dowel'
+              ? 'Minifix'
+              : jointStrategy === 'dowel-and-confirmat'
+                ? 'Tarugos + Confirmat'
+                : jointStrategy === 'screw'
+                  ? 'Tornillo común'
+                  : 'Confirmat'}
+            )
+          </option>
           <option value="cam-dowel">Minifix / Rastex (Oculto sin tornillos pasantes)</option>
           <option value="dowel">Tarugos de madera (Oculto)</option>
           <option value="confirmat">Tornillo pasante (Confirmat)</option>
@@ -321,7 +343,16 @@ export function PieceInspectorCard({
         </select>
         {pieceJointOverrides?.[selectedPiece.id] && (
           <span className="m3-badge m3-badge--success" style={{ marginTop: '0.35rem', display: 'inline-block' }}>
-            ✓ Fijación personalizada: {pieceJointOverrides[selectedPiece.id]}
+            ✓ Fijación personalizada:{' '}
+            {pieceJointOverrides[selectedPiece.id] === 'cam-dowel'
+              ? 'Minifix'
+              : pieceJointOverrides[selectedPiece.id] === 'dowel'
+                ? 'Tarugos'
+                : pieceJointOverrides[selectedPiece.id] === 'dowel-and-confirmat'
+                  ? 'Tarugos + Confirmat'
+                  : pieceJointOverrides[selectedPiece.id] === 'screw'
+                    ? 'Tornillo común'
+                    : 'Confirmat'}
           </span>
         )}
       </div>
@@ -368,7 +399,7 @@ export function PieceInspectorCard({
               <strong>Carga: </strong>
               {`${defl.totalLoadKg.toFixed(1)} kg (${defl.totalLoadN.toFixed(0)} N) | `}
               <strong>Módulo E: </strong>
-              {`${defl.elasticModulusMPa} MPa ${defl.isElasticModulusConfirmed ? '' : '(TO_CONFIRM)'}`}
+              {`${defl.elasticModulusMPa} MPa ${defl.isElasticModulusConfirmed ? '' : '(A confirmar)'}`}
             </p>
             {defl.hasWarning && (
               <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', fontWeight: 600 }}>

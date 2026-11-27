@@ -1,12 +1,14 @@
-/**
- * Default shop saw kerf in millimeters. Marked TO_CONFIRM.
- */
-export const DEFAULT_SAW_KERF_MM = 3.2;
+import defaultProjectConfigJson from '../config/defaultProjectConfig.json';
 
 /**
- * Default sheet trim margin in millimeters. Marked TO_CONFIRM.
+ * Default shop saw kerf in millimeters, synced with ProjectConfig default.
  */
-export const DEFAULT_TRIM_MARGIN_MM = 10;
+export const DEFAULT_SAW_KERF_MM = defaultProjectConfigJson.nesting.sawKerfMm;
+
+/**
+ * Default sheet trim margin in millimeters, synced with ProjectConfig default.
+ */
+export const DEFAULT_TRIM_MARGIN_MM = defaultProjectConfigJson.nesting.sheetTrimMarginMm;
 
 export interface NestingItem {
   id: string;

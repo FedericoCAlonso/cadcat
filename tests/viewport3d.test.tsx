@@ -151,7 +151,7 @@ describe('Viewport3D Component', () => {
     expect(html).toContain('Deflexión en Estante');
     expect(html).toContain('0.20 mm');
     expect(html).toContain('2.82 mm');
-    expect(html).toContain('(TO_CONFIRM)');
+    expect(html).toContain('(A confirmar)');
   });
 });
 

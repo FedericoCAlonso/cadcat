@@ -53,6 +53,10 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   // Desktop keyboard hotkeys: G=Groove, R=Rebate, F=Cutout, D=Drill, S=Series, P=Profile, T=Fasteners, Esc=Close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        vm.onClose();
+        return;
+      }
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -164,6 +168,9 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
   return (
     <div
       className="m3-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Editor de Mecanizados en Placa"
       onClick={(e) => {
         if (e.target === e.currentTarget) vm.onClose();
       }}
@@ -188,8 +195,8 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     borderRadius: '12px',
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                    color: '#15803d',
+                    backgroundColor: 'var(--md-sys-color-primary-container)',
+                    color: 'var(--md-sys-color-on-primary-container)',
                   }}
                   title="Sin observaciones de taller"
                 >
@@ -205,10 +212,10 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     fontWeight: 600,
                     backgroundColor: vm.validationIssues.some((i) => i.level === 'error')
                       ? 'var(--md-sys-color-error-container)'
-                      : '#fef08a',
+                      : 'var(--md-sys-color-tertiary-container, var(--md-sys-color-secondary-container))',
                     color: vm.validationIssues.some((i) => i.level === 'error')
                       ? 'var(--md-sys-color-on-error-container)'
-                      : '#854d0e',
+                      : 'var(--md-sys-color-on-tertiary-container, var(--md-sys-color-on-secondary-container))',
                   }}
                   title={`${vm.validationIssues.length} observaciones`}
                 >
@@ -1269,7 +1276,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     zIndex: 10,
                     display: 'flex',
                     gap: '4px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+                    backgroundColor: 'var(--md-sys-color-surface-container-high)',
                     backdropFilter: 'blur(4px)',
                     padding: '3px 6px',
                     borderRadius: '6px',
@@ -1279,7 +1286,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                 >
                   <button
                     type="button"
-                    className={`m3-btn m3-btn--small ${panZoom.mode === 'pan' ? 'm3-btn--primary' : 'm3-btn--tonal'}`}
+                    className={`m3-btn m3-btn--small cad-zoom-btn ${panZoom.mode === 'pan' ? 'm3-btn--primary' : 'm3-btn--tonal'}`}
                     style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
                     onClick={() => panZoom.setMode(panZoom.mode === 'pan' ? 'select' : 'pan')}
                     title={panZoom.mode === 'pan' ? 'Modo Paneo activo (arrastrar)' : 'Cambiar a modo Paneo'}
@@ -1288,8 +1295,8 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   </button>
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--tonal"
-                    style={{ padding: '0.15rem 0.45rem', minWidth: '28px', fontSize: '0.8rem' }}
+                    className="m3-btn m3-btn--small m3-btn--tonal cad-zoom-btn"
+                    style={{ padding: '0.15rem 0.45rem', fontSize: '0.8rem' }}
                     onClick={panZoom.zoomIn}
                     title="Acercar Zoom [Tecla +]"
                   >
@@ -1297,8 +1304,8 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   </button>
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--tonal"
-                    style={{ padding: '0.15rem 0.45rem', minWidth: '28px', fontSize: '0.8rem' }}
+                    className="m3-btn m3-btn--small m3-btn--tonal cad-zoom-btn"
+                    style={{ padding: '0.15rem 0.45rem', fontSize: '0.8rem' }}
                     onClick={panZoom.zoomOut}
                     title="Alejar Zoom [Tecla -]"
                   >
@@ -1306,7 +1313,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   </button>
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--tonal"
+                    className="m3-btn m3-btn--small m3-btn--tonal cad-zoom-btn"
                     style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
                     onClick={panZoom.fitView}
                     title="Ajustar a pantalla [Shift + F]"
@@ -1315,7 +1322,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   </button>
                   <button
                     type="button"
-                    className="m3-btn m3-btn--small m3-btn--outlined"
+                    className="m3-btn m3-btn--small m3-btn--outlined cad-zoom-btn"
                     style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
                     onClick={panZoom.resetView}
                     title="Restablecer escala 1:1"
@@ -1331,7 +1338,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                   width="100%"
                   height="100%"
                   style={{
-                    backgroundColor: '#fafafa',
+                    backgroundColor: 'var(--md-sys-color-surface-container-lowest)',
                     cursor: panZoom.isPanning || panZoom.mode === 'pan' ? 'grabbing' : 'crosshair',
                     userSelect: 'none',
                     touchAction: 'none',
@@ -1369,7 +1376,7 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                       <g>
                         <rect x="20" y="12" width={targetWidth - 40} height="32" rx="6" fill="#fff3cd" stroke="#ffc107" strokeWidth="1.5" />
                         <text x={targetWidth / 2} y="32" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#664d03">
-                          ⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B (TURN PIECE OVER)
+                          ⚠️ ATENCIÓN: GIRAR LA PIEZA PARA MECANIZAR CARA B
                         </text>
                       </g>
                     )}
@@ -2061,7 +2068,20 @@ export function MachiningEditorModal(props: MachiningEditorModalProps): ReactEle
                     style={{ flex: 1, minHeight: '48px', fontSize: '0.9rem', fontWeight: 700 }}
                     onClick={vm.handleAddOperation}
                   >
-                    ➕ Aplicar {vm.opType === 'drill' ? 'Perforación' : vm.opType === 'groove' ? 'Ranura' : vm.opType === 'rebate' ? 'Rebaje' : vm.opType === 'cutout' ? 'Calado' : 'Tornillos'}
+                    ➕ Aplicar{' '}
+                    {vm.opType === 'drill'
+                      ? 'Perforación'
+                      : vm.opType === 'hole-series'
+                        ? 'Cremallera Sist. 32'
+                        : vm.opType === 'groove'
+                          ? 'Ranura'
+                          : vm.opType === 'rebate'
+                            ? 'Rebaje'
+                            : vm.opType === 'cutout'
+                              ? 'Calado'
+                              : vm.opType === 'edge-profile'
+                                ? 'Perfilado'
+                                : 'Tornillos'}
                   </button>
                   <button
                     type="button"

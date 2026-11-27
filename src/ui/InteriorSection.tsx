@@ -41,8 +41,8 @@ export interface InteriorSectionProps {
     bayIndex: number,
     type: 'empty' | 'shelves' | 'drawer-stack' | 'doors' | 'pull-out-tray' | 'bi-fold-closure' | 'subdivided',
   ) => void;
-  /** Callback to open the complex subdivided distribution modal. */
-  onOpenDistributionModal: () => void;
+  /** Callback to open the complex subdivided distribution modal (optional, handled in DistributionSection). */
+  onOpenDistributionModal?: () => void;
   /** Callback to remove a drawer from the active bay. */
   onRemoveDrawer?: (bayIndex: number) => void;
   /** Callback to add a drawer to the active bay. */
@@ -120,7 +120,6 @@ export function InteriorSection({
   onActiveBayIndexChange,
   activeBay,
   onBayContentTypeChange,
-  onOpenDistributionModal,
   onRemoveDrawer,
   onAddDrawer,
   onDrawerTracksChange,
@@ -164,18 +163,36 @@ export function InteriorSection({
       {/* Pestañas si hay más de 1 vano */}
       {currentBayCount > 1 && (
         <div className="builder-bay-tab-row" role="tablist" aria-label="Seleccionar vano para equipar">
-          {Array.from({ length: currentBayCount }, (_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className={`m3-chip ${currentActiveIndex === idx ? 'm3-chip--selected' : ''}`}
-              onClick={() => onActiveBayIndexChange?.(idx)}
-              role="tab"
-              aria-selected={currentActiveIndex === idx}
-            >
-              Vano {idx + 1} {idx === 0 ? '(Izq)' : idx === 1 ? '(Der)' : `(${idx + 1})`}
-            </button>
-          ))}
+          {Array.from({ length: currentBayCount }, (_, idx) => {
+            const bayPosLabel =
+              gridType === '2-bays-horizontal'
+                ? idx === 0
+                  ? '(Sup)'
+                  : '(Inf)'
+                : currentBayCount === 2
+                  ? idx === 0
+                    ? '(Izq)'
+                    : '(Der)'
+                  : currentBayCount === 3
+                    ? idx === 0
+                      ? '(Izq)'
+                      : idx === 1
+                        ? '(Centro)'
+                        : '(Der)'
+                    : `(${idx + 1})`;
+            return (
+              <button
+                key={idx}
+                type="button"
+                className={`m3-chip ${currentActiveIndex === idx ? 'm3-chip--selected' : ''}`}
+                onClick={() => onActiveBayIndexChange?.(idx)}
+                role="tab"
+                aria-selected={currentActiveIndex === idx}
+              >
+                Vano {idx + 1} {bayPosLabel}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -224,40 +241,6 @@ export function InteriorSection({
             onClick={() => onBayContentTypeChange?.(currentActiveIndex, 'empty')}
           >
             ⬜ Libre
-          </button>
-        </div>
-
-        {/* Botón para abrir el Modal de Distribución Compleja (Matriz estilo Word) */}
-        <div style={{ marginTop: '0.75rem' }}>
-          <button
-            type="button"
-            className={`builder-segmented-btn ${activeBay.type === 'subdivided' ? 'selected' : ''}`}
-            onClick={onOpenDistributionModal}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1rem',
-              fontWeight: 600,
-              border: activeBay.type === 'subdivided'
-                ? '2px solid var(--md-sys-color-primary)'
-                : '1px dashed var(--md-sys-color-primary)',
-              backgroundColor: activeBay.type === 'subdivided'
-                ? 'var(--md-sys-color-primary-container)'
-                : 'var(--md-sys-color-surface-container-low)',
-              color: 'var(--md-sys-color-primary)',
-              borderRadius: 'var(--md-sys-shape-corner-sm)',
-              cursor: 'pointer',
-            }}
-          >
-            <span>📐</span>
-            <span>
-              {activeBay.type === 'subdivided'
-                ? 'Editar Distribución Compleja (Matriz)...'
-                : 'Diseñar Distribución Compleja (Matriz / Mixto)...'}
-            </span>
           </button>
         </div>
       </div>
@@ -627,7 +610,7 @@ export function InteriorSection({
 
           {/* Definición de pistas estilo CSS Grid (Proporciones y Medidas) */}
           <div className="form-group" style={{ padding: '0.75rem', backgroundColor: 'var(--md-sys-color-surface-container-low)', borderRadius: 'var(--md-sys-shape-corner-sm)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-            <label htmlFor="input-shelf-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+            <label htmlFor="input-grid-tracks" style={{ fontWeight: 600, color: 'var(--md-sys-color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
               📐 Medidas de vanos/espacios (mm, fr o mixto):
             </label>
             <DrawerTracksInput
@@ -1043,17 +1026,9 @@ export function InteriorSection({
             <span>Distribución Compleja Activa</span>
           </div>
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
-            Este vano tiene una matriz de zonas y celdas independientes (estantes, cajones, casilleros).
+            Este vano tiene una matriz de zonas y celdas independientes. Editá su estructura desde la sección <strong>Vanos → Edición Especial</strong>.
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="builder-segmented-btn selected"
-              onClick={onOpenDistributionModal}
-              style={{ flex: 1 }}
-            >
-              ✏️ Abrir Matriz de Edición
-            </button>
             <button
               type="button"
               className="builder-segmented-btn"

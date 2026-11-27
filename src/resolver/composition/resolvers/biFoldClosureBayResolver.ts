@@ -87,7 +87,7 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
     }
 
     const isVertical = openingDirection === 'vertical-lift';
-    const availableSpan = isVertical ? bay.height : bay.width;
+    const availableSpan = isVertical ? bay.height + 2 * T - 4 : bay.width + 2 * T - 4;
     const resolved = resolveTracks(availableSpan, leafTracks, 2); // 2mm gap between folding leaves
 
     const leaf1Track = resolved.tracks[0]!;
@@ -95,6 +95,13 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
 
     const leaf1Id = `${idPrefix}-bifold-leaf-1`;
     const leaf2Id = `${idPrefix}-bifold-leaf-2`;
+
+    const applyPerimeterEdgeBand = (piece: Piece) => {
+      if (!edgeBandId) return;
+      for (const f of piece.faces) {
+        if (f.id.endsWith('-edge')) f.edgeBandId = edgeBandId;
+      }
+    };
 
     if (isVertical) {
       // Upper leaf (leaf 1) and lower leaf (leaf 2)
@@ -120,11 +127,13 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
         structural: false,
       });
 
+      applyPerimeterEdgeBand(leaf1);
+      applyPerimeterEdgeBand(leaf2);
       pieces.push(leaf1, leaf2);
 
-      // Leaf 1 is placed at the top, Leaf 2 below it
-      const leaf2Y = bay.y;
-      const leaf1Y = bay.y + leaf2Height + 2;
+      // Leaf 1 is placed at the top, Leaf 2 below it (covering top & bottom carcass edges)
+      const leaf2Y = bay.y - T + 2;
+      const leaf1Y = leaf2Y + leaf2Height + 2;
 
       placementNodes.push(
         {
@@ -202,6 +211,8 @@ export class BiFoldClosureBayResolver implements IBayContentResolver<BayContentB
         structural: false,
       });
 
+      applyPerimeterEdgeBand(leaf1);
+      applyPerimeterEdgeBand(leaf2);
       pieces.push(leaf1, leaf2);
 
       placementNodes.push(

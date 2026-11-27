@@ -249,6 +249,7 @@ html {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  overflow-x: clip;
   font-size: 100%;
   box-sizing: border-box;
 }
@@ -268,6 +269,7 @@ body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  overflow-x: clip;
   position: relative;
 }
 
@@ -279,6 +281,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* App Header & Top App Bar */
@@ -516,6 +519,7 @@ body {
       display: block !important;
       width: 100% !important;
       min-width: 0 !important;
+      padding-bottom: calc(var(--m3-bottom-nav-total-height, 64px) + 1rem) !important;
     }
   }
 }
@@ -610,9 +614,9 @@ body {
   }
 
   .layout-aside.tablet-bottom-sheet--collapsed {
-    height: 190px !important;
-    min-height: 190px !important;
-    max-height: 190px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 230px !important;
   }
 
   .layout-aside.tablet-bottom-sheet--collapsed .module-form > *:not(.module-form__header):not(.module-form__summary-footer):not(.tablet-bottom-sheet-handle-bar):not(.panel-summary-footer),
@@ -622,11 +626,16 @@ body {
   }
 
   .layout-aside.tablet-bottom-sheet--middle {
-    height: 50vh !important;
+    height: 52vh !important;
   }
 
   .layout-aside.tablet-bottom-sheet--full {
-    height: calc(100dvh - var(--m3-bottom-nav-total-height, 64px) - 0.5rem) !important;
+    height: calc(100dvh - 76px - var(--m3-bottom-nav-total-height, 64px)) !important;
+  }
+
+  .layout-aside.tablet-bottom-sheet .scroll-fade-tabs-container {
+    position: static !important;
+    top: auto !important;
   }
 
   .layout-aside.tablet-bottom-sheet .module-form {
@@ -707,7 +716,15 @@ body {
   .m3-top-app-bar__inner {
     height: 100%;
     flex-wrap: nowrap;
-    gap: 1rem;
+    gap: 0.5rem;
+  }
+
+  .m3-top-app-bar__brand {
+    flex-shrink: 0;
+  }
+
+  .m3-top-app-bar__actions {
+    flex-shrink: 0;
   }
 
   .m3-top-app-bar__subtitle {
@@ -717,21 +734,36 @@ body {
   .m3-top-app-bar .m3-tabs {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.35rem;
+    gap: 0.15rem;
+    padding: 0.18rem 0.25rem;
     background-color: var(--md-sys-color-surface-container);
     border-radius: var(--md-sys-shape-corner-full);
     border: 1px solid var(--md-sys-color-outline-variant);
     height: 2.35rem;
     box-sizing: border-box;
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .m3-top-app-bar .m3-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .m3-tab-button {
-    padding: 0.25rem 0.85rem;
-    font-size: 0.825rem;
+    padding: 0.25rem 0.58rem;
+    font-size: 0.78rem;
     font-weight: 600;
+    gap: 0.3rem;
     min-height: 1.85rem;
+    flex-shrink: 0;
     border-radius: var(--md-sys-shape-corner-full);
+  }
+
+  .m3-top-app-bar__actions .theme-toggle-group .m3-segmented-button__item {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
   }
 
   .layout-grid--single-col {
@@ -1014,6 +1046,8 @@ body {
 }
 
 .m3-btn--filled,
+.m3-btn--primary,
+.m3-btn-filled,
 .m3-button--filled,
 .m3-button--primary {
   background-color: var(--primary);
@@ -1021,6 +1055,8 @@ body {
 }
 
 .m3-btn--filled:hover:not(:disabled),
+.m3-btn--primary:hover:not(:disabled),
+.m3-btn-filled:hover:not(:disabled),
 .m3-button--filled:hover:not(:disabled),
 .m3-button--primary:hover:not(:disabled) {
   background-color: var(--primary-hover);
@@ -1039,6 +1075,7 @@ body {
 }
 
 .m3-btn--outlined,
+.m3-btn-outlined,
 .m3-button--outlined {
   background-color: transparent;
   color: var(--primary);
@@ -1046,10 +1083,12 @@ body {
 }
 
 .m3-btn--outlined:hover:not(:disabled),
+.m3-btn-outlined:hover:not(:disabled),
 .m3-button--outlined:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
+.m3-btn--text,
 .m3-button--text {
   background-color: transparent;
   color: var(--primary);
@@ -1057,6 +1096,7 @@ body {
   padding: 0.5rem 0.75rem;
 }
 
+.m3-btn--text:hover:not(:disabled),
 .m3-button--text:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--primary) 8%, transparent);
 }
@@ -2058,6 +2098,12 @@ body {
   border: 1px solid var(--md-sys-color-outline-variant);
 }
 
+.m3-badge--tonal {
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
 .m3-alert {
   display: flex;
   align-items: flex-start;
@@ -2065,6 +2111,12 @@ body {
   padding: 0.85rem 1rem;
   border-radius: var(--md-sys-shape-corner-sm);
   font: var(--md-sys-typescale-body-medium);
+}
+
+.m3-alert--info {
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border: 1px solid var(--md-sys-color-primary);
 }
 
 .m3-alert--warning {
@@ -2824,7 +2876,8 @@ legend.builder-section-title {
   background-color: var(--md-sys-color-surface-container);
 }
 
-.catalog-tabs {
+.catalog-tabs,
+.catalog-subtabs-row {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
@@ -3103,11 +3156,39 @@ legend.builder-section-title {
   }
 
   .machining-workshop-bottom-dock .m3-chip {
-    min-height: 38px !important;
+    min-height: 48px !important;
+    height: auto !important;
+    padding: 0.35rem 0.75rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .machining-workshop-bottom-dock .m3-btn {
-    min-height: 44px !important;
+    min-height: 48px !important;
+  }
+
+  .machining-shop-presets-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.4rem !important;
+    max-width: 100% !important;
+    padding-bottom: 0.25rem;
+  }
+
+  .machining-shop-config-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    gap: 0.4rem !important;
+    max-width: 100% !important;
+  }
+
+  .machining-shop-config-bar .m3-segmented-button {
+    height: auto !important;
+    overflow: visible !important;
+    flex-wrap: wrap !important;
   }
 
   .machining-editor-layout.mobile-tab--controls .machining-editor-canvas-column {
@@ -3193,15 +3274,18 @@ legend.builder-section-title {
     display: none;
   }
 
-  .catalog-tabs {
+  .catalog-tabs,
+  .catalog-subtabs-row {
     display: grid !important;
     grid-template-columns: 1fr 1fr 1fr !important;
     gap: 0.35rem !important;
     width: 100% !important;
   }
 
-  .catalog-tabs .settings-tab-btn {
-    padding: 0.45rem 0.2rem !important;
+  .catalog-tabs .settings-tab-btn,
+  .catalog-subtabs-row .settings-tab-btn {
+    min-height: 48px !important;
+    padding: 0.45rem 0.25rem !important;
     font-size: 0.78rem !important;
     text-align: center !important;
     justify-content: center !important;
@@ -3298,15 +3382,7 @@ legend.builder-section-title {
   }
 
   .settings-subtabs {
-    display: flex !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    gap: 0.5rem;
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.75rem;
-    width: 100%;
-    box-sizing: border-box;
-    scrollbar-width: thin;
+    display: none !important;
   }
 
   .settings-subtabs .settings-tab-btn {
@@ -3535,6 +3611,17 @@ legend.builder-section-title {
    ========================================================================== */
 .piece-card-mobile {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.piece-card-mobile .m3-badge {
+  white-space: normal;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.25;
 }
 
 .piece-card-mobile:active {
@@ -4400,18 +4487,20 @@ legend.builder-section-title {
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .drawer-distribution-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--md-sys-color-primary);
-  white-space: nowrap;
+  white-space: normal;
   min-width: 0;
+  max-width: 100%;
 }
 
 .drawer-distribution-cavity-pill {
@@ -4637,7 +4726,7 @@ legend.builder-section-title {
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .drawer-selected-title {
@@ -4650,7 +4739,8 @@ legend.builder-section-title {
 .drawer-unit-toggle {
   display: flex;
   width: auto;
-  min-width: 155px;
+  min-width: 0;
+  max-width: 100%;
   gap: 0.2rem;
 }
 
@@ -5175,8 +5265,9 @@ legend.builder-section-title {
 }
 
 .assembly-piece-card--selected {
-  background-color: var(--primary-container, #d8e4dc);
-  border-color: var(--primary, #56705f);
+  background-color: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  border-color: var(--md-sys-color-primary);
 }
 
 .assembly-piece-card__header {
@@ -5432,6 +5523,8 @@ legend.builder-section-title {
 /* M3 Touch Targets >= 48px en dispositivos moviles y tablets */
 @media (max-width: 1023px) {
   .scroll-fade-tabs-container {
+    position: static;
+    top: auto;
     flex-direction: column;
     align-items: stretch;
     gap: 0.35rem;
@@ -5441,9 +5534,51 @@ legend.builder-section-title {
     align-self: flex-end;
   }
 
+  .machining-info-bar .info-label {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .machining-dock-bottom-row,
+  .machining-face-selector,
+  .machining-actions {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .machining-actions > button {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .machining-face-selector .m3-segmented-button {
+    border-radius: 14px;
+    flex-direction: column;
+  }
+
+  .machining-face-selector .m3-segmented-button__item {
+    border-radius: 10px;
+    white-space: normal;
+    line-height: 1.25;
+    font-size: 0.82rem;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .m3-stepper-field {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .m3-stepper-field input {
+    min-width: 0;
+  }
+
   .theme-toggle-group .m3-segmented-button__item,
   .m3-btn,
   .m3-button,
+  .m3-chip,
   .m3-stepper-btn,
   .m3-accordion-header,
   .builder-segmented-btn,
@@ -5459,6 +5594,12 @@ legend.builder-section-title {
   .panel-footer-save-btn,
   .panel-footer-export-btn,
   .viewer-toolbar .m3-btn--small,
+  .cad-floating-toolbar .m3-btn--small,
+  .cad-floating-toolbar .cad-zoom-btn,
+  .drawer-recipe-chip,
+  .drawer-elevation-band,
+  .drawer-option-btn,
+  .drawer-unit-toggle .m3-segmented-button__item,
   .assembly-slider-tick-btn,
   .assembly-panel-chip,
   .assembly-diagram-header-bar .m3-btn,
@@ -5486,7 +5627,8 @@ legend.builder-section-title {
   select.m3-select,
   .m3-select,
   .settings-grid input,
-  .settings-grid select {
+  .settings-grid select,
+  .drawer-selected-editor input {
     min-height: 48px !important;
     box-sizing: border-box;
   }
@@ -5497,15 +5639,17 @@ legend.builder-section-title {
   }
 
   #toolbar-exploded-slider,
-  #exploded-ratio-slider {
-    min-height: 48px;
+  #exploded-ratio-slider,
+  #kinematics-slider {
+    min-height: 48px !important;
+    height: 48px !important;
   }
 
   .assembly-step-card input[type="checkbox"],
   .feature-toggle-row input[type="checkbox"],
   input[type="checkbox"].m3-checkbox {
-    width: 24px;
-    height: 24px;
+    width: 48px;
+    height: 48px;
     min-width: 48px;
     min-height: 48px;
     padding: 12px;
@@ -5516,9 +5660,24 @@ legend.builder-section-title {
 
 @media (max-width: 380px) {
   .theme-toggle-group .m3-segmented-button__item {
-    min-width: 40px;
+    min-width: 48px !important;
     min-height: 48px !important;
-    padding: 6px 7px;
+    padding: 6px 8px;
+  }
+}
+
+/* Global WCAG 2.1 AA Focus Visibility & Reduced Motion */
+:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactElement } from 'react';
+import { useState, useMemo, useEffect, type ReactElement } from 'react';
 import {
   type Piece,
   type Material,
@@ -75,6 +75,17 @@ export function LabelExportModal({
   const totalPages = layout.isContinuousRoll
     ? totalLabels
     : Math.ceil(totalLabels / layout.labelsPerPage);
+
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) {
     return null;

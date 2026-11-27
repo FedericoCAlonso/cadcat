@@ -26,9 +26,9 @@ describe('i18n and Piece Friendly Names', () => {
       expect(getFriendlyPieceName('drawer-back')).toBe('Trasera de Cajón');
       expect(getFriendlyPieceName('drawer-counterfront')).toBe('Trasera de Cajón');
 
-      // Drawer front
+      // Drawer front vs inner drawer box counter-front (distinct names to avoid collision)
       expect(getFriendlyPieceName('drawer-front')).toBe('Frente de Cajón');
-      expect(getFriendlyPieceName('drawer-box-front')).toBe('Frente de Cajón');
+      expect(getFriendlyPieceName('drawer-box-front')).toBe('Contrafrente de Cajón');
     });
 
     it('correctly names standard carcass cabinet components', () => {

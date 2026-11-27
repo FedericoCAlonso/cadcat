@@ -79,6 +79,65 @@ export function createRectangularContour(widthMm: number, heightMm: number): Con
 }
 
 /**
+ * Calculate the axis-aligned bounding box of any 2D polygon contour.
+ */
+export function getContourBoundingBox(contour: Contour): {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  width: number;
+  height: number;
+} {
+  const pts = contour.points;
+  if (!pts || pts.length === 0) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+  }
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const p of pts) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: Math.max(0, maxX - minX),
+    height: Math.max(0, maxY - minY),
+  };
+}
+
+/**
+ * Resolves which 2D contour dimension of a piece should run parallel to the sheet grain (X length axis).
+ * - Vertical visible panels (sides, partitions, doors, bifold leaves): grain runs vertically ('height').
+ * - Horizontal visible panels (bottom, top, shelves, drawer fronts): grain runs horizontally ('width').
+ * - Hidden / auxiliary panels: no visual grain constraint ('none').
+ */
+export function resolvePieceGrainAxis(
+  piece: { role?: string; isAuxiliary?: boolean; visible?: boolean },
+): 'width' | 'height' | 'none' {
+  if (!isPieceVisible(piece)) return 'none';
+  const role = (piece.role || '').toLowerCase();
+  if (
+    role.includes('door') ||
+    role.includes('bifold') ||
+    role.includes('side') ||
+    role.includes('partition') ||
+    role.includes('divider') ||
+    role.includes('hinge-spacer')
+  ) {
+    return 'height';
+  }
+  return 'width';
+}
+
+/**
  * Calculate the Euclidean distance between two 2D points.
  */
 export function calculateSegmentLength(start: Point2D, end: Point2D): number {

@@ -12,7 +12,7 @@
     "jointStrategy": "confirmat",
     "confirmatThroughDiameterMm": 7.0,
     "confirmatCoreDiameterMm": 5.0,
-    "confirmatCoreDepthMm": 50.0,
+    "confirmatCoreDepthMm": 35.0,
     "minifixPocketDiameterMm": 15.0,
     "minifixPocketDepthMm": 13.5,
     "minifixPocketSetbackMm": 34.0,
@@ -89,7 +89,6 @@
   },
   "features": {
     "enablePieceLabels": true,
-    "enableInterferencesLab": false,
     "enableSecondaryContourCuts": false,
     "enableLedInstallations": false,
     "enableElectricalCutouts": false,

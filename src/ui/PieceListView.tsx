@@ -139,6 +139,33 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
 
   const selectedPiece = pieces.find((p) => p.id === selectedPieceId) ?? null;
 
+  const translateEdgeFace = (faceId: string): string => {
+    const f = faceId.toLowerCase();
+    if (f.includes('front')) return 'Frente';
+    if (f.includes('rear') || f.includes('back')) return 'Fondo';
+    if (f.includes('left')) return 'Izq.';
+    if (f.includes('right')) return 'Der.';
+    if (f.includes('top')) return 'Sup.';
+    if (f.includes('bottom')) return 'Inf.';
+    return faceId;
+  };
+
+  const translateJointKind = (kind: string): string => {
+    switch (kind) {
+      case 'cam-dowel':
+        return 'Minifix';
+      case 'dowel':
+        return 'Tarugos';
+      case 'dowel-and-confirmat':
+        return 'Tarugos + Confirmat';
+      case 'screw':
+        return 'Tornillo común';
+      case 'confirmat':
+      default:
+        return 'Confirmat';
+    }
+  };
+
   const renderPiecesTable = (tablePieces: ResolvedPieceWithCutSize[]) => (
     <div className="m3-table-responsive">
       <table className="m3-table">
@@ -160,7 +187,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             const finishedStr = `${piece.dimensionsMm.width} x ${piece.dimensionsMm.height} mm`;
             const cutStr = `${piece.cutDimensionsMm.width} x ${piece.cutDimensionsMm.height} mm`;
             const bandedStr = piece.bandedEdges.length > 0
-              ? piece.bandedEdges.map((b) => `${b.faceId} (${b.thicknessMm}mm)`).join(', ')
+              ? piece.bandedEdges.map((b) => `${translateEdgeFace(b.faceId)} (${b.thicknessMm}mm)`).join(', ')
               : 'Sin tapacanto';
 
             const deflection = shelfDeflections?.get(piece.id);
@@ -277,7 +304,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                         onSetPieceJointOverride?.(piece.id, val ? val : null);
                       }}
                     >
-                      <option value="">Por defecto ({defaultJointStrategy})</option>
+                      <option value="">Por defecto ({translateJointKind(defaultJointStrategy)})</option>
                       <option value="cam-dowel">Minifix (Oculto)</option>
                       <option value="dowel">Tarugos (Oculto)</option>
                       <option value="confirmat">Confirmat (Pasante)</option>
@@ -301,7 +328,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                   {pieceJointOverrides?.[piece.id] && (
                     <div style={{ marginTop: '2px' }}>
                       <span className="m3-badge m3-badge--success" style={{ fontSize: '0.7rem' }}>
-                        ✓ {pieceJointOverrides[piece.id]}
+                        ✓ {translateJointKind(pieceJointOverrides[piece.id]!)}
                       </span>
                     </div>
                   )}
@@ -434,7 +461,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
               <span style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
                 📐 Medida Final: <strong>{finishedStr}</strong>
               </span>
-              <span className="m3-badge m3-badge--neutral" style={{ fontSize: '0.75rem' }}>
+              <span className="m3-badge m3-badge--neutral piece-material-badge" style={{ fontSize: '0.75rem' }}>
                 🪵 {matName}
               </span>
             </div>
@@ -450,7 +477,7 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
                       className="m3-badge m3-badge--neutral"
                       style={{ fontSize: '0.72rem', padding: '0.1rem 0.35rem' }}
                     >
-                      {`${b.faceId} (${b.thicknessMm}mm)`}
+                      {`${translateEdgeFace(b.faceId)} (${b.thicknessMm}mm)`}
                     </span>
                   ))
                 ) : (

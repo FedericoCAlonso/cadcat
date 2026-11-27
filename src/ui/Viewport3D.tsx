@@ -14,7 +14,7 @@ import {
   buildPieceMachining3DGroup,
   type CountertopCalculationResult,
 } from '../resolver';
-import type { JointKind, JointStrategy, Material, EdgeBand, InterferenceConfig } from '../model';
+import type { JointKind, JointStrategy, Material, EdgeBand } from '../model';
 import { DEFAULT_UI_CONFIG } from '../config';
 import { translatePieceRole } from './localization';
 import { resolvePiecePbrStyle, STAINLESS_STEEL_SINK_STYLE } from './materialStyles';
@@ -73,8 +73,10 @@ export interface Viewport3DProps {
   machiningSheets?: PieceMachiningSheet[];
   // Countertop cutouts and visualization (Phase 3 & 4)
   countertopCalculation?: CountertopCalculationResult | null;
-  // Architectural Interferences Lab
-  interferences?: InterferenceConfig;
+  /** Effective theme ('light' | 'dark') to trigger live 3D color/grid/dimension updates. */
+  effectiveTheme?: 'light' | 'dark';
+  /** Hide floating ViewerToolbar (e.g. when embedded inside AssemblySheetView). */
+  hideToolbar?: boolean;
   /** Active module identifier to trigger auto-fit when changing modules. */
   moduleId?: string;
   /** Whether 3D dimension lines and labels are shown by default. */
@@ -184,7 +186,8 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     onMechanismOpenRatioChange,
     machiningSheets,
     countertopCalculation,
-    interferences,
+    effectiveTheme,
+    hideToolbar = false,
     pieceEdgeBandOverrides,
     activeStepPieceIds,
     assembledPieceIds,
@@ -427,8 +430,15 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       prevY = clientY;
     };
 
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let didDrag = false;
+
     const onMouseDown = (e: MouseEvent) => {
       isDragging = true;
+      didDrag = false;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
       prevX = e.clientX;
       prevY = e.clientY;
     };
@@ -438,6 +448,9 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
 
     const onMouseMove = (e: MouseEvent) => {
       if (isDragging) {
+        if (!didDrag && Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) > 5) {
+          didDrag = true;
+        }
         hoverOutline.visible = false;
         onRotate(e.clientX, e.clientY);
         return;
@@ -544,6 +557,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
     };
 
     const onClick = (e: MouseEvent) => {
+      if (didDrag) {
+        didDrag = false;
+        return;
+      }
       if (!rendererRef.current) return;
       const hitResult = raycastPieceAtPointer(
         e.clientX,
@@ -1135,51 +1152,6 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       group.add(mesh);
     }
 
-    // Architectural Interferences ghost visualization
-    if (interferences?.columnObstacle?.enabled) {
-      const col = interferences.columnObstacle;
-      const isBeam = col.type === 'horizontal-beam';
-      const dist = col.distanceFromReferenceMm ?? 0;
-      const colD = col.depthMm;
-      const colW = col.widthMm ?? (isBeam ? bounds.size.x : 150);
-      const colH = col.heightMm ?? (isBeam ? 150 : bounds.size.y + 40);
-
-      const colGeom = new THREE.BoxGeometry(colW, colH, colD);
-      const colMat = new THREE.MeshStandardMaterial({
-        color: 0x64748b, // Slate gray architectural volume
-        roughness: 0.85,
-        transparent: true,
-        opacity: 0.35,
-        depthWrite: false,
-      });
-      const colMesh = new THREE.Mesh(colGeom, colMat);
-      const colEdges = new THREE.EdgesGeometry(colGeom);
-      const colLineMat = new THREE.LineBasicMaterial({ color: 0x334155, linewidth: 2 });
-      colMesh.add(new THREE.LineSegments(colEdges, colLineMat));
-
-      let colX = bounds.min.x + colW / 2;
-      let colY = bounds.min.y + colH / 2;
-      const colZ = bounds.max.z - colD / 2;
-
-      if (isBeam) {
-        colX = col.widthMm && col.widthMm < bounds.size.x
-          ? (col.referenceEdge === 'right' ? bounds.max.x - dist - colW / 2 : bounds.min.x + dist + colW / 2)
-          : bounds.min.x + bounds.size.x / 2;
-        colY = col.referenceEdge === 'top'
-          ? bounds.max.y - dist - colH / 2
-          : bounds.min.y + dist + colH / 2;
-      } else {
-        const isRight = col.referenceEdge === 'right' || col.corner === 'back-right';
-        colX = isRight
-          ? bounds.max.x - dist - colW / 2
-          : bounds.min.x + dist + colW / 2;
-        colY = bounds.min.y + colH / 2;
-      }
-
-      colMesh.position.set(colX, colY, colZ);
-      group.add(colMesh);
-    }
-
     // Exploded view threshold: hide dimensions when exploded above threshold
     const isExplodedAboveThreshold = explodedRatio > (DEFAULT_UI_CONFIG.explodedDimensionThreshold ?? 0.05);
     const effectiveShowDimensions = showDimensions && !isExplodedAboveThreshold;
@@ -1192,7 +1164,10 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       dimensionLinesGroupRef.current = null;
     }
     if (effectiveShowDimensions) {
-      const isLight = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
+      const isLight =
+        effectiveTheme !== undefined
+          ? effectiveTheme === 'light'
+          : typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light';
       const dimGroup = createDimensionLinesGroup(bounds, { theme: isLight ? 'light' : 'dark' });
       group.add(dimGroup);
       dimensionLinesGroupRef.current = dimGroup;
@@ -1215,7 +1190,7 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
       cameraRef.current.lookAt(fit.target.x, fit.target.y, fit.target.z);
       prevTargetRef.current = { ...fit.target };
     }
-  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, interferences, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides, activeStepPieceIds, assembledPieceIds]);
+  }, [boxes, bounds, explodedRatio, selectedPieceId, wireframe, showLines, colorByRole, machiningMode, kinematicBoxes, machiningSheets, countertopCalculation, effectiveTheme, pieces, showDimensions, showEdgeBands, pieceEdgeBandOverrides, activeStepPieceIds, assembledPieceIds]);
 
   // Handle auto-fit / zoom to fit module
   const handleFitCamera = useCallback(() => {
@@ -1382,7 +1357,18 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
                 kinematicsState={kinematicsState}
                 onMechanismOpenRatioChange={onMechanismOpenRatioChange}
                 materials={props.materials}
-                standardThicknessesMm={props.pieces[0]?.thicknessMm ? [props.pieces[0].thicknessMm] : undefined}
+                standardThicknessesMm={
+                  props.materials && props.materials.length > 0
+                    ? Array.from(
+                        new Set(
+                          [
+                            ...props.materials.map((m) => m.thicknessMm),
+                            ...(props.pieces ?? []).map((p) => p.thicknessMm),
+                          ].filter((t): t is number => typeof t === 'number'),
+                        ),
+                      ).sort((a, b) => a - b)
+                    : undefined
+                }
                 pieceMaterialOverrides={props.pieceMaterialOverrides}
                 onSetPieceMaterial={props.onSetPieceMaterial}
                 pieceThicknessOverrides={props.pieceThicknessOverrides}
@@ -1528,26 +1514,28 @@ export function Viewport3D(props: Viewport3DProps): ReactElement {
         );
       })()}
 
-      <ViewerToolbar
-        onSetCameraView={setCameraView}
-        wireframe={wireframe}
-        onToggleWireframe={() => setWireframe(!wireframe)}
-        showLines={showLines}
-        onToggleShowLines={() => setShowLines(!showLines)}
-        colorByRole={colorByRole}
-        onToggleColorByRole={() => setColorByRole(!colorByRole)}
-        machiningMode={machiningMode}
-        onChangeMachiningMode={setMachiningMode}
-        showMachining3D={machiningMode !== 'no'}
-        onToggleMachining3D={() => setMachiningMode(machiningMode === 'no' ? 'auto' : 'no')}
-        explodedRatio={explodedRatio}
-        onExplodedRatioChange={onExplodedRatioChange}
-        onFitCamera={handleFitCamera}
-        showDimensions={showDimensions}
-        onToggleDimensions={() => setShowDimensions(!showDimensions)}
-        showEdgeBands={showEdgeBands}
-        onToggleShowEdgeBands={() => setShowEdgeBands(!showEdgeBands)}
-      />
+      {!hideToolbar && (
+        <ViewerToolbar
+          onSetCameraView={setCameraView}
+          wireframe={wireframe}
+          onToggleWireframe={() => setWireframe(!wireframe)}
+          showLines={showLines}
+          onToggleShowLines={() => setShowLines(!showLines)}
+          colorByRole={colorByRole}
+          onToggleColorByRole={() => setColorByRole(!colorByRole)}
+          machiningMode={machiningMode}
+          onChangeMachiningMode={setMachiningMode}
+          showMachining3D={machiningMode !== 'no'}
+          onToggleMachining3D={() => setMachiningMode(machiningMode === 'no' ? 'auto' : 'no')}
+          explodedRatio={explodedRatio}
+          onExplodedRatioChange={onExplodedRatioChange}
+          onFitCamera={handleFitCamera}
+          showDimensions={showDimensions}
+          onToggleDimensions={() => setShowDimensions(!showDimensions)}
+          showEdgeBands={showEdgeBands}
+          onToggleShowEdgeBands={() => setShowEdgeBands(!showEdgeBands)}
+        />
+      )}
 
       <p className="viewport-touch-hint">
         {selectedPiece ? (

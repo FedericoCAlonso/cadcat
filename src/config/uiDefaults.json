@@ -1,5 +1,4 @@
 {
-  "showInterferences": false,
   "costDebounceMs": 250,
   "summaryScopeDefault": "project",
   "currencySymbol": "$",

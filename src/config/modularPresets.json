@@ -124,7 +124,10 @@
       {
         "type": "doors",
         "count": 2,
-        "mountType": "full-overlay"
+        "mountType": "full-overlay",
+        "interiorShelvesCount": 1,
+        "shelfType": "adjustable",
+        "shelvesSetbackMm": 20
       }
     ],
     "defaultMaterials": {

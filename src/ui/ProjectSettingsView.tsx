@@ -108,7 +108,6 @@ export function ProjectSettingsView({
       features: {
         ...(config.features ?? {
           enablePieceLabels: true,
-          enableInterferencesLab: false,
           enableSecondaryContourCuts: false,
           enableLedInstallations: false,
           enableElectricalCutouts: false,
@@ -526,7 +525,10 @@ export function ProjectSettingsView({
                   type="number"
                   step="0.5"
                   value={config.hardware?.drawerBottomScrewedDeductionWidthMm ?? 2.0}
-                  onChange={(e) => updateHardware('drawerBottomScrewedDeductionWidthMm', parseFloat(e.target.value) ?? 2.0)}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    updateHardware('drawerBottomScrewedDeductionWidthMm', Number.isNaN(v) ? 2.0 : Math.max(0, v));
+                  }}
                 />
               </div>
               <div className="input-field">
@@ -536,7 +538,10 @@ export function ProjectSettingsView({
                   type="number"
                   step="0.5"
                   value={config.hardware?.drawerBottomScrewedDeductionDepthMm ?? 2.0}
-                  onChange={(e) => updateHardware('drawerBottomScrewedDeductionDepthMm', parseFloat(e.target.value) ?? 2.0)}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    updateHardware('drawerBottomScrewedDeductionDepthMm', Number.isNaN(v) ? 2.0 : Math.max(0, v));
+                  }}
                 />
               </div>
               <div className="input-field">
@@ -596,7 +601,10 @@ export function ProjectSettingsView({
                   type="number"
                   step="0.1"
                   value={config.hardware?.backingGrooveToleranceMm ?? 0.5}
-                  onChange={(e) => updateHardware('backingGrooveToleranceMm', parseFloat(e.target.value) ?? 0.5)}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    updateHardware('backingGrooveToleranceMm', Number.isNaN(v) ? 0.5 : Math.max(0, v));
+                  }}
                 />
               </div>
             </div>
@@ -908,13 +916,6 @@ export function ProjectSettingsView({
                   description="Generación de etiquetas A4 troqueladas y rollo térmico continuo para piezas."
                   checked={config.features?.enablePieceLabels ?? true}
                   onChange={(checked) => updateFeature('enablePieceLabels', checked)}
-                />
-                <M3ToggleRow
-                  id="feature-interferences"
-                  label="🏗️ Laboratorio de Interferencias"
-                  description="Deducciones automáticas para columnas, vigas y paredes en falsa escuadra."
-                  checked={config.features?.enableInterferencesLab ?? false}
-                  onChange={(checked) => updateFeature('enableInterferencesLab', checked)}
                 />
                 <M3ToggleRow
                   id="feature-contour"

@@ -10,6 +10,8 @@ import {
   calculatePieceCutSize,
   createEdgeBandMap,
 } from '../edgeBand';
+import { resolveDepthEdgeFaceIds } from '../spatial3d';
+import { resolvePieceGrainAxis } from '../piece';
 import { translatePieceRole } from '../../ui/localization';
 
 export interface ExtractLabelDataOptions {
@@ -58,7 +60,7 @@ export function extractPieceLabelData(
       const eb = edgeBandMap.get(bandInfo.edgeBandId);
       return {
         code: bandInfo.edgeBandId,
-        name: eb ? `${eb.id} (${bandInfo.thicknessMm} mm)` : `${bandInfo.thicknessMm} mm`,
+        name: eb ? `${eb.name ?? eb.id} (${bandInfo.thicknessMm} mm)` : `${bandInfo.thicknessMm} mm`,
         thicknessMm: bandInfo.thicknessMm,
       };
     };
@@ -70,17 +72,15 @@ export function extractPieceLabelData(
       right: formatEdge(cutInfo.bandedEdges.right),
     };
 
-    // Edge notes helper for clarity in workshop
-    if (piece.role === 'bottom' && edgeBands.bottom) {
+    // Edge notes helper for clarity in workshop (aligned with 3D spatial orientation)
+    const depthFaces = resolveDepthEdgeFaceIds(piece.role);
+    if (depthFaces?.front === 'bottom-edge' && edgeBands.bottom) {
       edgeBands.bottom.note = 'FRENTE';
+    } else if (depthFaces?.front === 'left-edge' && edgeBands.left) {
+      edgeBands.left.note = 'FRENTE';
     }
-    if (piece.role.startsWith('side')) {
-      if (edgeBands.bottom) {
-        edgeBands.bottom.note = 'PISO';
-      }
-      if (edgeBands.right) {
-        edgeBands.right.note = 'FRENTE';
-      }
+    if (piece.role.startsWith('side') && edgeBands.bottom) {
+      edgeBands.bottom.note = 'PISO';
     }
 
     // Machining summary (supports both direct piece IDs and batch/consolidated module__piece__iN IDs)
@@ -93,15 +93,24 @@ export function extractPieceLabelData(
     let hasMachining = false;
     let machiningSummary = '';
 
-    if (machining && machining.operations.length > 0) {
+    const drillOps = machining?.operations ?? [];
+    const nonDrillCustomOps = (machining?.customOperations ?? []).filter((op) => op.kind !== 'drill');
+    const totalOpsCount = drillOps.length + nonDrillCustomOps.length;
+
+    if (totalOpsCount > 0) {
       hasMachining = true;
-      const faceAOps = machining.operations.filter((op) => op.faceId === 'face-A' || op.faceId === 'face-top');
-      const faceBOps = machining.operations.filter((op) => op.faceId === 'face-B' || op.faceId === 'face-bottom');
+      const faceAOps = drillOps.filter((op) => op.faceType === 'face-A');
+      const faceBOps = drillOps.filter((op) => op.faceType === 'face-B');
+      const edgeOps = drillOps.filter((op) => op.faceType === 'edge');
       const parts: string[] = [];
       if (faceAOps.length > 0) parts.push(`Cara A: ${faceAOps.length} perf.`);
       if (faceBOps.length > 0) parts.push(`Cara B: ${faceBOps.length} perf.`);
-      machiningSummary = parts.join(' | ') || `${machining.operations.length} operaciones`;
+      if (edgeOps.length > 0) parts.push(`Canto: ${edgeOps.length} perf.`);
+      if (nonDrillCustomOps.length > 0) parts.push(`${nonDrillCustomOps.length} ranura/fres.`);
+      machiningSummary = parts.join(' | ') || `${totalOpsCount} operaciones`;
     }
+
+    const grainAxis = hasGrain ? resolvePieceGrainAxis(piece) : 'none';
 
     const secondaryOperationsSummary: string[] = [];
     if (piece.secondaryCuts && piece.secondaryCuts.length > 0) {
@@ -131,7 +140,7 @@ export function extractPieceLabelData(
       finishedWidthMm: Math.round(cutInfo.finishedDimensionsMm.width * 10) / 10,
       finishedHeightMm: Math.round(cutInfo.finishedDimensionsMm.height * 10) / 10,
       hasGrain,
-      grainDirection: hasGrain ? 'length' : 'none',
+      grainDirection: grainAxis === 'height' ? 'width' : grainAxis === 'width' ? 'length' : 'none',
       edgeBands,
       secondaryOperationsSummary: secondaryOperationsSummary.length > 0 ? secondaryOperationsSummary : undefined,
       hasMachining,

@@ -4,43 +4,92 @@
     {
       "schemaVersion": 1,
       "id": "hw-confirmat-7x50",
-      "name": "Confirmat Screw 7x50mm",
+      "name": "Tornillo Confirmat 7×50 mm",
       "jointKind": "confirmat",
       "pricePerUnit": "TO_CONFIRM"
     },
     {
       "schemaVersion": 1,
       "id": "hw-cam-dowel-15",
-      "name": "Cam Lock & Connecting Dowel 15mm",
+      "name": "Minifix Ø15 mm + Perno",
       "jointKind": "cam-dowel",
       "pricePerUnit": "TO_CONFIRM"
     },
     {
       "schemaVersion": 1,
       "id": "hw-dowel-8x35",
-      "name": "Wooden Dowel 8x35mm",
+      "name": "Tarugo de Madera 8×35 mm",
       "jointKind": "dowel",
       "pricePerUnit": "TO_CONFIRM"
     },
     {
       "schemaVersion": 1,
+      "id": "hw-screw-wood",
+      "name": "Tornillo Madera / Armado 4×40 mm",
+      "jointKind": "screw",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
       "id": "hw-hinge-cup-35",
-      "name": "Concealed Euro Cup Hinge 35mm",
+      "name": "Bisagra Cazoleta Ø35 mm",
       "jointKind": "hinge",
       "pricePerUnit": "TO_CONFIRM"
     },
     {
       "schemaVersion": 1,
+      "id": "hw-hinge-butt",
+      "name": "Bisagra Libro / Pomela",
+      "jointKind": "butt-hinge",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-hinge-piano",
+      "name": "Bisagra Piano Continua",
+      "jointKind": "piano-hinge",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
       "id": "hw-slide-telescopic",
-      "name": "Ball Bearing Telescopic Drawer Slide",
+      "name": "Riel Corredera Telescópica (unidad)",
       "jointKind": "slide",
       "pricePerUnit": "TO_CONFIRM"
     },
     {
       "schemaVersion": 1,
       "id": "hw-shelf-pin-5",
-      "name": "Shelf Support Pin 5mm",
+      "name": "Soporte / Pin de Estante Ø5 mm",
       "jointKind": "shelf-pin",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-catch-magnetic",
+      "name": "Retén Magnético",
+      "jointKind": "magnetic-catch",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-catch-push",
+      "name": "Expulsor Push-to-Open",
+      "jointKind": "push-catch",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-catch-roller",
+      "name": "Retén a Rodillo",
+      "jointKind": "roller-catch",
+      "pricePerUnit": "TO_CONFIRM"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "hw-handle",
+      "name": "Tirador / Manija",
+      "jointKind": "handle",
       "pricePerUnit": "TO_CONFIRM"
     },
     {
@@ -53,7 +102,7 @@
     {
       "schemaVersion": 1,
       "id": "hw-floating-pin-12",
-      "name": "Perno Flotante Invisible Ø12x120mm",
+      "name": "Perno Flotante Invisible Ø12×120 mm",
       "jointKind": "bracket",
       "pricePerUnit": "TO_CONFIRM"
     },
@@ -74,7 +123,7 @@
     {
       "schemaVersion": 1,
       "id": "hw-shelf-screws",
-      "name": "Tornillo Autorroscante 4x16mm",
+      "name": "Tornillo Autorroscante 4×16 mm",
       "jointKind": "wood-screw",
       "pricePerUnit": "TO_CONFIRM"
     },

@@ -5,6 +5,7 @@ import {
   type PieceMachiningSheet,
 } from '../resolver';
 import { usePanZoom } from './usePanZoom';
+import { translatePieceRole } from './localization';
 
 export interface MachiningSheetViewProps {
   sheets: PieceMachiningSheet[];
@@ -70,7 +71,7 @@ export function MachiningSheetView({
       <div className="machining-info-bar">
         <div className="info-group">
           <span className="info-label">Pieza:</span>
-          <strong>{activeSheet.pieceId}</strong> ({activeSheet.role})
+          <strong>{translatePieceRole(activeSheet.role)}</strong>
         </div>
         <div className="info-group">
           <span className="info-label">Medidas Finales:</span>
@@ -115,8 +116,11 @@ export function MachiningSheetView({
       {/* 4. Technical SVG Drawing Box with CAD Pan & Zoom (Visual Inspection Area) */}
       <div
         className="machining-drawing-container"
-        style={{ position: 'relative', overflow: 'hidden' }}
+        style={{ position: 'relative', overflow: 'hidden', touchAction: 'none' }}
         onWheel={panZoom.handleWheel}
+        onTouchStart={panZoom.handleTouchStart}
+        onTouchMove={panZoom.handleTouchMove}
+        onTouchEnd={panZoom.handleTouchEnd}
         onPointerDown={(e) => {
           panZoom.startPan(e.clientX, e.clientY);
         }}
@@ -142,29 +146,29 @@ export function MachiningSheetView({
             zIndex: 10,
             display: 'flex',
             gap: '4px',
-            backgroundColor: 'rgba(255, 255, 255, 0.94)',
+            backgroundColor: 'var(--md-sys-color-surface-container-high)',
             backdropFilter: 'blur(4px)',
             padding: '3px 6px',
-            borderRadius: '6px',
+            borderRadius: '8px',
             boxShadow: 'var(--md-sys-elevation-2)',
             border: '1px solid var(--md-sys-color-outline-variant)',
           }}
         >
           <button
             type="button"
-            className="m3-btn m3-btn--small m3-btn--tonal"
-            style={{ padding: '0.15rem 0.45rem', minWidth: '28px' }}
+            className="m3-btn m3-btn--small m3-btn--tonal cad-zoom-btn"
             onClick={panZoom.zoomIn}
             title="Acercar Zoom [Rueda del mouse]"
+            aria-label="Acercar zoom"
           >
             ➕
           </button>
           <button
             type="button"
-            className="m3-btn m3-btn--small m3-btn--tonal"
-            style={{ padding: '0.15rem 0.45rem', minWidth: '28px' }}
+            className="m3-btn m3-btn--small m3-btn--tonal cad-zoom-btn"
             onClick={panZoom.zoomOut}
             title="Alejar Zoom"
+            aria-label="Alejar zoom"
           >
             ➖
           </button>
@@ -210,7 +214,7 @@ export function MachiningSheetView({
           </span>
           <span className="legend-item">
             <span className="legend-dot legend-dot--band" />
-            <strong>Línea Azul:</strong> Borde con tapacantos
+            <strong>Línea Dorada:</strong> Borde con tapacantos
           </span>
           <span className="legend-item" style={{ marginLeft: 'auto', fontStyle: 'italic', fontSize: '0.8rem' }}>
             🖱️ Paneo: Arrastrar con mouse | 🔍 Zoom: Rueda o botones
@@ -257,7 +261,7 @@ export function MachiningSheetView({
             >
               {sheets.map((sheet) => (
                 <option key={sheet.pieceId} value={sheet.pieceId}>
-                  {sheet.pieceId} ({sheet.role}) {sheet.requiresTurn ? '🔄 Giro' : ''}
+                  {translatePieceRole(sheet.role)} ({sheet.pieceId}) {sheet.requiresTurn ? '🔄 Giro' : ''}
                 </option>
               ))}
             </select>
@@ -327,7 +331,7 @@ export function MachiningSheetView({
           </div>
 
           {/* Export Actions Buttons */}
-          <div className="machining-actions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', flexShrink: 0 }}>
+          <div className="machining-actions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', flex: '1 1 auto', minWidth: 0, maxWidth: '100%' }}>
             <button
               type="button"
               className="m3-button m3-button--tonal"
@@ -453,7 +457,8 @@ export function MachiningSheetView({
           <h3 className="table-heading">
             Perforaciones en Cantos ({activeSheet.edgeOperations.length})
           </h3>
-          <table className="m3-table" aria-label="Tabla de operaciones en cantos">
+          <div className="m3-table-responsive">
+            <table className="m3-table" aria-label="Tabla de operaciones en cantos">
             <thead>
               <tr>
                 <th>#</th>
@@ -485,6 +490,7 @@ export function MachiningSheetView({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </section>

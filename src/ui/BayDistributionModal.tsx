@@ -89,6 +89,17 @@ export function BayDistributionModal({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Sync draft when modal opens or initial content changes
   useEffect(() => {
     if (isOpen) {
@@ -520,6 +531,7 @@ export function BayDistributionModal({
         <div
           style={{
             flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
             padding: isMobile ? '0.65rem' : '1.25rem',
             display: 'grid',
@@ -866,6 +878,7 @@ export function BayDistributionModal({
                             textAnchor="middle"
                             dominantBaseline="central"
                             fontSize={iconFontSize}
+                            fill={isSelected ? 'var(--md-sys-color-on-primary-container)' : 'var(--md-sys-color-on-surface)'}
                           >
                             {icon}
                           </text>
@@ -878,8 +891,8 @@ export function BayDistributionModal({
                             y={ry + rh / 2 + iconFontSize * 0.45}
                             textAnchor="middle"
                             dominantBaseline="central"
+                            fill={isSelected ? 'var(--md-sys-color-on-primary-container)' : 'var(--md-sys-color-on-surface)'}
                             fontSize={labelFontSize}
-                            fill="var(--md-sys-color-on-surface)"
                             fontWeight={600}
                           >
                             {label}
@@ -2267,6 +2280,8 @@ export function BayDistributionModal({
         {/* Footer */}
         <div
           style={{
+            position: 'relative',
+            zIndex: 2,
             padding: isMobile ? '0.65rem 0.85rem max(0.65rem, env(safe-area-inset-bottom, 0.65rem))' : '1rem 1.25rem',
             borderTop: '1px solid var(--md-sys-color-outline-variant)',
             display: 'flex',

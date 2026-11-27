@@ -496,7 +496,7 @@ function renderPanelDetailSvg(
   // Left: Height dimension line (-26) and rotated label (-32 to -54)
   const marginL = 56;
   // Right: Clearance for operation labels extending past panel border
-  const marginR = 48;
+  const marginR = 112;
   // Top: Clearance above panel top
   const marginT = 24;
   // Bottom: Width dimension line (+26), text (+38), and Datum mark note (+18)
@@ -517,20 +517,29 @@ function renderPanelDetailSvg(
   const baseFontSize = Math.max(minFontPx, Math.round(minFontPx * Math.max(1, contentW / 350)));
   const labelFontSize = Math.max(10, Math.round(baseFontSize * 0.9));
 
-  // Prepare raw operation labels for collision-free layout
-  const rawLabels: RawOperationLabel[] = panel.operations.map((op, idx) => {
+  // Deduplicate slide guide labels that share the same Y height (e.g. front & rear screws of same rail)
+  const seenSlideY = new Set<number>();
+  const rawLabels: RawOperationLabel[] = [];
+  const slideLabelOpIndices = new Set<number>();
+  panel.operations.forEach((op, idx) => {
     const ox = toSvgX(op.xFromFrontMm);
     const oy = toSvgY(op.yFromBottomMm);
     const isSlide = op.hardwareType.includes('slide') || op.description.toLowerCase().includes('corredera');
-    return {
+    if (isSlide) {
+      const yKey = Math.round(op.yFromBottomMm * 10);
+      if (seenSlideY.has(yKey)) return;
+      seenSlideY.add(yKey);
+      slideLabelOpIndices.add(idx);
+    }
+    rawLabels.push({
       id: `op-${idx}`,
-      x: isSlide ? originX + 12 : ox + 8,
+      x: isSlide ? originX + 12 : Math.min(ox + 8, contentW - 108),
       y: isSlide ? oy - 4 : oy + 3,
       text: isSlide
         ? `Guía corredera Y = ${op.yFromBottomMm} mm`
         : `Y=${op.yFromBottomMm} (X=${op.xFromFrontMm})`,
       isSlide,
-    };
+    });
   });
 
   // Dedicated exclusion box reserving space for Datum (0,0) Frente-Base note
@@ -662,21 +671,26 @@ function renderPanelDetailSvg(
         const labelY = posLabel ? posLabel.renderedY : (isSlide ? oy - 4 : oy + 3);
 
         if (isSlide) {
+          const showRailLineAndLabel = slideLabelOpIndices.has(idx);
           return (
             <g key={idx}>
-              <line
-                x1={originX}
-                y1={oy}
-                x2={originX + actualW}
-                y2={oy}
-                stroke="var(--primary, #56705f)"
-                strokeWidth="1.8"
-                strokeDasharray="4 3"
-              />
+              {showRailLineAndLabel && (
+                <line
+                  x1={originX}
+                  y1={oy}
+                  x2={originX + actualW}
+                  y2={oy}
+                  stroke="var(--primary, #56705f)"
+                  strokeWidth="1.8"
+                  strokeDasharray="4 3"
+                />
+              )}
               <circle cx={ox} cy={oy} r="3.5" fill="var(--primary, #56705f)" />
-              <text x={labelX} y={labelY} fontSize={labelFontSize} fontWeight="bold" fill="var(--primary, #56705f)">
-                Guía corredera Y = {op.yFromBottomMm} mm
-              </text>
+              {showRailLineAndLabel && (
+                <text x={labelX} y={labelY} fontSize={labelFontSize} fontWeight="bold" fill="var(--primary, #56705f)">
+                  Guía corredera Y = {op.yFromBottomMm} mm
+                </text>
+              )}
             </g>
           );
         }
@@ -1781,9 +1795,9 @@ export function AssemblySheetView({
               style={{
                 marginBottom: '12px',
                 padding: '12px 16px',
-                backgroundColor: 'var(--primary-container, #d8e4dc)',
-                color: 'var(--on-primary-container, #15251c)',
-                border: '1px solid var(--primary, #56705f)',
+                backgroundColor: 'var(--md-sys-color-primary-container)',
+                color: 'var(--md-sys-color-on-primary-container)',
+                border: '1px solid var(--md-sys-color-primary)',
                 borderRadius: '12px',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -1800,7 +1814,7 @@ export function AssemblySheetView({
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                     fontWeight: 800,
-                    color: 'var(--on-primary-container, #15251c)',
+                    color: 'var(--md-sys-color-on-primary-container)',
                     opacity: 0.85,
                     display: 'block',
                     marginBottom: '2px',
@@ -1808,7 +1822,7 @@ export function AssemblySheetView({
                 >
                   Fase: {translateAssemblyPhase(currentStep.phase)}
                 </span>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-primary-container, #15251c)' }}>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--md-sys-color-on-primary-container)' }}>
                   Paso {currentStep.stepNumber}: {currentStep.title}
                 </div>
                 <div style={{ fontSize: '0.84rem', marginTop: '4px', opacity: 0.95, lineHeight: 1.4 }}>
@@ -1893,6 +1907,7 @@ export function AssemblySheetView({
                 activeStepPieceIds={currentStepPieceIds}
                 assembledPieceIds={priorAssembledPieceIds}
                 cameraPresetTrigger={cameraPresetTrigger}
+                hideToolbar={true}
               />
             </div>
           ) : (
@@ -1967,9 +1982,9 @@ export function AssemblySheetView({
                 style={{
                   marginTop: '12px',
                   padding: '12px 16px',
-                  backgroundColor: 'var(--primary-container, #d8e4dc)',
-                  color: 'var(--on-primary-container, #15251c)',
-                  border: '1px solid var(--primary, #56705f)',
+                  backgroundColor: 'var(--md-sys-color-primary-container)',
+                  color: 'var(--md-sys-color-on-primary-container)',
+                  border: '1px solid var(--md-sys-color-primary)',
                   borderRadius: '12px',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -2112,7 +2127,8 @@ export function AssemblySheetView({
                       style={{
                         cursor: 'pointer',
                         borderBottom: '1px solid var(--border, #d9d2c3)',
-                        background: isSel ? 'var(--primary-container, #d8e4dc)' : 'transparent',
+                        background: isSel ? 'var(--md-sys-color-primary-container)' : 'transparent',
+                        color: isSel ? 'var(--md-sys-color-on-primary-container)' : 'inherit',
                       }}
                     >
                       <td style={{ padding: '8px 10px', fontWeight: 'bold' }}>
@@ -2457,13 +2473,12 @@ export function AssemblySheetView({
                   >
                     <input
                       type="checkbox"
+                      className="m3-checkbox"
                       checked={isDone}
                       onChange={() => toggleStep(step.stepNumber)}
                       style={{
                         cursor: 'pointer',
                         accentColor: 'var(--primary, #56705f)',
-                        width: '20px',
-                        height: '20px',
                       }}
                       aria-label={`Marcar paso ${step.stepNumber} como completado`}
                     />

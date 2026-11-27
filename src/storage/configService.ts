@@ -54,17 +54,11 @@ export class ProjectConfigService implements IConfigService {
 
     if (existing && existing.data) {
       try {
-        const validated = validateProjectConfig(existing.data);
-        // Automatic migration: if drawerBoxFrontOffsetMm is the legacy default of 10.0mm, migrate to 0.0mm
-        if (validated.hardware.drawerBoxFrontOffsetMm === 10.0) {
-          validated.hardware.drawerBoxFrontOffsetMm = 0.0;
-          await this.saveConfig(validated, database);
-        }
-        return validated;
-      } catch {
-        // Fallback to validated config file default if corrupted
+        return validateProjectConfig(existing.data);
+      } catch (err) {
+        // Non-destructive fallback: preserve stored record in IndexedDB so user settings are not wiped silently
+        console.warn('[CadCat] Stored projectConfig failed validation; using defaults without overwriting.', err);
         const defaultConf = this.getDefaultConfig();
-        await this.saveConfig({ ...defaultConf, projectId }, database);
         return { ...defaultConf, projectId };
       }
     }

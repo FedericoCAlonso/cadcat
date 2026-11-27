@@ -107,7 +107,8 @@ export function drawSinglePieceLabel(
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42); // Slate-900
-  const pieceTitle = `[${label.moduleId}] ${label.pieceName}`;
+  const moduleDisplay = label.moduleName || label.moduleId;
+  const pieceTitle = `[${moduleDisplay}] ${label.pieceName}`;
   doc.text(pieceTitle, x + margin, curY);
   curY += 2.2;
 
@@ -135,11 +136,12 @@ export function drawSinglePieceLabel(
   curY += 2.8;
 
   // Grain indicator
-  if (label.hasGrain) {
+  if (label.hasGrain && label.grainDirection !== 'none') {
     doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(180, 83, 9); // Amber-700
-    doc.text(`↔ Veta en cota ${label.cutHeightMm} mm`, x + margin, curY);
+    const grainCotaMm = label.grainDirection === 'length' ? label.cutWidthMm : label.cutHeightMm;
+    doc.text(`↔ Veta en cota ${grainCotaMm} mm`, x + margin, curY);
   }
   curY += 3.5;
 

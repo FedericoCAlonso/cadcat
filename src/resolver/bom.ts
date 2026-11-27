@@ -63,6 +63,8 @@ export function getHardwareCountForJoint(jointKind: string, contactLengthMm?: nu
     case 'confirmat':
     case 'cam-dowel':
     case 'dowel':
+    case 'screw':
+    case 'dowel-and-confirmat':
       if (contactLengthMm && contactLengthMm > 600) {
         return 3;
       }
@@ -74,11 +76,12 @@ export function getHardwareCountForJoint(jointKind: string, contactLengthMm?: nu
     case 'push-catch':
     case 'roller-catch':
     case 'handle':
-      return 1;
     case 'slide':
-      return 2;
+      // Each drawer/tray emits 2 slide joints (left & right); 1 rail per joint = 2 rails (1 pair) per drawer
+      return 1;
     case 'shelf-pin':
-      return 4;
+      // Each adjustable shelf emits 2 shelf-pin joints (left & right); 2 pins per side = 4 pins per shelf
+      return 2;
     case 'butt':
     case 'rebate':
     case 'groove':
@@ -94,29 +97,31 @@ export function getHardwareCountForJoint(jointKind: string, contactLengthMm?: nu
 function getHardwareMetadata(jointKind: string): { hardwareId: string; name: string } | null {
   switch (jointKind) {
     case 'confirmat':
-      return { hardwareId: 'hw-confirmat-7x50', name: 'Confirmat Screw 7x50mm' };
+      return { hardwareId: 'hw-confirmat-7x50', name: 'Tornillo Confirmat 7×50 mm' };
     case 'cam-dowel':
-      return { hardwareId: 'hw-cam-dowel-15', name: 'Cam Lock & Connecting Dowel 15mm' };
+      return { hardwareId: 'hw-cam-dowel-15', name: 'Minifix Ø15 mm + Perno' };
     case 'dowel':
-      return { hardwareId: 'hw-dowel-8x35', name: 'Wooden Dowel 8x35mm' };
+      return { hardwareId: 'hw-dowel-8x35', name: 'Tarugo de Madera 8×35 mm' };
+    case 'screw':
+      return { hardwareId: 'hw-screw-wood', name: 'Tornillo Madera / Armado 4×40 mm' };
     case 'hinge':
-      return { hardwareId: 'hw-hinge-cup-35', name: 'Concealed Euro Cup Hinge 35mm' };
+      return { hardwareId: 'hw-hinge-cup-35', name: 'Bisagra Cazoleta Ø35 mm' };
     case 'butt-hinge':
-      return { hardwareId: 'hw-hinge-butt', name: 'Bisagra Libro / Munición (Butt Hinge)' };
+      return { hardwareId: 'hw-hinge-butt', name: 'Bisagra Libro / Pomela' };
     case 'piano-hinge':
-      return { hardwareId: 'hw-hinge-piano', name: 'Bisagra Piano Continua (Piano Hinge)' };
+      return { hardwareId: 'hw-hinge-piano', name: 'Bisagra Piano Continua' };
     case 'magnetic-catch':
       return { hardwareId: 'hw-catch-magnetic', name: 'Retén Magnético con Contraplaca' };
     case 'push-catch':
-      return { hardwareId: 'hw-catch-push', name: 'Pulsador Tip-On / Push-to-Open' };
+      return { hardwareId: 'hw-catch-push', name: 'Expulsor Push-to-Open' };
     case 'roller-catch':
-      return { hardwareId: 'hw-catch-roller', name: 'Retén a Rodillo / Bolilla' };
+      return { hardwareId: 'hw-catch-roller', name: 'Retén a Rodillo' };
     case 'handle':
       return { hardwareId: 'hw-handle', name: 'Tirador / Manija con Tornillos M4' };
     case 'slide':
-      return { hardwareId: 'hw-slide-telescopic', name: 'Ball Bearing Telescopic Drawer Slide' };
+      return { hardwareId: 'hw-slide-telescopic', name: 'Corredera Telescópica (guía lateral; 2 = 1 par)' };
     case 'shelf-pin':
-      return { hardwareId: 'hw-shelf-pin-5', name: 'Shelf Support Pin 5mm' };
+      return { hardwareId: 'hw-shelf-pin-5', name: 'Soporte / Pin de Estante Ø5 mm' };
     default:
       return null;
   }
@@ -184,30 +189,43 @@ export function generateBOMEdgeBands(
 /**
  * Count hardware items derived from module joints.
  */
-export function generateBOMHardware(resolvedModule: { joints: Joint[] } | ResolvedModule): BOMHardwareItem[] {
+export function generateBOMHardware(
+  resolvedModule: { joints: Joint[] } | ResolvedModule,
+  jointStrategy?: string,
+): BOMHardwareItem[] {
   const counts = new Map<string, { name: string; jointKind: string; count: number }>();
 
+  const addItem = (hardwareId: string, name: string, jointKind: string, units: number) => {
+    if (units <= 0) return;
+    const existing = counts.get(hardwareId);
+    if (existing) {
+      existing.count += units;
+    } else {
+      counts.set(hardwareId, { name, jointKind, count: units });
+    }
+  };
+
   for (const joint of resolvedModule.joints) {
-    const meta = getHardwareMetadata(joint.kind);
+    const effectiveKind =
+      joint.kind === 'confirmat' && jointStrategy ? jointStrategy : joint.kind;
+    const contactLengthMm = joint.region ? joint.region.end - joint.region.start : undefined;
+
+    if (effectiveKind === 'dowel-and-confirmat') {
+      const units = getHardwareCountForJoint('confirmat', contactLengthMm);
+      const confMeta = getHardwareMetadata('confirmat');
+      const dowelMeta = getHardwareMetadata('dowel');
+      if (confMeta) addItem(confMeta.hardwareId, confMeta.name, 'confirmat', units);
+      if (dowelMeta) addItem(dowelMeta.hardwareId, dowelMeta.name, 'dowel', Math.min(2, units));
+      continue;
+    }
+
+    const meta = getHardwareMetadata(effectiveKind);
     if (!meta) {
       continue;
     }
 
-    const contactLengthMm = joint.region ? joint.region.end - joint.region.start : undefined;
-    const units = getHardwareCountForJoint(joint.kind, contactLengthMm);
-
-    if (units > 0) {
-      const existing = counts.get(meta.hardwareId);
-      if (existing) {
-        existing.count += units;
-      } else {
-        counts.set(meta.hardwareId, {
-          name: meta.name,
-          jointKind: joint.kind,
-          count: units,
-        });
-      }
-    }
+    const units = getHardwareCountForJoint(effectiveKind, contactLengthMm);
+    addItem(meta.hardwareId, meta.name, effectiveKind, units);
   }
 
   const result: BOMHardwareItem[] = [];
@@ -260,10 +278,11 @@ export function generateBillOfMaterials(
   resolvedModule: ResolvedModule,
   edgeBands: Map<string, EdgeBand> | EdgeBand[] | { edgeBands: EdgeBand[] },
   extraHardware?: BOMHardwareItem[],
+  jointStrategy?: string,
 ): BillOfMaterials {
   const pieces = generateBOMPieces(resolvedModule.pieces, edgeBands);
   const edgeBandsSummary = generateBOMEdgeBands(resolvedModule.pieces, edgeBands);
-  const hardware = generateBOMHardware(resolvedModule);
+  const hardware = generateBOMHardware(resolvedModule, jointStrategy);
   if (extraHardware && extraHardware.length > 0) {
     for (const extra of extraHardware) {
       if (extra.count <= 0) continue;
@@ -277,9 +296,11 @@ export function generateBillOfMaterials(
   }
   const materialGroups = groupBOMPiecesByMaterial(pieces);
 
-  const totalCutAreaM2 = Number(
-    pieces.reduce((sum, p) => sum + p.areaM2, 0).toFixed(4),
+  const exactTotalAreaM2 = pieces.reduce(
+    (sum, p) => sum + (p.cutDimensionsMm.width * p.cutDimensionsMm.height) / 1_000_000,
+    0,
   );
+  const totalCutAreaM2 = Number(exactTotalAreaM2.toFixed(3));
 
   const totalEdgeBandMeters = Number(
     edgeBandsSummary.reduce((sum, eb) => sum + eb.lengthMeters, 0).toFixed(3),

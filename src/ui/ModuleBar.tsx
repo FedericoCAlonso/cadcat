@@ -50,8 +50,6 @@ export function ModuleBar({
   onUpdateProjectModuleName,
   onSaveModule,
   onSaveProject,
-  onOpenDistributionModal,
-  isSubdividedBay = false,
 }: ModuleBarProps): ReactElement {
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState<string>('');
@@ -187,20 +185,6 @@ export function ModuleBar({
               +
             </button>
           </div>
-        )}
-
-        {/* Especial button (Decision 2) */}
-        {onOpenDistributionModal && (
-          <button
-            type="button"
-            onClick={onOpenDistributionModal}
-            className={`module-bar__special-btn ${isSubdividedBay ? 'module-bar__special-btn--active' : ''}`}
-            title="Edición Especial de vanos (Matriz de celdas estilo Word)"
-            aria-label="Especial"
-          >
-            <span aria-hidden="true">🍱</span>
-            <span className="special-label">Especial</span>
-          </button>
         )}
 
         {/* Overflow Menu ("⋯") */}

@@ -29,6 +29,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
     const placementNodes: PlacementNode[] = [];
     const subAssemblies: SubAssembly[] = [];
 
+    const hw = options.hardwareConfig;
     const {
       drawerTracks,
       frontMount,
@@ -37,7 +38,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       boxThicknessMm: contentBoxThicknessMm,
       frontThicknessMm: contentFrontThicknessMm,
       boxJointType,
-      gapMm = 2.0,
+      gapMm = hw?.drawerFrontGapMm ?? 2.5,
       drawerType,
       bottomMount = 'bottom-screwed',
       topPullGapMm = 0,
@@ -159,6 +160,9 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
       const drawerBaseY = bay.y + bay.height - (offsetFromTop + frontHeight);
       const boxHeight = Math.min(250, Math.max(80, Math.round(frontHeight * 0.7)));
 
+      const boxBottomClearance = hw?.drawerBoxBottomClearanceMm ?? 15;
+      const slideCenterOffsetY = drawerBaseY + boxBottomClearance + Math.max(25, Math.min(30, Math.round(boxHeight / 2)));
+
       const drawerResult = buildDrawerSubAssembly(
         {
           idPrefix: `${idPrefix}-drawer`,
@@ -178,10 +182,12 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
           frontThicknessMm: contentFrontThicknessMm,
           boxJointKind: boxJointType === 'dado-groove' ? 'rebate' : boxJointType,
           backingThicknessMm: options.backingThicknessMm,
-          bottomScrewedDeductionWidthMm: content.bottomScrewedDeductionWidthMm ?? options.drawerBottomScrewedDeductionWidthMm,
-          bottomScrewedDeductionDepthMm: content.bottomScrewedDeductionDepthMm ?? options.drawerBottomScrewedDeductionDepthMm,
+          boxFrontOffsetMm: hw?.drawerBoxFrontOffsetMm,
+          boxBottomClearanceMm: hw?.drawerBoxBottomClearanceMm,
+          bottomScrewedDeductionWidthMm: content.bottomScrewedDeductionWidthMm ?? options.drawerBottomScrewedDeductionWidthMm ?? hw?.drawerBottomScrewedDeductionWidthMm,
+          bottomScrewedDeductionDepthMm: content.bottomScrewedDeductionDepthMm ?? options.drawerBottomScrewedDeductionDepthMm ?? hw?.drawerBottomScrewedDeductionDepthMm,
           slideType,
-          customSlideClearanceMm: content.slideClearanceMm,
+          customSlideClearanceMm: content.slideClearanceMm ?? hw?.customSlideClearanceMm,
           frontMount: effectiveFrontMount,
           edgeBandId,
           gapMm,
@@ -213,7 +219,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
             a: { pieceId: boxSideL.id, faceId: 'outer' },
             b: { pieceId: hasHingeSpacer && spacerSide === 'left' && spacerId ? spacerId : bay.leftPieceId, faceId: 'inner' },
             kind: 'slide',
-            offsetMm: drawerBaseY + 30,
+            offsetMm: slideCenterOffsetY,
           }),
         );
       }
@@ -223,7 +229,7 @@ export class DrawerStackBayResolver implements IBayContentResolver<BayContentDra
             a: { pieceId: boxSideR.id, faceId: 'outer' },
             b: { pieceId: hasHingeSpacer && spacerSide === 'right' && spacerId ? spacerId : bay.rightPieceId, faceId: 'inner' },
             kind: 'slide',
-            offsetMm: drawerBaseY + 30,
+            offsetMm: slideCenterOffsetY,
           }),
         );
       }

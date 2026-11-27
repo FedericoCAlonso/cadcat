@@ -97,10 +97,12 @@ export function NumericInput({
     }
   }, [numericValue, isFocused]);
 
+  const effectiveAllowDecimals = allowDecimals || (Number.isFinite(step) && step % 1 !== 0);
+
   const parseNumber = (text: string): number | null => {
-    const trimmed = text.trim();
+    const trimmed = text.trim().replace(',', '.');
     if (trimmed === '' || trimmed === '-') return null;
-    const num = allowDecimals ? Number.parseFloat(trimmed) : Number.parseInt(trimmed, 10);
+    const num = effectiveAllowDecimals ? Number.parseFloat(trimmed) : Number.parseInt(trimmed, 10);
     return Number.isNaN(num) ? null : num;
   };
 
@@ -228,12 +230,14 @@ export function NumericInput({
       id={id}
       name={name}
       type="number"
+      inputMode={effectiveAllowDecimals ? 'decimal' : 'numeric'}
       min={min}
       max={max}
       step={step}
       value={textBuffer}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-invalid={isCurrentInvalid || undefined}
       className={`numeric-input-field ${isCurrentInvalid ? 'numeric-input-field--invalid' : ''} ${className}`}
       style={style}
       onFocus={handleFocus}

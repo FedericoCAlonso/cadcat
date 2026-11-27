@@ -4,6 +4,8 @@ export {
   RECTANGULAR_EDGE_NAMES,
   isDefaultStructuralRole,
   createRectangularContour,
+  getContourBoundingBox,
+  resolvePieceGrainAxis,
   calculateSegmentLength,
   getContourSegments,
   createPieceFaces,

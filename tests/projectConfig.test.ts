@@ -41,7 +41,6 @@ describe('Project Configuration System', () => {
     expect(config.nesting.sawKerfMm).toBe(4.4);
     expect(config.nesting.sheetTrimMarginMm).toBe(10.0);
     expect(config.features.enablePieceLabels).toBe(true);
-    expect(config.features.enableInterferencesLab).toBe(false);
   });
 
   it('seeds configuration into IndexedDB on first load and persists changes', async () => {

@@ -48,6 +48,24 @@ export function exportPieceToDxf(
     ? piece.cutDimensionsMm.height
     : piece.dimensionsMm.height;
 
+  // Compute left/bottom edge band deduction shift when exporting in cut dimensions
+  let shiftX = 0;
+  let shiftY = 0;
+  if (options.useCutDimensions) {
+    const totalDedX = Math.max(0, piece.dimensionsMm.width - piece.cutDimensionsMm.width);
+    const totalDedY = Math.max(0, piece.dimensionsMm.height - piece.cutDimensionsMm.height);
+    const leftEdge = piece.bandedEdges?.find((b) => b.faceId.includes('left'));
+    const rightEdge = piece.bandedEdges?.find((b) => b.faceId.includes('right'));
+    const bottomEdge = piece.bandedEdges?.find((b) => b.faceId.includes('bottom'));
+    const topEdge = piece.bandedEdges?.find((b) => b.faceId.includes('top'));
+    if (leftEdge && totalDedX > 0) {
+      shiftX = rightEdge ? totalDedX * (leftEdge.thicknessMm / Math.max(0.001, leftEdge.thicknessMm + rightEdge.thicknessMm)) : totalDedX;
+    }
+    if (bottomEdge && totalDedY > 0) {
+      shiftY = topEdge ? totalDedY * (bottomEdge.thicknessMm / Math.max(0.001, bottomEdge.thicknessMm + topEdge.thicknessMm)) : totalDedY;
+    }
+  }
+
   const entities: DxfEntity[] = [];
 
   // 1. Layer 0_CONTOUR: Piece Perimeter
@@ -70,17 +88,17 @@ export function exportPieceToDxf(
     }
   }
 
-  addDrillEntities(entities, allDrills, widthMm, targetFace);
+  addDrillEntities(entities, allDrills, widthMm, targetFace, shiftX, shiftY);
 
   // 3. Grooves, Rebates, Cutouts, Profiles
   if (options.customOperations) {
     for (const op of options.customOperations) {
       if (op.kind === 'groove') {
-        addGrooveEntities(entities, op, widthMm, heightMm, targetFace, options.includeGrooveCenterline);
+        addGrooveEntities(entities, op, widthMm, heightMm, targetFace, options.includeGrooveCenterline, shiftX, shiftY);
       } else if (op.kind === 'rebate') {
         addRebateEntities(entities, op, widthMm, heightMm, targetFace);
       } else if (op.kind === 'cutout') {
-        addCutoutEntities(entities, op, widthMm, targetFace);
+        addCutoutEntities(entities, op, widthMm, targetFace, shiftX, shiftY);
       } else if (op.kind === 'edge-profile') {
         addEdgeProfileEntities(entities, op, widthMm, heightMm, targetFace);
       }
@@ -113,6 +131,22 @@ export function exportMachiningSheetToDxf(
     ? sheet.cutDimensionsMm.height
     : sheet.dimensionsMm.height;
 
+  let shiftX = 0;
+  let shiftY = 0;
+  if (options.useCutDimensions) {
+    const totalDedX = Math.max(0, sheet.dimensionsMm.width - sheet.cutDimensionsMm.width);
+    const totalDedY = Math.max(0, sheet.dimensionsMm.height - sheet.cutDimensionsMm.height);
+    // On Face B the board is flipped horizontally, so its X=0 edge corresponds to Face A's right edge.
+    const leadingEdgeX = targetFace === 'face-B' ? sheet.bandedEdges.right : sheet.bandedEdges.left;
+    const trailingEdgeX = targetFace === 'face-B' ? sheet.bandedEdges.left : sheet.bandedEdges.right;
+    if (leadingEdgeX && totalDedX > 0) {
+      shiftX = trailingEdgeX ? totalDedX / 2 : totalDedX;
+    }
+    if (sheet.bandedEdges.bottom && totalDedY > 0) {
+      shiftY = sheet.bandedEdges.top ? totalDedY / 2 : totalDedY;
+    }
+  }
+
   const entities: DxfEntity[] = [];
 
   // 1. Layer 0_CONTOUR
@@ -137,7 +171,7 @@ export function exportMachiningSheetToDxf(
     entities.push({
       type: 'CIRCLE',
       layer,
-      center: { x: item.xMm, y: item.yMm },
+      center: { x: Math.max(0, item.xMm - shiftX), y: Math.max(0, item.yMm - shiftY) },
       radius: item.diameterMm / 2,
     });
   }
@@ -146,11 +180,11 @@ export function exportMachiningSheetToDxf(
   if (sheet.customOperations) {
     for (const op of sheet.customOperations) {
       if (op.kind === 'groove') {
-        addGrooveEntities(entities, op, widthMm, heightMm, targetFace, options.includeGrooveCenterline);
+        addGrooveEntities(entities, op, widthMm, heightMm, targetFace, options.includeGrooveCenterline, shiftX, shiftY);
       } else if (op.kind === 'rebate') {
         addRebateEntities(entities, op, widthMm, heightMm, targetFace);
       } else if (op.kind === 'cutout') {
-        addCutoutEntities(entities, op, widthMm, targetFace);
+        addCutoutEntities(entities, op, widthMm, targetFace, shiftX, shiftY);
       } else if (op.kind === 'edge-profile') {
         addEdgeProfileEntities(entities, op, widthMm, heightMm, targetFace);
       }
@@ -159,12 +193,14 @@ export function exportMachiningSheetToDxf(
 
   // 4. Label
   if (options.includeLabels !== false) {
+    const fmtW = Math.round(widthMm * 10) / 10;
+    const fmtH = Math.round(heightMm * 10) / 10;
     entities.push({
       type: 'TEXT',
       layer: DXF_STANDARD_LAYERS.LABEL,
       position: { x: 10, y: -25 },
       height: 12,
-      text: `${sheet.pieceId} | ${Math.round(widthMm)}x${Math.round(heightMm)}x${sheet.dimensionsMm.thickness}mm | ${targetFace.toUpperCase()} | ${sheet.role}`,
+      text: `${sheet.pieceId} | ${fmtW}x${fmtH}x${sheet.dimensionsMm.thickness}mm | ${targetFace.toUpperCase()} | ${sheet.role}`,
     });
   }
 
@@ -233,6 +269,8 @@ function addDrillEntities(
   drills: Array<CustomDrillOperation | DrillOperation>,
   widthMm: number,
   targetFace: 'face-A' | 'face-B',
+  shiftX = 0,
+  shiftY = 0,
 ): void {
   for (const drill of drills) {
     const isTargetFace = drill.faceType === targetFace;
@@ -242,8 +280,8 @@ function addDrillEntities(
       continue;
     }
 
-    const rawX = 'positionMm' in drill ? drill.positionMm.x : drill.xMm;
-    const rawY = 'positionMm' in drill ? drill.positionMm.y : drill.yMm;
+    const rawX = ('positionMm' in drill ? drill.positionMm.x : drill.xMm) - shiftX;
+    const rawY = ('positionMm' in drill ? drill.positionMm.y : drill.yMm) - shiftY;
 
     // Mirror X if viewing Face B
     const effX = targetFace === 'face-B'
@@ -268,16 +306,18 @@ function addGrooveEntities(
   heightMm: number,
   targetFace: 'face-A' | 'face-B',
   includeCenterline?: boolean,
+  shiftX = 0,
+  shiftY = 0,
 ): void {
   if (op.faceType !== targetFace) return;
 
   const isHoriz = op.axis === 'x';
 
   if (isHoriz) {
-    const x1 = op.startMm ?? 0;
+    const x1 = Math.max(0, (op.startMm ?? 0) - shiftX);
     const x2 = op.lengthMm !== undefined ? x1 + op.lengthMm : widthMm;
-    const y1 = op.offsetMm;
-    const y2 = op.offsetMm + op.widthMm;
+    const y1 = Math.max(0, op.offsetMm - shiftY);
+    const y2 = y1 + op.widthMm;
 
     entities.push({
       type: 'POLYLINE',
@@ -292,7 +332,7 @@ function addGrooveEntities(
     });
 
     if (includeCenterline) {
-      const centerY = op.offsetMm + op.widthMm / 2;
+      const centerY = y1 + op.widthMm / 2;
       entities.push({
         type: 'LINE',
         layer: DXF_STANDARD_LAYERS.GROOVE,
@@ -301,9 +341,9 @@ function addGrooveEntities(
       });
     }
   } else {
-    const y1 = op.startMm ?? 0;
+    const y1 = Math.max(0, (op.startMm ?? 0) - shiftY);
     const y2 = op.lengthMm !== undefined ? y1 + op.lengthMm : heightMm;
-    const rawX = op.offsetMm;
+    const rawX = Math.max(0, op.offsetMm - shiftX);
     const effX = targetFace === 'face-B' ? widthMm - rawX - op.widthMm : rawX;
     const x1 = effX;
     const x2 = effX + op.widthMm;
@@ -387,12 +427,15 @@ function addCutoutEntities(
   op: CustomPocketOperation,
   widthMm: number,
   targetFace: 'face-A' | 'face-B',
+  shiftX = 0,
+  shiftY = 0,
 ): void {
   const isTarget = op.faceType === targetFace || op.faceType === undefined;
   if (!isTarget) return;
 
-  const effX = targetFace === 'face-B' ? widthMm - op.xMm - op.widthMm : op.xMm;
-  const effY = op.yMm;
+  const shiftedX = Math.max(0, op.xMm - shiftX);
+  const effX = targetFace === 'face-B' ? widthMm - shiftedX - op.widthMm : shiftedX;
+  const effY = Math.max(0, op.yMm - shiftY);
   const toolRad = op.cornerRadiusMm ?? 3;
 
   if (op.cornerTreatment === 'dog-bone' || op.cornerTreatment === 't-bone') {
@@ -517,12 +560,14 @@ function addLabelEntity(
   heightMm: number,
   targetFace: 'face-A' | 'face-B',
 ): void {
+  const fmtW = Math.round(widthMm * 10) / 10;
+  const fmtH = Math.round(heightMm * 10) / 10;
   entities.push({
     type: 'TEXT',
     layer: DXF_STANDARD_LAYERS.LABEL,
     position: { x: 10, y: -25 },
     height: 12,
-    text: `${piece.id} | ${Math.round(widthMm)}x${Math.round(heightMm)}x${piece.thicknessMm}mm | ${targetFace.toUpperCase()} | ${piece.role}`,
+    text: `${piece.id} | ${fmtW}x${fmtH}x${piece.thicknessMm}mm | ${targetFace.toUpperCase()} | ${piece.role}`,
   });
 }
 

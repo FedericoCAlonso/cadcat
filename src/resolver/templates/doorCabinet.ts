@@ -289,9 +289,17 @@ export function buildDoorCabinet(
     placementTree.setNode(doorRes.placementNode);
   } else {
     const isInsetMount = mountType === 'inset';
-    const singleOpeningWidth = isInsetMount
+    // Prevent double-counting carcase thickness T when buildDoorSubAssembly adds 2*T for full-overlay:
+    // For full-overlay double doors, total width = widthMm - 2*revealMm; each leaf = (widthMm - 2*revealMm - gapMm) / 2.
+    // buildDoorSubAssembly computes width = openingWidthMm + 2*T - 2*revealMm for full-overlay,
+    // so passing openingWidthMm = leafTargetWidth - 2*T + 2*revealMm yields exact non-overlapping double doors.
+    const effectiveReveal = revealMm ?? 2;
+    const targetLeafWidth = isInsetMount
       ? Math.round((innerWidth - 3 * gapMm) / 2)
-      : Math.round((innerWidth - 2) / 2);
+      : Math.round((widthMm - 2 * effectiveReveal - gapMm) / 2);
+    const singleOpeningWidth = isInsetMount
+      ? targetLeafWidth + 2 * gapMm
+      : Math.max(50, targetLeafWidth - 2 * T + 2 * effectiveReveal);
 
     const doorLeftRes = buildDoorSubAssembly(
       {

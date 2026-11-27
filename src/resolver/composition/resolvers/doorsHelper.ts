@@ -1,4 +1,4 @@
-import { type Piece, type Joint, type JointKind } from '../../../model';
+import { type Piece, type Joint, type JointKind, type HardwareConfig } from '../../../model';
 import { createPiece, createRectangularContour } from '../../piece';
 import { createJoint } from '../../joint';
 import { type PlacementNode } from '../../tree';
@@ -25,6 +25,7 @@ export interface BuildDoorsForBayParams {
     edgeBandId?: string;
     rootPieceId: string;
     idPrefix?: string;
+    hardwareConfig?: HardwareConfig;
   };
   count?: 1 | 2;
   hingeSide?: 'left' | 'right';
@@ -73,6 +74,12 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
         ? 'piano-hinge'
         : 'hinge';
 
+  const hw = options.hardwareConfig;
+  const doorRevealMm =
+    normMount === 'codo-9'
+      ? hw?.doorHalfOverlayRevealMm
+      : hw?.doorOverlayRevealMm;
+
   if (count === 1) {
     const doorResult = buildDoorSubAssembly(
       {
@@ -85,6 +92,9 @@ export function buildDoorsForBay(params: BuildDoorsForBayParams): {
         materialId: materials.frontsMaterialId,
         doorThicknessMm: actualDoorT,
         edgeBandId,
+        gapMm: hw?.doorInsetGapMm,
+        revealMm: doorRevealMm,
+        hingeSetbackFromEndMm: hw?.doorHingeMarginMm,
       },
       rootPieceId,
     );

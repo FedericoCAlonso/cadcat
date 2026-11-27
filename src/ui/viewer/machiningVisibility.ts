@@ -90,9 +90,16 @@ export function shouldShowPieceMachining(params: MachiningVisibilityParams): boo
  */
 export function countPieceMachiningOperations(sheet?: PieceMachiningSheet | null): number {
   if (!sheet) return 0;
-  const standardOps = typeof sheet.totalOperations === 'number' ? sheet.totalOperations : 0;
-  const customOps = Array.isArray(sheet.customOperations) ? sheet.customOperations.length : 0;
-  return standardOps + customOps;
+  // sheet.totalOperations already aggregates derived drills, custom drills, and non-drill custom operations.
+  if (typeof sheet.totalOperations === 'number') {
+    return sheet.totalOperations;
+  }
+  const drillCount =
+    (sheet.faceAOperations?.length ?? 0) +
+    (sheet.faceBOperations?.length ?? 0) +
+    (sheet.edgeOperations?.length ?? 0);
+  const nonDrillCustomCount = (sheet.customOperations ?? []).filter((o) => o.kind !== 'drill').length;
+  return drillCount + nonDrillCustomCount;
 }
 
 /**

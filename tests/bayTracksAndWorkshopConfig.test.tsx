@@ -295,7 +295,7 @@ describe('Workshop View Editor Configurations (useMachiningEditorViewModel)', ()
     const secondCall = onAddOp.mock.calls[1]![1];
 
     expect(firstCall.diameterMm).toBe(35);
-    expect(firstCall.depthMm).toBe(11.5);
+    expect(firstCall.depthMm).toBe(12);
     expect(firstCall.xMm).toBe(21.5);
     expect(firstCall.yMm).toBe(100);
 

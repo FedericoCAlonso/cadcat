@@ -21,11 +21,6 @@ import {
   type Project,
   type ProjectModuleItem,
   createDefaultProject,
-  type InterferenceConfig,
-  type ColumnObstacle,
-  type FalseSquare,
-  DEFAULT_COLUMN_OBSTACLE,
-  DEFAULT_FALSE_SQUARE,
   filterMaterialsByThickness,
 } from '../model';
 import {
@@ -365,12 +360,6 @@ export interface ModuleViewModelState {
   setSinkDrawerAdaptation: (mode: 'false-front' | 'u-shape-drawer' | 'none') => void;
   setCountertopFrontRailOrientation: (orientation: 'vertical' | 'horizontal' | 'suppressed') => void;
   exportMarmoleriaPdfReport: () => void;
-  // Architectural Interferences Lab (Hito 2)
-  interferences: InterferenceConfig;
-  columnObstacle: ColumnObstacle;
-  falseSquare: FalseSquare;
-  setColumnObstacle: (col: ColumnObstacle) => void;
-  setFalseSquare: (fs: FalseSquare) => void;
   // Multi-module project management
   project: Project | null;
   projectModules: ProjectModuleItem[];
@@ -544,10 +533,19 @@ function resolveInactiveModule(
           height: item.height,
           depth: item.depth,
           roofType: item.roofType,
+          railOrientation: item.railOrientation,
+          hasMiddleBrace: item.hasMiddleBrace,
+          middleBraceWidthMm: item.middleBraceWidthMm,
+          hasWallHangingRail: item.hasWallHangingRail,
+          wallHangingRailWidthMm: item.wallHangingRailWidthMm,
+          hasPlinth: item.hasPlinth,
+          plinthHeightMm: item.plinthHeightMm,
+          plinthSetbackMm: item.plinthSetbackMm,
           jointPriority: item.jointPriority,
           hasBacking: item.hasBacking,
-          backingType: item.backingType as any,
+          backingType: item.backingType as BackingType,
           backingThicknessMm: item.backingThicknessMm,
+          backingMultiBayMode: item.backingMultiBayMode,
           isIslandCabinet: item.isIslandCabinet,
           rearStructuralRails: item.rearStructuralRails,
           rearStructuralRailsWidthMm: item.rearStructuralRailsWidthMm,
@@ -560,18 +558,22 @@ function resolveInactiveModule(
           frontsMaterialId: frontMat?.id ?? activeMat.id,
           drawerBoxesMaterialId: boxMat?.id ?? activeMat.id,
           backingsMaterialId: backingMat?.id ?? activeMat.id,
+          pieceOverrides: item.pieceMaterialOverrides,
+          pieceThicknessOverrides: item.pieceThicknessOverrides,
+          pieceEdgeBandOverrides: item.pieceEdgeBandOverrides,
         },
         edgeBandId: item.selectedEdgeBandId || undefined,
-        interferences: item.interferences,
       };
 
+      const carcassThickness = typeof activeMat.thicknessMm === 'number' ? activeMat.thicknessMm : 18;
       const built = buildModularModule(modularDef, {
-        carcassThicknessMm: typeof activeMat.thicknessMm === 'number' ? activeMat.thicknessMm : 18,
-        frontThicknessMm: typeof frontMat?.thicknessMm === 'number' ? frontMat.thicknessMm : 18,
-        boxThicknessMm: typeof boxMat?.thicknessMm === 'number' ? boxMat.thicknessMm : 15,
+        carcassThicknessMm: carcassThickness,
+        frontThicknessMm: typeof frontMat?.thicknessMm === 'number' ? frontMat.thicknessMm : carcassThickness,
+        boxThicknessMm: typeof boxMat?.thicknessMm === 'number' ? boxMat.thicknessMm : carcassThickness,
         backingThicknessMm: typeof backingMat?.thicknessMm === 'number' ? backingMat.thicknessMm : item.backingThicknessMm,
         drawerBottomScrewedDeductionWidthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionWidthMm,
         drawerBottomScrewedDeductionDepthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionDepthMm,
+        hardwareConfig: projectConfig?.hardware,
         edgeBands,
       });
 
@@ -585,6 +587,8 @@ function resolveInactiveModule(
           jointGraph: new JointGraph(built.module.joints),
         },
         edgeBands,
+        undefined,
+        item.jointStrategy ?? projectConfig?.machining?.jointStrategy,
       );
 
       const gauges = deriveAssemblyGauges({ pieces: built.resolvedPieces, joints: built.module.joints }, projectConfig?.machining);
@@ -840,15 +844,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const [countertopBacksplashHeightMm, setCountertopBacksplashHeightMm] = useState<number>(DEFAULT_COUNTERTOP_CONFIG.backsplashHeightMm);
   const [sinkDrawerAdaptation, setSinkDrawerAdaptation] = useState<'false-front' | 'u-shape-drawer' | 'none'>(DEFAULT_COUNTERTOP_CONFIG.sinkDrawerAdaptation);
   const [countertopFrontRailOrientation, setCountertopFrontRailOrientation] = useState<'vertical' | 'horizontal' | 'suppressed'>(DEFAULT_COUNTERTOP_CONFIG.frontRailOrientation);
-
-  // Architectural Interferences Lab state (Hito 2)
-  const [columnObstacle, setColumnObstacle] = useState<ColumnObstacle>(DEFAULT_COLUMN_OBSTACLE);
-  const [falseSquare, setFalseSquare] = useState<FalseSquare>(DEFAULT_FALSE_SQUARE);
-
-  const interferences = useMemo<InterferenceConfig>(() => ({
-    columnObstacle,
-    falseSquare,
-  }), [columnObstacle, falseSquare]);
 
   // Templates list exposed to UI: single base empty carcass + modular presets + wall shelves + user templates
   const templates = useMemo<TemplateDefinition[]>(() => {
@@ -1737,10 +1732,18 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (mod.templateId) setSelectedTemplateId(mod.templateId);
     if (mod.selectedMaterialId) setSelectedMaterialId(mod.selectedMaterialId);
     if (mod.selectedEdgeBandId) setSelectedEdgeBandId(mod.selectedEdgeBandId);
-    if (mod.frontsMaterialId) setFrontsMaterialId(mod.frontsMaterialId);
-    if (mod.drawerBoxesMaterialId) setDrawerBoxesMaterialId(mod.drawerBoxesMaterialId);
-    if (mod.backingsMaterialId) setBackingsMaterialId(mod.backingsMaterialId);
+    if (mod.frontsMaterialId !== undefined) setFrontsMaterialId(mod.frontsMaterialId);
+    if (mod.drawerBoxesMaterialId !== undefined) setDrawerBoxesMaterialId(mod.drawerBoxesMaterialId);
+    if (mod.backingsMaterialId !== undefined) setBackingsMaterialIdState(mod.backingsMaterialId);
     if (mod.roofType) setRoofTypeState(mod.roofType as RoofType);
+    if (mod.railOrientation) setRailOrientation(mod.railOrientation);
+    setHasMiddleBrace(Boolean(mod.hasMiddleBrace));
+    if (mod.middleBraceWidthMm) setMiddleBraceWidthMm(mod.middleBraceWidthMm);
+    setHasWallHangingRail(Boolean(mod.hasWallHangingRail));
+    if (mod.wallHangingRailWidthMm) setWallHangingRailWidthMm(mod.wallHangingRailWidthMm);
+    setHasPlinth(Boolean(mod.hasPlinth));
+    if (mod.plinthHeightMm) setPlinthHeightMm(mod.plinthHeightMm);
+    if (mod.plinthSetbackMm !== undefined) setPlinthSetbackMm(mod.plinthSetbackMm);
     if (mod.jointPriority) setJointPriorityState(mod.jointPriority as JointPriority);
     if (typeof mod.hasBacking === 'boolean') setHasBackingState(mod.hasBacking);
     if (mod.backingType) setBackingTypeState(mod.backingType as BackingType);
@@ -1749,17 +1752,16 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (mod.rearStructuralRails) setRearStructuralRailsState(mod.rearStructuralRails as RearStructuralRails);
     if (mod.rearStructuralRailsWidthMm) setRearStructuralRailsWidthMmState(mod.rearStructuralRailsWidthMm);
     if (typeof mod.partitionPassThroughRoof === 'boolean') setPartitionPassThroughRoofState(mod.partitionPassThroughRoof);
-    if (mod.gridType) setGridTypeState(mod.gridType as any);
-    if (mod.bayTracks) setBayTracksState(mod.bayTracks);
-    if (mod.bays) setBaysState(mod.bays);
+    if (mod.gridType) setGridTypeState(mod.gridType);
+    if (mod.bayTracks) setBayTracksState(mod.bayTracks as TrackSize[]);
+    if (mod.bays) setBaysState(mod.bays as BayContent[]);
     setIsCustomModular(Boolean(mod.isCustomModular));
     if (mod.jointStrategy) setJointStrategy(mod.jointStrategy);
-    setPieceJointOverrides((mod.pieceJointOverrides as any) ?? {});
+    setPieceJointOverrides((mod.pieceJointOverrides as Record<string, JointKind>) ?? {});
     setPieceMaterialOverrides(mod.pieceMaterialOverrides ?? {});
     setPieceThicknessOverrides(mod.pieceThicknessOverrides ?? {});
     setPieceEdgeBandOverrides(mod.pieceEdgeBandOverrides ?? {});
-    setColumnObstacle(mod.interferences?.columnObstacle ?? DEFAULT_COLUMN_OBSTACLE);
-    setFalseSquare(mod.interferences?.falseSquare ?? DEFAULT_FALSE_SQUARE);
+    setCustomPieceOperations(mod.customPieceOperations ?? {});
     applyWallShelvesSettings(mod.wallShelves);
   }, [applyWallShelvesSettings, setJointStrategy]);
 
@@ -1797,7 +1799,15 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         setUserTemplates(loadedUserTpls);
 
         if (loadedProjects.length > 0 && loadedProjects[0]) {
-          applyProjectSnapshot(loadedProjects[0]);
+          const restored = loadedProjects[0];
+          applyProjectSnapshot(restored);
+          const restoredActive = restored.modules.find((m) => m.id === restored.activeModuleId) ?? restored.modules[0];
+          if ((!restoredActive?.selectedMaterialId || !loadedMats.some((m) => m.id === restoredActive.selectedMaterialId)) && loadedMats[0]) {
+            setSelectedMaterialId(loadedMats[0].id);
+          }
+          if ((!restoredActive?.selectedEdgeBandId || !loadedBands.some((b) => b.id === restoredActive.selectedEdgeBandId)) && loadedBands[0]) {
+            setSelectedEdgeBandId(loadedBands[0].id);
+          }
         } else {
           const defProj = createDefaultProject({
             id: 'mod-1',
@@ -1827,14 +1837,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             jointStrategy: 'confirmat',
           });
           setProject(defProj);
+          if (loadedMats[0]) {
+            setSelectedMaterialId(loadedMats[0].id);
+          }
+          if (loadedBands[0]) {
+            setSelectedEdgeBandId(loadedBands[0].id);
+          }
         }
 
-        if (loadedMats[0]) {
-          setSelectedMaterialId(loadedMats[0].id);
-        }
-        if (loadedBands[0]) {
-          setSelectedEdgeBandId(loadedBands[0].id);
-        }
         const defaultBacking = loadedMats.find((m) => m.id === 'mat-mdf-raw-3')
           ?? loadedMats.find((m) => m.id === 'mat-mdf-white-3')
           ?? loadedMats.find((m) => typeof m.thicknessMm === 'number' && m.thicknessMm <= 6);
@@ -1886,6 +1896,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
             isIslandCabinet,
             rearStructuralRails,
             rearStructuralRailsWidthMm,
+            partitionPassThroughRoof,
           },
           gridType,
           bayTracks,
@@ -1925,6 +1936,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       hasPlinth,
       plinthHeightMm,
       plinthSetbackMm,
+      backingType,
+      backingThicknessMm,
+      isIslandCabinet,
+      rearStructuralRails,
+      rearStructuralRailsWidthMm,
+      partitionPassThroughRoof,
       gridType,
       bayTracks,
       bays,
@@ -2199,9 +2216,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     selectedEquipmentId,
     sinkDrawerAdaptation,
     countertopFrontRailOrientation,
-    materials,
-    partitionPassThroughRoof,
-    interferences,
   ]);
 
   const countertopCalculation = useMemo<CountertopCalculationResult | null>(() => {
@@ -2236,117 +2250,75 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         };
       }
 
-      if (
-        isCustomModular ||
-        selectedTemplateId.startsWith('modular-') ||
-        selectedTemplateId.startsWith('user-') ||
-        selectedTemplateId.startsWith('preset-') ||
-        selectedTemplateId !== 'wall-shelves'
-      ) {
-        const { grid: gridDef, normalizedBays } = buildModularGridAndBays(gridType, bayTracks, bays);
+      const { grid: gridDef, normalizedBays } = buildModularGridAndBays(gridType, bayTracks, bays);
 
-        const modularDef: ModularModuleDefinition = {
-          id: `mod-${selectedTemplateId}`,
-          carcass: {
-            width,
-            height,
-            depth,
-            jointPriority,
-            roofType,
-            railWidthMm: 80,
-            railOrientation,
-            hasMiddleBrace,
-            middleBraceWidthMm,
-            hasWallHangingRail,
-            wallHangingRailWidthMm,
-            hasPlinth,
-            plinthHeightMm,
-            plinthSetbackMm,
-            hasBacking,
-            backingType,
-            backingThicknessMm: (() => {
-              const raw = materials.find((m) => m.id === backingsMaterialId)?.thicknessMm;
-              return typeof raw === 'number' ? raw : backingThicknessMm;
-            })(),
-            isIslandCabinet,
-            rearStructuralRails,
-            rearStructuralRailsWidthMm,
-            partitionPassThroughRoof,
-            backingGrooveToleranceMm: projectConfig?.hardware?.backingGrooveToleranceMm ?? 0.5,
-          },
-          grid: gridDef,
-          bays: normalizedBays,
-          materials: {
-            carcassMaterialId: activeMaterial.id,
-            frontsMaterialId: frontsMaterialId || activeMaterial.id,
-            drawerBoxesMaterialId: drawerBoxesMaterialId || activeMaterial.id,
-            backingsMaterialId: backingsMaterialId || activeMaterial.id,
-            pieceOverrides: pieceMaterialOverrides,
-            pieceThicknessOverrides,
-            pieceEdgeBandOverrides,
-          },
-          edgeBandId: selectedEdgeBandId || undefined,
-          interferences,
-        };
+      const modularDef: ModularModuleDefinition = {
+        id: `mod-${selectedTemplateId}`,
+        carcass: {
+          width,
+          height,
+          depth,
+          jointPriority,
+          roofType,
+          railWidthMm: DEFAULT_UI_CONFIG.defaultCarcassSettings.railWidthMm,
+          railOrientation,
+          hasMiddleBrace,
+          middleBraceWidthMm,
+          hasWallHangingRail,
+          wallHangingRailWidthMm,
+          hasPlinth,
+          plinthHeightMm,
+          plinthSetbackMm,
+          hasBacking,
+          backingType,
+          backingThicknessMm: (() => {
+            const raw = materials.find((m) => m.id === backingsMaterialId)?.thicknessMm;
+            return typeof raw === 'number' ? raw : backingThicknessMm;
+          })(),
+          isIslandCabinet,
+          rearStructuralRails,
+          rearStructuralRailsWidthMm,
+          partitionPassThroughRoof,
+          backingGrooveToleranceMm: projectConfig?.hardware?.backingGrooveToleranceMm ?? 0.5,
+        },
+        grid: gridDef,
+        bays: normalizedBays,
+        materials: {
+          carcassMaterialId: activeMaterial.id,
+          frontsMaterialId: frontsMaterialId || activeMaterial.id,
+          drawerBoxesMaterialId: drawerBoxesMaterialId || activeMaterial.id,
+          backingsMaterialId: backingsMaterialId || activeMaterial.id,
+          pieceOverrides: pieceMaterialOverrides,
+          pieceThicknessOverrides,
+          pieceEdgeBandOverrides,
+        },
+        edgeBandId: selectedEdgeBandId || undefined,
+      };
 
-        const backingMat = materials.find((m) => m.id === backingsMaterialId);
-        const resolvedBackingThickness = typeof backingMat?.thicknessMm === 'number'
-          ? backingMat.thicknessMm
-          : backingThicknessMm;
-        const boxMat = materials.find((m) => m.id === drawerBoxesMaterialId);
-        const resolvedBoxThickness = typeof boxMat?.thicknessMm === 'number'
-          ? boxMat.thicknessMm
-          : 15;
-        const frontMat = materials.find((m) => m.id === frontsMaterialId);
-        const resolvedFrontThickness = typeof frontMat?.thicknessMm === 'number'
-          ? frontMat.thicknessMm
-          : 18;
+      const carcassThickness = typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18;
+      const backingMat = materials.find((m) => m.id === backingsMaterialId);
+      const resolvedBackingThickness = typeof backingMat?.thicknessMm === 'number'
+        ? backingMat.thicknessMm
+        : backingThicknessMm;
+      const boxMat = materials.find((m) => m.id === drawerBoxesMaterialId);
+      const resolvedBoxThickness = typeof boxMat?.thicknessMm === 'number'
+        ? boxMat.thicknessMm
+        : carcassThickness;
+      const frontMat = materials.find((m) => m.id === frontsMaterialId);
+      const resolvedFrontThickness = typeof frontMat?.thicknessMm === 'number'
+        ? frontMat.thicknessMm
+        : carcassThickness;
 
-        const built = buildModularModule(modularDef, {
-          carcassThicknessMm: typeof activeMaterial.thicknessMm === 'number' ? activeMaterial.thicknessMm : 18,
-          frontThicknessMm: resolvedFrontThickness,
-          boxThicknessMm: resolvedBoxThickness,
-          backingThicknessMm: resolvedBackingThickness,
-          drawerBottomScrewedDeductionWidthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionWidthMm,
-          drawerBottomScrewedDeductionDepthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionDepthMm,
-          edgeBands,
-        });
-
-        let finalPieces = built.resolvedPieces;
-        if (countertopEnabled && selectedEquipmentId !== 'none') {
-          const eq = DEFAULT_EQUIPMENT_ITEMS.find((e) => e.id === selectedEquipmentId);
-          if (eq) {
-            const placement = {
-              equipmentId: eq.id,
-              centerXMm: width / 2,
-              centerOffsetYMm: 0,
-              sinkDrawerAdaptation,
-              frontRailOrientation: countertopFrontRailOrientation,
-            };
-            const adapted = adaptCabinetForEquipment(finalPieces, eq, placement, 0);
-            finalPieces = adapted.cabinetPieces as ResolvedPieceWithCutSize[];
-          }
-        }
-
-        return {
-          currentModule: {
-            ...built.module,
-            pieces: finalPieces,
-          },
-          resolvedPieces: finalPieces,
-          placementTree: built.placementTree,
-          bayBoxes: built.bayBoxes ?? [],
-        };
-      }
-
-      const template = getTemplateById(selectedTemplateId, userTemplates);
-      const built = template.build(
-        { width, height, depth },
-        activeMaterial,
+      const built = buildModularModule(modularDef, {
+        carcassThicknessMm: carcassThickness,
+        frontThicknessMm: resolvedFrontThickness,
+        boxThicknessMm: resolvedBoxThickness,
+        backingThicknessMm: resolvedBackingThickness,
+        drawerBottomScrewedDeductionWidthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionWidthMm,
+        drawerBottomScrewedDeductionDepthMm: projectConfig?.hardware?.drawerBottomScrewedDeductionDepthMm,
+        hardwareConfig: projectConfig?.hardware,
         edgeBands,
-        selectedEdgeBandId || undefined,
-        projectConfig ?? undefined,
-      );
+      });
 
       let finalPieces = built.resolvedPieces;
       if (countertopEnabled && selectedEquipmentId !== 'none') {
@@ -2371,7 +2343,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         },
         resolvedPieces: finalPieces,
         placementTree: built.placementTree,
-        bayBoxes: [],
+        bayBoxes: built.bayBoxes ?? [],
       };
     } catch {
       return { currentModule: null, resolvedPieces: [], placementTree: null, bayBoxes: [] };
@@ -2385,7 +2357,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     selectedEdgeBandId,
     edgeBands,
     projectConfig,
-    isCustomModular,
     roofType,
     jointPriority,
     hasBacking,
@@ -2411,7 +2382,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     frontsMaterialId,
     drawerBoxesMaterialId,
     backingsMaterialId,
-    userTemplates,
     wallShelvingOutput,
     countertopEnabled,
     selectedEquipmentId,
@@ -2419,7 +2389,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     countertopFrontRailOrientation,
     materials,
     partitionPassThroughRoof,
-    interferences,
   ]);
 
   // Resolves 3D spatial boxes and bounding box
@@ -2651,8 +2620,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       },
       edgeBands,
       extraHardware,
+      jointStrategy,
     );
-  }, [currentModule, resolvedPieces, edgeBands, selectedTemplateId, wallShelvingOutput]);
+  }, [currentModule, resolvedPieces, edgeBands, selectedTemplateId, wallShelvingOutput, jointStrategy]);
 
   // Generates Assembly Sheet
   const assemblySheet = useMemo<AssemblySheet | null>(() => {
@@ -2693,6 +2663,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       backingsMaterialId,
       isCustomModular,
       roofType,
+      railOrientation,
+      hasMiddleBrace,
+      middleBraceWidthMm,
+      hasWallHangingRail,
+      wallHangingRailWidthMm,
+      hasPlinth,
+      plinthHeightMm,
+      plinthSetbackMm,
       jointPriority,
       hasBacking,
       backingType,
@@ -2711,9 +2689,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       pieceMaterialOverrides,
       pieceThicknessOverrides,
       pieceEdgeBandOverrides,
+      customPieceOperations,
       countertopEnabled,
       countertopDefinition,
-      interferences,
       wallShelves: {
         shelfCount: wallShelvesShelfCount,
         verticalSpacingMm: wallShelvesVerticalSpacingMm,
@@ -2739,6 +2717,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     backingsMaterialId,
     isCustomModular,
     roofType,
+    railOrientation,
+    hasMiddleBrace,
+    middleBraceWidthMm,
+    hasWallHangingRail,
+    wallHangingRailWidthMm,
+    hasPlinth,
+    plinthHeightMm,
+    plinthSetbackMm,
     jointPriority,
     hasBacking,
     backingType,
@@ -2755,9 +2741,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     pieceMaterialOverrides,
     pieceThicknessOverrides,
     pieceEdgeBandOverrides,
+    customPieceOperations,
     countertopEnabled,
     countertopDefinition,
-    interferences,
     wallShelvesShelfCount,
     wallShelvesVerticalSpacingMm,
     wallShelvesBaseElevationYMm,
@@ -2835,10 +2821,11 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     const remaining = projectModules.filter((m) => m.id !== moduleId);
     setProjectModules(remaining);
     if (activeModuleId === moduleId && remaining[0]) {
-      setActiveModule(remaining[0].id);
+      hydrateModuleState(remaining[0]);
+      setActiveModuleId(remaining[0].id);
     }
     setStatusMessage('Módulo eliminado del proyecto.');
-  }, [projectModules, activeModuleId, setActiveModule]);
+  }, [projectModules, activeModuleId, hydrateModuleState]);
 
   const updateProjectModuleQuantity = useCallback((moduleId: string, quantity: number) => {
     const validQty = Math.max(1, Math.round(quantity));
@@ -3132,7 +3119,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       : consolidateProjectPieces(activeModuleToConsolidate);
     if (piecesToExport.length === 0) return;
 
-    const auxPieces: ResolvedPieceWithCutSize[] = (!isGlobal && assemblySheet?.gauges)
+    const includeGauges = Boolean(projectConfig?.nesting?.includeAssemblyGaugesInCutPlan);
+    const auxPieces: ResolvedPieceWithCutSize[] = (!isGlobal && includeGauges && assemblySheet?.gauges)
       ? assemblySheet.gauges.map((g) => ({
           id: g.piece.id,
           role: g.piece.role,
@@ -3159,7 +3147,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
 
     triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
     setStatusMessage(`Lista de corte (${isGlobal ? 'Todo el Proyecto' : 'Módulo Actual'}) exportada a ${fileName}.`);
-  }, [projectScope, consolidatedPieces, activeModuleToConsolidate, assemblySheet, project, currentModule]);
+  }, [projectScope, consolidatedPieces, activeModuleToConsolidate, assemblySheet, project, currentModule, projectConfig]);
 
   const exportPdf = useCallback(() => {
     if (!activeMaterial) return;
@@ -3271,30 +3259,47 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     [machiningSheets, currentModule],
   );
 
-  // Export workshop machining sheets as AutoCAD R12 DXF (single piece or full module)
+  // Export workshop machining sheets as AutoCAD R12 DXF (cut dimensions + Cara B when piece requires turning)
   const exportMachiningDxf = useCallback(
     (pieceId?: string) => {
       if (machiningSheets.length === 0) return;
+      const exportSheetFaces = (sheet: PieceMachiningSheet) => {
+        let exportedCount = 0;
+        const dxfA = exportMachiningSheetToDxf(sheet, {
+          face: 'face-A',
+          useCutDimensions: true,
+          includeGrooveCenterline: true,
+        });
+        triggerBrowserDownload(`${sheet.pieceId}-face-A.dxf`, dxfA, 'application/dxf');
+        exportedCount += 1;
+
+        if (sheet.requiresTurn) {
+          const dxfB = exportMachiningSheetToDxf(sheet, {
+            face: 'face-B',
+            useCutDimensions: true,
+            includeGrooveCenterline: true,
+          });
+          triggerBrowserDownload(`${sheet.pieceId}-face-B.dxf`, dxfB, 'application/dxf');
+          exportedCount += 1;
+        }
+        return exportedCount;
+      };
+
       if (pieceId) {
         const targetSheet = machiningSheets.find((s) => s.pieceId === pieceId);
         if (!targetSheet) return;
-        const dxfContent = exportMachiningSheetToDxf(targetSheet, {
-          face: 'face-A',
-          includeGrooveCenterline: true,
-        });
-        const fileName = `${targetSheet.pieceId}-face-A.dxf`;
-        triggerBrowserDownload(fileName, dxfContent, 'application/dxf');
-        setStatusMessage(`Archivo DXF exportado: ${fileName}`);
+        const count = exportSheetFaces(targetSheet);
+        setStatusMessage(
+          count > 1
+            ? `Archivos DXF exportados (Cara A y Cara B): ${targetSheet.pieceId}`
+            : `Archivo DXF exportado: ${targetSheet.pieceId}-face-A.dxf`,
+        );
       } else {
+        let totalFiles = 0;
         for (const sheet of machiningSheets) {
-          const dxfContent = exportMachiningSheetToDxf(sheet, {
-            face: 'face-A',
-            includeGrooveCenterline: true,
-          });
-          const fileName = `${sheet.pieceId}-face-A.dxf`;
-          triggerBrowserDownload(fileName, dxfContent, 'application/dxf');
+          totalFiles += exportSheetFaces(sheet);
         }
-        setStatusMessage(`Se exportaron ${machiningSheets.length} archivos DXF.`);
+        setStatusMessage(`Se exportaron ${totalFiles} archivos DXF.`);
       }
     },
     [machiningSheets],
@@ -3310,14 +3315,14 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (!projectConfig) return;
     try {
       setIsSaving(true);
-      await saveProjectConfigToDb(projectConfig);
+      await saveProjectConfigToDb(projectConfig, initialDb);
       setStatusMessage(`Configuración del proyecto "${projectConfig.projectName}" guardada.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar la configuración');
     } finally {
       setIsSaving(false);
     }
-  }, [projectConfig]);
+  }, [projectConfig, initialDb]);
 
   // Import configuration JSON file
   const importProjectConfigFile = useCallback(async (file: File) => {
@@ -3325,12 +3330,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       const text = await file.text();
       const parsed = importProjectConfigJson(text);
       setProjectConfig(parsed);
-      await saveProjectConfigToDb(parsed);
+      await saveProjectConfigToDb(parsed, initialDb);
       setStatusMessage(`Configuración importada exitosamente desde ${file.name}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al importar archivo de configuración');
     }
-  }, []);
+  }, [initialDb]);
 
   // Export configuration as JSON file
   const exportProjectConfigFile = useCallback(() => {
@@ -3467,12 +3472,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       const currentId = projectConfig?.projectId ?? DEFAULT_PROJECT_ID;
       const resetConfig: ProjectConfig = { ...defConfig, projectId: currentId };
       setProjectConfig(resetConfig);
-      await saveProjectConfigToDb(resetConfig);
+      await saveProjectConfigToDb(resetConfig, initialDb);
       setStatusMessage('Configuración restaurada a los valores predeterminados del archivo.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al restablecer configuración');
     }
-  }, [projectConfig]);
+  }, [projectConfig, initialDb]);
 
   return {
     width,
@@ -3689,12 +3694,6 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSinkDrawerAdaptation,
     setCountertopFrontRailOrientation,
     exportMarmoleriaPdfReport,
-    // Architectural Interferences Lab (Hito 2)
-    interferences,
-    columnObstacle,
-    falseSquare,
-    setColumnObstacle,
-    setFalseSquare,
     // Multi-module project management
     project,
     projectModules,

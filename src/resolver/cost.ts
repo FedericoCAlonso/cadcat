@@ -86,7 +86,7 @@ export function calculateModuleCost(input: CostCalculationInput): ModuleCostSumm
 
     items.push({
       id: materialId,
-      name: mat?.name ?? `Sheet Material (${materialId})`,
+      name: mat?.name ?? `Placa (${materialId})`,
       category: 'material',
       quantity: sheetCount,
       unit: 'sheet',
@@ -105,7 +105,7 @@ export function calculateModuleCost(input: CostCalculationInput): ModuleCostSumm
 
     items.push({
       id: ebItem.edgeBandId,
-      name: `Edge Band (${ebItem.edgeBandId})`,
+      name: band?.name ?? `Tapacanto (${ebItem.edgeBandId})`,
       category: 'edge-band',
       quantity: ebItem.lengthMeters,
       unit: 'meter',
@@ -148,7 +148,7 @@ export function calculateModuleCost(input: CostCalculationInput): ModuleCostSumm
 
     items.push({
       id: 'cut-passes',
-      name: 'Guillotine Cut Passes',
+      name: 'Pasadas de Corte (Guillotina)',
       category: 'cutting',
       quantity: totalCutPasses,
       unit: 'pass',

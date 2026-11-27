@@ -153,6 +153,14 @@ export function App(): ReactElement {
               </button>
               <button
                 type="button"
+                className={`m3-tab-button ${vm.activeTab === 'machining' ? 'active' : ''}`}
+                onClick={() => vm.setActiveTab('machining')}
+              >
+                <span aria-hidden="true">🛠️ </span>
+                <span>Mecanizado</span>
+              </button>
+              <button
+                type="button"
                 className={`m3-tab-button ${vm.activeTab === 'assembly' ? 'active' : ''}`}
                 onClick={() => vm.setActiveTab('assembly')}
               >
@@ -236,10 +244,8 @@ export function App(): ReactElement {
                 {/* Tablet bottom sheet drag handle and snap toggles (600px - 1023px) */}
                 <div
                   className="tablet-bottom-sheet-handle-bar"
-                  role="slider"
-                  tabIndex={0}
-                  aria-label="Manija de arrastre del panel: Colapsado, Medio o Completo"
-                  aria-valuetext={tabletSheetSnap}
+                  role="group"
+                  aria-label="Controles de altura del panel: Plegar, Medio o Completo"
                   onPointerDown={handleHandlePointerDown}
                   onPointerUp={handleHandlePointerUp}
                 >
@@ -440,11 +446,6 @@ export function App(): ReactElement {
                 onWallShelvesShelfCountChange={vm.setWallShelvesShelfCount}
                 onWallShelvesVerticalSpacingMmChange={vm.setWallShelvesVerticalSpacingMm}
                 onWallShelvesBaseElevationYMmChange={vm.setWallShelvesBaseElevationYMm}
-                enableInterferencesLab={vm.projectConfig?.features?.enableInterferencesLab ?? false}
-                columnObstacle={vm.columnObstacle}
-                falseSquare={vm.falseSquare}
-                onColumnObstacleChange={vm.setColumnObstacle}
-                onFalseSquareChange={vm.setFalseSquare}
                 activePieceId={vm.selectedPieceId}
                 onSelectPiece={vm.setSelectedPieceId}
                 pieces={vm.resolvedPieces}
@@ -513,7 +514,7 @@ export function App(): ReactElement {
                   onOpenMachiningModal={(id) => setMachiningPieceId(id)}
                   machiningSheets={vm.machiningSheets}
                   countertopCalculation={vm.countertopCalculation}
-                  interferences={vm.interferences}
+                  effectiveTheme={effectiveTheme}
                   moduleId={vm.activeModuleId}
                 />
               </ErrorBoundary>
@@ -759,6 +760,9 @@ export function App(): ReactElement {
           aria-modal="true"
           aria-label="Herramientas adicionales de taller"
           onClick={() => setIsMoreSheetOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setIsMoreSheetOpen(false);
+          }}
         >
           <div
             className="m3-bottom-sheet"
@@ -772,7 +776,7 @@ export function App(): ReactElement {
                 className="m3-button m3-button--tonal"
                 onClick={() => setIsMoreSheetOpen(false)}
                 aria-label="Cerrar menú"
-                style={{ minHeight: '38px', minWidth: '38px', borderRadius: '19px', padding: 0 }}
+                style={{ minHeight: '48px', minWidth: '48px', borderRadius: '24px', padding: 0 }}
               >
                 ✕
               </button>

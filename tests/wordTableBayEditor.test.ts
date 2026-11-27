@@ -114,10 +114,10 @@ describe('Word Table Style Bay Editor & Drawer Construction (v0.19.3)', () => {
     expect(drawerFront).toBeDefined();
     expect(drawerFront!.positionMm.z).toBe(0); // Inset flush with carcase front opening
 
-    // Front width must fit inside opening: openingWidth - 2 * gap (600 - 36 - 4 = 560mm)
-    // NOT applied width (600 - 4 = 596mm)
+    // Front width must fit inside opening: openingWidth - 2 * defaultGap (600 - 36 - 5 = 559mm)
+    // NOT applied width (600 - 5 = 595mm)
     expect(drawerFront!.sizeMm.x).toBeLessThan(570);
-    expect(drawerFront!.sizeMm.x).toBeCloseTo(560, 0);
+    expect(drawerFront!.sizeMm.x).toBeCloseTo(559, 0);
 
     // No separate box-front piece should exist in simple-interior
     const duplicateBoxFront = module.pieces.find((p) => p.role === 'drawer-box-front');

@@ -48,7 +48,12 @@ describe('Seed Catalogs', () => {
     const catalog = getSeedEdgeBands();
 
     expect(catalog.schemaVersion).toBe(1);
-    expect(catalog.edgeBands).toHaveLength(2);
+    expect(catalog.edgeBands).toHaveLength(3);
+
+    const thinBand = catalog.edgeBands.find((eb) => eb.id === 'eb-white-045');
+    expect(thinBand).toBeDefined();
+    expect(thinBand?.thicknessMm).toBe(0.45);
+    expect(thinBand?.deductFromCut).toBe(false);
 
     const whiteBand = catalog.edgeBands.find((eb) => eb.id === 'eb-white-08');
     expect(whiteBand).toBeDefined();

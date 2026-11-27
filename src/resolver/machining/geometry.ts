@@ -1,6 +1,7 @@
 import { type Piece, type Joint, type MachiningConfig } from '../../model';
 import { type ResolvedPiece } from '../resolver';
 import { determinePieceSpatialSize } from '../spatial3d';
+import { getContourBoundingBox } from '../piece';
 
 /**
  * Derives spacing intervals along a joint of length L using configurable thresholds.
@@ -105,14 +106,29 @@ export function deriveContactGeometry(
     const dimB_U = sizeB[uAxis];
     const dimB_V = sizeB[vAxis];
 
+    // Intersect Piece B extent with Piece A extent along both face axes so drills never land outside Piece A
+    const overlapStartU = Math.max(posA[uAxis], posB[uAxis]);
+    const overlapEndU = Math.min(posA[uAxis] + sizeA[uAxis], posB[uAxis] + sizeB[uAxis]);
+    const overlapLenU = Math.max(0, overlapEndU - overlapStartU);
+
+    const overlapStartV = Math.max(posA[vAxis], posB[vAxis]);
+    const overlapEndV = Math.min(posA[vAxis] + sizeA[vAxis], posB[vAxis] + sizeB[vAxis]);
+    const overlapLenV = Math.max(0, overlapEndV - overlapStartV);
+
+    const effLenU = overlapLenU > 0 ? overlapLenU : dimB_U;
+    const effLenV = overlapLenV > 0 ? overlapLenV : dimB_V;
+
     // Check whether the contact interface extends along Piece A's horizontal axis (uAxis)
     // or vertical axis (vAxis).
-    if (dimB_V > dimB_U) {
+    if (effLenV > effLenU) {
       // Joint runs along Piece A's vertical face axis (vAxis)
       axis = 'along-y';
-      contactLen = Math.round(dimB_V);
-      const startV = Math.max(0, Math.round(posB[vAxis] - posA[vAxis]));
-      const centerU = Math.round(posB[uAxis] - posA[uAxis] + dimB_U / 2);
+      contactLen = Math.round(effLenV);
+      const startV = Math.max(0, Math.round((overlapLenV > 0 ? overlapStartV : posB[vAxis]) - posA[vAxis]));
+      const rawCenterU = overlapLenU > 0
+        ? (overlapStartU + overlapEndU) / 2 - posA[uAxis]
+        : posB[uAxis] - posA[uAxis] + dimB_U / 2;
+      const centerU = Math.max(0, Math.min(Math.round(sizeA[uAxis]), Math.round(rawCenterU)));
 
       yContact = startV;
       zStart = centerU;
@@ -123,12 +139,15 @@ export function deriveContactGeometry(
     } else {
       // Joint runs along Piece A's horizontal face axis (uAxis)
       axis = 'along-x';
-      contactLen = Math.round(dimB_U);
+      contactLen = Math.round(effLenU);
       if (contactLen <= 0) {
         contactLen = Math.round(sizeB.z > 0 ? sizeB.z : sizeB.x);
       }
-      const startU = Math.max(0, Math.round(posB[uAxis] - posA[uAxis]));
-      const centerV = Math.round(posB[vAxis] - posA[vAxis] + dimB_V / 2);
+      const startU = Math.max(0, Math.round((overlapLenU > 0 ? overlapStartU : posB[uAxis]) - posA[uAxis]));
+      const rawCenterV = overlapLenV > 0
+        ? (overlapStartV + overlapEndV) / 2 - posA[vAxis]
+        : posB[vAxis] - posA[vAxis] + dimB_V / 2;
+      const centerV = Math.max(0, Math.min(Math.round(sizeA[vAxis]), Math.round(rawCenterV)));
 
       yContact = centerV;
       zStart = startU;
@@ -138,14 +157,14 @@ export function deriveContactGeometry(
       });
     }
   } else {
-    // Fallback derivation based on piece contour points and semantic roles
-    const aPoints = pieceA.contour.points;
-    const aHeight = Math.abs(aPoints[2]?.y ?? 0);
-    const aWidth = Math.abs(aPoints[1]?.x ?? 0);
+    // Fallback derivation based on piece contour bounding box and semantic roles
+    const aBbox = getContourBoundingBox(pieceA.contour);
+    const aHeight = aBbox.height;
+    const aWidth = aBbox.width;
 
-    const bPoints = pieceB.contour.points;
-    const bWidth = Math.abs(bPoints[1]?.x ?? 0);
-    const bHeight = Math.abs(bPoints[2]?.y ?? 0);
+    const bBbox = getContourBoundingBox(pieceB.contour);
+    const bWidth = bBbox.width;
+    const bHeight = bBbox.height;
 
     const aRole = pieceA.role.toLowerCase();
     const bRole = pieceB.role.toLowerCase();
@@ -313,9 +332,9 @@ export function derivePieceBJointPositions(
   offsetAlongEdge: number,
   preferredPocketFace?: 'face-A' | 'face-B',
 ): PieceBEdgeGeometry {
-  const points = pieceB.contour.points;
-  const w = Math.abs(points[1]?.x ?? 0);
-  const h = Math.abs(points[2]?.y ?? 0);
+  const bboxB = getContourBoundingBox(pieceB.contour);
+  const w = bboxB.width;
+  const h = bboxB.height;
   const lower = faceId.toLowerCase();
   const role = pieceB.role?.toLowerCase() ?? '';
 

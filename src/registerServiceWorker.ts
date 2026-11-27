@@ -6,6 +6,10 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
   }
+  // Skip SW registration during Vite development server to avoid MIME-type console errors
+  if (import.meta.env?.DEV && import.meta.env?.MODE !== 'test') {
+    return null;
+  }
 
   try {
     const baseUrl = import.meta.env?.BASE_URL || '/';

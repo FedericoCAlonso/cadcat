@@ -267,7 +267,6 @@ export function subdivideBay(
         rightPieceId,
         bottomPieceId: parentBay.bottomPieceId,
         topPieceId: parentBay.topPieceId,
-        interferences: parentBay.interferences,
         overallWidth: parentBay.overallWidth,
         overallDepth: parentBay.overallDepth,
       });
@@ -292,7 +291,6 @@ export function subdivideBay(
         rightPieceId: parentBay.rightPieceId,
         bottomPieceId,
         topPieceId,
-        interferences: parentBay.interferences,
         overallWidth: parentBay.overallWidth,
         overallDepth: parentBay.overallDepth,
       });

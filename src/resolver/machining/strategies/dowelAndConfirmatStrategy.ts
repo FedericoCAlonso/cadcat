@@ -65,8 +65,8 @@ export class DowelAndConfirmatJointStrategy implements IJointMachiningStrategy {
     const dowelOffsets =
       contactLen >= dowelMinLength
         ? [offsets[0]! + dowelSpacing, offsets[offsets.length - 1]! - dowelSpacing]
-        : offsets.length >= 2
-        ? [offsets[1]!]
+        : offsets.length >= 2 && contactLen >= 70
+        ? [Math.round(contactLen / 2)]
         : [];
 
     for (const dOff of dowelOffsets) {

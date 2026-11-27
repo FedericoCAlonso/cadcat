@@ -139,7 +139,7 @@ export function checkPieceDeflection(
   config?: DeflectionConfig,
 ): ShelfDeflectionResult | null {
   const role = piece.role.toLowerCase();
-  if (!role.includes('shelf')) {
+  if (!role.includes('shelf') || role.includes('brace')) {
     return null;
   }
 

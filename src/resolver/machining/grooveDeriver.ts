@@ -3,6 +3,7 @@ import { type CustomGrooveOperation } from '../../model/operation';
 import type { ResolvedPiece } from '../resolver';
 import type { Position3D } from '../tree';
 import { determinePieceSpatialSize, resolvePieceOrientation } from '../spatial3d';
+import { getContourBoundingBox } from '../piece';
 import { getPieceFaceNormalSign } from './faceNormal';
 
 type AnyPiece = Piece | ResolvedPiece;
@@ -92,8 +93,8 @@ export function deriveModuleGrooveOperations(
     // Identify which piece is the panel sliding into the groove and which receives the groove
     const isBackA = isBackingPanel(pieceA);
     const isBackB = isBackingPanel(pieceB);
-    const isDrawerBottomA = pieceA.role === 'drawer-bottom' || (pieceA.role.includes('bottom') && (pieceA.role.includes('drawer') || pieceA.id.includes('drawer')));
-    const isDrawerBottomB = pieceB.role === 'drawer-bottom' || (pieceB.role.includes('bottom') && (pieceB.role.includes('drawer') || pieceB.id.includes('drawer')));
+    const isDrawerBottomA = pieceA.role === 'drawer-bottom' || (pieceA.role.includes('bottom') && pieceA.role.includes('drawer'));
+    const isDrawerBottomB = pieceB.role === 'drawer-bottom' || (pieceB.role.includes('bottom') && pieceB.role.includes('drawer'));
     const isThinDividerA = (pieceA.role === 'partition' || pieceA.role === 'shelf') && pieceA.thicknessMm <= 9;
     const isThinDividerB = (pieceB.role === 'partition' || pieceB.role === 'shelf') && pieceB.thicknessMm <= 9;
 
@@ -110,10 +111,10 @@ export function deriveModuleGrooveOperations(
     const r = groovedPiece.role.toLowerCase();
     const id = groovedPiece.id.toLowerCase();
 
-    // 2D Contour dimensions
-    const contour = groovedPiece.contour;
-    const w = contour.points[1]?.x ?? 0;
-    const h = contour.points[2]?.y ?? 0;
+    // 2D Contour dimensions (polygon-safe bounding box)
+    const bbox = getContourBoundingBox(groovedPiece.contour);
+    const w = bbox.width;
+    const h = bbox.height;
 
     let axis: 'x' | 'y' = 'y';
     let offsetMm = 0;
