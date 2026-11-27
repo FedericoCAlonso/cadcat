@@ -559,9 +559,15 @@ export function App(): ReactElement {
                     onExportMachiningDxf={vm.exportMachiningDxf}
                     enablePieceLabels={vm.projectConfig?.features?.enablePieceLabels ?? true}
                     orderId={vm.projectConfig?.projectId ?? 'ORD-001'}
-                    clientName={vm.projectConfig?.clientName ?? 'Cliente Taller'}
+                    clientName={vm.project?.clientName ?? vm.projectConfig?.clientName ?? 'Cliente Taller'}
+                    projectName={vm.project?.name ?? vm.projectConfig?.projectName ?? 'Proyecto CadCat'}
                     moduleId={vm.activeModuleId}
                     machiningList={vm.pieceMachiningList}
+                    commercialQuote={vm.commercialQuote}
+                    commercialQuoteConfig={vm.commercialQuoteConfig}
+                    onUpdateCommercialQuoteConfig={vm.updateCommercialQuoteConfig}
+                    onExportCommercialQuotePdf={vm.exportCommercialQuotePdf}
+                    onExportPlacacentroCsv={vm.exportPlacacentroCsv}
                   />
                 )}
 

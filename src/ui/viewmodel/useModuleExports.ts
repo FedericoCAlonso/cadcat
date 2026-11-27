@@ -19,7 +19,9 @@ import {
   consolidateProjectPieces,
   runProjectNesting,
   exportCutListCsv,
+  exportPlacacentroCsv,
   exportCutPlanPdf,
+  exportCommercialQuotePdf,
   exportAssemblyGuidePdf,
   exportWallShelvesInstallationPdf,
   exportMarmoleriaPdf,
@@ -33,6 +35,7 @@ import {
   type WallShelvingOutput,
   type WallShelvingDefinition,
   type CountertopCalculationResult,
+  type CommercialQuoteResult,
 } from '../../resolver';
 import { translateRoleKey } from '../../locales';
 import { triggerBrowserDownload } from '../browserDownload';
@@ -60,6 +63,7 @@ export interface UseModuleExportsParams {
   wallShelvingOutput: WallShelvingOutput | null;
   wallShelvingDefinition: WallShelvingDefinition | null;
   countertopCalculation: CountertopCalculationResult | null;
+  commercialQuote: CommercialQuoteResult | null;
   initialDb?: IDBDatabase;
   serializeCurrentModule: () => ProjectModuleItem;
   setStatusMessage: (msg: string) => void;
@@ -90,6 +94,7 @@ export function useModuleExports(params: UseModuleExportsParams) {
     wallShelvingOutput,
     wallShelvingDefinition,
     countertopCalculation,
+    commercialQuote,
     initialDb,
     serializeCurrentModule,
     setStatusMessage,
@@ -297,6 +302,8 @@ export function useModuleExports(params: UseModuleExportsParams) {
           face: 'face-A',
           useCutDimensions: true,
           includeGrooveCenterline: true,
+          encodeDepthInLayer: true,
+          includeEdgeDrills: true,
         });
         triggerBrowserDownload(`${sheet.pieceId}-face-A.dxf`, dxfA, 'application/dxf');
         exportedCount += 1;
@@ -306,6 +313,7 @@ export function useModuleExports(params: UseModuleExportsParams) {
             face: 'face-B',
             useCutDimensions: true,
             includeGrooveCenterline: true,
+            encodeDepthInLayer: true,
           });
           triggerBrowserDownload(`${sheet.pieceId}-face-B.dxf`, dxfB, 'application/dxf');
           exportedCount += 1;
@@ -427,9 +435,59 @@ export function useModuleExports(params: UseModuleExportsParams) {
     ],
   );
 
+  const exportPlacacentroCsvAction = useCallback(() => {
+    const isGlobal = projectScope === 'all-modules';
+    const piecesToExport = isGlobal
+      ? consolidatedPieces
+      : consolidateProjectPieces(activeModuleToConsolidate);
+    if (piecesToExport.length === 0) return;
+
+    const csvContent = exportPlacacentroCsv(piecesToExport, materials, edgeBands, {
+      includeAuxiliary: false,
+      defaultModuleName: friendlyModuleName,
+    });
+    const safeName = (isGlobal ? project?.name ?? 'proyecto' : friendlyModuleName)
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'modulo';
+    const fileName = `placacentro-${safeName}.csv`;
+
+    triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
+    setStatusMessage(`Planilla formato Placacentro (CorteCloud/Lepton) exportada a ${fileName}.`);
+  }, [
+    projectScope,
+    consolidatedPieces,
+    activeModuleToConsolidate,
+    materials,
+    edgeBands,
+    friendlyModuleName,
+    project,
+    setStatusMessage,
+  ]);
+
+  const exportCommercialQuotePdfAction = useCallback(() => {
+    if (!commercialQuote) return;
+    const projectName = project?.name ?? projectConfig?.projectName ?? 'Proyecto CadCat';
+    const clientName = project?.clientName ?? projectConfig?.clientName ?? 'Cliente';
+    const doc = exportCommercialQuotePdf(commercialQuote, {
+      projectName,
+      clientName,
+    });
+    const pdfBlob = doc.output('blob');
+    const safeSlug = projectName
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'presupuesto';
+    const fileName = `presupuesto-cliente-${safeSlug}.pdf`;
+    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+    setStatusMessage(`Presupuesto comercial para cliente exportado a ${fileName}.`);
+  }, [commercialQuote, project, projectConfig, setStatusMessage]);
+
   return {
     exportCsv,
+    exportPlacacentroCsv: exportPlacacentroCsvAction,
     exportPdf,
+    exportCommercialQuotePdf: exportCommercialQuotePdfAction,
     exportAssemblyPdf,
     exportMarmoleriaPdfReport,
     exportMachiningPdf,

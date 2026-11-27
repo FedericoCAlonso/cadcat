@@ -22,6 +22,8 @@ import {
   type ProjectModuleItem,
   createDefaultProject,
   filterMaterialsByThickness,
+  type CommercialQuoteConfig,
+  DEFAULT_COMMERCIAL_QUOTE_CONFIG,
 } from '../model';
 import {
   loadMaterialsFromDb,
@@ -119,6 +121,9 @@ import {
   consolidateProjectBom,
   runProjectNesting,
   calculateProjectCost,
+  calculateCommercialQuote,
+  type CommercialQuoteResult,
+  type QuoteModuleDescriptor,
   type AssemblyGauge,
   deriveAssemblyGauges,
   MODULAR_PRESETS,
@@ -350,6 +355,12 @@ export interface ModuleViewModelState {
   setSinkDrawerAdaptation: (mode: 'false-front' | 'u-shape-drawer' | 'none') => void;
   setCountertopFrontRailOrientation: (orientation: 'vertical' | 'horizontal' | 'suppressed') => void;
   exportMarmoleriaPdfReport: () => void;
+  // Commercial Quote & Industrial Exports (Wave 3)
+  commercialQuote: CommercialQuoteResult | null;
+  commercialQuoteConfig: CommercialQuoteConfig;
+  updateCommercialQuoteConfig: (patch: Partial<CommercialQuoteConfig>) => void;
+  exportPlacacentroCsv: () => void;
+  exportCommercialQuotePdf: () => void;
   // Multi-module project management
   project: Project | null;
   projectModules: ProjectModuleItem[];
@@ -3106,9 +3117,114 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     }
   }, [initialDb]);
 
+  const commercialQuoteConfig = useMemo<CommercialQuoteConfig>(
+    () => ({
+      ...DEFAULT_COMMERCIAL_QUOTE_CONFIG,
+      ...(projectConfig?.commercialQuote ?? {}),
+    }),
+    [projectConfig?.commercialQuote],
+  );
+
+  const updateCommercialQuoteConfig = useCallback(
+    (patch: Partial<CommercialQuoteConfig>) => {
+      setProjectConfig((prev) => {
+        if (!prev) return prev;
+        const updated: ProjectConfig = {
+          ...prev,
+          commercialQuote: {
+            ...DEFAULT_COMMERCIAL_QUOTE_CONFIG,
+            ...(prev.commercialQuote ?? {}),
+            ...patch,
+          },
+        };
+        void saveProjectConfigToDb(updated, initialDb);
+        return updated;
+      });
+    },
+    [initialDb],
+  );
+
+  const commercialQuote = useMemo<CommercialQuoteResult | null>(() => {
+    const isGlobal = projectScope === 'all-modules';
+    const targetBom = isGlobal ? consolidatedBom : activeModuleBom;
+    const targetCost = isGlobal ? consolidatedCost : cost;
+    const targetModules = isGlobal ? modulesToConsolidate : activeModuleToConsolidate;
+    if (!targetBom || !targetCost || targetModules.length === 0) return null;
+
+    const moduleDescriptors: QuoteModuleDescriptor[] = targetModules.map((mod) => {
+      const cfgItem = projectModules.find((pm) => pm.id === mod.moduleId);
+      const drawerCount = mod.pieces.filter((p) => p.role === 'drawer-front').length;
+      const doorCount = mod.pieces.filter(
+        (p) => p.role.includes('door') || p.role === 'bifold-leaf',
+      ).length;
+      const shelfCount = mod.pieces.filter(
+        (p) => p.role === 'shelf' || p.role === 'wall-shelf',
+      ).length;
+      return {
+        id: mod.moduleId,
+        name: mod.moduleName,
+        quantity: mod.quantity,
+        widthMm: cfgItem?.width ?? width,
+        heightMm: cfgItem?.height ?? height,
+        depthMm: cfgItem?.depth ?? depth,
+        drawerCount,
+        doorCount,
+        shelfCount,
+      };
+    });
+
+    const nestingForCredit =
+      commercialQuoteConfig.workshopMode === 'in-house' &&
+      commercialQuoteConfig.usableOffcutCreditPercent > 0
+        ? runProjectNesting(targetModules, {
+            materials,
+            sawKerfMm: projectConfig?.nesting?.sawKerfMm,
+            trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+            grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
+            respectGrain: projectConfig?.nesting?.respectGrain,
+            optimizationGoal: projectConfig?.nesting?.optimizationGoal,
+            includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
+          })
+        : null;
+
+    return calculateCommercialQuote({
+      bom: targetBom,
+      cost: targetCost,
+      nestingResult: nestingForCredit,
+      modules: moduleDescriptors,
+      materials,
+      edgeBands,
+      hardware,
+      countertop: countertopEnabled ? countertopCalculation : null,
+      quoteConfig: commercialQuoteConfig,
+      fallbackHourlyLaborRate: projectConfig?.cost?.hourlyLaborRate,
+    });
+  }, [
+    projectScope,
+    consolidatedBom,
+    activeModuleBom,
+    consolidatedCost,
+    cost,
+    modulesToConsolidate,
+    activeModuleToConsolidate,
+    projectModules,
+    width,
+    height,
+    depth,
+    commercialQuoteConfig,
+    materials,
+    edgeBands,
+    hardware,
+    countertopEnabled,
+    countertopCalculation,
+    projectConfig,
+  ]);
+
   const {
     exportCsv,
+    exportPlacacentroCsv,
     exportPdf,
+    exportCommercialQuotePdf,
     exportAssemblyPdf,
     exportMarmoleriaPdfReport,
     exportMachiningPdf,
@@ -3138,6 +3254,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     wallShelvingOutput,
     wallShelvingDefinition,
     countertopCalculation,
+    commercialQuote,
     initialDb,
     serializeCurrentModule,
     setStatusMessage,
@@ -3446,6 +3563,12 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     setSinkDrawerAdaptation,
     setCountertopFrontRailOrientation,
     exportMarmoleriaPdfReport,
+    // Commercial Quote & Industrial Exports (Wave 3)
+    commercialQuote,
+    commercialQuoteConfig,
+    updateCommercialQuoteConfig,
+    exportPlacacentroCsv,
+    exportCommercialQuotePdf,
     // Multi-module project management
     project,
     projectModules,

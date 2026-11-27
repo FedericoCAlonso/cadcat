@@ -382,15 +382,15 @@ export function AssemblySheetView({
         <span style={{ fontSize: '0.85rem', color: 'var(--text, #1f2622)' }}>
           <strong>Módulo:</strong> {assemblySheet.moduleId}
         </span>
-        <span style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
+        <span aria-hidden="true" style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
         <span style={{ fontSize: '0.85rem', color: 'var(--text, #1f2622)' }}>
           <strong>Dimensiones:</strong> {assemblySheet.moduleDimensionsMm.width} × {assemblySheet.moduleDimensionsMm.height} × {assemblySheet.moduleDimensionsMm.depth} mm
         </span>
-        <span style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
+        <span aria-hidden="true" style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
         <span style={{ fontSize: '0.85rem', color: 'var(--text, #1f2622)' }}>
           <strong>📐 Diagonal de Escuadra:</strong> {assemblySheet.squaringDiagonalMm} mm (±1 mm)
         </span>
-        <span style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
+        <span aria-hidden="true" style={{ color: 'var(--border, #d9d2c3)' }}>|</span>
         <span style={{ fontSize: '0.85rem', color: 'var(--primary, #56705f)', fontWeight: 'bold' }}>
           🧩 Piezas: {assemblySheet.explodedMap.length}
         </span>

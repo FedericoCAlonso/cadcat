@@ -93,5 +93,29 @@
     "enableLedInstallations": false,
     "enableElectricalCutouts": false,
     "enableCncExport": false
+  },
+  "commercialQuote": {
+    "workshopMode": "outsourced",
+    "edgeBandWastePercent": 15,
+    "edgeBandingServicePerMeter": 0,
+    "usableOffcutCreditPercent": 0,
+    "laborHoursPerModule": 4,
+    "laborHoursPerDrawer": 1.2,
+    "laborHoursPerDoor": 0.8,
+    "laborHoursPerShelf": 0.25,
+    "hourlyLaborRate": 0,
+    "consumablesPercent": 5,
+    "deliveryCost": 0,
+    "installationCost": 0,
+    "overheadPercent": 10,
+    "profitMarginPercent": 35,
+    "discountPercent": 0,
+    "vatPercent": 21,
+    "currency": "ARS",
+    "exchangeRateArsPerUsd": 1200,
+    "validityDays": 15,
+    "leadTimeDays": 20,
+    "paymentTerms": "50% de seña al confirmar el pedido · 50% contra entrega.",
+    "clientNotes": "No incluye trabajos de albañilería, plomería ni instalaciones eléctricas."
   }
 }

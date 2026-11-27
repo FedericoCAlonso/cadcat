@@ -4,12 +4,21 @@ import type {
   ShelfDeflectionResult,
   PieceEdgeBandOverride,
   ConsolidatedPiece,
+  CommercialQuoteResult,
 } from '../resolver';
-import type { JointKind, JointStrategy, Material, EdgeBand, Piece } from '../model';
+import type {
+  JointKind,
+  JointStrategy,
+  Material,
+  EdgeBand,
+  Piece,
+  CommercialQuoteConfig,
+} from '../model';
 import type { PieceMachining } from '../model/operation';
 import { translatePieceRole } from './localization';
 import { LabelExportModal } from './LabelExportModal';
 import { M3ToggleRow } from './M3ToggleRow';
+import { CommercialQuoteView } from './CommercialQuoteView';
 
 export interface PieceListViewProps {
   pieces: (ResolvedPieceWithCutSize | ConsolidatedPiece)[];
@@ -42,8 +51,15 @@ export interface PieceListViewProps {
   enablePieceLabels?: boolean;
   orderId?: string;
   clientName?: string;
+  projectName?: string;
   moduleId?: string;
   machiningList?: PieceMachining[];
+  // Commercial Quote & Placacentro Export (Wave 3)
+  commercialQuote?: CommercialQuoteResult | null;
+  commercialQuoteConfig?: CommercialQuoteConfig;
+  onUpdateCommercialQuoteConfig?: (patch: Partial<CommercialQuoteConfig>) => void;
+  onExportCommercialQuotePdf?: () => void;
+  onExportPlacacentroCsv?: () => void;
 }
 
 /**
@@ -78,12 +94,19 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     enablePieceLabels = true,
     orderId,
     clientName,
+    projectName,
     moduleId,
     machiningList,
+    commercialQuote,
+    commercialQuoteConfig,
+    onUpdateCommercialQuoteConfig,
+    onExportCommercialQuotePdf,
+    onExportPlacacentroCsv,
   } = props;
 
   const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
+  const [activeSubTab, setActiveSubTab] = useState<'cutlist' | 'quote'>('cutlist');
   const [displayFormat, setDisplayFormat] = useState<'cards' | 'table'>(() =>
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table',
   );
@@ -582,7 +605,52 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
           </div>
         )}
 
-        <div className="piece-list-header-row">
+        {/* Wave 3 Sub-view Switch: Technical Cut List vs Commercial Quote */}
+        {commercialQuoteConfig && onUpdateCommercialQuoteConfig && onExportCommercialQuotePdf && (
+          <div style={{ marginBottom: '0.85rem' }}>
+            <div className="m3-segmented-button" role="tablist" aria-label="Vista de Despiece y Presupuesto">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeSubTab === 'cutlist'}
+                className={`m3-segmented-button__item ${activeSubTab === 'cutlist' ? 'selected' : ''}`}
+                onClick={() => setActiveSubTab('cutlist')}
+                style={{ minHeight: '48px', fontWeight: 600 }}
+              >
+                📋 Despiece y Cortes
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeSubTab === 'quote'}
+                className={`m3-segmented-button__item ${activeSubTab === 'quote' ? 'selected' : ''}`}
+                onClick={() => setActiveSubTab('quote')}
+                style={{ minHeight: '48px', fontWeight: 600 }}
+              >
+                💰 Presupuesto Comercial
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'quote' && commercialQuoteConfig && onUpdateCommercialQuoteConfig && onExportCommercialQuotePdf && (
+          <CommercialQuoteView
+            quote={commercialQuote ?? null}
+            quoteConfig={commercialQuoteConfig}
+            projectScope={projectScope}
+            projectName={projectName}
+            clientName={clientName}
+            onUpdateQuoteConfig={onUpdateCommercialQuoteConfig}
+            onExportCommercialQuotePdf={onExportCommercialQuotePdf}
+            onExportPlacacentroCsv={onExportPlacacentroCsv}
+          />
+        )}
+      </div>
+
+      {activeSubTab !== 'quote' && (
+        <>
+          <div className="m3-card__header">
+            <div className="piece-list-header-row">
           <div>
             <h2 id="pieces-heading" className="m3-card__title">
               📋 {projectScope === 'all-modules' ? 'Despiece Consolidado del Proyecto' : 'Despiece de Taller'} ({totalPieceCount} piezas)
@@ -599,6 +667,25 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             <span className="m3-badge m3-badge--neutral">
               Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
             </span>
+            {onExportPlacacentroCsv && filteredPieces.length > 0 && (
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                }}
+                onClick={onExportPlacacentroCsv}
+                title="Descargar planilla formato Placacentro (CorteCloud / Lepton / Optimik: Largo × Ancho × Veta × L1/L2/A1/A2)"
+              >
+                <span>🏭 CSV Placacentro</span>
+              </button>
+            )}
             {onExportMachiningPdf && filteredPieces.length > 0 && (
               <button
                 type="button"
@@ -936,6 +1023,8 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* Label Export Modal */}

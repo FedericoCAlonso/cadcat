@@ -24,6 +24,7 @@ export const DXF_STANDARD_LAYERS = {
   GROOVE: '2_GROOVE',
   POCKET: '3_POCKET',
   PROFILE: '4_PROFILE',
+  EDGE_DRILL: '5_EDGE_DRILL',
   LABEL: '0_LABEL',
 } as const;
 
@@ -43,6 +44,7 @@ export const DXF_LAYER_COLORS: Record<string, number> = {
   [DXF_STANDARD_LAYERS.GROOVE]: 4, // Cyan (back panel grooves / slots)
   [DXF_STANDARD_LAYERS.POCKET]: 2, // Yellow (cutouts / cable grommets)
   [DXF_STANDARD_LAYERS.PROFILE]: 30, // Orange (chamfers / roundovers)
+  [DXF_STANDARD_LAYERS.EDGE_DRILL]: 140, // Steel Blue (edge boring for CNC/dowel)
   [DXF_STANDARD_LAYERS.LABEL]: 8, // Dark Gray (text annotations)
 };
 
@@ -59,12 +61,50 @@ export const DIAMETER_MATCH_TOLERANCE_MM = 0.2;
  * Resolves a drill operation diameter to its standardized CAD layer name.
  * e.g. 5mm -> '1_DRILL_5MM', 8mm -> '1_DRILL_8MM', 10mm -> '1_DRILL_10MM'
  */
-export function getDrillLayerName(diameterMm: number): string {
+export function getDrillLayerName(diameterMm: number, depthMm?: number, isThrough?: boolean): string {
+  let base: string | null = null;
   for (const nominal of CANONICAL_DRILL_DIAMETERS) {
     if (Math.abs(diameterMm - nominal) <= DIAMETER_MATCH_TOLERANCE_MM) {
-      return `1_DRILL_${nominal}MM`;
+      base = `1_DRILL_${nominal}MM`;
+      break;
     }
   }
-  const rounded = Math.round(diameterMm * 10) / 10;
-  return `1_DRILL_${rounded}MM`;
+  if (!base) {
+    const rounded = Math.round(diameterMm * 10) / 10;
+    base = `1_DRILL_${rounded}MM`;
+  }
+  if (depthMm !== undefined && depthMm > 0) {
+    const zTag = isThrough ? 'THRU' : `Z${Math.round(depthMm * 10) / 10}`;
+    return `${base}_${zTag}`;
+  }
+  return base;
+}
+
+/**
+ * Resolves a CAM groove layer name optionally encoding groove width & Z depth.
+ */
+export function getGrooveLayerName(widthMm?: number, depthMm?: number): string {
+  if (widthMm !== undefined && depthMm !== undefined) {
+    const w = Math.round(widthMm * 10) / 10;
+    const z = Math.round(depthMm * 10) / 10;
+    return `${DXF_STANDARD_LAYERS.GROOVE}_W${w}_Z${z}`;
+  }
+  return DXF_STANDARD_LAYERS.GROOVE;
+}
+
+/**
+ * Resolves a CAM edge-drilling layer name encoding edge orientation, diameter, and Z depth.
+ */
+export function getEdgeDrillLayerName(edgeFaceId: string, diameterMm: number, depthMm: number): string {
+  const f = edgeFaceId.toLowerCase();
+  const edgeCode = f.includes('left')
+    ? 'LEFT'
+    : f.includes('right')
+      ? 'RIGHT'
+      : f.includes('top')
+        ? 'TOP'
+        : 'BOTTOM';
+  const d = Math.round(diameterMm * 10) / 10;
+  const z = Math.round(depthMm * 10) / 10;
+  return `${DXF_STANDARD_LAYERS.EDGE_DRILL}_${edgeCode}_D${d}_Z${z}`;
 }

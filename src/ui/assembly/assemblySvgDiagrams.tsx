@@ -328,7 +328,10 @@ export function renderExplodedSvg(
       )}
 
       {/* 2. Pieces Layer */}
-      {projectedPieces.map((p) => {
+      {(() => {
+        const placedBalloons: Array<{ x: number; y: number }> = [];
+        const MIN_BALLOON_DIST = 28;
+        return projectedPieces.map((p) => {
         const isSelected = activePieceId === p.item.pieceId;
         const [sv0, sv1, sv2, sv3, sv4, sv5, sv6, sv7] = p.vertices;
 
@@ -363,15 +366,29 @@ export function renderExplodedSvg(
 
         const useLeftFace = viewAngle === 'iso-left';
 
-        // Front face center for balloon placement
+        // Front face center for balloon placement (with collision avoidance)
         const fcX = (sv4!.x + sv6!.x) / 2;
         const fcY = (sv4!.y + sv6!.y) / 2;
 
         const dx = fcX - width / 2;
         const dy = fcY - height / 2;
         const len = Math.hypot(dx, dy) || 1;
-        const bX = Math.max(38, Math.min(width - 38, fcX + (dx / len) * 52));
-        const bY = Math.max(38, Math.min(height - 38, fcY + (dy / len) * 40));
+        let bX = Math.max(38, Math.min(width - 38, fcX + (dx / len) * 52));
+        let bY = Math.max(38, Math.min(height - 38, fcY + (dy / len) * 40));
+
+        if (showBalloons && !isGhosted) {
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const clash = placedBalloons.find(
+              (other) => Math.hypot(other.x - bX, other.y - bY) < MIN_BALLOON_DIST,
+            );
+            if (!clash) break;
+            bY = Math.max(32, Math.min(height - 32, bY + (attempt % 2 === 0 ? -MIN_BALLOON_DIST : MIN_BALLOON_DIST)));
+            if (Math.hypot(clash.x - bX, clash.y - bY) < MIN_BALLOON_DIST) {
+              bX = Math.max(32, Math.min(width - 32, bX + (bX >= width / 2 ? MIN_BALLOON_DIST : -MIN_BALLOON_DIST)));
+            }
+          }
+          placedBalloons.push({ x: bX, y: bY });
+        }
 
         return (
           <g
@@ -444,7 +461,8 @@ export function renderExplodedSvg(
             )}
           </g>
         );
-      })}
+      });
+      })()}
     </svg>
   );
 }

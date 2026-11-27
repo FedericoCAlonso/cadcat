@@ -20,6 +20,8 @@ import {
   DXF_LAYER_COLORS,
   DXF_DEFAULT_CUSTOM_DRILL_COLOR,
   getDrillLayerName,
+  getGrooveLayerName,
+  getEdgeDrillLayerName,
 } from './dxfConstants';
 import type {
   DxfEntity,
@@ -88,13 +90,28 @@ export function exportPieceToDxf(
     }
   }
 
-  addDrillEntities(entities, allDrills, widthMm, targetFace, shiftX, shiftY);
+  addDrillEntities(entities, allDrills, widthMm, targetFace, shiftX, shiftY, options.encodeDepthInLayer);
+
+  // 2b. Optional Edge Drills for CNC horizontal boring heads
+  if (options.includeEdgeDrills) {
+    addEdgeDrillEntities(entities, allDrills, widthMm, heightMm, shiftX, shiftY);
+  }
 
   // 3. Grooves, Rebates, Cutouts, Profiles
   if (options.customOperations) {
     for (const op of options.customOperations) {
       if (op.kind === 'groove') {
-        addGrooveEntities(entities, op, widthMm, heightMm, targetFace, options.includeGrooveCenterline, shiftX, shiftY);
+        addGrooveEntities(
+          entities,
+          op,
+          widthMm,
+          heightMm,
+          targetFace,
+          options.includeGrooveCenterline,
+          shiftX,
+          shiftY,
+          options.encodeDepthInLayer,
+        );
       } else if (op.kind === 'rebate') {
         addRebateEntities(entities, op, widthMm, heightMm, targetFace);
       } else if (op.kind === 'cutout') {
@@ -167,7 +184,9 @@ export function exportMachiningSheetToDxf(
     targetFace === 'face-A' ? sheet.faceAOperations : sheet.faceBOperations;
 
   for (const item of opItems) {
-    const layer = getDrillLayerName(item.diameterMm);
+    const layer = options.encodeDepthInLayer
+      ? getDrillLayerName(item.diameterMm, item.depthMm, item.isThrough)
+      : getDrillLayerName(item.diameterMm);
     entities.push({
       type: 'CIRCLE',
       layer,
@@ -176,11 +195,36 @@ export function exportMachiningSheetToDxf(
     });
   }
 
+  // 2b. Edge Drills for CNC horizontal boring (exported on Face A or when requested)
+  if (options.includeEdgeDrills && targetFace === 'face-A' && sheet.edgeOperations.length > 0) {
+    for (const edgeOp of sheet.edgeOperations) {
+      const layer = getEdgeDrillLayerName(edgeOp.faceId, edgeOp.diameterMm, edgeOp.depthMm);
+      const cx = Math.max(0, Math.min(widthMm, edgeOp.xMm - shiftX));
+      const cy = Math.max(0, Math.min(heightMm, edgeOp.yMm - shiftY));
+      entities.push({
+        type: 'CIRCLE',
+        layer,
+        center: { x: cx, y: cy },
+        radius: edgeOp.diameterMm / 2,
+      });
+    }
+  }
+
   // 3. Custom non-drill operations
   if (sheet.customOperations) {
     for (const op of sheet.customOperations) {
       if (op.kind === 'groove') {
-        addGrooveEntities(entities, op, widthMm, heightMm, targetFace, options.includeGrooveCenterline, shiftX, shiftY);
+        addGrooveEntities(
+          entities,
+          op,
+          widthMm,
+          heightMm,
+          targetFace,
+          options.includeGrooveCenterline,
+          shiftX,
+          shiftY,
+          options.encodeDepthInLayer,
+        );
       } else if (op.kind === 'rebate') {
         addRebateEntities(entities, op, widthMm, heightMm, targetFace);
       } else if (op.kind === 'cutout') {
@@ -271,6 +315,7 @@ function addDrillEntities(
   targetFace: 'face-A' | 'face-B',
   shiftX = 0,
   shiftY = 0,
+  encodeDepthInLayer = false,
 ): void {
   for (const drill of drills) {
     const isTargetFace = drill.faceType === targetFace;
@@ -289,11 +334,39 @@ function addDrillEntities(
       : rawX;
     const effY = rawY;
 
-    const layer = getDrillLayerName(drill.diameterMm);
+    const layer = encodeDepthInLayer
+      ? getDrillLayerName(drill.diameterMm, drill.depthMm, drill.isThrough)
+      : getDrillLayerName(drill.diameterMm);
     entities.push({
       type: 'CIRCLE',
       layer,
       center: { x: effX, y: effY },
+      radius: drill.diameterMm / 2,
+    });
+  }
+}
+
+function addEdgeDrillEntities(
+  entities: DxfEntity[],
+  drills: Array<CustomDrillOperation | DrillOperation>,
+  widthMm: number,
+  heightMm: number,
+  shiftX = 0,
+  shiftY = 0,
+): void {
+  for (const drill of drills) {
+    if (drill.faceType !== 'edge') continue;
+    const rawX = ('positionMm' in drill ? drill.positionMm.x : drill.xMm) - shiftX;
+    const rawY = ('positionMm' in drill ? drill.positionMm.y : drill.yMm) - shiftY;
+    const faceId = 'faceId' in drill && drill.faceId ? drill.faceId : 'left-edge';
+    const layer = getEdgeDrillLayerName(faceId, drill.diameterMm, drill.depthMm);
+    entities.push({
+      type: 'CIRCLE',
+      layer,
+      center: {
+        x: Math.max(0, Math.min(widthMm, rawX)),
+        y: Math.max(0, Math.min(heightMm, rawY)),
+      },
       radius: drill.diameterMm / 2,
     });
   }
@@ -308,9 +381,13 @@ function addGrooveEntities(
   includeCenterline?: boolean,
   shiftX = 0,
   shiftY = 0,
+  encodeDepthInLayer = false,
 ): void {
   if (op.faceType !== targetFace) return;
 
+  const grooveLayer = encodeDepthInLayer
+    ? getGrooveLayerName(op.widthMm, op.depthMm)
+    : DXF_STANDARD_LAYERS.GROOVE;
   const isHoriz = op.axis === 'x';
 
   if (isHoriz) {
@@ -321,7 +398,7 @@ function addGrooveEntities(
 
     entities.push({
       type: 'POLYLINE',
-      layer: DXF_STANDARD_LAYERS.GROOVE,
+      layer: grooveLayer,
       isClosed: true,
       vertices: [
         { x: x1, y: y1 },
@@ -335,7 +412,7 @@ function addGrooveEntities(
       const centerY = y1 + op.widthMm / 2;
       entities.push({
         type: 'LINE',
-        layer: DXF_STANDARD_LAYERS.GROOVE,
+        layer: grooveLayer,
         start: { x: x1, y: centerY },
         end: { x: x2, y: centerY },
       });
@@ -350,7 +427,7 @@ function addGrooveEntities(
 
     entities.push({
       type: 'POLYLINE',
-      layer: DXF_STANDARD_LAYERS.GROOVE,
+      layer: grooveLayer,
       isClosed: true,
       vertices: [
         { x: x1, y: y1 },
@@ -364,7 +441,7 @@ function addGrooveEntities(
       const centerX = effX + op.widthMm / 2;
       entities.push({
         type: 'LINE',
-        layer: DXF_STANDARD_LAYERS.GROOVE,
+        layer: grooveLayer,
         start: { x: centerX, y: y1 },
         end: { x: centerX, y: y2 },
       });
@@ -583,7 +660,13 @@ function buildActiveLayers(entities: DxfEntity[]): DxfLayerDefinition[] {
   for (const entity of entities) {
     if (!layerMap.has(entity.layer)) {
       const color =
-        DXF_LAYER_COLORS[entity.layer] ?? DXF_DEFAULT_CUSTOM_DRILL_COLOR;
+        DXF_LAYER_COLORS[entity.layer] ??
+        (entity.layer.startsWith(DXF_STANDARD_LAYERS.GROOVE)
+          ? DXF_LAYER_COLORS[DXF_STANDARD_LAYERS.GROOVE]
+          : entity.layer.startsWith(DXF_STANDARD_LAYERS.EDGE_DRILL)
+            ? DXF_LAYER_COLORS[DXF_STANDARD_LAYERS.EDGE_DRILL]
+            : DXF_DEFAULT_CUSTOM_DRILL_COLOR) ??
+        DXF_DEFAULT_CUSTOM_DRILL_COLOR;
       layerMap.set(entity.layer, {
         name: entity.layer,
         color,

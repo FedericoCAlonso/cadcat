@@ -5750,3 +5750,14 @@ legend.builder-section-title {
   margin-top: 0.25rem;
 }
 
+
+/* Ultra-narrow mobile (320px) top bar polish */
+@media (max-width: 359px) {
+  .m3-top-app-bar .m3-badge--neutral {
+    display: none;
+  }
+  .m3-top-app-bar__subtitle {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}

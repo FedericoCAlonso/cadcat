@@ -68,6 +68,10 @@ export interface DxfExportOptions {
   includeGrooveCenterline?: boolean;
   /** Decimal places for floating point coordinates (default 3) */
   coordinatePrecision?: number;
+  /** Encode machining Z depth in CAM layer names (e.g. 1_DRILL_5MM_Z12, 2_GROOVE_W4_Z8). Default false for legacy compatibility. */
+  encodeDepthInLayer?: boolean;
+  /** Export edge drill operations onto dedicated 5_EDGE_DRILL CAM layer with edge reference tags. */
+  includeEdgeDrills?: boolean;
 }
 
 export interface DxfPieceExportResult {

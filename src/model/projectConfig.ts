@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { shopValueSchema, TO_CONFIRM } from './common';
 import { DEFAULT_STANDARD_THICKNESSES_MM } from './standardThickness';
+import {
+  commercialQuoteConfigSchema,
+  DEFAULT_COMMERCIAL_QUOTE_CONFIG,
+} from './quote';
 
 export const unitsConfigSchema = z.object({
   length: z.enum(['mm', 'cm', 'm']).default('mm'),
@@ -140,6 +144,7 @@ export const projectConfigSchema = z.object({
   deflection: deflectionConfigSchema,
   hardware: hardwareConfigSchema.default(DEFAULT_HARDWARE_CONFIG),
   features: featuresConfigSchema.default(DEFAULT_FEATURES_CONFIG),
+  commercialQuote: commercialQuoteConfigSchema.default(DEFAULT_COMMERCIAL_QUOTE_CONFIG),
 });
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 

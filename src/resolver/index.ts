@@ -79,6 +79,27 @@ export {
 } from './export';
 
 export {
+  type PlacacentroCutRow,
+  buildPlacacentroCutRows,
+  exportPlacacentroCsv,
+} from './placacentroExport';
+
+export {
+  type QuoteModuleDescriptor,
+  type CommercialQuoteInput,
+  type CommercialQuoteInternalBreakdown,
+  type CommercialQuoteClientTotals,
+  type CommercialQuoteProfitability,
+  type CommercialQuoteResult,
+  calculateCommercialQuote,
+} from './quote';
+
+export {
+  type CommercialQuotePdfMetadata,
+  exportCommercialQuotePdf,
+} from './quotePdf';
+
+export {
   type TemplateDefinition,
   type TemplateBuildResult,
   BASE_EMPTY_TEMPLATE,
