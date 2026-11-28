@@ -568,6 +568,8 @@ export function App(): ReactElement {
                     onUpdateCommercialQuoteConfig={vm.updateCommercialQuoteConfig}
                     onExportCommercialQuotePdf={vm.exportCommercialQuotePdf}
                     onExportPlacacentroCsv={vm.exportPlacacentroCsv}
+                    onExportShoppingListCsv={vm.exportShoppingListCsv}
+                    onExportShoppingListPdf={vm.exportShoppingListPdf}
                   />
                 )}
 

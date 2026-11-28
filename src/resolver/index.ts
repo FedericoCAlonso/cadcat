@@ -100,6 +100,18 @@ export {
 } from './quotePdf';
 
 export {
+  type ShoppingBoardRow,
+  type ShoppingEdgeBandRow,
+  type ShoppingHardwareRow,
+  type ShoppingCountertopRow,
+  type ShoppingMaterialList,
+  type ShoppingMaterialListInput,
+  buildShoppingMaterialList,
+  exportShoppingListCsv,
+  exportShoppingListPdf,
+} from './bomExport';
+
+export {
   type TemplateDefinition,
   type TemplateBuildResult,
   BASE_EMPTY_TEMPLATE,

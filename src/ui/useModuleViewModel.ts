@@ -360,6 +360,8 @@ export interface ModuleViewModelState {
   commercialQuoteConfig: CommercialQuoteConfig;
   updateCommercialQuoteConfig: (patch: Partial<CommercialQuoteConfig>) => void;
   exportPlacacentroCsv: () => void;
+  exportShoppingListCsv: () => void;
+  exportShoppingListPdf: () => void;
   exportCommercialQuotePdf: () => void;
   // Multi-module project management
   project: Project | null;
@@ -3229,6 +3231,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
   const {
     exportCsv,
     exportPlacacentroCsv,
+    exportShoppingListCsv,
+    exportShoppingListPdf,
     exportPdf,
     exportCommercialQuotePdf,
     exportAssemblyPdf,
@@ -3253,13 +3257,17 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     projectConfig,
     resolvedPieces,
     consolidatedPieces,
+    activeModuleBom,
+    consolidatedBom,
     modulesToConsolidate,
     activeModuleToConsolidate,
     assemblySheet,
     machiningSheets,
     wallShelvingOutput,
     wallShelvingDefinition,
+    countertopEnabled,
     countertopCalculation,
+    edgeBandWastePercent: commercialQuoteConfig.edgeBandWastePercent,
     commercialQuote,
     initialDb,
     serializeCurrentModule,
@@ -3574,6 +3582,8 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     commercialQuoteConfig,
     updateCommercialQuoteConfig,
     exportPlacacentroCsv,
+    exportShoppingListCsv,
+    exportShoppingListPdf,
     exportCommercialQuotePdf,
     // Multi-module project management
     project,

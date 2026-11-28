@@ -60,6 +60,8 @@ export interface PieceListViewProps {
   onUpdateCommercialQuoteConfig?: (patch: Partial<CommercialQuoteConfig>) => void;
   onExportCommercialQuotePdf?: () => void;
   onExportPlacacentroCsv?: () => void;
+  onExportShoppingListCsv?: () => void;
+  onExportShoppingListPdf?: () => void;
 }
 
 /**
@@ -102,6 +104,8 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
     onUpdateCommercialQuoteConfig,
     onExportCommercialQuotePdf,
     onExportPlacacentroCsv,
+    onExportShoppingListCsv,
+    onExportShoppingListPdf,
   } = props;
 
   const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
@@ -667,6 +671,44 @@ export function PieceListView(props: PieceListViewProps): ReactElement {
             <span className="m3-badge m3-badge--neutral">
               Tapacantos: <strong>{totalEdgeBandMeters.toFixed(2)} m</strong>
             </span>
+            {onExportShoppingListPdf && filteredPieces.length > 0 && (
+              <button
+                type="button"
+                className="m3-button m3-button--tonal"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                }}
+                onClick={onExportShoppingListPdf}
+                title="Descargar checklist PDF de compras: placas enteras, tapacantos con merma y herrajes"
+              >
+                <span>🛒 Materiales PDF</span>
+              </button>
+            )}
+            {onExportShoppingListCsv && filteredPieces.length > 0 && (
+              <button
+                type="button"
+                className="m3-button m3-button--outlined"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                }}
+                onClick={onExportShoppingListCsv}
+                title="Descargar lista de compras (BOM) en CSV: placas, tapacantos y herrajes para Excel"
+              >
+                <span>🛒 Materiales CSV</span>
+              </button>
+            )}
             {onExportPlacacentroCsv && filteredPieces.length > 0 && (
               <button
                 type="button"

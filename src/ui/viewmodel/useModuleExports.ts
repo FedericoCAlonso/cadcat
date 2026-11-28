@@ -22,11 +22,15 @@ import {
   exportPlacacentroCsv,
   exportCutPlanPdf,
   exportCommercialQuotePdf,
+  buildShoppingMaterialList,
+  exportShoppingListCsv,
+  exportShoppingListPdf,
   exportAssemblyGuidePdf,
   exportWallShelvesInstallationPdf,
   exportMarmoleriaPdf,
   exportMachiningSheetPdf,
   exportMachiningSheetToDxf,
+  type BillOfMaterials,
   type ModuleToConsolidate,
   type ConsolidatedPiece,
   type ResolvedPieceWithCutSize,
@@ -56,13 +60,17 @@ export interface UseModuleExportsParams {
   projectConfig: ProjectConfig | null;
   resolvedPieces: ResolvedPieceWithCutSize[];
   consolidatedPieces: ConsolidatedPiece[];
+  activeModuleBom: BillOfMaterials | null;
+  consolidatedBom: BillOfMaterials | null;
   modulesToConsolidate: ModuleToConsolidate[];
   activeModuleToConsolidate: ModuleToConsolidate[];
   assemblySheet: AssemblySheet | null;
   machiningSheets: PieceMachiningSheet[];
   wallShelvingOutput: WallShelvingOutput | null;
   wallShelvingDefinition: WallShelvingDefinition | null;
+  countertopEnabled: boolean;
   countertopCalculation: CountertopCalculationResult | null;
+  edgeBandWastePercent: number;
   commercialQuote: CommercialQuoteResult | null;
   initialDb?: IDBDatabase;
   serializeCurrentModule: () => ProjectModuleItem;
@@ -87,13 +95,17 @@ export function useModuleExports(params: UseModuleExportsParams) {
     projectConfig,
     resolvedPieces,
     consolidatedPieces,
+    activeModuleBom,
+    consolidatedBom,
     modulesToConsolidate,
     activeModuleToConsolidate,
     assemblySheet,
     machiningSheets,
     wallShelvingOutput,
     wallShelvingDefinition,
+    countertopEnabled,
     countertopCalculation,
+    edgeBandWastePercent,
     commercialQuote,
     initialDb,
     serializeCurrentModule,
@@ -485,9 +497,93 @@ export function useModuleExports(params: UseModuleExportsParams) {
     setStatusMessage(`Presupuesto comercial para cliente exportado a ${fileName}.`);
   }, [commercialQuote, project, projectConfig, setStatusMessage]);
 
+  const buildCurrentShoppingList = useCallback(() => {
+    const isGlobal = projectScope === 'all-modules';
+    const targetBom = isGlobal ? consolidatedBom : activeModuleBom;
+    const targetModules = isGlobal ? modulesToConsolidate : activeModuleToConsolidate;
+    if (!targetBom || targetModules.length === 0) return null;
+
+    const nestingResult = runProjectNesting(targetModules, {
+      materials,
+      sawKerfMm: projectConfig?.nesting?.sawKerfMm,
+      trimMarginMm: projectConfig?.nesting?.sheetTrimMarginMm,
+      grainDirectionMode: projectConfig?.nesting?.grainDirectionMode,
+      respectGrain: projectConfig?.nesting?.respectGrain,
+      optimizationGoal: projectConfig?.nesting?.optimizationGoal,
+      includeAssemblyGauges: projectConfig?.nesting?.includeAssemblyGaugesInCutPlan,
+    });
+
+    const activeModEntry = targetModules.find((m) => m.moduleId === activeModuleId);
+    const countertopQty = Math.max(1, Math.floor(activeModEntry?.quantity ?? 1));
+    const moduleNames = targetModules.map((m) =>
+      m.quantity > 1 ? `${m.moduleName} (×${m.quantity})` : m.moduleName,
+    );
+
+    return buildShoppingMaterialList({
+      bom: targetBom,
+      nestingResult,
+      materials,
+      edgeBands,
+      hardware,
+      edgeBandWastePercent,
+      countertop: countertopEnabled ? countertopCalculation : null,
+      countertopQuantity: countertopQty,
+      projectName: project?.name ?? projectConfig?.projectName ?? 'Proyecto CadCat',
+      clientName: project?.clientName ?? projectConfig?.clientName ?? 'Taller',
+      scopeLabel: isGlobal ? 'Proyecto Completo' : 'Módulo Actual',
+      moduleNames,
+    });
+  }, [
+    projectScope,
+    consolidatedBom,
+    activeModuleBom,
+    modulesToConsolidate,
+    activeModuleToConsolidate,
+    materials,
+    edgeBands,
+    hardware,
+    edgeBandWastePercent,
+    countertopEnabled,
+    countertopCalculation,
+    activeModuleId,
+    project,
+    projectConfig,
+  ]);
+
+  const exportShoppingListCsvAction = useCallback(() => {
+    const list = buildCurrentShoppingList();
+    if (!list) return;
+    const isGlobal = projectScope === 'all-modules';
+    const csvContent = exportShoppingListCsv(list);
+    const safeSlug = (isGlobal ? list.projectName : friendlyModuleName)
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'materiales';
+    const fileName = `lista-materiales-${safeSlug}.csv`;
+    triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
+    setStatusMessage(`Lista de materiales y compras exportada a ${fileName}.`);
+  }, [buildCurrentShoppingList, projectScope, friendlyModuleName, setStatusMessage]);
+
+  const exportShoppingListPdfAction = useCallback(() => {
+    const list = buildCurrentShoppingList();
+    if (!list) return;
+    const isGlobal = projectScope === 'all-modules';
+    const doc = exportShoppingListPdf(list);
+    const pdfBlob = doc.output('blob');
+    const safeSlug = (isGlobal ? list.projectName : friendlyModuleName)
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'materiales';
+    const fileName = `lista-materiales-${safeSlug}.pdf`;
+    triggerBrowserDownload(fileName, pdfBlob, 'application/pdf');
+    setStatusMessage(`Lista de materiales y compras (PDF) exportada a ${fileName}.`);
+  }, [buildCurrentShoppingList, projectScope, friendlyModuleName, setStatusMessage]);
+
   return {
     exportCsv,
     exportPlacacentroCsv: exportPlacacentroCsvAction,
+    exportShoppingListCsv: exportShoppingListCsvAction,
+    exportShoppingListPdf: exportShoppingListPdfAction,
     exportPdf,
     exportCommercialQuotePdf: exportCommercialQuotePdfAction,
     exportAssemblyPdf,
