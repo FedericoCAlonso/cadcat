@@ -5751,13 +5751,31 @@ legend.builder-section-title {
 }
 
 
+/* Commercial Quote M3 Numeric Inputs (Light & Dark + >= 48px touch targets) */
+.commercial-quote-view .quote-numeric-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--md-sys-shape-corner-sm, 8px);
+  border: 1px solid var(--md-sys-color-outline, #5c655f);
+  background-color: var(--md-sys-color-surface, #ffffff);
+  color: var(--md-sys-color-on-surface, #1f2622);
+  font-size: 0.92rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.commercial-quote-view .quote-numeric-input:focus {
+  outline: none;
+  border-color: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-sys-color-primary) 24%, transparent);
+}
+
 /* Ultra-narrow mobile (320px) top bar polish */
 @media (max-width: 359px) {
-  .m3-top-app-bar .m3-badge--neutral {
-    display: none;
-  }
+  .m3-top-app-bar .m3-badge--neutral,
   .m3-top-app-bar__subtitle {
-    overflow-wrap: normal;
-    word-break: normal;
+    display: none;
   }
 }

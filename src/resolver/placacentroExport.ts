@@ -78,8 +78,11 @@ export function buildPlacacentroCutRows(
     const rawW = Math.round(p.cutDimensionsMm.width * 10) / 10;
     const rawH = Math.round(p.cutDimensionsMm.height * 10) / 10;
 
-    // Determine whether piece height becomes Largo (L) and width becomes Ancho (A)
-    const heightIsLength = hasGrain ? grainAxis === 'height' : rawH > rawW;
+    // Determine whether piece height becomes Largo (L) and width becomes Ancho (A).
+    // When material has grain AND piece has an explicit grain axis, Largo follows grain axis.
+    // Otherwise (non-grained or hidden/structural piece with grainAxis === 'none'), Largo = max(W, H).
+    const respectGrain = hasGrain && grainAxis !== 'none';
+    const heightIsLength = respectGrain ? grainAxis === 'height' : rawH > rawW;
     const lengthMm = heightIsLength ? rawH : rawW;
     const widthMm = heightIsLength ? rawW : rawH;
 
@@ -91,10 +94,15 @@ export function buildPlacacentroCutRows(
     const rightEdge = p.bandedEdges?.find((b) => b.faceId.includes('right'));
 
     // L1/L2 run parallel to Largo; A1/A2 run parallel to Ancho
-    const l1 = formatEdgeCode(heightIsLength ? leftEdge : topEdge, ebMap);
-    const l2 = formatEdgeCode(heightIsLength ? rightEdge : bottomEdge, ebMap);
-    const a1 = formatEdgeCode(heightIsLength ? topEdge : leftEdge, ebMap);
-    const a2 = formatEdgeCode(heightIsLength ? bottomEdge : rightEdge, ebMap);
+    const l1Edge = heightIsLength ? leftEdge : topEdge;
+    const l2Edge = heightIsLength ? rightEdge : bottomEdge;
+    const a1Edge = heightIsLength ? topEdge : leftEdge;
+    const a2Edge = heightIsLength ? bottomEdge : rightEdge;
+
+    const l1 = formatEdgeCode(l1Edge, ebMap);
+    const l2 = formatEdgeCode(l2Edge, ebMap);
+    const a1 = formatEdgeCode(a1Edge, ebMap);
+    const a2 = formatEdgeCode(a2Edge, ebMap);
 
     const pieceLabel = translateRoleKey(p.role);
     const moduleName = 'moduleName' in p && p.moduleName ? p.moduleName : defaultModName;
@@ -105,11 +113,15 @@ export function buildPlacacentroCutRows(
       lengthMm,
       widthMm,
       p.thicknessMm,
-      hasGrain && grainAxis !== 'none' ? '1' : '0',
+      respectGrain ? '1' : '0',
       l1,
       l2,
       a1,
       a2,
+      l1Edge?.edgeBandId ?? '',
+      l2Edge?.edgeBandId ?? '',
+      a1Edge?.edgeBandId ?? '',
+      a2Edge?.edgeBandId ?? '',
       pieceLabel,
       moduleName,
     ].join('|');
@@ -125,7 +137,7 @@ export function buildPlacacentroCutRows(
         materialId: p.materialId,
         materialName,
         thicknessMm: p.thicknessMm,
-        respectGrain: hasGrain && grainAxis !== 'none',
+        respectGrain,
         l1,
         l2,
         a1,

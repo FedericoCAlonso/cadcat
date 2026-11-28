@@ -3152,6 +3152,7 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
     if (!targetBom || !targetCost || targetModules.length === 0) return null;
 
     const moduleDescriptors: QuoteModuleDescriptor[] = targetModules.map((mod) => {
+      const isActiveMod = mod.moduleId === activeModuleId;
       const cfgItem = projectModules.find((pm) => pm.id === mod.moduleId);
       const drawerCount = mod.pieces.filter((p) => p.role === 'drawer-front').length;
       const doorCount = mod.pieces.filter(
@@ -3164,9 +3165,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
         id: mod.moduleId,
         name: mod.moduleName,
         quantity: mod.quantity,
-        widthMm: cfgItem?.width ?? width,
-        heightMm: cfgItem?.height ?? height,
-        depthMm: cfgItem?.depth ?? depth,
+        widthMm: isActiveMod ? width : (cfgItem?.width ?? width),
+        heightMm: isActiveMod ? height : (cfgItem?.height ?? height),
+        depthMm: isActiveMod ? depth : (cfgItem?.depth ?? depth),
         drawerCount,
         doorCount,
         shelfCount,
@@ -3187,6 +3188,9 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
           })
         : null;
 
+    const activeModEntry = targetModules.find((m) => m.moduleId === activeModuleId);
+    const countertopQty = Math.max(1, Math.floor(activeModEntry?.quantity ?? 1));
+
     return calculateCommercialQuote({
       bom: targetBom,
       cost: targetCost,
@@ -3196,11 +3200,13 @@ export function useModuleViewModel(initialDb?: IDBDatabase): ModuleViewModelStat
       edgeBands,
       hardware,
       countertop: countertopEnabled ? countertopCalculation : null,
+      countertopQuantity: countertopQty,
       quoteConfig: commercialQuoteConfig,
       fallbackHourlyLaborRate: projectConfig?.cost?.hourlyLaborRate,
     });
   }, [
     projectScope,
+    activeModuleId,
     consolidatedBom,
     activeModuleBom,
     consolidatedCost,

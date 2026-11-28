@@ -327,141 +327,190 @@ export function renderExplodedSvg(
         </g>
       )}
 
-      {/* 2. Pieces Layer */}
+      {/* 2. Pieces Layer & 3. Foreground Balloons Layer (balloons always render on top of panels) */}
       {(() => {
-        const placedBalloons: Array<{ x: number; y: number }> = [];
-        const MIN_BALLOON_DIST = 28;
-        return projectedPieces.map((p) => {
-        const isSelected = activePieceId === p.item.pieceId;
-        const [sv0, sv1, sv2, sv3, sv4, sv5, sv6, sv7] = p.vertices;
-
-        const frontPoints = `${sv4!.x},${sv4!.y} ${sv5!.x},${sv5!.y} ${sv6!.x},${sv6!.y} ${sv7!.x},${sv7!.y}`;
-        const topPoints = `${sv7!.x},${sv7!.y} ${sv6!.x},${sv6!.y} ${sv2!.x},${sv2!.y} ${sv3!.x},${sv3!.y}`;
-        const rightPoints = `${sv5!.x},${sv5!.y} ${sv1!.x},${sv1!.y} ${sv2!.x},${sv2!.y} ${sv6!.x},${sv6!.y}`;
-        const leftPoints = `${sv0!.x},${sv0!.y} ${sv4!.x},${sv4!.y} ${sv7!.x},${sv7!.y} ${sv3!.x},${sv3!.y}`;
-
-        const isGhosted = !p.isStepActive;
-
-        let frontFill = 'var(--surface-2, #ede8dc)';
-        let topFill = '#faf8f4';
-        let sideFill = '#ded8cb';
-        let strokeColor = 'var(--text-muted, #5c655f)';
-        let strokeWidth = 1.0;
-        let opacity = 0.95;
-
-        if (isSelected) {
-          frontFill = 'var(--primary, #56705f)';
-          topFill = 'var(--primary-hover, #465c4e)';
-          sideFill = '#3b4e42';
-          strokeColor = 'var(--primary, #56705f)';
-          strokeWidth = 2.0;
-        } else if (isGhosted) {
-          frontFill = '#e8e4da';
-          topFill = '#f0ede6';
-          sideFill = '#dfdacd';
-          strokeColor = 'var(--border, #d9d2c3)';
-          strokeWidth = 0.8;
-          opacity = 0.18;
+        interface BalloonLayoutItem {
+          pieceId: string;
+          referenceNumber: number;
+          isSelected: boolean;
+          fcX: number;
+          fcY: number;
+          bX: number;
+          bY: number;
         }
+        const balloonItems: BalloonLayoutItem[] = [];
 
-        const useLeftFace = viewAngle === 'iso-left';
+        const pieceNodes = projectedPieces.map((p) => {
+          const isSelected = activePieceId === p.item.pieceId;
+          const [sv0, sv1, sv2, sv3, sv4, sv5, sv6, sv7] = p.vertices;
 
-        // Front face center for balloon placement (with collision avoidance)
-        const fcX = (sv4!.x + sv6!.x) / 2;
-        const fcY = (sv4!.y + sv6!.y) / 2;
+          const frontPoints = `${sv4!.x},${sv4!.y} ${sv5!.x},${sv5!.y} ${sv6!.x},${sv6!.y} ${sv7!.x},${sv7!.y}`;
+          const topPoints = `${sv7!.x},${sv7!.y} ${sv6!.x},${sv6!.y} ${sv2!.x},${sv2!.y} ${sv3!.x},${sv3!.y}`;
+          const rightPoints = `${sv5!.x},${sv5!.y} ${sv1!.x},${sv1!.y} ${sv2!.x},${sv2!.y} ${sv6!.x},${sv6!.y}`;
+          const leftPoints = `${sv0!.x},${sv0!.y} ${sv4!.x},${sv4!.y} ${sv7!.x},${sv7!.y} ${sv3!.x},${sv3!.y}`;
 
-        const dx = fcX - width / 2;
-        const dy = fcY - height / 2;
-        const len = Math.hypot(dx, dy) || 1;
-        let bX = Math.max(38, Math.min(width - 38, fcX + (dx / len) * 52));
-        let bY = Math.max(38, Math.min(height - 38, fcY + (dy / len) * 40));
+          const isGhosted = !p.isStepActive;
 
-        if (showBalloons && !isGhosted) {
-          for (let attempt = 0; attempt < 8; attempt++) {
-            const clash = placedBalloons.find(
-              (other) => Math.hypot(other.x - bX, other.y - bY) < MIN_BALLOON_DIST,
-            );
-            if (!clash) break;
-            bY = Math.max(32, Math.min(height - 32, bY + (attempt % 2 === 0 ? -MIN_BALLOON_DIST : MIN_BALLOON_DIST)));
-            if (Math.hypot(clash.x - bX, clash.y - bY) < MIN_BALLOON_DIST) {
-              bX = Math.max(32, Math.min(width - 32, bX + (bX >= width / 2 ? MIN_BALLOON_DIST : -MIN_BALLOON_DIST)));
+          let frontFill = 'var(--surface-2, #ede8dc)';
+          let topFill = '#faf8f4';
+          let sideFill = '#ded8cb';
+          let strokeColor = 'var(--text-muted, #5c655f)';
+          let strokeWidth = 1.0;
+          let opacity = 0.95;
+
+          if (isSelected) {
+            frontFill = 'var(--primary, #56705f)';
+            topFill = 'var(--primary-hover, #465c4e)';
+            sideFill = '#3b4e42';
+            strokeColor = 'var(--primary, #56705f)';
+            strokeWidth = 2.0;
+          } else if (isGhosted) {
+            frontFill = '#e8e4da';
+            topFill = '#f0ede6';
+            sideFill = '#dfdacd';
+            strokeColor = 'var(--border, #d9d2c3)';
+            strokeWidth = 0.8;
+            opacity = 0.18;
+          }
+
+          const useLeftFace = viewAngle === 'iso-left';
+
+          // Collect initial balloon anchor for foreground collision-free layout
+          if (showBalloons && !isGhosted) {
+            const fcX = (sv4!.x + sv6!.x) / 2;
+            const fcY = (sv4!.y + sv6!.y) / 2;
+            const dx = fcX - width / 2;
+            const dy = fcY - height / 2;
+            const len = Math.hypot(dx, dy) || 1;
+            balloonItems.push({
+              pieceId: p.item.pieceId,
+              referenceNumber: p.item.referenceNumber,
+              isSelected,
+              fcX,
+              fcY,
+              bX: Math.max(24, Math.min(width - 24, fcX + (dx / len) * 58)),
+              bY: Math.max(24, Math.min(height - 24, fcY + (dy / len) * 44)),
+            });
+          }
+
+          return (
+            <g
+              key={p.item.pieceId}
+              style={{ cursor: 'pointer', transition: 'opacity 0.2s ease' }}
+              opacity={opacity}
+              onClick={() => onSelectPiece && onSelectPiece(isSelected ? null : p.item.pieceId)}
+            >
+              {/* Top Face */}
+              <polygon points={topPoints} fill={topFill} stroke={strokeColor} strokeWidth={strokeWidth} />
+              {/* Side Face (Left or Right depending on viewing angle) */}
+              {useLeftFace ? (
+                <polygon points={leftPoints} fill={sideFill} stroke={strokeColor} strokeWidth={strokeWidth} />
+              ) : (
+                <polygon points={rightPoints} fill={sideFill} stroke={strokeColor} strokeWidth={strokeWidth} />
+              )}
+              {/* Front Face */}
+              <polygon
+                points={frontPoints}
+                fill={frontFill}
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                fillOpacity={p.item.role.includes('back') ? 0.6 : 0.95}
+              />
+
+              {/* Edge Banding Highlight (Front Edge) in Latón Brass */}
+              {showEdgeBanding && !isGhosted && (
+                <line
+                  x1={sv7!.x}
+                  y1={sv7!.y}
+                  x2={sv6!.x}
+                  y2={sv6!.y}
+                  stroke="var(--accent, #b08a3e)"
+                  strokeWidth={isSelected ? '3.5' : '2.5'}
+                  strokeLinecap="round"
+                />
+              )}
+            </g>
+          );
+        });
+
+        // Multi-pass pairwise repulsion to guarantee zero overlapping balloons even at 0% explosion
+        const MIN_BALLOON_DIST = 30;
+        const PAD = 22;
+        for (let iter = 0; iter < 36; iter++) {
+          let moved = false;
+          for (let i = 0; i < balloonItems.length; i++) {
+            const a = balloonItems[i]!;
+            for (let j = i + 1; j < balloonItems.length; j++) {
+              const b = balloonItems[j]!;
+              let dx = b.bX - a.bX;
+              let dy = b.bY - a.bY;
+              let dist = Math.hypot(dx, dy);
+              if (dist < MIN_BALLOON_DIST) {
+                if (dist < 0.01) {
+                  const angle = ((i * 7 + j * 13) % 12) * (Math.PI / 6);
+                  dx = Math.cos(angle);
+                  dy = Math.sin(angle);
+                  dist = 1;
+                }
+                const push = (MIN_BALLOON_DIST - dist) / 2 + 0.5;
+                const ux = dx / dist;
+                const uy = dy / dist;
+                a.bX = Math.max(PAD, Math.min(width - PAD, a.bX - ux * push));
+                a.bY = Math.max(PAD, Math.min(height - PAD, a.bY - uy * push));
+                b.bX = Math.max(PAD, Math.min(width - PAD, b.bX + ux * push));
+                b.bY = Math.max(PAD, Math.min(height - PAD, b.bY + uy * push));
+                moved = true;
+              }
             }
           }
-          placedBalloons.push({ x: bX, y: bY });
+          if (!moved) break;
         }
 
         return (
-          <g
-            key={p.item.pieceId}
-            style={{ cursor: 'pointer', transition: 'opacity 0.2s ease' }}
-            opacity={opacity}
-            onClick={() => onSelectPiece && onSelectPiece(isSelected ? null : p.item.pieceId)}
-          >
-            {/* Top Face */}
-            <polygon points={topPoints} fill={topFill} stroke={strokeColor} strokeWidth={strokeWidth} />
-            {/* Side Face (Left or Right depending on viewing angle) */}
-            {useLeftFace ? (
-              <polygon points={leftPoints} fill={sideFill} stroke={strokeColor} strokeWidth={strokeWidth} />
-            ) : (
-              <polygon points={rightPoints} fill={sideFill} stroke={strokeColor} strokeWidth={strokeWidth} />
-            )}
-            {/* Front Face */}
-            <polygon
-              points={frontPoints}
-              fill={frontFill}
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
-              fillOpacity={p.item.role.includes('back') ? 0.6 : 0.95}
-            />
-
-            {/* Edge Banding Highlight (Front Edge) in Latón Brass */}
-            {showEdgeBanding && !isGhosted && (
-              <line
-                x1={sv7!.x}
-                y1={sv7!.y}
-                x2={sv6!.x}
-                y2={sv6!.y}
-                stroke="var(--accent, #b08a3e)"
-                strokeWidth={isSelected ? '3.5' : '2.5'}
-                strokeLinecap="round"
-              />
-            )}
-
-            {/* Reference Number Balloon & Leader line */}
-            {showBalloons && !isGhosted && (
-              <g className="exploded-balloon-group">
-                <line
-                  x1={fcX}
-                  y1={fcY}
-                  x2={bX}
-                  y2={bY}
-                  stroke="var(--accent, #b08a3e)"
-                  strokeWidth="1.2"
-                  strokeDasharray="2 2"
-                />
-                <circle
-                  cx={bX}
-                  cy={bY}
-                  r="13"
-                  fill={isSelected ? 'var(--primary, #56705f)' : 'var(--surface, #ffffff)'}
-                  stroke={isSelected ? 'var(--primary-hover, #465c4e)' : 'var(--border, #d9d2c3)'}
-                  strokeWidth={isSelected ? '2.5' : '1.5'}
-                />
-                <text
-                  x={bX}
-                  y={bY + 3.8}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="bold"
-                  fill={isSelected ? '#ffffff' : 'var(--text, #1f2622)'}
-                >
-                  #{p.item.referenceNumber}
-                </text>
+          <>
+            <g className="exploded-pieces-layer">{pieceNodes}</g>
+            {showBalloons && balloonItems.length > 0 && (
+              <g className="exploded-balloons-layer">
+                {balloonItems.map((b) => (
+                  <g
+                    key={`balloon-${b.pieceId}`}
+                    className="exploded-balloon-group"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onSelectPiece && onSelectPiece(b.isSelected ? null : b.pieceId)}
+                  >
+                    <line
+                      x1={b.fcX}
+                      y1={b.fcY}
+                      x2={b.bX}
+                      y2={b.bY}
+                      stroke="var(--accent, #b08a3e)"
+                      strokeWidth="1.2"
+                      strokeDasharray="2 2"
+                    />
+                    <circle
+                      cx={b.bX}
+                      cy={b.bY}
+                      r="13"
+                      fill={b.isSelected ? 'var(--primary, #56705f)' : 'var(--surface, #ffffff)'}
+                      stroke={b.isSelected ? 'var(--primary-hover, #465c4e)' : 'var(--border, #d9d2c3)'}
+                      strokeWidth={b.isSelected ? '2.5' : '1.5'}
+                    />
+                    <text
+                      x={b.bX}
+                      y={b.bY + 3.8}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="bold"
+                      fill={b.isSelected ? '#ffffff' : 'var(--text, #1f2622)'}
+                    >
+                      #{b.referenceNumber}
+                    </text>
+                  </g>
+                ))}
               </g>
             )}
-          </g>
+          </>
         );
-      });
       })()}
     </svg>
   );

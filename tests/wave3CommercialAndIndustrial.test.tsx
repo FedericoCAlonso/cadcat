@@ -14,6 +14,7 @@ import {
   deriveModuleDrillOperations,
   deriveModuleGrooveOperations,
   buildModuleMachiningSheets,
+  exportPieceToDxf,
   exportMachiningSheetToDxf,
   JointGraph,
   type ModularModuleDefinition,
@@ -322,6 +323,130 @@ describe('Ola 3 — Commercial Quote Engine, Placacentro Exporter & DXF CAM Laye
       expect(dxf).toContain('2_GROOVE_W');
       expect(dxf).toContain('5_EDGE_DRILL_LEFT_D5_Z35');
       expect(dxf).toContain('5_EDGE_DRILL_RIGHT_D5_Z35');
+    });
+
+    it('encodes _THRU when depth >= thickness, preserves canonical ACI drill color on _Z layers, and matches asymmetric edgeband offsets', () => {
+      const { resolvedPieces } = buildSamplePreset('preset-empty');
+      const basePiece = resolvedPieces.find((p) => p.role === 'bottom')!;
+      const asymPiece = {
+        ...basePiece,
+        dimensionsMm: { width: 600, height: 500 },
+        cutDimensionsMm: { width: 597.2, height: 500 }, // 2.0mm left + 0.8mm right
+        thicknessMm: 18,
+        bandedEdges: [
+          { faceId: 'left-edge', edgeBandId: 'eb-pvc-2mm', thicknessMm: 2.0, applied: true, lengthMm: 500 },
+          { faceId: 'right-edge', edgeBandId: 'eb-pvc-045mm', thicknessMm: 0.8, applied: true, lengthMm: 500 },
+        ],
+      };
+      const drillOps = [
+        {
+          schemaVersion: 1 as const,
+          origin: 'derived' as const,
+          id: 'd-35-blind',
+          pieceId: asymPiece.id,
+          faceId: 'face-A',
+          faceType: 'face-A' as const,
+          positionMm: { x: 100, y: 100 },
+          diameterMm: 35,
+          depthMm: 12,
+          isThrough: false,
+        },
+        {
+          schemaVersion: 1 as const,
+          origin: 'derived' as const,
+          id: 'd-5-full-depth',
+          pieceId: asymPiece.id,
+          faceId: 'face-A',
+          faceType: 'face-A' as const,
+          positionMm: { x: 200, y: 100 },
+          diameterMm: 5,
+          depthMm: 18,
+          isThrough: false,
+        },
+      ];
+
+      const sheet = buildModuleMachiningSheets([asymPiece], drillOps, [])[0]!;
+      const dxfPiece = exportPieceToDxf(asymPiece, {
+        face: 'face-A',
+        useCutDimensions: true,
+        derivedOperations: drillOps,
+        encodeDepthInLayer: true,
+      });
+      const dxfSheet = exportMachiningSheetToDxf(sheet, {
+        face: 'face-A',
+        useCutDimensions: true,
+        encodeDepthInLayer: true,
+      });
+
+      // Full-depth drill (18mm on 18mm board) must emit _THRU even if isThrough flag was false
+      expect(dxfPiece).toContain('1_DRILL_5MM_THRU');
+      expect(dxfSheet).toContain('1_DRILL_5MM_THRU');
+      // Canonical 35mm drill layer keeps ACI color 6 (Magenta), not red fallback 1
+      expect(dxfSheet).toMatch(/1_DRILL_35MM_Z12\r?\n\s*70\r?\n\s*64\r?\n\s*62\r?\n\s*6\r?\n/);
+      // Asymmetric 2.0mm left / 0.8mm right shiftX must be 2.0mm -> X = 98.0 in BOTH exporters
+      expect(dxfPiece).toMatch(/10\r?\n98\.0\r?\n/);
+      expect(dxfSheet).toMatch(/10\r?\n98\.0\r?\n/);
+    });
+  });
+
+  describe('Wave 3 Audit Regression Guarantees', () => {
+    it('zeros cutPassCost in in-house mode, guarantees exact USD additive totals, and preserves distinct edgeBandIds in Placacentro CSV', () => {
+      const { preset, bom, nesting, cost } = buildSamplePreset('preset-drawer-unit-3');
+      const inHouse = calculateCommercialQuote({
+        bom,
+        cost,
+        nestingResult: nesting,
+        modules: [
+          {
+            id: 'mod-1',
+            name: preset.name,
+            quantity: 1,
+            widthMm: 600,
+            heightMm: 720,
+            depthMm: 560,
+            drawerCount: 3,
+            doorCount: 0,
+            shelfCount: 0,
+          },
+        ],
+        materials: pricedMaterials,
+        edgeBands: pricedEdgeBands,
+        hardware: pricedHardware,
+        quoteConfig: {
+          workshopMode: 'in-house',
+          usableOffcutCreditPercent: 30,
+          currency: 'USD',
+          exchangeRateArsPerUsd: 1200,
+          discountPercent: 5,
+          vatPercent: 21,
+        },
+      });
+
+      expect(inHouse.internal.cutPassCost).toBe(0);
+      expect(inHouse.internal.edgeBandServiceCost).toBe(0);
+      expect(
+        Math.round((inHouse.client.netBeforeDiscount - inHouse.client.discountAmount) * 100) / 100,
+      ).toBe(inHouse.client.netSubtotal);
+      expect(
+        Math.round((inHouse.client.netSubtotal + inHouse.client.vatAmount) * 100) / 100,
+      ).toBe(inHouse.client.finalTotal);
+
+      // Placacentro CSV: two 2mm edgebands with different IDs/colors must NOT merge into 1 row
+      const { resolvedPieces } = buildSamplePreset('preset-empty');
+      const sample = resolvedPieces[0]!;
+      const pA = {
+        ...sample,
+        id: 'p-band-a',
+        bandedEdges: [{ faceId: 'top-edge', edgeBandId: 'eb-pvc-2mm-white', thicknessMm: 2, applied: true, lengthMm: 500 }],
+      };
+      const pB = {
+        ...sample,
+        id: 'p-band-b',
+        bandedEdges: [{ faceId: 'top-edge', edgeBandId: 'eb-pvc-2mm-oak', thicknessMm: 2, applied: true, lengthMm: 500 }],
+      };
+      const rows = buildPlacacentroCutRows([pA, pB], pricedMaterials, pricedEdgeBands);
+      expect(rows.length).toBe(2);
+      expect(rows.reduce((s, r) => s + r.quantity, 0)).toBe(2);
     });
   });
 

@@ -61,7 +61,12 @@ export const DIAMETER_MATCH_TOLERANCE_MM = 0.2;
  * Resolves a drill operation diameter to its standardized CAD layer name.
  * e.g. 5mm -> '1_DRILL_5MM', 8mm -> '1_DRILL_8MM', 10mm -> '1_DRILL_10MM'
  */
-export function getDrillLayerName(diameterMm: number, depthMm?: number, isThrough?: boolean): string {
+export function getDrillLayerName(
+  diameterMm: number,
+  depthMm?: number,
+  isThrough?: boolean,
+  pieceThicknessMm?: number,
+): string {
   let base: string | null = null;
   for (const nominal of CANONICAL_DRILL_DIAMETERS) {
     if (Math.abs(diameterMm - nominal) <= DIAMETER_MATCH_TOLERANCE_MM) {
@@ -74,7 +79,10 @@ export function getDrillLayerName(diameterMm: number, depthMm?: number, isThroug
     base = `1_DRILL_${rounded}MM`;
   }
   if (depthMm !== undefined && depthMm > 0) {
-    const zTag = isThrough ? 'THRU' : `Z${Math.round(depthMm * 10) / 10}`;
+    const isEffectivelyThrough =
+      Boolean(isThrough) ||
+      (pieceThicknessMm !== undefined && pieceThicknessMm > 0 && depthMm >= pieceThicknessMm);
+    const zTag = isEffectivelyThrough ? 'THRU' : `Z${Math.round(depthMm * 10) / 10}`;
     return `${base}_${zTag}`;
   }
   return base;

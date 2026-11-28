@@ -105,7 +105,7 @@ export function CommercialQuoteView({
             lineHeight: 1.4,
           }}
         >
-          <strong>⚠️ Precios pendientes de confirmar (`TO_CONFIRM`):</strong>{' '}
+          <strong>⚠️ Precios pendientes de confirmar (sin precio):</strong>{' '}
           {quote.unconfirmedItemNames.slice(0, 5).join(', ')}
           {quote.unconfirmedItemNames.length > 5 ? ` (+${quote.unconfirmedItemNames.length - 5} más)` : ''}.
           Cargá sus valores en <em>Catálogos</em> para obtener un presupuesto exacto.
@@ -121,15 +121,24 @@ export function CommercialQuoteView({
       >
         {(
           [
-            { id: 'outsourced', label: '🏭 Tercerizado (Placacentro / Maderera)' },
-            { id: 'in-house', label: '🪚 Taller Propio (Maquinaria Propia)' },
-          ] as Array<{ id: WorkshopCostingMode; label: string }>
+            {
+              id: 'outsourced',
+              label: '🏭 Tercerizado (Placacentro)',
+              title: 'Placas enteras + servicio externo de corte y pegado de cantos en placacentro / maderera',
+            },
+            {
+              id: 'in-house',
+              label: '🪚 Taller Propio',
+              title: 'Maquinaria propia: descuenta crédito por retazos útiles y sin recargos externos de corte/pegado',
+            },
+          ] as Array<{ id: WorkshopCostingMode; label: string; title: string }>
         ).map((opt) => (
           <button
             key={opt.id}
             type="button"
             className={`m3-segmented-button__item ${quoteConfig.workshopMode === opt.id ? 'selected' : ''}`}
             style={{ minHeight: '48px', fontWeight: 600 }}
+            title={opt.title}
             onClick={() => onUpdateQuoteConfig({ workshopMode: opt.id })}
           >
             {opt.label}
@@ -141,7 +150,7 @@ export function CommercialQuoteView({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
           gap: '1rem',
           alignItems: 'start',
         }}
@@ -156,20 +165,22 @@ export function CommercialQuoteView({
             borderRadius: '12px',
             backgroundColor: 'var(--md-sys-color-surface-container-low)',
             border: '1px solid var(--md-sys-color-outline-variant)',
+            minWidth: 0,
           }}
         >
           <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--md-sys-color-primary)' }}>
             ⚙️ Parámetros de Costeo y Margen
           </h4>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: '0.65rem' }}>
             <div>
               <label htmlFor="quote-labor-rate" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
                 Hora taller ($/h)
               </label>
               <NumericInput
                 id="quote-labor-rate"
-                value={quoteConfig.hourlyLaborRate}
+                className="m3-input quote-numeric-input"
+                value={quote.config.hourlyLaborRate}
                 min={0}
                 max={500000}
                 step={500}
@@ -183,6 +194,7 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-edge-waste"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.edgeBandWastePercent}
                 min={0}
                 max={100}
@@ -198,6 +210,7 @@ export function CommercialQuoteView({
                 </label>
                 <NumericInput
                   id="quote-edge-service"
+                  className="m3-input quote-numeric-input"
                   value={quoteConfig.edgeBandingServicePerMeter}
                   min={0}
                   max={100000}
@@ -212,6 +225,7 @@ export function CommercialQuoteView({
                 </label>
                 <NumericInput
                   id="quote-offcut-credit"
+                  className="m3-input quote-numeric-input"
                   value={quoteConfig.usableOffcutCreditPercent}
                   min={0}
                   max={50}
@@ -227,9 +241,10 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-consumables"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.consumablesPercent}
                 min={0}
-                max={50}
+                max={100}
                 step={1}
                 onChange={(v) => onUpdateQuoteConfig({ consumablesPercent: v })}
               />
@@ -241,6 +256,7 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-delivery"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.deliveryCost}
                 min={0}
                 max={5000000}
@@ -255,6 +271,7 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-installation"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.installationCost}
                 min={0}
                 max={5000000}
@@ -269,6 +286,7 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-overhead"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.overheadPercent}
                 min={0}
                 max={200}
@@ -279,10 +297,11 @@ export function CommercialQuoteView({
 
             <div>
               <label htmlFor="quote-margin" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                Margen / Markup (%)
+                Margen comercial (%)
               </label>
               <NumericInput
                 id="quote-margin"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.profitMarginPercent}
                 min={0}
                 max={500}
@@ -297,6 +316,7 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-discount"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.discountPercent}
                 min={0}
                 max={100}
@@ -311,9 +331,10 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-vat"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.vatPercent}
                 min={0}
-                max={50}
+                max={100}
                 step={1}
                 allowDecimals={true}
                 onChange={(v) => onUpdateQuoteConfig({ vatPercent: v })}
@@ -342,6 +363,7 @@ export function CommercialQuoteView({
               </label>
               <NumericInput
                 id="quote-fx-rate"
+                className="m3-input quote-numeric-input"
                 value={quoteConfig.exchangeRateArsPerUsd}
                 min={1}
                 max={100000}
@@ -353,7 +375,7 @@ export function CommercialQuoteView({
         </div>
 
         {/* Right Column: Internal Cost Breakdown vs Client Commercial Price */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minWidth: 0 }}>
           {/* Client Commercial Price Highlight Card */}
           <div
             style={{
@@ -459,7 +481,7 @@ export function CommercialQuoteView({
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Gastos fijos / Overhead ({quoteConfig.overheadPercent}%):</span>
+              <span>Gastos fijos de taller ({quoteConfig.overheadPercent}%):</span>
               <strong>{formatMoney(internal.overheadCost, 'ARS')}</strong>
             </div>
             <div

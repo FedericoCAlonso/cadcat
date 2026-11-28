@@ -31,6 +31,8 @@ export interface CommercialQuoteInput {
   edgeBands?: EdgeBand[];
   hardware?: Hardware[];
   countertop?: CountertopCalculationResult | null;
+  /** Number of countertop units (defaults to 1). */
+  countertopQuantity?: number;
   quoteConfig?: Partial<CommercialQuoteConfig>;
   /** Fallback hourly rate from legacy ProjectConfig.cost.hourlyLaborRate when quoteConfig.hourlyLaborRate is 0. */
   fallbackHourlyLaborRate?: number;
@@ -142,41 +144,69 @@ export function calculateCommercialQuote(input: CommercialQuoteInput): Commercia
         .filter((i) => i.category === 'hardware' && typeof i.subtotal === 'number')
         .reduce((sum, i) => sum + (i.subtotal as number), 0);
 
-  const cutPassCost = cost.cutPassCost ?? 0;
+  // Cut-pass service fees apply only in outsourced (placacentro) mode; in-house cutting is covered by workshop labor.
+  const cutPassCost = cfg.workshopMode === 'outsourced' ? (cost.cutPassCost ?? 0) : 0;
 
-  // 1. Dual workshop mode: offcut credit (in-house) vs full sheets + edgebanding service (outsourced)
+  // 1. Dual workshop mode: per-sheet offcut credit (in-house) vs full sheets + edgebanding service (outsourced)
+  const matPriceMap = new Map(
+    (input.materials ?? []).map((m) => [
+      m.id,
+      typeof m.pricePerSheet === 'number' && m.pricePerSheet > 0 ? m.pricePerSheet : 0,
+    ]),
+  );
   let offcutCredit = 0;
   if (cfg.workshopMode === 'in-house' && cfg.usableOffcutCreditPercent > 0 && nestingResult && sheetsCost > 0) {
-    const totalSheetAreaM2 = nestingResult.sheets.reduce(
-      (sum, s) => sum + (s.sheetLengthMm * s.sheetWidthMm) / 1_000_000,
-      0,
-    );
-    const totalWasteAreaM2 = nestingResult.sheets.reduce((sum, s) => sum + s.wasteAreaM2, 0);
-    if (totalSheetAreaM2 > 0 && totalWasteAreaM2 > 0) {
-      const wasteShare = Math.min(0.8, totalWasteAreaM2 / totalSheetAreaM2);
-      offcutCredit = round2(sheetsCost * wasteShare * (cfg.usableOffcutCreditPercent / 100));
+    const creditFactor = cfg.usableOffcutCreditPercent / 100;
+    let computedFromSheetPrices = 0;
+    let hasSheetPrices = false;
+
+    for (const s of nestingResult.sheets) {
+      const sheetPrice = matPriceMap.get(s.materialId) ?? 0;
+      const sheetAreaM2 = (s.sheetLengthMm * s.sheetWidthMm) / 1_000_000;
+      if (sheetPrice > 0 && sheetAreaM2 > 0 && s.wasteAreaM2 > 0) {
+        hasSheetPrices = true;
+        const wasteRatio = Math.min(1, Math.max(0, s.wasteAreaM2 / sheetAreaM2));
+        computedFromSheetPrices += sheetPrice * wasteRatio * creditFactor;
+      }
+    }
+
+    if (hasSheetPrices) {
+      offcutCredit = round2(Math.min(sheetsCost, computedFromSheetPrices));
+    } else {
+      const totalSheetAreaM2 = nestingResult.sheets.reduce(
+        (sum, s) => sum + (s.sheetLengthMm * s.sheetWidthMm) / 1_000_000,
+        0,
+      );
+      const totalWasteAreaM2 = nestingResult.sheets.reduce((sum, s) => sum + s.wasteAreaM2, 0);
+      if (totalSheetAreaM2 > 0 && totalWasteAreaM2 > 0) {
+        const wasteShare = Math.min(1, Math.max(0, totalWasteAreaM2 / totalSheetAreaM2));
+        offcutCredit = round2(Math.min(sheetsCost, sheetsCost * wasteShare * creditFactor));
+      }
     }
   }
   const netMaterialCost = round2(Math.max(0, sheetsCost - offcutCredit));
 
   // 2. Edgeband material with waste % + external application service (outsourced)
   const edgeWasteFactor = 1 + cfg.edgeBandWastePercent / 100;
-  const edgeBandBilledMeters = round2(bom.totalEdgeBandMeters * edgeWasteFactor);
+  const rawEdgeBandBilledMeters = bom.totalEdgeBandMeters * edgeWasteFactor;
+  const edgeBandBilledMeters = round2(rawEdgeBandBilledMeters);
   const edgeBandMaterialCost = round2(baseEdgeBandMaterialCost * edgeWasteFactor);
   const edgeBandServiceCost =
     cfg.workshopMode === 'outsourced'
-      ? round2(edgeBandBilledMeters * cfg.edgeBandingServicePerMeter)
+      ? round2(rawEdgeBandBilledMeters * cfg.edgeBandingServicePerMeter)
       : 0;
 
   // 3. Countertop integration (when countertop material has confirmed pricePerM2)
   let countertopCost = 0;
   let countertopSummary: string | null = null;
   if (countertop) {
+    const ctQty = Math.max(1, Math.floor(input.countertopQuantity ?? 1));
     const pricePerM2 = countertop.material.pricePerM2;
     if (typeof pricePerM2 === 'number' && pricePerM2 > 0) {
-      countertopCost = round2(countertop.areaM2 * pricePerM2);
+      countertopCost = round2(countertop.areaM2 * pricePerM2 * ctQty);
     }
-    countertopSummary = `${countertop.material.name} (${countertop.widthMm}×${countertop.depthMm}×${countertop.thicknessMm} mm · ${countertop.areaM2.toFixed(2)} m²)`;
+    const qtyTag = ctQty > 1 ? ` × ${ctQty} un.` : '';
+    countertopSummary = `${countertop.material.name} (${countertop.widthMm}×${countertop.depthMm}×${countertop.thicknessMm} mm · ${(countertop.areaM2 * ctQty).toFixed(2)} m²${qtyTag})`;
   }
 
   // 4. Parametric labor hours & cost
@@ -237,10 +267,25 @@ export function calculateCommercialQuote(input: CommercialQuoteInput): Commercia
 
   const displayCurrency = cfg.currency;
   const equivalentCurrency: 'ARS' | 'USD' = displayCurrency === 'ARS' ? 'USD' : 'ARS';
+
+  // Compute display currency lines with strict additive consistency:
+  // netBeforeDiscount - discountAmount === netSubtotal and netSubtotal + vatAmount === finalTotal
+  const fx = Math.max(1, cfg.exchangeRateArsPerUsd);
+  const displayNetBeforeDiscount = toDisplayCurrency(netBeforeDiscountArs, displayCurrency, fx);
+  const displayDiscountAmount =
+    displayCurrency === 'USD'
+      ? round2(displayNetBeforeDiscount * (cfg.discountPercent / 100))
+      : discountAmountArs;
+  const displayNetSubtotal = round2(Math.max(0, displayNetBeforeDiscount - displayDiscountAmount));
+  const displayVatAmount =
+    displayCurrency === 'USD'
+      ? round2(displayNetSubtotal * (cfg.vatPercent / 100))
+      : vatAmountArs;
+  const displayFinalTotal = round2(displayNetSubtotal + displayVatAmount);
   const equivalentFinalTotal =
     equivalentCurrency === 'USD'
-      ? round2(finalTotalArs / Math.max(1, cfg.exchangeRateArsPerUsd))
-      : finalTotalArs;
+      ? round2(finalTotalArs / fx)
+      : round2(displayFinalTotal * fx);
 
   // Human-readable specifications for client proposal
   const matMap = new Map((input.materials ?? []).map((m) => [m.id, m.name]));
@@ -287,13 +332,13 @@ export function calculateCommercialQuote(input: CommercialQuoteInput): Commercia
     client: {
       currency: displayCurrency,
       exchangeRateArsPerUsd: cfg.exchangeRateArsPerUsd,
-      netBeforeDiscount: toDisplayCurrency(netBeforeDiscountArs, displayCurrency, cfg.exchangeRateArsPerUsd),
+      netBeforeDiscount: displayNetBeforeDiscount,
       discountPercent: cfg.discountPercent,
-      discountAmount: toDisplayCurrency(discountAmountArs, displayCurrency, cfg.exchangeRateArsPerUsd),
-      netSubtotal: toDisplayCurrency(netSubtotalArs, displayCurrency, cfg.exchangeRateArsPerUsd),
+      discountAmount: displayDiscountAmount,
+      netSubtotal: displayNetSubtotal,
       vatPercent: cfg.vatPercent,
-      vatAmount: toDisplayCurrency(vatAmountArs, displayCurrency, cfg.exchangeRateArsPerUsd),
-      finalTotal: toDisplayCurrency(finalTotalArs, displayCurrency, cfg.exchangeRateArsPerUsd),
+      vatAmount: displayVatAmount,
+      finalTotal: displayFinalTotal,
       equivalentCurrency,
       equivalentFinalTotal,
     },

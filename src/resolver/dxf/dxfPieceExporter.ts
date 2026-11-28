@@ -90,7 +90,16 @@ export function exportPieceToDxf(
     }
   }
 
-  addDrillEntities(entities, allDrills, widthMm, targetFace, shiftX, shiftY, options.encodeDepthInLayer);
+  addDrillEntities(
+    entities,
+    allDrills,
+    widthMm,
+    targetFace,
+    shiftX,
+    shiftY,
+    options.encodeDepthInLayer,
+    piece.thicknessMm,
+  );
 
   // 2b. Optional Edge Drills for CNC horizontal boring heads
   if (options.includeEdgeDrills) {
@@ -113,7 +122,7 @@ export function exportPieceToDxf(
           options.encodeDepthInLayer,
         );
       } else if (op.kind === 'rebate') {
-        addRebateEntities(entities, op, widthMm, heightMm, targetFace);
+        addRebateEntities(entities, op, widthMm, heightMm, targetFace, options.encodeDepthInLayer);
       } else if (op.kind === 'cutout') {
         addCutoutEntities(entities, op, widthMm, targetFace, shiftX, shiftY);
       } else if (op.kind === 'edge-profile') {
@@ -156,11 +165,29 @@ export function exportMachiningSheetToDxf(
     // On Face B the board is flipped horizontally, so its X=0 edge corresponds to Face A's right edge.
     const leadingEdgeX = targetFace === 'face-B' ? sheet.bandedEdges.right : sheet.bandedEdges.left;
     const trailingEdgeX = targetFace === 'face-B' ? sheet.bandedEdges.left : sheet.bandedEdges.right;
+    const leadThickX = targetFace === 'face-B'
+      ? (sheet.bandedEdgeThicknessMm?.right ?? 0)
+      : (sheet.bandedEdgeThicknessMm?.left ?? 0);
+    const trailThickX = targetFace === 'face-B'
+      ? (sheet.bandedEdgeThicknessMm?.left ?? 0)
+      : (sheet.bandedEdgeThicknessMm?.right ?? 0);
     if (leadingEdgeX && totalDedX > 0) {
-      shiftX = trailingEdgeX ? totalDedX / 2 : totalDedX;
+      if (trailingEdgeX) {
+        const sumThickX = leadThickX + trailThickX;
+        shiftX = sumThickX > 0 ? totalDedX * (leadThickX / sumThickX) : totalDedX / 2;
+      } else {
+        shiftX = totalDedX;
+      }
     }
+    const leadThickY = sheet.bandedEdgeThicknessMm?.bottom ?? 0;
+    const trailThickY = sheet.bandedEdgeThicknessMm?.top ?? 0;
     if (sheet.bandedEdges.bottom && totalDedY > 0) {
-      shiftY = sheet.bandedEdges.top ? totalDedY / 2 : totalDedY;
+      if (sheet.bandedEdges.top) {
+        const sumThickY = leadThickY + trailThickY;
+        shiftY = sumThickY > 0 ? totalDedY * (leadThickY / sumThickY) : totalDedY / 2;
+      } else {
+        shiftY = totalDedY;
+      }
     }
   }
 
@@ -185,7 +212,7 @@ export function exportMachiningSheetToDxf(
 
   for (const item of opItems) {
     const layer = options.encodeDepthInLayer
-      ? getDrillLayerName(item.diameterMm, item.depthMm, item.isThrough)
+      ? getDrillLayerName(item.diameterMm, item.depthMm, item.isThrough, sheet.dimensionsMm.thickness)
       : getDrillLayerName(item.diameterMm);
     entities.push({
       type: 'CIRCLE',
@@ -226,7 +253,7 @@ export function exportMachiningSheetToDxf(
           options.encodeDepthInLayer,
         );
       } else if (op.kind === 'rebate') {
-        addRebateEntities(entities, op, widthMm, heightMm, targetFace);
+        addRebateEntities(entities, op, widthMm, heightMm, targetFace, options.encodeDepthInLayer);
       } else if (op.kind === 'cutout') {
         addCutoutEntities(entities, op, widthMm, targetFace, shiftX, shiftY);
       } else if (op.kind === 'edge-profile') {
@@ -316,6 +343,7 @@ function addDrillEntities(
   shiftX = 0,
   shiftY = 0,
   encodeDepthInLayer = false,
+  pieceThicknessMm?: number,
 ): void {
   for (const drill of drills) {
     const isTargetFace = drill.faceType === targetFace;
@@ -335,7 +363,7 @@ function addDrillEntities(
     const effY = rawY;
 
     const layer = encodeDepthInLayer
-      ? getDrillLayerName(drill.diameterMm, drill.depthMm, drill.isThrough)
+      ? getDrillLayerName(drill.diameterMm, drill.depthMm, drill.isThrough, pieceThicknessMm)
       : getDrillLayerName(drill.diameterMm);
     entities.push({
       type: 'CIRCLE',
@@ -455,6 +483,7 @@ function addRebateEntities(
   widthMm: number,
   heightMm: number,
   targetFace: 'face-A' | 'face-B',
+  encodeDepthInLayer = false,
 ): void {
   if (op.faceType !== targetFace) return;
 
@@ -488,7 +517,9 @@ function addRebateEntities(
 
   entities.push({
     type: 'POLYLINE',
-    layer: DXF_STANDARD_LAYERS.GROOVE,
+    layer: encodeDepthInLayer
+      ? getGrooveLayerName(op.widthMm, op.depthMm)
+      : DXF_STANDARD_LAYERS.GROOVE,
     isClosed: true,
     vertices: [
       { x: x1, y: y1 },
@@ -659,8 +690,12 @@ function buildActiveLayers(entities: DxfEntity[]): DxfLayerDefinition[] {
 
   for (const entity of entities) {
     if (!layerMap.has(entity.layer)) {
+      // Match canonical base drill layer (e.g. 1_DRILL_35MM_Z12 -> 1_DRILL_35MM) for ACI color
+      const baseDrillMatch = entity.layer.match(/^(1_DRILL_\d+(?:\.\d+)?MM)(?:_|$)/);
+      const baseDrillColor = baseDrillMatch ? DXF_LAYER_COLORS[baseDrillMatch[1]!] : undefined;
       const color =
         DXF_LAYER_COLORS[entity.layer] ??
+        baseDrillColor ??
         (entity.layer.startsWith(DXF_STANDARD_LAYERS.GROOVE)
           ? DXF_LAYER_COLORS[DXF_STANDARD_LAYERS.GROOVE]
           : entity.layer.startsWith(DXF_STANDARD_LAYERS.EDGE_DRILL)

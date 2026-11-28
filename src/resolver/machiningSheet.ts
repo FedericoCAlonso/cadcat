@@ -32,6 +32,13 @@ export interface PieceBandedEdges {
   right: boolean;
 }
 
+export interface PieceBandedEdgeThicknessMm {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
 export interface PieceMachiningSheet {
   pieceId: string;
   role: string;
@@ -46,6 +53,8 @@ export interface PieceMachiningSheet {
     height: number;
   };
   bandedEdges: PieceBandedEdges;
+  /** Exact edgeband thicknesses (mm) per edge for asymmetric DXF datum offsets. */
+  bandedEdgeThicknessMm?: PieceBandedEdgeThicknessMm;
   faceAOperations: SheetOperationItem[];
   faceBOperations: SheetOperationItem[];
   edgeOperations: SheetOperationItem[];
@@ -68,20 +77,39 @@ export function buildPieceMachiningSheet(
   const pHeight = piece.dimensionsMm?.height ?? piece.cutDimensionsMm.height;
   const pThickness = piece.thicknessMm;
 
-  // Extract banded edges from piece
+  // Extract banded edges & exact thicknesses from piece
   const bandedEdges: PieceBandedEdges = {
     top: false,
     bottom: false,
     left: false,
     right: false,
   };
+  const bandedEdgeThicknessMm: PieceBandedEdgeThicknessMm = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
 
   for (const b of piece.bandedEdges ?? []) {
     const fId = b.faceId.toLowerCase();
-    if (fId.includes('top')) bandedEdges.top = true;
-    if (fId.includes('bottom')) bandedEdges.bottom = true;
-    if (fId.includes('left')) bandedEdges.left = true;
-    if (fId.includes('right')) bandedEdges.right = true;
+    const t = typeof b.thicknessMm === 'number' && b.thicknessMm > 0 ? b.thicknessMm : 0;
+    if (fId.includes('top')) {
+      bandedEdges.top = true;
+      bandedEdgeThicknessMm.top = t;
+    }
+    if (fId.includes('bottom')) {
+      bandedEdges.bottom = true;
+      bandedEdgeThicknessMm.bottom = t;
+    }
+    if (fId.includes('left')) {
+      bandedEdges.left = true;
+      bandedEdgeThicknessMm.left = t;
+    }
+    if (fId.includes('right')) {
+      bandedEdges.right = true;
+      bandedEdgeThicknessMm.right = t;
+    }
   }
 
   const pieceCustomOps = (customOperations ?? []).filter((op) => op.pieceId === piece.id);
@@ -180,6 +208,7 @@ export function buildPieceMachiningSheet(
       height: piece.cutDimensionsMm.height,
     },
     bandedEdges,
+    bandedEdgeThicknessMm,
     faceAOperations,
     faceBOperations,
     edgeOperations,

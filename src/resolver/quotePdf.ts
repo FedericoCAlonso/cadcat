@@ -113,16 +113,18 @@ export function exportCommercialQuotePdf(
     if (mod.doorCount > 0) details.push(`${mod.doorCount} puerta(s)`);
     if (mod.shelfCount > 0) details.push(`${mod.shelfCount} estante(s)`);
     const desc = details.length > 0 ? `${mod.name} (${details.join(', ')})` : mod.name;
+    const wrappedDesc = doc.splitTextToSize(desc, 80) as string[];
+    const rowHeight = Math.max(6, wrappedDesc.length * 4 + 2);
 
     doc.text(String(idx + 1), margin + 3, y + 3.5);
-    doc.text(desc.slice(0, 52), margin + 16, y + 3.5);
+    doc.text(wrappedDesc, margin + 16, y + 3.5);
     doc.text(`${mod.widthMm} × ${mod.heightMm} × ${mod.depthMm} mm`, margin + 100, y + 3.5);
     doc.text(`${Math.max(1, Math.floor(mod.quantity || 1))} un.`, margin + 162, y + 3.5);
 
     doc.setDrawColor(230, 226, 216);
     doc.setLineWidth(0.2);
-    doc.line(margin, y + 5, margin + contentW, y + 5);
-    y += 6;
+    doc.line(margin, y + rowHeight - 1, margin + contentW, y + rowHeight - 1);
+    y += rowHeight;
   });
 
   y += 5;
@@ -135,9 +137,15 @@ export function exportCommercialQuotePdf(
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
+  const hwSummaryText =
+    quote.hardwareSummary.length > 0
+      ? `${quote.hardwareSummary.slice(0, 6).join(' · ')}${
+          quote.hardwareSummary.length > 6 ? ` (+${quote.hardwareSummary.length - 6} más)` : ''
+        }`
+      : 'Herrajes estándar de carpintería';
   const specLines: string[] = [
     `• Placas y materiales: ${quote.materialsSummary.length > 0 ? quote.materialsSummary.join(', ') : 'Según muestra aprobada'}.`,
-    `• Herrajes incluidos: ${quote.hardwareSummary.length > 0 ? quote.hardwareSummary.slice(0, 6).join(' · ') : 'Herrajes estándar de carpintería'}.`,
+    `• Herrajes incluidos: ${hwSummaryText}.`,
   ];
   if (quote.countertopSummary) {
     specLines.push(`• Mesada / Marmolería: ${quote.countertopSummary}.`);
@@ -252,6 +260,11 @@ export function exportCommercialQuotePdf(
   ];
   if (quote.config.clientNotes?.trim()) {
     termsLines.push(`• Notas: ${quote.config.clientNotes.trim()}`);
+  }
+  if (quote.hasUnconfirmedPrices) {
+    termsLines.push(
+      '• Aclaración: Algunos insumos o materiales del detalle se encuentran sujetos a confirmación de precio vigente.',
+    );
   }
   for (const tLine of termsLines) {
     const wrapped = doc.splitTextToSize(tLine, contentW);
