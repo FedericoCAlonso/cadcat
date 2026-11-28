@@ -73,12 +73,14 @@ describe('Cut List CSV Export', () => {
     },
   ];
 
-  it('exports standard CSV headers and rows with cut sizes', () => {
-    const csv = exportCutListCsv(samplePieces);
+  it('exports standard Spanish CSV headers and rows with cut sizes', () => {
+    const csv = exportCutListCsv(samplePieces, {
+      'mat-egger-white-18': 'Melamina Blanca 18mm',
+    });
 
-    expect(csv).toContain('Piece ID,Role,Material ID,Finished Width (mm),Finished Height (mm),Cut Width (mm),Cut Height (mm),Thickness (mm),Structural,Edge Bands,Nombre (ES)');
-    expect(csv).toContain('piece-side-left,side-left,mat-egger-white-18,560,800,558,800,18,Yes,right-edge (2mm),Lateral izquierdo');
-    expect(csv).toContain('piece-bottom,bottom,mat-egger-white-18,564,560,562,560,18,Yes,right-edge (0.8mm),Piso / Base');
+    expect(csv).toContain('ID Pieza,Rol,Material,Ancho Final (mm),Alto Final (mm),Ancho Corte (mm),Alto Corte (mm),Espesor (mm),Estructural,Tapacantos,Pieza');
+    expect(csv).toContain('piece-side-left,side-left,Melamina Blanca 18mm,560,800,558,800,18,Sí,Derecho (2 mm),Lateral izquierdo');
+    expect(csv).toContain('piece-bottom,bottom,Melamina Blanca 18mm,564,560,562,560,18,Sí,Derecho (0.8 mm),Piso / Base');
   });
 });
 

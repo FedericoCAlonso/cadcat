@@ -15,33 +15,43 @@ function escapeCsv(val: string | number | boolean): string {
   return str;
 }
 
-/**
- * Format banded edges into a readable CSV string.
- */
-function formatBandedEdges(banded: BandedEdgeInfo[]): string {
-  if (banded.length === 0) return 'None';
-  return banded.map((b) => `${b.faceId} (${b.thicknessMm}mm)`).join('; ');
+function formatEdgeFaceSpanish(faceId: string): string {
+  const f = faceId.toLowerCase();
+  if (f.includes('top')) return 'Superior';
+  if (f.includes('bottom')) return 'Inferior';
+  if (f.includes('left')) return 'Izquierdo';
+  if (f.includes('right')) return 'Derecho';
+  return faceId;
 }
 
 /**
- * Export pieces cut list to CSV format.
+ * Format banded edges into a readable Argentine Spanish CSV string.
+ */
+function formatBandedEdges(banded: BandedEdgeInfo[]): string {
+  if (banded.length === 0) return 'Ninguno';
+  return banded.map((b) => `${formatEdgeFaceSpanish(b.faceId)} (${b.thicknessMm} mm)`).join('; ');
+}
+
+/**
+ * Export pieces cut list to CSV format (100% Spanish).
  * Section 8.3: The cut list always shows the cut size.
  */
 export function exportCutListCsv(
   pieces: (ResolvedPieceWithCutSize | BOMPieceItem)[],
+  materialNameMap?: Record<string, string>,
 ): string {
   const headers = [
-    'Piece ID',
-    'Role',
-    'Material ID',
-    'Finished Width (mm)',
-    'Finished Height (mm)',
-    'Cut Width (mm)',
-    'Cut Height (mm)',
-    'Thickness (mm)',
-    'Structural',
-    'Edge Bands',
-    'Nombre (ES)',
+    'ID Pieza',
+    'Rol',
+    'Material',
+    'Ancho Final (mm)',
+    'Alto Final (mm)',
+    'Ancho Corte (mm)',
+    'Alto Corte (mm)',
+    'Espesor (mm)',
+    'Estructural',
+    'Tapacantos',
+    'Pieza',
   ];
 
   const rows: string[] = [headers.join(',')];
@@ -56,18 +66,19 @@ export function exportCutListCsv(
     const cutW = piece.cutDimensionsMm.width;
     const cutH = piece.cutDimensionsMm.height;
     const bandedStr = formatBandedEdges(piece.bandedEdges);
+    const materialLabel = materialNameMap?.[piece.materialId] ?? piece.materialId;
 
     const pieceId = 'id' in piece ? piece.id : piece.pieceId;
     const row = [
       escapeCsv(pieceId),
       escapeCsv(piece.role),
-      escapeCsv(piece.materialId),
+      escapeCsv(materialLabel),
       escapeCsv(finishedW),
       escapeCsv(finishedH),
       escapeCsv(cutW),
       escapeCsv(cutH),
       escapeCsv(piece.thicknessMm),
-      escapeCsv(piece.structural ? 'Yes' : 'No'),
+      escapeCsv(piece.structural ? 'Sí' : 'No'),
       escapeCsv(bandedStr),
       escapeCsv(translateRoleKey(piece.role)),
     ];

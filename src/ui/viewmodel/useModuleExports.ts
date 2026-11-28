@@ -154,10 +154,11 @@ export function useModuleExports(params: UseModuleExportsParams) {
     }
 
     const allPieces = [...piecesToExport, ...auxPieces];
-    const csvContent = exportCutListCsv(allPieces);
+    const materialNameMap = Object.fromEntries(materials.map((m) => [m.id, m.name]));
+    const csvContent = exportCutListCsv(allPieces, materialNameMap);
     const fileName = isGlobal
-      ? `cut-list-proyecto-${(project?.name ?? 'global').toLowerCase().replace(/\s+/g, '-')}.csv`
-      : `cut-list-${currentModule?.id ?? 'module'}.csv`;
+      ? `despiece-proyecto-${(project?.name ?? 'global').toLowerCase().replace(/\s+/g, '-')}.csv`
+      : `despiece-${currentModule?.id ?? 'modulo'}.csv`;
 
     triggerBrowserDownload(fileName, csvContent, 'text/csv;charset=utf-8;');
     setStatusMessage(
@@ -169,6 +170,7 @@ export function useModuleExports(params: UseModuleExportsParams) {
     consolidatedPieces,
     activeModuleToConsolidate,
     assemblySheet,
+    materials,
     project,
     currentModule,
     projectConfig,
